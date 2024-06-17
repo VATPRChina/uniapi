@@ -1,7 +1,20 @@
 package main
 
-import "github.com/vatprchina/uniapi/usecase"
+import (
+	"log"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/vatprchina/uniapi/external"
+)
 
 func main() {
-	usecase.SyncDiscourseATCGroup()
+	external.DatabaseConnect()
+
+	app := fiber.New()
+
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.SendString("Hello, World!")
+	})
+
+	log.Fatal(app.Listen(":3000"))
 }
