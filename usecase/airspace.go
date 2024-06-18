@@ -10,7 +10,7 @@ type airspaceUsecase struct{}
 var AirspaceUsecase = &airspaceUsecase{}
 
 func (svc *airspaceUsecase) Create(ident string, name string) {
-	airspace := &entity.Airspace{
+	airspace := &entity.EventAirspace{
 		Ident: ident,
 		Name:  name,
 	}

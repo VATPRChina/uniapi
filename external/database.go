@@ -16,7 +16,13 @@ func DatabaseConnect() error {
 	}
 
 	Database = db
-	err = db.AutoMigrate(new(entity.Event), new(entity.Airspace), new(entity.Slot), new(entity.Booking))
+	err = db.AutoMigrate(
+		new(entity.User),
+		new(entity.Event),
+		new(entity.EventAirspace),
+		new(entity.Slot),
+		new(entity.Booking),
+	)
 
 	if err != nil {
 		return err

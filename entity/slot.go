@@ -11,5 +11,7 @@ type Slot struct {
 	EventId    ulid.ULID `gorm:"type:uuid;not null"`
 	EnterAt    time.Time `gorm:"type:timestamptz;not null"`
 	AirspaceId ulid.ULID `gorm:"type:uuid;not null"`
-	Booking    Booking
+
+	Airspace EventAirspace
+	Event    Event
 }
