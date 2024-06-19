@@ -2,13 +2,16 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/danielgtaylor/huma/v2"
 )
 
 type greetingInput struct {
-	Name string `path:"name" maxLength:"30" example:"world" doc:"Name to greet"`
+	Body struct {
+		GrantType string `path:"grant_type" example:"password" doc:"Must be password"`
+		Username  string `path:"username" example:"10000001" doc:"Username"`
+		Password  string `path:"password" example:"foobar" doc:"Type any value"`
+	}
 }
 
 type greetingOutput struct {
@@ -19,10 +22,9 @@ type greetingOutput struct {
 
 func greet(ctx context.Context, input *greetingInput) (*greetingOutput, error) {
 	resp := &greetingOutput{}
-	resp.Body.Message = fmt.Sprintf("Hello, %s!", input.Name)
 	return resp, nil
 }
 
-func AddGreet(api huma.API) {
-	huma.Get(api, "/greeting/{name}", greet)
+func AddAuthRoutes(api huma.API) {
+	huma.Post(api, "/oauth/authorize", greet)
 }

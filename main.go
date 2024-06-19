@@ -29,7 +29,7 @@ func main() {
 
 	api := humafiber.New(app, huma.DefaultConfig("VATPRC UniAPI", "v1"))
 
-	controller.AddGreet(api)
+	controller.AddRoutes(api)
 
 	log.Fatal(app.Listen(":3000"))
 }
