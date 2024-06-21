@@ -2,10 +2,9 @@ package controller
 
 import (
 	"context"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/vatprchina/uniapi/usecase"
 )
 
 type authorizeInput struct {
@@ -21,25 +20,19 @@ type authorizeOutput struct {
 		AccessToken  string `json:"access_token" doc:""`
 		TokenType    string `json:"token_type" doc:"Bearer"`
 		ExpiresIn    int    `json:"expires_in" doc:"the duration of time the access token is granted for, in seconds"`
-		RefreshToken string `json:"refresh_token" doc:""`
+		RefreshToken string `json:"refresh_token,omitempty" doc:""`
 	}
 }
 
 func greet(ctx context.Context, input *authorizeInput) (*authorizeOutput, error) {
-	claims := &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Unix(1516239022, 0)),
-		Issuer:    "test",
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	mySigningKey := []byte("AllYourBase")
-	ss, err := token.SignedString(mySigningKey)
+	ss, duration, err := usecase.IssueAccessToken(input.Body.Username)
 	if err != nil {
 		return nil, err
 	}
-
 	resp := &authorizeOutput{}
-	resp.Body.AccessToken = ss
+	resp.Body.AccessToken = *ss
+	resp.Body.TokenType = "Bearer"
+	resp.Body.ExpiresIn = int(duration.Seconds())
 	return resp, nil
 }
 

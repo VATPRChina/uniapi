@@ -1,0 +1,18 @@
+[discourse]
+api_key = "DISCOURSE_API_KEY"
+api_username = "10000"
+
+[database]
+uri = "host=localhost user=postgres dbname=uniapi"
+
+[jwt]
+private_key = '''
+-----BEGIN PRIVATE KEY-----
+//////
+-----END PRIVATE KEY-----
+'''
+public_key = '''
+-----BEGIN PUBLIC KEY-----
+//////
+-----END PUBLIC KEY-----
+'''
