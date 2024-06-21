@@ -5,12 +5,13 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/vatprchina/uniapi/entity"
+	"github.com/vatprchina/uniapi/util"
 )
 
 var Database *gorm.DB
 
 func DatabaseConnect() error {
-	db, err := gorm.Open(postgres.Open("host=localhost user=xfoxfu dbname=uniapi"), &gorm.Config{TranslateError: true})
+	db, err := gorm.Open(postgres.Open(util.Config.Database.Uri), &gorm.Config{TranslateError: true})
 	if err != nil {
 		return err
 	}

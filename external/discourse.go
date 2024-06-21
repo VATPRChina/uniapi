@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/vatprchina/uniapi/util"
 )
 
 type GroupList struct {
@@ -39,8 +40,8 @@ var discourseClient = resty.New()
 func GetATCGroupMembers() (*GroupMembersList, error) {
 	resp, err := discourseClient.R().
 		SetResult(new(GroupMembersList)).
-		SetHeader("Api-Key", os.Getenv("DISCOURSE_API_KEY")).
-		SetHeader("Api-Username", os.Getenv("DISCOURSE_API_USERNAME")).
+		SetHeader("Api-Key", util.Config.Discourse.ApiKey).
+		SetHeader("Api-Username", util.Config.Discourse.ApiUsername).
 		SetPathParam("id", "ATC").
 		SetQueryParam("limit", "1000").
 		Get("https://community.vatprc.net/groups/{id}/members.json")
@@ -55,8 +56,8 @@ func GetATCGroupMembers() (*GroupMembersList, error) {
 func GetUser(id int) (*resty.Response, *User, error) {
 	resp, err := discourseClient.R().
 		SetResult(new(User)).
-		SetHeader("Api-Key", os.Getenv("DISCOURSE_API_KEY")).
-		SetHeader("Api-Username", os.Getenv("DISCOURSE_API_USERNAME")).
+		SetHeader("Api-Key", util.Config.Discourse.ApiKey).
+		SetHeader("Api-Username", util.Config.Discourse.ApiUsername).
 		SetPathParam("username", fmt.Sprintf("%d", id)).
 		Put("https://community.vatprc.net/u/{username}.json")
 	if err != nil {
@@ -70,8 +71,8 @@ func GetUser(id int) (*resty.Response, *User, error) {
 func AddMember(insertListStr string) (*resty.Response, error) {
 	resp, err := discourseClient.R().
 		SetResult(new(User)).
-		SetHeader("Api-Key", os.Getenv("DISCOURSE_API_KEY")).
-		SetHeader("Api-Username", os.Getenv("DISCOURSE_API_USERNAME")).
+		SetHeader("Api-Key", util.Config.Discourse.ApiKey).
+		SetHeader("Api-Username", util.Config.Discourse.ApiUsername).
 		SetPathParam("id", "41").
 		SetBody(map[string]string{
 			"usernames": insertListStr,
@@ -87,8 +88,8 @@ func AddMember(insertListStr string) (*resty.Response, error) {
 func RemoveMember(removeListStr string) (*resty.Response, error) {
 	resp, err := discourseClient.R().
 		SetResult(new(User)).
-		SetHeader("Api-Key", os.Getenv("DISCOURSE_API_KEY")).
-		SetHeader("Api-Username", os.Getenv("DISCOURSE_API_USERNAME")).
+		SetHeader("Api-Key", util.Config.Discourse.ApiKey).
+		SetHeader("Api-Username", util.Config.Discourse.ApiUsername).
 		SetPathParam("id", "41").
 		SetBody(map[string]string{
 			"usernames": removeListStr,
