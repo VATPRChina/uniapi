@@ -9,7 +9,7 @@ import (
 
 type authUsecase struct{}
 
-var AuthUsecase = &authUsecase{}
+var Auth = &authUsecase{}
 
 func (*authUsecase) IssueAccessToken(cid string) (*string, *time.Duration, error) {
 	claims := &jwt.RegisteredClaims{

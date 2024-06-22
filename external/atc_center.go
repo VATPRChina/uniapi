@@ -7,6 +7,14 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
+type atcApi struct {
+	client *resty.Client
+}
+
+var Atc = atcApi{
+	client: resty.New(),
+}
+
 type ATCList []struct {
 	ID        int    `json:"id"`
 	FirstName string `json:"first_name"`
@@ -17,10 +25,8 @@ type ATCList []struct {
 	} `json:"roles"`
 }
 
-var atcClient = resty.New()
-
-func GetAllAtc() (*ATCList, error) {
-	resp, err := atcClient.R().SetResult(new(ATCList)).Get("https://atcapi.vatprc.net/v1/public/controllers")
+func (usecase *atcApi) GetAllAtc() (*ATCList, error) {
+	resp, err := usecase.client.R().SetResult(new(ATCList)).Get("https://atcapi.vatprc.net/v1/public/controllers")
 	if err != nil {
 		fmt.Print(err.Error())
 		os.Exit(1)

@@ -7,7 +7,7 @@ import (
 
 type airspaceUsecase struct{}
 
-var AirspaceUsecase = &airspaceUsecase{}
+var Airspace = &airspaceUsecase{}
 
 func (svc *airspaceUsecase) Create(ident string, name string) {
 	airspace := &entity.EventAirspace{

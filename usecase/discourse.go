@@ -12,8 +12,8 @@ func SyncDiscourseATCGroup() {
 	insertList := []string{}
 	removeList := []string{}
 
-	atcList, _ := external.GetAllAtc()
-	atcGroupMembers, _ := external.GetATCGroupMembers()
+	atcList, _ := external.Atc.GetAllAtc()
+	atcGroupMembers, _ := external.Discourse.GetATCGroupMembers()
 	for _, member := range atcGroupMembers.Members {
 		fmt.Printf("ATC group User %s (%d, %s)\n", member.Name, member.ID, member.Username)
 		found := false
@@ -37,7 +37,7 @@ func SyncDiscourseATCGroup() {
 			}
 		}
 		if !found {
-			resp, _, _ := external.GetUser(atc.ID)
+			resp, _, _ := external.Discourse.GetUser(atc.ID)
 			if resp.Status() != "200 OK" {
 				fmt.Printf("Skip non-exist user %s %s (%d)\n", atc.FirstName, atc.LastName, atc.ID)
 				continue
@@ -48,10 +48,10 @@ func SyncDiscourseATCGroup() {
 	}
 
 	insertListStr := strings.Join(insertList, ",")
-	resp, _ := external.AddMember(insertListStr)
+	resp, _ := external.Discourse.AddMember(insertListStr)
 	fmt.Printf("Added %v get %s (%s)\n", insertListStr, resp.Status(), resp.String())
 
 	removeListStr := strings.Join(removeList, ",")
-	resp, _ = external.RemoveMember(removeListStr)
+	resp, _ = external.Discourse.RemoveMember(removeListStr)
 	fmt.Printf("Removed %v get %s (%s)\n", removeListStr, resp.Status(), resp.String())
 }

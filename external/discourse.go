@@ -8,6 +8,14 @@ import (
 	"github.com/vatprchina/uniapi/util"
 )
 
+type discourseApi struct {
+	client *resty.Client
+}
+
+var Discourse = discourseApi{
+	client: resty.New(),
+}
+
 type GroupList struct {
 	Groups []struct {
 		ID          int    `json:"id"`
@@ -35,10 +43,8 @@ type User struct {
 	} `json:"user"`
 }
 
-var discourseClient = resty.New()
-
-func GetATCGroupMembers() (*GroupMembersList, error) {
-	resp, err := discourseClient.R().
+func (usecase *discourseApi) GetATCGroupMembers() (*GroupMembersList, error) {
+	resp, err := usecase.client.R().
 		SetResult(new(GroupMembersList)).
 		SetHeader("Api-Key", util.Config.Discourse.ApiKey).
 		SetHeader("Api-Username", util.Config.Discourse.ApiUsername).
@@ -53,8 +59,8 @@ func GetATCGroupMembers() (*GroupMembersList, error) {
 	return resp.Result().(*GroupMembersList), err
 }
 
-func GetUser(id int) (*resty.Response, *User, error) {
-	resp, err := discourseClient.R().
+func (usecase *discourseApi) GetUser(id int) (*resty.Response, *User, error) {
+	resp, err := usecase.client.R().
 		SetResult(new(User)).
 		SetHeader("Api-Key", util.Config.Discourse.ApiKey).
 		SetHeader("Api-Username", util.Config.Discourse.ApiUsername).
@@ -68,8 +74,8 @@ func GetUser(id int) (*resty.Response, *User, error) {
 	return resp, resp.Result().(*User), err
 }
 
-func AddMember(insertListStr string) (*resty.Response, error) {
-	resp, err := discourseClient.R().
+func (usecase *discourseApi) AddMember(insertListStr string) (*resty.Response, error) {
+	resp, err := usecase.client.R().
 		SetResult(new(User)).
 		SetHeader("Api-Key", util.Config.Discourse.ApiKey).
 		SetHeader("Api-Username", util.Config.Discourse.ApiUsername).
@@ -85,8 +91,8 @@ func AddMember(insertListStr string) (*resty.Response, error) {
 	return resp, err
 }
 
-func RemoveMember(removeListStr string) (*resty.Response, error) {
-	resp, err := discourseClient.R().
+func (usecase *discourseApi) RemoveMember(removeListStr string) (*resty.Response, error) {
+	resp, err := usecase.client.R().
 		SetResult(new(User)).
 		SetHeader("Api-Key", util.Config.Discourse.ApiKey).
 		SetHeader("Api-Username", util.Config.Discourse.ApiUsername).
