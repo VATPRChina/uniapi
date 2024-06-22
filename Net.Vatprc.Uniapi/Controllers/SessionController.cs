@@ -1,10 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Net;
 using System.Security.Claims;
 using Net.Vatprc.Uniapi.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NSwag.Annotations;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -67,20 +65,27 @@ public class SessionController : ControllerBase
     /// <param name="req"></param>
     /// <returns></returns>
     /// <exception cref="ApiError.InvalidGrantType">If the grant type is invalid.</exception>
-    /// <exception cref="ApiError.InvalidUsernameOrPassword"></exception>
     [HttpPost]
     [AllowAnonymous]
     [ResponseCache(NoStore = true)]
     [Consumes("application/x-www-form-urlencoded")]
     [ApiError.Has<ApiError.InvalidGrantType>]
-    [ApiError.Has<ApiError.InvalidUsernameOrPassword>]
     public async Task<LoginResDto> Login([FromForm] LoginReqDto req)
     {
         if (req.grant_type == "password")
         {
             var user = await DbContext.User.FirstOrDefaultAsync(x => x.Cid == req.username);
             // FIXME: password grant should only be used in dev
-            if (user == null) throw new ApiError.UserNotFound(Ulid.NewUlid());
+            if (user == null)
+            {
+                user = new()
+                {
+                    Cid = req.username,
+                    FullName = req.username
+                };
+                DbContext.User.Add(user);
+                await DbContext.SaveChangesAsync();
+            }
             var refresh = await TokenService.IssueFirstPartyRefreshToken(user, null);
             var (token, jwt) = TokenService.IssueFirstParty(user, refresh);
             var expires = jwt.Payload.Expiration ?? 0;
@@ -170,10 +175,10 @@ public class SessionController : ControllerBase
             throw new ApiError.InvalidTokenNotFirstParty();
         }
         var refresh = User.FindFirstValue(JwtRegisteredClaimNames.Sid) ??
-            throw new ApiError.InvalidToken("za_sid_not_present", "no sid in token", null);
+            throw new ApiError.InvalidToken("vatprc_sid_not_present", "no sid in token", null);
         var tokenId = Guid.Parse(refresh);
         var token = await DbContext.Session.FindAsync(tokenId) ??
-            throw new ApiError.InvalidToken("za_refresh_token_not_found", $"refresh token {refresh} not found", null);
+            throw new ApiError.InvalidToken("vatprc_refresh_token_not_found", $"refresh token {refresh} not found", null);
         DbContext.Session.Remove(token);
         await DbContext.SaveChangesAsync();
         return NoContent();

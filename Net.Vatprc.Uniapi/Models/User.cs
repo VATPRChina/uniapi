@@ -14,6 +14,8 @@ public class User
 
     public DateTimeOffset UpdatedAt { get; set; }
 
+    public IEnumerable<UserRole> Roles { get; set; } = [];
+
     public IEnumerable<Session> Sessions { get; set; } = null!;
 
     public class UserConfiguration : IEntityTypeConfiguration<User>
@@ -30,5 +32,24 @@ public class User
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .ValueGeneratedOnAddOrUpdate();
         }
+    }
+
+    /// <summary>
+    /// Roles, which controls permission
+    /// </summary>
+    public enum UserRole
+    {
+        /// <summary>
+        /// Super admin
+        /// </summary>
+        Admin,
+        /// <summary>
+        /// Event coordination
+        /// </summary>
+        EventCoordinator,
+        /// <summary>
+        /// ATC
+        /// </summary>
+        ATC,
     }
 }

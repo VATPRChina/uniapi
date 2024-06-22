@@ -275,50 +275,6 @@ public abstract class ApiError : Exception
         }
     }
 
-    [Error(HttpStatusCode.NotFound, "CATAGORY_NOT_FOUND", "Catagory {category_id} not found.")]
-    [WithExtraData("category_id", typeof(string))]
-    public class CategoryNotFound : ApiError
-    {
-        public CategoryNotFound(Ulid id) : base(
-            $"Catagory {id} not found.")
-        {
-            ExtraData.Add("category_id", id);
-        }
-    }
-
-    [Error(HttpStatusCode.NotFound, "ITEM_NOT_FOUND", "Item {item_id} not found.")]
-    [WithExtraData("item_id", typeof(string))]
-    public class ItemNotFound : ApiError
-    {
-        public ItemNotFound(Ulid id) : base(
-            $"Item {id} not found.")
-        {
-            ExtraData.Add("item_id", id);
-        }
-    }
-
-    [Error(HttpStatusCode.NotFound, "LINK_NOT_FOUND", "Link {link_id} not found.")]
-    [WithExtraData("link_id", typeof(string))]
-    public class LinkNotFound : ApiError
-    {
-        public LinkNotFound(Ulid id) : base(
-            $"Link {id} not found.")
-        {
-            ExtraData.Add("link_id", id);
-        }
-    }
-
-    [Error(HttpStatusCode.NotFound, "PIKPAK_JOB_NOT_FOUND", "PikPak job {pikpak_job_id} not found.")]
-    [WithExtraData("pikpak_job_id", typeof(string))]
-    public class PikPakJobNotFound : ApiError
-    {
-        public PikPakJobNotFound(Ulid id) : base(
-            $"PikPak job {id} not found.")
-        {
-            ExtraData.Add("pikpak_job_id", id);
-        }
-    }
-
     [Error(HttpStatusCode.NotFound, "USER_NOT_FOUND", "User {user_id} not found.")]
     [WithExtraData("user_id", typeof(string))]
     public class UserNotFound : ApiError
@@ -330,30 +286,6 @@ public abstract class ApiError : Exception
         }
     }
 
-    [Error(HttpStatusCode.NotFound, "USERNAME_TAKEN", "Username {username} is already taken.")]
-    [WithExtraData("username", typeof(string))]
-    public class UsernameTaken : ApiError
-    {
-        public UsernameTaken(string username) : base(
-            $"Username {username} is already taken.")
-        {
-            ExtraData.Add("username", username);
-        }
-    }
-
-    [Error(HttpStatusCode.BadRequest, "INVALID_CAPTCHA", "Turnstile validation token is invalid since {codes}.")]
-    [WithExtraData("token", typeof(string))]
-    [WithExtraData("codes", typeof(IEnumerable<string>))]
-    public class InvalidCaptcha : ApiError
-    {
-        public InvalidCaptcha(string token, IEnumerable<string> codes) : base(
-            $"Turnstile validation token is invalid since {string.Join(",", codes)}.")
-        {
-            ExtraData.Add("token", token);
-            ExtraData.Add("codes", codes);
-        }
-    }
-
     [Error(HttpStatusCode.BadRequest, "INVALID_GRANT_TYPE", "Invalid grant type {grant_type}.")]
     [WithExtraData("grant_type", typeof(string))]
     public class InvalidGrantType : ApiError
@@ -362,17 +294,6 @@ public abstract class ApiError : Exception
             $"Invalid grant type {grantType}.")
         {
             ExtraData.Add("grant_type", grantType);
-        }
-    }
-
-    [Error(HttpStatusCode.Forbidden, "INVALID_USERNAME_OR_PASSWORD", "Invalid username {username} or password.")]
-    [WithExtraData("username", typeof(string))]
-    public class InvalidUsernameOrPassword : ApiError
-    {
-        public InvalidUsernameOrPassword(string username) : base(
-            $"Invalid username {username} or password.")
-        {
-            ExtraData.Add("username", username);
         }
     }
 
@@ -407,16 +328,6 @@ public abstract class ApiError : Exception
             $"Refresh token is not valid for {code}.")
         {
             ExtraData.Add("code", code);
-        }
-    }
-
-    [Error(HttpStatusCode.Forbidden, "USER_REG_RESTRICTED", "User registration is restricted as there exists valid user.")]
-    [WithExtraData("code", typeof(string))]
-    public class UserRegRestricted : ApiError
-    {
-        public UserRegRestricted() : base(
-            $"User registration is restricted as there exists valid user.")
-        {
         }
     }
 }

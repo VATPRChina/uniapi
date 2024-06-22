@@ -10,7 +10,7 @@ global using u16 = ushort;
 global using f32 = float;
 global using f64 = double;
 global using Net.Vatprc.Uniapi;
-global using ZhuiAnime = Net.Vatprc.Uniapi;
+global using UniApi = Net.Vatprc.Uniapi;
 
 using System.CommandLine;
 using System.Text.Json.Serialization;
@@ -92,11 +92,11 @@ builder.Services.AddSwaggerGen(opts =>
     opts.SwaggerDoc("v1", new OpenApiInfo
     {
         Version = "v1",
-        Title = "ZhuiAni.me API",
+        Title = "VATPRC UniAPI",
         Description = """
         # Error Handling
 
-        ZhuiAni.me returns normalized error responses. The response body is a JSON object with the following fields:
+        VATPRC UniAPI returns normalized error responses. The response body is a JSON object with the following fields:
 
         | Field           | Type     | Description     |
         | --------------- | -------- | --------------- |
@@ -111,7 +111,7 @@ builder.Services.AddSwaggerGen(opts =>
         error message example.
         """,
     });
-    opts.AddServer(new OpenApiServer { Url = "https://zhuiani.me", Description = "Public server" });
+    opts.AddServer(new OpenApiServer { Url = "https://uniapi.vatprc.net", Description = "Public server" });
     opts.AddServer(new OpenApiServer { Url = "https://localhost:5001", Description = "Local development server" });
     opts.AddSecurityDefinition("oauth2_1p", new OpenApiSecurityScheme
     {
@@ -202,7 +202,6 @@ app.UseSentryTracing();
 app.UseSerilogRequestLogging();
 
 if (app.Environment.IsProduction()) app.UseHttpsRedirection();
-app.UseStaticFiles();
 
 app.UseRouting();
 
@@ -212,13 +211,12 @@ app.UseAuthorization();
 app.MapControllers().RequireAuthorization(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 app.MapFallbackToController("/api/{**path}",
-    nameof(ZhuiAnime.Controllers.InternalController.EndpointNotFound),
-    nameof(ZhuiAnime.Controllers.InternalController).Replace("Controller", ""));
+    nameof(UniApi.Controllers.InternalController.EndpointNotFound),
+    nameof(UniApi.Controllers.InternalController).Replace("Controller", ""));
 
 
-app.MapFallbackToFile("index.html");
 
-var rootCommand = new RootCommand("Start ZhuiAni.me");
+var rootCommand = new RootCommand("Start VATPRC UniAPI");
 rootCommand.SetHandler(async () =>
 {
     await app.RunAsync();
