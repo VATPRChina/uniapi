@@ -1,0 +1,3 @@
+<%~ includeFile("@base/http-client.eta", it) %>
+
+export class ApiError extends Error {}

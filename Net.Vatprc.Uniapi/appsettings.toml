@@ -1,0 +1,51 @@
+AllowedHosts = "*"
+
+[Serilog]
+Using = [
+  "Serilog.Sinks.Console",
+  "Net.Vatprc.Uniapi",
+  "Sentry.Serilog",
+  "Serilog.Sinks.Grafana.Loki",
+]
+
+[Serilog.MinimumLevel]
+Default = "Information"
+[Serilog.MinimumLevel.Override]
+"Net.Vatprc.Uniapi" = "Debug"
+Microsoft = "Information"
+"Microsoft.AspNetCore" = "Warning"
+"Microsoft.EntityFrameworkCore.Database.Command" = "Warning"
+"AspNetCore.SpaYarp" = "Information"
+"Yarp.ReverseProxy" = "Warning"
+"Elsa" = "Warning"
+
+[Serilog.WriteTo.Console]
+Name = "Console"
+[Serilog.WriteTo.Console.Args]
+outputTemplate = "[{Timestamp:HH:mm:ss} {Level:u3}] {Message} (at {SourceContext}){NewLine}{Exception}"
+
+[Serilog.Properties]
+Application = "VATPRC-UniAPI"
+
+[Sentry]
+Dsn = ""
+
+[ConnectionStrings]
+VATPRCContext = "Host=localhost;Database=uniapi;Include Error Detail=true"
+
+[Authentication.Jwt]
+# Generate ECC key with https://dinochiesa.github.io/jwt/
+PrivateKey = """
+-----BEGIN PRIVATE KEY-----
+......
+-----END PRIVATE KEY-----
+"""
+PublicKey = """
+-----BEGIN PUBLIC KEY-----
+......
+-----END PUBLIC KEY-----
+"""
+Issuer = "https://uniapi.vatprc.net"
+AudienceFirstParty = "https://uniapi.vatprc.net"
+FirstPartyExpires = 01:00:00
+RefreshExpiresDays = 7

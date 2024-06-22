@@ -1,0 +1,126 @@
+<%
+if (it.route.raw['x-allow-anonymous']) {
+    it.route.request.security = false;
+}
+%>
+<%~ includeFile("@default/procedure-call.eta", it) %>
+<%
+const { utils, route, config } = it;
+const { requestBodyInfo, responseBodyInfo, specificArgNameResolver } = route;
+const { _, getInlineParseContent, getParseContent, parseSchema, getComponentByRef, require } = utils;
+const { parameters, path, method, payload, query, formData, security, requestParams } = route.request;
+const { type, errorType, contentTypes } = route.response;
+const { HTTP_CLIENT, RESERVED_REQ_PARAMS_ARG_NAMES } = config.constants;
+const routeDocs = includeFile("@base/route-docs", { config, route, utils });
+const queryName = (query && query.name) || "query";
+const pathParams = _.values(parameters);
+const pathParamsNames = _.map(pathParams, "name");
+
+const FetchCondition = {
+    name: "doFetch",
+    optional: true,
+    type: "boolean",
+    defaultValue: true,
+}
+
+const SWRConfigParam = {
+    name: "options",
+    optional: true,
+    type: "SWRConfiguration",
+    defaultValue: null,
+}
+
+const MutateConfigParam = {
+    name: "options",
+    optional: true,
+    type: "MutatorOptions",
+    defaultValue: null,
+}
+
+const DataParam = {
+    name: "data",
+    optional: true,
+    type: `${type} | Promise<${type}>`,
+    defaultValue: null,
+}
+
+const MutationOption = {
+    name: "options",
+    optional: true,
+    type: `SWRMutationConfiguration<${type}, ${errorType}, string, ${payload ? payload.type : "never"}>`,
+    defaultValue: null,
+}
+
+const argToTmpl = ({ name, optional, type, defaultValue }) => `${name}${!defaultValue && optional ? '?' : ''}: ${type}${defaultValue ? ` = ${defaultValue}` : ''}`;
+
+const rawWrapperArgs = config.extractRequestParams ?
+    [
+        requestParams && {
+          name: pathParams.length ? `{ ${_.join(pathParamsNames, ", ")}, ...${queryName} }` : queryName,
+          optional: false,
+          type: getInlineParseContent(requestParams),
+        },
+        ...(!requestParams ? pathParams : []),
+    ] : [
+        ...pathParams,
+        query,
+    ]
+
+const mutateArgs = _
+    .sortBy(_.compact([...rawWrapperArgs, payload, DataParam, MutateConfigParam]), [o => o.optional])
+    .map(argToTmpl)
+    .join(', ')
+
+const wrapperArgs = _
+    .sortBy(_.compact([...rawWrapperArgs, payload, SWRConfigParam, FetchCondition]), [o => o.optional])
+    .map(argToTmpl)
+    .join(', ')
+
+const mutationArgs = _
+    .sortBy(_.compact([...rawWrapperArgs, MutationOption]), [o => o.optional])
+    .map(argToTmpl)
+    .join(', ')
+
+const queryTmpl = (query != null && queryName) || null;
+%>
+
+<% if (_.upperCase(method) === "GET") { %>
+/**
+<%~ routeDocs.description %>
+
+ * <% /* Here you can add some other JSDoc tags */ %>
+
+<%~ routeDocs.lines %>
+
+ */
+  use<%~ route.routeName.usage.charAt(0).toUpperCase() %><%~ route.routeName.usage.slice(1) %><%~ route.namespace ? ': ' : ' = ' %>(<%~ wrapperArgs %>)<%~ config.toJS ? `: ${describeReturnType()}` : "" %> =>
+    useSWR<<%~ type %>, <%~  errorType %>>(doFetch ?
+        <% if (!queryTmpl) { %>`<%~ path %>`<% } else { %>[`<%~ path %>`, <%~ queryTmpl %>]<% } %> : null, options),
+
+/**
+<%~ routeDocs.description %>
+
+ * <% /* Here you can add some other JSDoc tags */ %>
+
+<%~ routeDocs.lines %>
+
+ */
+  mutate<%~ route.routeName.usage.charAt(0).toUpperCase() %><%~ route.routeName.usage.slice(1) %><%~ route.namespace ? ': ' : ' = ' %>(<%~ mutateArgs %>)<%~ config.toJS ? `: ${describeReturnType()}` : "" %> =>
+    mutate<<%~ type %>>(
+        <% if (!queryTmpl) { %>`<%~ path %>`<% } else { %>[`<%~ path %>`, <%~ queryTmpl %>]<% } %>, data, options),
+<% } else { %>
+/**
+<%~ routeDocs.description %>
+
+ * <% /* Here you can add some other JSDoc tags */ %>
+
+<%~ routeDocs.lines %>
+
+ */
+  use<%~ route.routeName.usage.charAt(0).toUpperCase() %><%~ route.routeName.usage.slice(1) %><%~ route.namespace ? ': ' : ' = ' %>(<%~ mutationArgs %>)<%~ config.toJS ? `: ${describeReturnType()}` : "" %> =>
+    useSWRMutation(
+        <% if (!queryTmpl) { %>`<%~ path %>`<% } else { %>[`<%~ path %>`, <%~ queryTmpl %>]<% } %>,
+        (_url: string, { arg }: { arg: <%~ payload ? payload.type : "never" %> }  ) => this.api.<%~ route.routeName.usage %>(<%~ pathParams.length > 0 ? pathParams.map(x => x.name).join(', ') + ", " : "" %> arg).then((x) => x.data, (x) => Promise.reject(x.error)),
+        options,
+    ),
+<% } %>

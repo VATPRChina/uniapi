@@ -1,0 +1,65 @@
+{
+  "name": "vatprc-uniapi-ui-event",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "vite --port 3000",
+    "build": "vite build",
+    "serve": "vite preview",
+    "lint:eslint": "eslint 'src/**/*.{ts,tsx}'",
+    "lint:prettier": "prettier --ignore-unknown --check 'src/**/*'",
+    "lint:tsc": "tsc --noEmit --pretty",
+    "lint": "concurrently 'pnpm:lint:*' --group",
+    "format": "prettier --ignore-unknown --write 'src/**/*'",
+    "build-api": "swagger-typescript-api -p http://localhost:5000/api/swagger/v1/swagger.json -t build/api-template -o src -n api.ts && prettier --write src/api.ts"
+  },
+  "dependencies": {
+    "@chakra-ui/react": "^2.8.2",
+    "@chakra-ui/styled-system": "^2.9.2",
+    "@chakra-ui/system": "^2.6.2",
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.0",
+    "@marsidev/react-turnstile": "^0.5.3",
+    "escape-string-regexp": "^5.0.0",
+    "framer-motion": "^11.0.8",
+    "jotai": "^2.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.51.0",
+    "react-icons": "^5.0.1",
+    "react-query": "^3.39.3",
+    "react-router-dom": "^6.22.2",
+    "swr": "^2.2.5",
+    "usehooks-ts": "^2.16.0",
+    "whatwg-mimetype": "^4.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@types/node": "^20.11.24",
+    "@types/react": "^18.2.63",
+    "@types/react-dom": "^18.2.20",
+    "@types/react-router-dom": "^5.3.3",
+    "@types/whatwg-mimetype": "^3.0.2",
+    "@typescript-eslint/eslint-plugin": "^7.1.1",
+    "@typescript-eslint/parser": "^7.1.1",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "prettier": "^3.2.5",
+    "swagger-typescript-api": "^13.0.3",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.5"
+  },
+  "prettier": {
+    "printWidth": 120,
+    "plugins": [
+      "@trivago/prettier-plugin-sort-imports"
+    ],
+    "importOrderSortSpecifiers": true
+  }
+}

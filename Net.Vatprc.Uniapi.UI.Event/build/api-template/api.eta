@@ -1,0 +1,22 @@
+import useSWR, { SWRConfiguration, MutatorOptions, mutate } from "swr";
+import useSWRMutation, { SWRMutationConfiguration } from "swr/mutation";
+import { apiSecurityWorker } from "./services/auth";
+
+<%~ includeFile("@default/api.eta", it) %>
+
+export const client = new Api({
+  baseUrl: "",
+  securityWorker: apiSecurityWorker,
+});
+export default client.api;
+
+export const fetcher = async (arg: string | [string, Record<string, unknown>?]) => {
+  const { path, query } = typeof arg === "string" ? { path: arg, query: undefined } : { path: arg[0], query: arg[1] };
+  return await client
+    .request({ path, query, secure: true })
+    .then((res) => res.json())
+    .catch(async (err) => {
+      if (err.json) throw await err.json();
+      throw err;
+    });
+};
