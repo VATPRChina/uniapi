@@ -28,3 +28,28 @@ func (*authUsecase) IssueAccessToken(cid string) (*string, *time.Duration, error
 
 	return &ss, &util.Config.Jwt.Duration, nil
 }
+
+type AuthUserInfo struct {
+	Cid     string
+	Name    string
+	IsAdmin bool
+}
+
+func (*authUsecase) GetUser(accessToken string) (*AuthUserInfo, error) {
+	token, err := jwt.Parse(accessToken, func(token *jwt.Token) (interface{}, error) {
+		return util.Config.Jwt.PublicKeyParsed, nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodES256.Name}))
+	if err != nil {
+		return nil, err
+	}
+	cid, err := token.Claims.GetSubject()
+	if err != nil {
+		return nil, err
+	}
+
+	return &AuthUserInfo{
+		Cid:     cid,
+		Name:    cid,
+		IsAdmin: util.StringInSlice(cid, util.Config.AdminCids),
+	}, nil
+}

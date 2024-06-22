@@ -44,8 +44,9 @@ type userInfoInput struct {
 
 type userInfoOutput struct {
 	Body struct {
-		Sub  string `json:"sub" doc:"user identifier, which is the same as CID"`
-		Name string `json:"name" doc:""`
+		Sub    string `json:"sub" doc:"user identifier, which is the same as CID"`
+		Name   string `json:"name" doc:"full name"`
+		Groups string `json:"groups" doc:"Possible values: 'admin'"`
 	}
 }
 
