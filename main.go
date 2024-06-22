@@ -22,5 +22,5 @@ func main() {
 
 	controller.AddRoutes(api)
 
-	log.Fatal(app.Listen(":3001"))
+	log.Fatal(app.Listen(":3000"))
 }

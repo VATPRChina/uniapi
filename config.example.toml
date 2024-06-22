@@ -3,7 +3,7 @@ api_key = "DISCOURSE_API_KEY"
 api_username = "10000"
 
 [database]
-uri = "host=localhost user=postgres dbname=uniapi"
+# uri = "host=localhost user=postgres dbname=uniapi"
 
 [jwt]
 private_key = '''
@@ -16,3 +16,5 @@ public_key = '''
 //////
 -----END PUBLIC KEY-----
 '''
+# issuer = "https://uniapi.vatprc.net"
+# duration = "1h"

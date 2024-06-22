@@ -7,11 +7,17 @@ import (
 	"github.com/vatprchina/uniapi/util"
 )
 
-func IssueAccessToken(cid string) (*string, *time.Duration, error) {
-	duration, _ := time.ParseDuration("1h")
+type authUsecase struct{}
+
+var AuthUsecase = &authUsecase{}
+
+func (*authUsecase) IssueAccessToken(cid string) (*string, *time.Duration, error) {
 	claims := &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
-		Issuer:    "test",
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(util.Config.Jwt.Duration)),
+		Issuer:    util.Config.Jwt.Issuer,
+		Subject:   cid,
+		NotBefore: jwt.NewNumericDate(time.Now()),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
@@ -20,5 +26,5 @@ func IssueAccessToken(cid string) (*string, *time.Duration, error) {
 		return nil, nil, err
 	}
 
-	return &ss, &duration, nil
+	return &ss, &util.Config.Jwt.Duration, nil
 }

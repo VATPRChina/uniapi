@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"log"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
@@ -23,7 +24,10 @@ type config struct {
 		PublicKey        string `mapstructure:"public_key" validate:"required"`
 		PrivateKeyParsed *ecdsa.PrivateKey
 		PublicKeyParsed  *ecdsa.PublicKey
+		Issuer           string        `validate:"required"`
+		Duration         time.Duration `validate:"required"`
 	}
+	AdminCids []string `mapstructure:"admin_cids"`
 }
 
 var Config config
@@ -36,6 +40,8 @@ func LoadConfig() {
 	viper.AutomaticEnv()
 
 	viper.SetDefault("database.uri", "host=localhost dbname=uniapi")
+	viper.SetDefault("jwt.issuer", "https://uniapi.vatprc.net")
+	viper.SetDefault("jwt.duration", "1h")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -51,7 +57,7 @@ func LoadConfig() {
 
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	if err := validate.Struct(Config); err != nil {
-		log.Fatalf("invalid config, %v, %v", err, Config)
+		log.Fatalf("invalid config, %v", err)
 	}
 
 	blockPriv, _ := pem.Decode([]byte(Config.Jwt.PrivateKey))

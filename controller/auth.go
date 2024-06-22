@@ -25,7 +25,7 @@ type authorizeOutput struct {
 }
 
 func greet(ctx context.Context, input *authorizeInput) (*authorizeOutput, error) {
-	ss, duration, err := usecase.IssueAccessToken(input.Body.Username)
+	ss, duration, err := usecase.AuthUsecase.IssueAccessToken(input.Body.Username)
 	if err != nil {
 		return nil, err
 	}
