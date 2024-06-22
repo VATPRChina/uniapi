@@ -1,4 +1,8 @@
+using System.Collections.Frozen;
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Net.Vatprc.Uniapi.Models;
 
@@ -14,7 +18,7 @@ public class User
 
     public DateTimeOffset UpdatedAt { get; set; }
 
-    public IEnumerable<UserRole> Roles { get; set; } = [];
+    public ISet<string> Roles { get; set; } = new HashSet<string>();
 
     public IEnumerable<Session> Sessions { get; set; } = null!;
 
@@ -37,19 +41,19 @@ public class User
     /// <summary>
     /// Roles, which controls permission
     /// </summary>
-    public enum UserRole
+    public static class UserRoles
     {
         /// <summary>
         /// Super admin
         /// </summary>
-        Admin,
+        public const string Admin = "admin";
         /// <summary>
-        /// Event coordination
+        /// Event coordinator
         /// </summary>
-        EventCoordinator,
+        public const string EventCoordinator = "ec";
         /// <summary>
-        /// ATC
+        /// Controller
         /// </summary>
-        ATC,
+        public const string Controller = "controller";
     }
 }

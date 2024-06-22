@@ -25,7 +25,6 @@ public class SessionController : ControllerBase
     {
         public string username { get; set; } = string.Empty;
         public string password { get; set; } = string.Empty;
-        public string captcha { get; set; } = string.Empty;
         public string grant_type { get; set; } = string.Empty;
         public string refresh_token { get; set; } = string.Empty;
     }

@@ -5,8 +5,10 @@ using Microsoft.Net.Http.Headers;
 
 namespace Net.Vatprc.Uniapi.Utils;
 
-public class AuthenticationEventHandler : JwtBearerEvents
+public class AuthenticationEventHandler(VATPRCContext db) : JwtBearerEvents
 {
+    protected VATPRCContext DbContext = db;
+
     public override async Task Challenge(JwtBearerChallengeContext context)
     {
         context.HandleResponse();
@@ -113,6 +115,14 @@ public class AuthenticationEventHandler : JwtBearerEvents
         try
         {
             await Validate(context);
+            if (context.Principal == null) return;
+            var id = Ulid.Parse(context.Principal.FindFirstValue(ClaimTypes.NameIdentifier));
+            var user = await DbContext.User.FindAsync(id);
+            var identity = (ClaimsIdentity)context.Principal.Identity!;
+            foreach (var role in user!.Roles)
+            {
+                identity?.AddClaim(new(ClaimTypes.Role, role.ToString()));
+            }
         }
         catch (Exception e)
         {

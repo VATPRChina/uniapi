@@ -122,7 +122,7 @@ public class TokenService
         public const string OAuth = "1p_oauth";
     }
 
-    public const string BuiltInClientId = "zhuianime";
+    public const string BuiltInClientId = "vatprc";
 
     public class Option
     {

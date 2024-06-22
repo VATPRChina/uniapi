@@ -39,6 +39,7 @@ public class UserController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = Models.User.UserRoles.Admin)]
     public async Task<IEnumerable<UserDto>> List()
     {
         return await DbContext.User.Select(x => new UserDto(x)).ToListAsync();
@@ -46,6 +47,7 @@ public class UserController : ControllerBase
 
     [HttpGet("{id}")]
     [ApiError.Has<ApiError.UserNotFound>]
+    [Authorize(Roles = Models.User.UserRoles.Admin)]
     public async Task<UserDto> Get(Ulid id)
     {
         return new UserDto(await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id));

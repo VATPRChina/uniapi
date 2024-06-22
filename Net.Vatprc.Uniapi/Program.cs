@@ -149,6 +149,7 @@ builder.Services.AddSwaggerGen(opts =>
 });
 
 TokenService.ConfigureOn(builder);
+builder.Services.AddTransient<AuthenticationEventHandler>();
 
 // FIXME: This will raise "No XML encryptor configured. Key {GUID} may be
 // persisted to storage in unencrypted form." on start, but I think it is ok
@@ -175,7 +176,7 @@ builder.Services.AddAuthentication(opts =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.FromSeconds(30),
     };
-    opts.Events = new AuthenticationEventHandler();
+    opts.EventsType = typeof(AuthenticationEventHandler);
 });
 builder.Services.AddAuthorization();
 
@@ -213,8 +214,6 @@ app.MapControllers().RequireAuthorization(new AuthorizationPolicyBuilder().Requi
 app.MapFallbackToController("/api/{**path}",
     nameof(UniApi.Controllers.InternalController.EndpointNotFound),
     nameof(UniApi.Controllers.InternalController).Replace("Controller", ""));
-
-
 
 var rootCommand = new RootCommand("Start VATPRC UniAPI");
 rootCommand.SetHandler(async () =>
