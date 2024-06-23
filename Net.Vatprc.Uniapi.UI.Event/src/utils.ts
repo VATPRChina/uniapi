@@ -1,28 +1,13 @@
-import { ErrorProdResponse, HttpResponse } from "./api";
-import { createStandaloneToast } from "@chakra-ui/react";
-
-export const { ToastContainer, toast } = createStandaloneToast();
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 type PromiseOrFunction = Promise<unknown> | (() => Promise<unknown>);
 
 export const promiseWithLog = (promise: PromiseOrFunction, final?: () => unknown) => {
+  // eslint-disable-next-line no-console
   (typeof promise === "function" ? promise() : promise).catch((err) => console.error(err)).finally(final);
 };
-export const promiseWithToast = (promise: PromiseOrFunction, final?: () => unknown) => {
-  (typeof promise === "function" ? promise() : promise)
-    .catch((err) => {
-      console.error(err);
-      toast({
-        title: "An error occurred.",
-        description:
-          (err as ErrorProdResponse).message ??
-          (err as HttpResponse<void, ErrorProdResponse>).error?.message ??
-          (err as Error).message ??
-          "Unknown error",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    })
-    .finally(final);
-};
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}

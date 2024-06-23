@@ -14,68 +14,22 @@ import { apiSecurityWorker } from "./services/auth";
 import useSWR, { MutatorOptions, SWRConfiguration, mutate } from "swr";
 import useSWRMutation, { SWRMutationConfiguration } from "swr/mutation";
 
-/** Category information. */
-export interface CategoryDto {
-  /** id */
-  id: string;
-  /** user-friendly name */
+export interface CreateEventAirspaceDto {
+  name: string;
+}
+
+export interface CreateEventDto {
   title: string;
-  /**
-   * created time
-   * @format date-time
-   */
-  created_at: string;
-  /**
-   * last updated time
-   * @format date-time
-   */
-  updated_at: string;
+  /** @format date-time */
+  start_at: string;
+  /** @format date-time */
+  end_at: string;
 }
 
-export interface ConfigurationDto {
-  turnstile_site_key: string;
-}
-
-export interface CreateItemDto {
-  category_id: string;
-  title: string;
-  annotations: Record<string, string>;
-  parent_item_id?: string | null;
-}
-
-export interface CreateJobDto {
-  /** @format int32 */
-  bangumi: number;
-  target: string;
-  regex: string;
-  /** @format int32 */
-  match_group_ep: number;
-}
-
-/** Information for creating */
-export interface CreateLinkDto {
-  /**
-   * the url this link points to
-   * @format uri
-   */
-  address: string;
-  /** the MIME type of the target of this link */
-  mime_type: string;
-  /** extra information for this link */
-  annotations: Record<string, string>;
-  /** id of parent link, if exists */
-  parent_link_id?: string | null;
-}
-
-export interface CreateOrUpdateCategoryDto {
-  /** user-friendly name */
-  title: string;
-}
-
-export interface CreateUserDto {
-  username: string;
-  password: string;
-  captcha: string;
+export interface CreateEventSlotDto {
+  airspace_id: string;
+  /** @format date-time */
+  enter_at: string;
 }
 
 export interface ErrorProdResponse {
@@ -84,95 +38,49 @@ export interface ErrorProdResponse {
   [key: string]: any;
 }
 
-export interface FetchPageResponseDto {
-  has_new_items: boolean;
-}
-
-export interface FileDto {
+export interface EventAirspaceDto {
+  id: string;
+  event_id: string;
   name: string;
-  type: FileType;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
 }
 
-export enum FileType {
-  Folder = "Folder",
-  File = "File",
-}
-
-export interface ImportFolderDto {
-  path: string;
-  regex: string;
-  /** @format int32 */
-  match_group_ep: number;
-  /** @format int32 */
-  bangumi: number;
-}
-
-export interface ImportSubjectDto {
-  /**
-   * bangumi subject ID
-   * @format int32
-   */
-  id: number;
-}
-
-/** An item, like an anime, a manga, a episode in an anime, etc. */
-export interface ItemDto {
+export interface EventBookingDto {
   id: string;
-  category_id: string;
+  user_id: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
+export interface EventDto {
+  id: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format date-time */
+  updated_at: string;
   title: string;
-  annotations: Record<string, string>;
-  parent_item_id?: string | null;
+  /** @format date-time */
+  start_at: string;
+  /** @format date-time */
+  end_at: string;
+}
+
+export interface EventSlotDto {
+  id: string;
+  event_id: string;
+  event_airspace_id: string;
+  /** @format date-time */
+  enter_at: string;
   /** @format date-time */
   created_at: string;
   /** @format date-time */
   updated_at: string;
-  image_url?: string | null;
-}
-
-export interface JobDto {
-  id: string;
-  /** @format int32 */
-  bangumi: number;
-  target: string;
-  regex: string;
-  /** @format int32 */
-  match_group_ep: number;
-  enabled: boolean;
-  /** @format date-time */
-  last_fetched_at: string;
-}
-
-/** Link. */
-export interface LinkDto {
-  /** id */
-  id: string;
-  /** id of the item this link belongs to */
-  item_id: string;
-  /**
-   * the url this link points to
-   * @format uri
-   */
-  address: string;
-  /** the MIME type of the target of this link */
-  mime_type: string;
-  /** extra information for this link */
-  annotations: Record<string, string>;
-  /** id of parent link, if exists */
-  parent_link_id?: string | null;
-  /**
-   * created time
-   * @format date-time
-   */
-  created_at: string;
-  /**
-   * last updated time
-   * @format date-time
-   */
-  updated_at: string;
-}
-
-export interface ListFolderDto {
-  path: string;
+  booking?: EventBookingDto;
 }
 
 export interface LoginResDto {
@@ -185,17 +93,6 @@ export interface LoginResDto {
   issued_token_type: string;
 }
 
-export interface SearchRequestDto {
-  query: string;
-}
-
-export interface SearchResultItemDto {
-  /** @format int32 */
-  id: number;
-  name: string;
-  name_cn: string;
-}
-
 export interface TokenDto {
   user: UserDto;
   /** @format date-time */
@@ -204,53 +101,33 @@ export interface TokenDto {
   expires_at: string;
 }
 
-export interface TorrentDto {
-  id: string;
-  origin_site: string;
-  origin_id: string;
+export interface UpdateEventAirspaceDto {
+  name: string;
+}
+
+export interface UpdateEventDto {
   title: string;
   /** @format date-time */
-  published_at: string;
-  link_torrent?: string | null;
-  link_magnet?: string | null;
+  start_at: string;
+  /** @format date-time */
+  end_at: string;
 }
 
-export interface UpdateItemDto {
-  category_id?: string | null;
-  title?: string | null;
-  annotations?: Record<string, string>;
-}
-
-export interface UpdateJobDto {
-  /** @format int32 */
-  bangumi: number;
-  target: string;
-  regex: string;
-  /** @format int32 */
-  match_group_ep: number;
-  enabled: boolean;
-}
-
-/** Information for updating */
-export interface UpdateLinkDto {
-  /**
-   * the url this link points to
-   * @format uri
-   */
-  address: string;
-  /** the MIME type of the target of this link */
-  mime_type: string;
-  /** extra information for this link */
-  annotations: Record<string, string>;
+export interface UpdateEventSlotDto {
+  /** @format date-time */
+  enter_at: string;
 }
 
 export interface UserDto {
   id: string;
-  username: string;
+  cid: string;
+  full_name: string;
   /** @format date-time */
   created_at: string;
   /** @format date-time */
   updated_at: string;
+  /** @uniqueItems true */
+  roles: string[];
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -299,7 +176,7 @@ export enum ContentType {
 }
 
 export class HttpClient<SecurityDataType = unknown> {
-  public baseUrl: string = "https://zhuiani.me";
+  public baseUrl: string = "https://uniapi.vatprc.net";
   private securityData: SecurityDataType | null = null;
   private securityWorker?: ApiConfig<SecurityDataType>["securityWorker"];
   private abortControllers = new Map<CancelToken, AbortController>();
@@ -466,13 +343,13 @@ export class HttpClient<SecurityDataType = unknown> {
 export class ApiError extends Error {}
 
 /**
- * @title ZhuiAni.me API
+ * @title VATPRC UniAPI
  * @version v1
- * @baseUrl https://zhuiani.me
+ * @baseUrl https://uniapi.vatprc.net
  *
  * # Error Handling
  *
- * ZhuiAni.me returns normalized error responses. The response body is a JSON object with the following fields:
+ * VATPRC UniAPI returns normalized error responses. The response body is a JSON object with the following fields:
  *
  * | Field           | Type     | Description     |
  * | --------------- | -------- | --------------- |
@@ -489,96 +366,16 @@ export class ApiError extends Error {}
 export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
   api = {
     /**
-     * @description Import a subject from https://bgm.tv .
-     *
-     * @tags Bangumi
-     * @name BangumiImportSubject
-     * @summary Import Subject
-     * @request POST:/api/modules/bangumi/import_subject
-     * @secure
-     */
-    bangumiImportSubject: (data: ImportSubjectDto, params: RequestParams = {}) =>
-      this.request<ItemDto, ErrorProdResponse>({
-        path: `/api/modules/bangumi/import_subject`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * @description Import a subject from https://bgm.tv .
-     *
-     * @tags Bangumi
-     * @name BangumiImportSubject
-     * @summary Import Subject
-     * @request POST:/api/modules/bangumi/import_subject
-     * @secure
-     */
-    useBangumiImportSubject: (
-      options?: SWRMutationConfiguration<ItemDto, ErrorProdResponse, string, ImportSubjectDto>,
-    ) =>
-      useSWRMutation(
-        `/api/modules/bangumi/import_subject`,
-        (_url: string, { arg }: { arg: ImportSubjectDto }) =>
-          this.api.bangumiImportSubject(arg).then(
-            (x) => x.data,
-            (x) => Promise.reject(x.error),
-          ),
-        options,
-      ),
-
-    /**
      * No description
      *
-     * @tags Bangumi
-     * @name BangumiSearchSubject
-     * @request POST:/api/modules/bangumi/search_subject
+     * @tags Event
+     * @name EventList
+     * @request GET:/api/events
      * @secure
      */
-    bangumiSearchSubject: (data: SearchRequestDto, params: RequestParams = {}) =>
-      this.request<SearchResultItemDto[], ErrorProdResponse>({
-        path: `/api/modules/bangumi/search_subject`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags Bangumi
-     * @name BangumiSearchSubject
-     * @request POST:/api/modules/bangumi/search_subject
-     * @secure
-     */
-    useBangumiSearchSubject: (
-      options?: SWRMutationConfiguration<SearchResultItemDto[], ErrorProdResponse, string, SearchRequestDto>,
-    ) =>
-      useSWRMutation(
-        `/api/modules/bangumi/search_subject`,
-        (_url: string, { arg }: { arg: SearchRequestDto }) =>
-          this.api.bangumiSearchSubject(arg).then(
-            (x) => x.data,
-            (x) => Promise.reject(x.error),
-          ),
-        options,
-      ),
-
-    /**
-     * No description
-     *
-     * @tags Bangumi
-     * @name BangumiGetSubject
-     * @request GET:/api/modules/bangumi/subjects/{id}
-     * @secure
-     */
-    bangumiGetSubject: (id: number, params: RequestParams = {}) =>
-      this.request<SearchResultItemDto, ErrorProdResponse>({
-        path: `/api/modules/bangumi/subjects/${id}`,
+    eventList: (params: RequestParams = {}) =>
+      this.request<EventDto[], ErrorProdResponse>({
+        path: `/api/events`,
         method: "GET",
         secure: true,
         format: "json",
@@ -587,81 +384,227 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Bangumi
-     * @name BangumiGetSubject
-     * @request GET:/api/modules/bangumi/subjects/{id}
+     * @tags Event
+     * @name EventList
+     * @request GET:/api/events
      * @secure
      */
-    useBangumiGetSubject: (id: number, options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<SearchResultItemDto, ErrorProdResponse>(doFetch ? `/api/modules/bangumi/subjects/${id}` : null, options),
+    useEventList: (options?: SWRConfiguration, doFetch: boolean = true) =>
+      useSWR<EventDto[], ErrorProdResponse>(doFetch ? `/api/events` : null, options),
 
     /**
      * No description
      *
-     * @tags Bangumi
-     * @name BangumiGetSubject
-     * @request GET:/api/modules/bangumi/subjects/{id}
+     * @tags Event
+     * @name EventList
+     * @request GET:/api/events
      * @secure
      */
-    mutateBangumiGetSubject: (
-      id: number,
-      data?: SearchResultItemDto | Promise<SearchResultItemDto>,
+    mutateEventList: (data?: EventDto[] | Promise<EventDto[]>, options?: MutatorOptions) =>
+      mutate<EventDto[]>(`/api/events`, data, options),
+
+    /**
+     * No description
+     *
+     * @tags Event
+     * @name EventCreate
+     * @request POST:/api/events
+     * @secure
+     */
+    eventCreate: (data: CreateEventDto, params: RequestParams = {}) =>
+      this.request<EventDto, ErrorProdResponse>({
+        path: `/api/events`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+    /**
+     * No description
+     *
+     * @tags Event
+     * @name EventCreate
+     * @request POST:/api/events
+     * @secure
+     */
+    useEventCreate: (options?: SWRMutationConfiguration<EventDto, ErrorProdResponse, string, CreateEventDto>) =>
+      useSWRMutation(
+        `/api/events`,
+        (_url: string, { arg }: { arg: CreateEventDto }) =>
+          this.api.eventCreate(arg).then(
+            (x) => x.data,
+            (x) => Promise.reject(x.error),
+          ),
+        options,
+      ),
+
+    /**
+     * No description
+     *
+     * @tags Event
+     * @name EventGet
+     * @request GET:/api/events/{eid}
+     * @secure
+     */
+    eventGet: (eid: string, params: RequestParams = {}) =>
+      this.request<EventDto, ErrorProdResponse>({
+        path: `/api/events/${eid}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+    /**
+     * No description
+     *
+     * @tags Event
+     * @name EventGet
+     * @request GET:/api/events/{eid}
+     * @secure
+     */
+    useEventGet: (eid: string, options?: SWRConfiguration, doFetch: boolean = true) =>
+      useSWR<EventDto, ErrorProdResponse>(doFetch ? `/api/events/${eid}` : null, options),
+
+    /**
+     * No description
+     *
+     * @tags Event
+     * @name EventGet
+     * @request GET:/api/events/{eid}
+     * @secure
+     */
+    mutateEventGet: (eid: string, data?: EventDto | Promise<EventDto>, options?: MutatorOptions) =>
+      mutate<EventDto>(`/api/events/${eid}`, data, options),
+
+    /**
+     * No description
+     *
+     * @tags Event
+     * @name EventUpdate
+     * @request POST:/api/events/{eid}
+     * @secure
+     */
+    eventUpdate: (eid: string, data: UpdateEventDto, params: RequestParams = {}) =>
+      this.request<EventDto, ErrorProdResponse>({
+        path: `/api/events/${eid}`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+    /**
+     * No description
+     *
+     * @tags Event
+     * @name EventUpdate
+     * @request POST:/api/events/{eid}
+     * @secure
+     */
+    useEventUpdate: (
+      eid: string,
+      options?: SWRMutationConfiguration<EventDto, ErrorProdResponse, string, UpdateEventDto>,
+    ) =>
+      useSWRMutation(
+        `/api/events/${eid}`,
+        (_url: string, { arg }: { arg: UpdateEventDto }) =>
+          this.api.eventUpdate(eid, arg).then(
+            (x) => x.data,
+            (x) => Promise.reject(x.error),
+          ),
+        options,
+      ),
+
+    /**
+     * No description
+     *
+     * @tags Event
+     * @name EventDelete
+     * @request DELETE:/api/events/{eid}
+     * @secure
+     */
+    eventDelete: (eid: string, params: RequestParams = {}) =>
+      this.request<EventDto, ErrorProdResponse>({
+        path: `/api/events/${eid}`,
+        method: "DELETE",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+    /**
+     * No description
+     *
+     * @tags Event
+     * @name EventDelete
+     * @request DELETE:/api/events/{eid}
+     * @secure
+     */
+    useEventDelete: (eid: string, options?: SWRMutationConfiguration<EventDto, ErrorProdResponse, string, never>) =>
+      useSWRMutation(
+        `/api/events/${eid}`,
+        (_url: string, { arg }: { arg: never }) =>
+          this.api.eventDelete(eid, arg).then(
+            (x) => x.data,
+            (x) => Promise.reject(x.error),
+          ),
+        options,
+      ),
+
+    /**
+     * No description
+     *
+     * @tags EventAirspace
+     * @name EventAirspaceList
+     * @request GET:/api/events/{eid}/airspaces
+     * @secure
+     */
+    eventAirspaceList: (eid: string, params: RequestParams = {}) =>
+      this.request<EventAirspaceDto[], ErrorProdResponse>({
+        path: `/api/events/${eid}/airspaces`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+    /**
+     * No description
+     *
+     * @tags EventAirspace
+     * @name EventAirspaceList
+     * @request GET:/api/events/{eid}/airspaces
+     * @secure
+     */
+    useEventAirspaceList: (eid: string, options?: SWRConfiguration, doFetch: boolean = true) =>
+      useSWR<EventAirspaceDto[], ErrorProdResponse>(doFetch ? `/api/events/${eid}/airspaces` : null, options),
+
+    /**
+     * No description
+     *
+     * @tags EventAirspace
+     * @name EventAirspaceList
+     * @request GET:/api/events/{eid}/airspaces
+     * @secure
+     */
+    mutateEventAirspaceList: (
+      eid: string,
+      data?: EventAirspaceDto[] | Promise<EventAirspaceDto[]>,
       options?: MutatorOptions,
-    ) => mutate<SearchResultItemDto>(`/api/modules/bangumi/subjects/${id}`, data, options),
+    ) => mutate<EventAirspaceDto[]>(`/api/events/${eid}/airspaces`, data, options),
 
     /**
      * No description
      *
-     * @tags Category
-     * @name CategoryList
-     * @summary List
-     * @request GET:/api/categories
+     * @tags EventAirspace
+     * @name EventAirspaceCreate
+     * @request POST:/api/events/{eid}/airspaces
      * @secure
      */
-    categoryList: (params: RequestParams = {}) =>
-      this.request<CategoryDto[], ErrorProdResponse>({
-        path: `/api/categories`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags Category
-     * @name CategoryList
-     * @summary List
-     * @request GET:/api/categories
-     * @secure
-     */
-    useCategoryList: (options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<CategoryDto[], ErrorProdResponse>(doFetch ? `/api/categories` : null, options),
-
-    /**
-     * No description
-     *
-     * @tags Category
-     * @name CategoryList
-     * @summary List
-     * @request GET:/api/categories
-     * @secure
-     */
-    mutateCategoryList: (data?: CategoryDto[] | Promise<CategoryDto[]>, options?: MutatorOptions) =>
-      mutate<CategoryDto[]>(`/api/categories`, data, options),
-
-    /**
-     * No description
-     *
-     * @tags Category
-     * @name CategoryCreate
-     * @summary Create
-     * @request POST:/api/categories
-     * @secure
-     */
-    categoryCreate: (data: CreateOrUpdateCategoryDto, params: RequestParams = {}) =>
-      this.request<CategoryDto, ErrorProdResponse>({
-        path: `/api/categories`,
+    eventAirspaceCreate: (eid: string, data: CreateEventAirspaceDto, params: RequestParams = {}) =>
+      this.request<EventAirspaceDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/airspaces`,
         method: "POST",
         body: data,
         secure: true,
@@ -672,19 +615,19 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Category
-     * @name CategoryCreate
-     * @summary Create
-     * @request POST:/api/categories
+     * @tags EventAirspace
+     * @name EventAirspaceCreate
+     * @request POST:/api/events/{eid}/airspaces
      * @secure
      */
-    useCategoryCreate: (
-      options?: SWRMutationConfiguration<CategoryDto, ErrorProdResponse, string, CreateOrUpdateCategoryDto>,
+    useEventAirspaceCreate: (
+      eid: string,
+      options?: SWRMutationConfiguration<EventAirspaceDto, ErrorProdResponse, string, CreateEventAirspaceDto>,
     ) =>
       useSWRMutation(
-        `/api/categories`,
-        (_url: string, { arg }: { arg: CreateOrUpdateCategoryDto }) =>
-          this.api.categoryCreate(arg).then(
+        `/api/events/${eid}/airspaces`,
+        (_url: string, { arg }: { arg: CreateEventAirspaceDto }) =>
+          this.api.eventAirspaceCreate(eid, arg).then(
             (x) => x.data,
             (x) => Promise.reject(x.error),
           ),
@@ -694,15 +637,14 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Category
-     * @name CategoryGet
-     * @summary Get
-     * @request GET:/api/categories/{id}
+     * @tags EventAirspace
+     * @name EventAirspaceGet
+     * @request GET:/api/events/{eid}/airspaces/{aid}
      * @secure
      */
-    categoryGet: (id: number, params: RequestParams = {}) =>
-      this.request<CategoryDto, ErrorProdResponse>({
-        path: `/api/categories/${id}`,
+    eventAirspaceGet: (eid: string, aid: string, params: RequestParams = {}) =>
+      this.request<EventAirspaceDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/airspaces/${aid}`,
         method: "GET",
         secure: true,
         format: "json",
@@ -711,40 +653,41 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Category
-     * @name CategoryGet
-     * @summary Get
-     * @request GET:/api/categories/{id}
+     * @tags EventAirspace
+     * @name EventAirspaceGet
+     * @request GET:/api/events/{eid}/airspaces/{aid}
      * @secure
      */
-    useCategoryGet: (id: number, options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<CategoryDto, ErrorProdResponse>(doFetch ? `/api/categories/${id}` : null, options),
+    useEventAirspaceGet: (eid: string, aid: string, options?: SWRConfiguration, doFetch: boolean = true) =>
+      useSWR<EventAirspaceDto, ErrorProdResponse>(doFetch ? `/api/events/${eid}/airspaces/${aid}` : null, options),
 
     /**
      * No description
      *
-     * @tags Category
-     * @name CategoryGet
-     * @summary Get
-     * @request GET:/api/categories/{id}
+     * @tags EventAirspace
+     * @name EventAirspaceGet
+     * @request GET:/api/events/{eid}/airspaces/{aid}
      * @secure
      */
-    mutateCategoryGet: (id: number, data?: CategoryDto | Promise<CategoryDto>, options?: MutatorOptions) =>
-      mutate<CategoryDto>(`/api/categories/${id}`, data, options),
+    mutateEventAirspaceGet: (
+      eid: string,
+      aid: string,
+      data?: EventAirspaceDto | Promise<EventAirspaceDto>,
+      options?: MutatorOptions,
+    ) => mutate<EventAirspaceDto>(`/api/events/${eid}/airspaces/${aid}`, data, options),
 
     /**
      * No description
      *
-     * @tags Category
-     * @name CategoryUpdate
-     * @summary Update
-     * @request PATCH:/api/categories/{id}
+     * @tags EventAirspace
+     * @name EventAirspaceUpdate
+     * @request PUT:/api/events/{eid}/airspaces/{aid}
      * @secure
      */
-    categoryUpdate: (id: number, data: CreateOrUpdateCategoryDto, params: RequestParams = {}) =>
-      this.request<CategoryDto, ErrorProdResponse>({
-        path: `/api/categories/${id}`,
-        method: "PATCH",
+    eventAirspaceUpdate: (eid: string, aid: string, data: UpdateEventAirspaceDto, params: RequestParams = {}) =>
+      this.request<EventAirspaceDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/airspaces/${aid}`,
+        method: "PUT",
         body: data,
         secure: true,
         type: ContentType.Json,
@@ -754,20 +697,20 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Category
-     * @name CategoryUpdate
-     * @summary Update
-     * @request PATCH:/api/categories/{id}
+     * @tags EventAirspace
+     * @name EventAirspaceUpdate
+     * @request PUT:/api/events/{eid}/airspaces/{aid}
      * @secure
      */
-    useCategoryUpdate: (
-      id: number,
-      options?: SWRMutationConfiguration<CategoryDto, ErrorProdResponse, string, CreateOrUpdateCategoryDto>,
+    useEventAirspaceUpdate: (
+      eid: string,
+      aid: string,
+      options?: SWRMutationConfiguration<EventAirspaceDto, ErrorProdResponse, string, UpdateEventAirspaceDto>,
     ) =>
       useSWRMutation(
-        `/api/categories/${id}`,
-        (_url: string, { arg }: { arg: CreateOrUpdateCategoryDto }) =>
-          this.api.categoryUpdate(id, arg).then(
+        `/api/events/${eid}/airspaces/${aid}`,
+        (_url: string, { arg }: { arg: UpdateEventAirspaceDto }) =>
+          this.api.eventAirspaceUpdate(eid, aid, arg).then(
             (x) => x.data,
             (x) => Promise.reject(x.error),
           ),
@@ -777,15 +720,14 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Category
-     * @name CategoryDelete
-     * @summary Delete
-     * @request DELETE:/api/categories/{id}
+     * @tags EventAirspace
+     * @name EventAirspaceDelete
+     * @request DELETE:/api/events/{eid}/airspaces/{aid}
      * @secure
      */
-    categoryDelete: (id: number, params: RequestParams = {}) =>
-      this.request<CategoryDto, ErrorProdResponse>({
-        path: `/api/categories/${id}`,
+    eventAirspaceDelete: (eid: string, aid: string, params: RequestParams = {}) =>
+      this.request<EventAirspaceDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/airspaces/${aid}`,
         method: "DELETE",
         secure: true,
         format: "json",
@@ -794,20 +736,20 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Category
-     * @name CategoryDelete
-     * @summary Delete
-     * @request DELETE:/api/categories/{id}
+     * @tags EventAirspace
+     * @name EventAirspaceDelete
+     * @request DELETE:/api/events/{eid}/airspaces/{aid}
      * @secure
      */
-    useCategoryDelete: (
-      id: number,
-      options?: SWRMutationConfiguration<CategoryDto, ErrorProdResponse, string, never>,
+    useEventAirspaceDelete: (
+      eid: string,
+      aid: string,
+      options?: SWRMutationConfiguration<EventAirspaceDto, ErrorProdResponse, string, never>,
     ) =>
       useSWRMutation(
-        `/api/categories/${id}`,
+        `/api/events/${eid}/airspaces/${aid}`,
         (_url: string, { arg }: { arg: never }) =>
-          this.api.categoryDelete(id, arg).then(
+          this.api.eventAirspaceDelete(eid, aid, arg).then(
             (x) => x.data,
             (x) => Promise.reject(x.error),
           ),
@@ -815,99 +757,54 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       ),
 
     /**
-     * @description This API will only return those are top-level, i.e. do not have a parent item. The result will be ordered by id descendingly.
+     * No description
      *
-     * @tags Category
-     * @name CategoryGetItems
-     * @summary Get Child Items
-     * @request GET:/api/categories/{id}/items
+     * @tags EventSlot
+     * @name EventSlotList
+     * @request GET:/api/events/{eid}/slots
      * @secure
      */
-    categoryGetItems: (id: number, params: RequestParams = {}) =>
-      this.request<ItemDto[], ErrorProdResponse>({
-        path: `/api/categories/${id}/items`,
+    eventSlotList: (eid: string, params: RequestParams = {}) =>
+      this.request<EventSlotDto[], ErrorProdResponse>({
+        path: `/api/events/${eid}/slots`,
         method: "GET",
         secure: true,
         format: "json",
         ...params,
       }),
     /**
-     * @description This API will only return those are top-level, i.e. do not have a parent item. The result will be ordered by id descendingly.
+     * No description
      *
-     * @tags Category
-     * @name CategoryGetItems
-     * @summary Get Child Items
-     * @request GET:/api/categories/{id}/items
+     * @tags EventSlot
+     * @name EventSlotList
+     * @request GET:/api/events/{eid}/slots
      * @secure
      */
-    useCategoryGetItems: (id: number, options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<ItemDto[], ErrorProdResponse>(doFetch ? `/api/categories/${id}/items` : null, options),
-
-    /**
-     * @description This API will only return those are top-level, i.e. do not have a parent item. The result will be ordered by id descendingly.
-     *
-     * @tags Category
-     * @name CategoryGetItems
-     * @summary Get Child Items
-     * @request GET:/api/categories/{id}/items
-     * @secure
-     */
-    mutateCategoryGetItems: (id: number, data?: ItemDto[] | Promise<ItemDto[]>, options?: MutatorOptions) =>
-      mutate<ItemDto[]>(`/api/categories/${id}/items`, data, options),
-
-    /**
-     * @description This API will only return those are top-level, i.e. do not have a parent item. The result will be ordered by id descendingly.
-     *
-     * @tags Item
-     * @name ItemList
-     * @summary List
-     * @request GET:/api/items
-     * @secure
-     */
-    itemList: (params: RequestParams = {}) =>
-      this.request<ItemDto[], ErrorProdResponse>({
-        path: `/api/items`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * @description This API will only return those are top-level, i.e. do not have a parent item. The result will be ordered by id descendingly.
-     *
-     * @tags Item
-     * @name ItemList
-     * @summary List
-     * @request GET:/api/items
-     * @secure
-     */
-    useItemList: (options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<ItemDto[], ErrorProdResponse>(doFetch ? `/api/items` : null, options),
-
-    /**
-     * @description This API will only return those are top-level, i.e. do not have a parent item. The result will be ordered by id descendingly.
-     *
-     * @tags Item
-     * @name ItemList
-     * @summary List
-     * @request GET:/api/items
-     * @secure
-     */
-    mutateItemList: (data?: ItemDto[] | Promise<ItemDto[]>, options?: MutatorOptions) =>
-      mutate<ItemDto[]>(`/api/items`, data, options),
+    useEventSlotList: (eid: string, options?: SWRConfiguration, doFetch: boolean = true) =>
+      useSWR<EventSlotDto[], ErrorProdResponse>(doFetch ? `/api/events/${eid}/slots` : null, options),
 
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemCreate
-     * @summary Create
-     * @request POST:/api/items
+     * @tags EventSlot
+     * @name EventSlotList
+     * @request GET:/api/events/{eid}/slots
      * @secure
      */
-    itemCreate: (data: CreateItemDto, params: RequestParams = {}) =>
-      this.request<ItemDto, ErrorProdResponse>({
-        path: `/api/items`,
+    mutateEventSlotList: (eid: string, data?: EventSlotDto[] | Promise<EventSlotDto[]>, options?: MutatorOptions) =>
+      mutate<EventSlotDto[]>(`/api/events/${eid}/slots`, data, options),
+
+    /**
+     * No description
+     *
+     * @tags EventSlot
+     * @name EventSlotCreate
+     * @request POST:/api/events/{eid}/slots
+     * @secure
+     */
+    eventSlotCreate: (eid: string, data: CreateEventSlotDto, params: RequestParams = {}) =>
+      this.request<EventSlotDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/slots`,
         method: "POST",
         body: data,
         secure: true,
@@ -918,17 +815,19 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemCreate
-     * @summary Create
-     * @request POST:/api/items
+     * @tags EventSlot
+     * @name EventSlotCreate
+     * @request POST:/api/events/{eid}/slots
      * @secure
      */
-    useItemCreate: (options?: SWRMutationConfiguration<ItemDto, ErrorProdResponse, string, CreateItemDto>) =>
+    useEventSlotCreate: (
+      eid: string,
+      options?: SWRMutationConfiguration<EventSlotDto, ErrorProdResponse, string, CreateEventSlotDto>,
+    ) =>
       useSWRMutation(
-        `/api/items`,
-        (_url: string, { arg }: { arg: CreateItemDto }) =>
-          this.api.itemCreate(arg).then(
+        `/api/events/${eid}/slots`,
+        (_url: string, { arg }: { arg: CreateEventSlotDto }) =>
+          this.api.eventSlotCreate(eid, arg).then(
             (x) => x.data,
             (x) => Promise.reject(x.error),
           ),
@@ -938,15 +837,14 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemGet
-     * @summary Get
-     * @request GET:/api/items/{id}
+     * @tags EventSlot
+     * @name EventSlotGet
+     * @request GET:/api/events/{eid}/slots/{sid}
      * @secure
      */
-    itemGet: (id: string, params: RequestParams = {}) =>
-      this.request<ItemDto, ErrorProdResponse>({
-        path: `/api/items/${id}`,
+    eventSlotGet: (eid: string, sid: string, params: RequestParams = {}) =>
+      this.request<EventSlotDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/slots/${sid}`,
         method: "GET",
         secure: true,
         format: "json",
@@ -955,40 +853,41 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemGet
-     * @summary Get
-     * @request GET:/api/items/{id}
+     * @tags EventSlot
+     * @name EventSlotGet
+     * @request GET:/api/events/{eid}/slots/{sid}
      * @secure
      */
-    useItemGet: (id: string, options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<ItemDto, ErrorProdResponse>(doFetch ? `/api/items/${id}` : null, options),
+    useEventSlotGet: (eid: string, sid: string, options?: SWRConfiguration, doFetch: boolean = true) =>
+      useSWR<EventSlotDto, ErrorProdResponse>(doFetch ? `/api/events/${eid}/slots/${sid}` : null, options),
 
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemGet
-     * @summary Get
-     * @request GET:/api/items/{id}
+     * @tags EventSlot
+     * @name EventSlotGet
+     * @request GET:/api/events/{eid}/slots/{sid}
      * @secure
      */
-    mutateItemGet: (id: string, data?: ItemDto | Promise<ItemDto>, options?: MutatorOptions) =>
-      mutate<ItemDto>(`/api/items/${id}`, data, options),
+    mutateEventSlotGet: (
+      eid: string,
+      sid: string,
+      data?: EventSlotDto | Promise<EventSlotDto>,
+      options?: MutatorOptions,
+    ) => mutate<EventSlotDto>(`/api/events/${eid}/slots/${sid}`, data, options),
 
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemUpdate
-     * @summary Update
-     * @request PATCH:/api/items/{id}
+     * @tags EventSlot
+     * @name EventSlotUpdate
+     * @request PUT:/api/events/{eid}/slots/{sid}
      * @secure
      */
-    itemUpdate: (id: string, data: UpdateItemDto, params: RequestParams = {}) =>
-      this.request<ItemDto, ErrorProdResponse>({
-        path: `/api/items/${id}`,
-        method: "PATCH",
+    eventSlotUpdate: (eid: string, sid: string, data: UpdateEventSlotDto, params: RequestParams = {}) =>
+      this.request<EventSlotDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/slots/${sid}`,
+        method: "PUT",
         body: data,
         secure: true,
         type: ContentType.Json,
@@ -998,20 +897,20 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemUpdate
-     * @summary Update
-     * @request PATCH:/api/items/{id}
+     * @tags EventSlot
+     * @name EventSlotUpdate
+     * @request PUT:/api/events/{eid}/slots/{sid}
      * @secure
      */
-    useItemUpdate: (
-      id: string,
-      options?: SWRMutationConfiguration<ItemDto, ErrorProdResponse, string, UpdateItemDto>,
+    useEventSlotUpdate: (
+      eid: string,
+      sid: string,
+      options?: SWRMutationConfiguration<EventSlotDto, ErrorProdResponse, string, UpdateEventSlotDto>,
     ) =>
       useSWRMutation(
-        `/api/items/${id}`,
-        (_url: string, { arg }: { arg: UpdateItemDto }) =>
-          this.api.itemUpdate(id, arg).then(
+        `/api/events/${eid}/slots/${sid}`,
+        (_url: string, { arg }: { arg: UpdateEventSlotDto }) =>
+          this.api.eventSlotUpdate(eid, sid, arg).then(
             (x) => x.data,
             (x) => Promise.reject(x.error),
           ),
@@ -1021,15 +920,14 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemDelete
-     * @summary Delete
-     * @request DELETE:/api/items/{id}
+     * @tags EventSlot
+     * @name EventSlotDelete
+     * @request DELETE:/api/events/{eid}/slots/{sid}
      * @secure
      */
-    itemDelete: (id: string, params: RequestParams = {}) =>
-      this.request<ItemDto, ErrorProdResponse>({
-        path: `/api/items/${id}`,
+    eventSlotDelete: (eid: string, sid: string, params: RequestParams = {}) =>
+      this.request<EventSlotDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/slots/${sid}`,
         method: "DELETE",
         secure: true,
         format: "json",
@@ -1038,17 +936,20 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemDelete
-     * @summary Delete
-     * @request DELETE:/api/items/{id}
+     * @tags EventSlot
+     * @name EventSlotDelete
+     * @request DELETE:/api/events/{eid}/slots/{sid}
      * @secure
      */
-    useItemDelete: (id: string, options?: SWRMutationConfiguration<ItemDto, ErrorProdResponse, string, never>) =>
+    useEventSlotDelete: (
+      eid: string,
+      sid: string,
+      options?: SWRMutationConfiguration<EventSlotDto, ErrorProdResponse, string, never>,
+    ) =>
       useSWRMutation(
-        `/api/items/${id}`,
+        `/api/events/${eid}/slots/${sid}`,
         (_url: string, { arg }: { arg: never }) =>
-          this.api.itemDelete(id, arg).then(
+          this.api.eventSlotDelete(eid, sid, arg).then(
             (x) => x.data,
             (x) => Promise.reject(x.error),
           ),
@@ -1058,15 +959,14 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemGetChildItems
-     * @summary Get Child Items
-     * @request GET:/api/items/{id}/items
+     * @tags EventSlotBooking
+     * @name EventSlotBookingGet
+     * @request GET:/api/events/{eid}/slots/{sid}/booking
      * @secure
      */
-    itemGetChildItems: (id: string, params: RequestParams = {}) =>
-      this.request<ItemDto[], ErrorProdResponse>({
-        path: `/api/items/${id}/items`,
+    eventSlotBookingGet: (eid: string, sid: string, params: RequestParams = {}) =>
+      this.request<EventBookingDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/slots/${sid}/booking`,
         method: "GET",
         secure: true,
         format: "json",
@@ -1075,40 +975,41 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemGetChildItems
-     * @summary Get Child Items
-     * @request GET:/api/items/{id}/items
+     * @tags EventSlotBooking
+     * @name EventSlotBookingGet
+     * @request GET:/api/events/{eid}/slots/{sid}/booking
      * @secure
      */
-    useItemGetChildItems: (id: string, options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<ItemDto[], ErrorProdResponse>(doFetch ? `/api/items/${id}/items` : null, options),
+    useEventSlotBookingGet: (eid: string, sid: string, options?: SWRConfiguration, doFetch: boolean = true) =>
+      useSWR<EventBookingDto, ErrorProdResponse>(doFetch ? `/api/events/${eid}/slots/${sid}/booking` : null, options),
 
     /**
      * No description
      *
-     * @tags Item
-     * @name ItemGetChildItems
-     * @summary Get Child Items
-     * @request GET:/api/items/{id}/items
+     * @tags EventSlotBooking
+     * @name EventSlotBookingGet
+     * @request GET:/api/events/{eid}/slots/{sid}/booking
      * @secure
      */
-    mutateItemGetChildItems: (id: string, data?: ItemDto[] | Promise<ItemDto[]>, options?: MutatorOptions) =>
-      mutate<ItemDto[]>(`/api/items/${id}/items`, data, options),
+    mutateEventSlotBookingGet: (
+      eid: string,
+      sid: string,
+      data?: EventBookingDto | Promise<EventBookingDto>,
+      options?: MutatorOptions,
+    ) => mutate<EventBookingDto>(`/api/events/${eid}/slots/${sid}/booking`, data, options),
 
     /**
      * No description
      *
-     * @tags ItemLink
-     * @name ItemLinkList
-     * @summary List
-     * @request GET:/api/items/{item_id}/links
+     * @tags EventSlotBooking
+     * @name EventSlotBookingPut
+     * @request PUT:/api/events/{eid}/slots/{sid}/booking
      * @secure
      */
-    itemLinkList: (itemId: string, params: RequestParams = {}) =>
-      this.request<LinkDto[], ErrorProdResponse>({
-        path: `/api/items/${itemId}/links`,
-        method: "GET",
+    eventSlotBookingPut: (eid: string, sid: string, params: RequestParams = {}) =>
+      this.request<EventBookingDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/slots/${sid}/booking`,
+        method: "PUT",
         secure: true,
         format: "json",
         ...params,
@@ -1116,63 +1017,20 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags ItemLink
-     * @name ItemLinkList
-     * @summary List
-     * @request GET:/api/items/{item_id}/links
+     * @tags EventSlotBooking
+     * @name EventSlotBookingPut
+     * @request PUT:/api/events/{eid}/slots/{sid}/booking
      * @secure
      */
-    useItemLinkList: (itemId: string, options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<LinkDto[], ErrorProdResponse>(doFetch ? `/api/items/${itemId}/links` : null, options),
-
-    /**
-     * No description
-     *
-     * @tags ItemLink
-     * @name ItemLinkList
-     * @summary List
-     * @request GET:/api/items/{item_id}/links
-     * @secure
-     */
-    mutateItemLinkList: (itemId: string, data?: LinkDto[] | Promise<LinkDto[]>, options?: MutatorOptions) =>
-      mutate<LinkDto[]>(`/api/items/${itemId}/links`, data, options),
-
-    /**
-     * No description
-     *
-     * @tags ItemLink
-     * @name ItemLinkCreate
-     * @summary Create
-     * @request POST:/api/items/{item_id}/links
-     * @secure
-     */
-    itemLinkCreate: (itemId: string, data: CreateLinkDto, params: RequestParams = {}) =>
-      this.request<LinkDto, ErrorProdResponse>({
-        path: `/api/items/${itemId}/links`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags ItemLink
-     * @name ItemLinkCreate
-     * @summary Create
-     * @request POST:/api/items/{item_id}/links
-     * @secure
-     */
-    useItemLinkCreate: (
-      itemId: string,
-      options?: SWRMutationConfiguration<LinkDto, ErrorProdResponse, string, CreateLinkDto>,
+    useEventSlotBookingPut: (
+      eid: string,
+      sid: string,
+      options?: SWRMutationConfiguration<EventBookingDto, ErrorProdResponse, string, never>,
     ) =>
       useSWRMutation(
-        `/api/items/${itemId}/links`,
-        (_url: string, { arg }: { arg: CreateLinkDto }) =>
-          this.api.itemLinkCreate(itemId, arg).then(
+        `/api/events/${eid}/slots/${sid}/booking`,
+        (_url: string, { arg }: { arg: never }) =>
+          this.api.eventSlotBookingPut(eid, sid, arg).then(
             (x) => x.data,
             (x) => Promise.reject(x.error),
           ),
@@ -1182,99 +1040,14 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags ItemLink
-     * @name ItemLinkGet
-     * @summary Get
-     * @request GET:/api/items/{item_id}/links/{id}
+     * @tags EventSlotBooking
+     * @name EventSlotBookingDelete
+     * @request DELETE:/api/events/{eid}/slots/{sid}/booking
      * @secure
      */
-    itemLinkGet: (itemId: string, id: string, params: RequestParams = {}) =>
-      this.request<LinkDto, ErrorProdResponse>({
-        path: `/api/items/${itemId}/links/${id}`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags ItemLink
-     * @name ItemLinkGet
-     * @summary Get
-     * @request GET:/api/items/{item_id}/links/{id}
-     * @secure
-     */
-    useItemLinkGet: (itemId: string, id: string, options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<LinkDto, ErrorProdResponse>(doFetch ? `/api/items/${itemId}/links/${id}` : null, options),
-
-    /**
-     * No description
-     *
-     * @tags ItemLink
-     * @name ItemLinkGet
-     * @summary Get
-     * @request GET:/api/items/{item_id}/links/{id}
-     * @secure
-     */
-    mutateItemLinkGet: (itemId: string, id: string, data?: LinkDto | Promise<LinkDto>, options?: MutatorOptions) =>
-      mutate<LinkDto>(`/api/items/${itemId}/links/${id}`, data, options),
-
-    /**
-     * No description
-     *
-     * @tags ItemLink
-     * @name ItemLinkUpdate
-     * @summary Update
-     * @request PATCH:/api/items/{item_id}/links/{id}
-     * @secure
-     */
-    itemLinkUpdate: (itemId: string, id: string, data: UpdateLinkDto, params: RequestParams = {}) =>
-      this.request<LinkDto, ErrorProdResponse>({
-        path: `/api/items/${itemId}/links/${id}`,
-        method: "PATCH",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags ItemLink
-     * @name ItemLinkUpdate
-     * @summary Update
-     * @request PATCH:/api/items/{item_id}/links/{id}
-     * @secure
-     */
-    useItemLinkUpdate: (
-      itemId: string,
-      id: string,
-      options?: SWRMutationConfiguration<LinkDto, ErrorProdResponse, string, UpdateLinkDto>,
-    ) =>
-      useSWRMutation(
-        `/api/items/${itemId}/links/${id}`,
-        (_url: string, { arg }: { arg: UpdateLinkDto }) =>
-          this.api.itemLinkUpdate(itemId, id, arg).then(
-            (x) => x.data,
-            (x) => Promise.reject(x.error),
-          ),
-        options,
-      ),
-
-    /**
-     * No description
-     *
-     * @tags ItemLink
-     * @name ItemLinkDelete
-     * @summary Delete
-     * @request DELETE:/api/items/{item_id}/links/{id}
-     * @secure
-     */
-    itemLinkDelete: (itemId: string, id: string, params: RequestParams = {}) =>
-      this.request<LinkDto, ErrorProdResponse>({
-        path: `/api/items/${itemId}/links/${id}`,
+    eventSlotBookingDelete: (eid: string, sid: string, params: RequestParams = {}) =>
+      this.request<EventBookingDto, ErrorProdResponse>({
+        path: `/api/events/${eid}/slots/${sid}/booking`,
         method: "DELETE",
         secure: true,
         format: "json",
@@ -1283,323 +1056,25 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags ItemLink
-     * @name ItemLinkDelete
-     * @summary Delete
-     * @request DELETE:/api/items/{item_id}/links/{id}
+     * @tags EventSlotBooking
+     * @name EventSlotBookingDelete
+     * @request DELETE:/api/events/{eid}/slots/{sid}/booking
      * @secure
      */
-    useItemLinkDelete: (
-      itemId: string,
-      id: string,
-      options?: SWRMutationConfiguration<LinkDto, ErrorProdResponse, string, never>,
+    useEventSlotBookingDelete: (
+      eid: string,
+      sid: string,
+      options?: SWRMutationConfiguration<EventBookingDto, ErrorProdResponse, string, never>,
     ) =>
       useSWRMutation(
-        `/api/items/${itemId}/links/${id}`,
+        `/api/events/${eid}/slots/${sid}/booking`,
         (_url: string, { arg }: { arg: never }) =>
-          this.api.itemLinkDelete(itemId, id, arg).then(
+          this.api.eventSlotBookingDelete(eid, sid, arg).then(
             (x) => x.data,
             (x) => Promise.reject(x.error),
           ),
         options,
       ),
-
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakList
-     * @request GET:/api/modules/pikpak/jobs
-     * @secure
-     */
-    pikPakList: (params: RequestParams = {}) =>
-      this.request<JobDto[], ErrorProdResponse>({
-        path: `/api/modules/pikpak/jobs`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakList
-     * @request GET:/api/modules/pikpak/jobs
-     * @secure
-     */
-    usePikPakList: (options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<JobDto[], ErrorProdResponse>(doFetch ? `/api/modules/pikpak/jobs` : null, options),
-
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakList
-     * @request GET:/api/modules/pikpak/jobs
-     * @secure
-     */
-    mutatePikPakList: (data?: JobDto[] | Promise<JobDto[]>, options?: MutatorOptions) =>
-      mutate<JobDto[]>(`/api/modules/pikpak/jobs`, data, options),
-
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakCreate
-     * @request POST:/api/modules/pikpak/jobs
-     * @secure
-     */
-    pikPakCreate: (data: CreateJobDto, params: RequestParams = {}) =>
-      this.request<JobDto, ErrorProdResponse>({
-        path: `/api/modules/pikpak/jobs`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakCreate
-     * @request POST:/api/modules/pikpak/jobs
-     * @secure
-     */
-    usePikPakCreate: (options?: SWRMutationConfiguration<JobDto, ErrorProdResponse, string, CreateJobDto>) =>
-      useSWRMutation(
-        `/api/modules/pikpak/jobs`,
-        (_url: string, { arg }: { arg: CreateJobDto }) =>
-          this.api.pikPakCreate(arg).then(
-            (x) => x.data,
-            (x) => Promise.reject(x.error),
-          ),
-        options,
-      ),
-
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakGet
-     * @request GET:/api/modules/pikpak/jobs/{id}
-     * @secure
-     */
-    pikPakGet: (id: string, params: RequestParams = {}) =>
-      this.request<JobDto, ErrorProdResponse>({
-        path: `/api/modules/pikpak/jobs/${id}`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakGet
-     * @request GET:/api/modules/pikpak/jobs/{id}
-     * @secure
-     */
-    usePikPakGet: (id: string, options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<JobDto, ErrorProdResponse>(doFetch ? `/api/modules/pikpak/jobs/${id}` : null, options),
-
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakGet
-     * @request GET:/api/modules/pikpak/jobs/{id}
-     * @secure
-     */
-    mutatePikPakGet: (id: string, data?: JobDto | Promise<JobDto>, options?: MutatorOptions) =>
-      mutate<JobDto>(`/api/modules/pikpak/jobs/${id}`, data, options),
-
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakUpdate
-     * @request POST:/api/modules/pikpak/jobs/{id}
-     * @secure
-     */
-    pikPakUpdate: (id: string, data: UpdateJobDto, params: RequestParams = {}) =>
-      this.request<JobDto, ErrorProdResponse>({
-        path: `/api/modules/pikpak/jobs/${id}`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakUpdate
-     * @request POST:/api/modules/pikpak/jobs/{id}
-     * @secure
-     */
-    usePikPakUpdate: (
-      id: string,
-      options?: SWRMutationConfiguration<JobDto, ErrorProdResponse, string, UpdateJobDto>,
-    ) =>
-      useSWRMutation(
-        `/api/modules/pikpak/jobs/${id}`,
-        (_url: string, { arg }: { arg: UpdateJobDto }) =>
-          this.api.pikPakUpdate(id, arg).then(
-            (x) => x.data,
-            (x) => Promise.reject(x.error),
-          ),
-        options,
-      ),
-
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakDelete
-     * @request DELETE:/api/modules/pikpak/jobs/{id}
-     * @secure
-     */
-    pikPakDelete: (id: string, params: RequestParams = {}) =>
-      this.request<void, ErrorProdResponse>({
-        path: `/api/modules/pikpak/jobs/${id}`,
-        method: "DELETE",
-        secure: true,
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakDelete
-     * @request DELETE:/api/modules/pikpak/jobs/{id}
-     * @secure
-     */
-    usePikPakDelete: (id: string, options?: SWRMutationConfiguration<void, ErrorProdResponse, string, never>) =>
-      useSWRMutation(
-        `/api/modules/pikpak/jobs/${id}`,
-        (_url: string, { arg }: { arg: never }) =>
-          this.api.pikPakDelete(id, arg).then(
-            (x) => x.data,
-            (x) => Promise.reject(x.error),
-          ),
-        options,
-      ),
-
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakListFolder
-     * @request POST:/api/modules/pikpak/list_folder
-     * @secure
-     */
-    pikPakListFolder: (data: ListFolderDto, params: RequestParams = {}) =>
-      this.request<FileDto[], ErrorProdResponse>({
-        path: `/api/modules/pikpak/list_folder`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakListFolder
-     * @request POST:/api/modules/pikpak/list_folder
-     * @secure
-     */
-    usePikPakListFolder: (options?: SWRMutationConfiguration<FileDto[], ErrorProdResponse, string, ListFolderDto>) =>
-      useSWRMutation(
-        `/api/modules/pikpak/list_folder`,
-        (_url: string, { arg }: { arg: ListFolderDto }) =>
-          this.api.pikPakListFolder(arg).then(
-            (x) => x.data,
-            (x) => Promise.reject(x.error),
-          ),
-        options,
-      ),
-
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakImportFolder
-     * @request POST:/api/modules/pikpak/import_folder
-     * @secure
-     */
-    pikPakImportFolder: (data: ImportFolderDto, params: RequestParams = {}) =>
-      this.request<LinkDto[], ErrorProdResponse>({
-        path: `/api/modules/pikpak/import_folder`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags PikPak
-     * @name PikPakImportFolder
-     * @request POST:/api/modules/pikpak/import_folder
-     * @secure
-     */
-    usePikPakImportFolder: (
-      options?: SWRMutationConfiguration<LinkDto[], ErrorProdResponse, string, ImportFolderDto>,
-    ) =>
-      useSWRMutation(
-        `/api/modules/pikpak/import_folder`,
-        (_url: string, { arg }: { arg: ImportFolderDto }) =>
-          this.api.pikPakImportFolder(arg).then(
-            (x) => x.data,
-            (x) => Promise.reject(x.error),
-          ),
-        options,
-      ),
-
-    /**
-     * No description
-     *
-     * @tags Session
-     * @name SessionGetConfig
-     * @request GET:/api/session/config
-     */
-    sessionGetConfig: (params: RequestParams = {}) =>
-      this.request<ConfigurationDto, ErrorProdResponse>({
-        path: `/api/session/config`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags Session
-     * @name SessionGetConfig
-     * @request GET:/api/session/config
-     */
-    useSessionGetConfig: (options?: SWRConfiguration, doFetch: boolean = true) =>
-      useSWR<ConfigurationDto, ErrorProdResponse>(doFetch ? `/api/session/config` : null, options),
-
-    /**
-     * No description
-     *
-     * @tags Session
-     * @name SessionGetConfig
-     * @request GET:/api/session/config
-     */
-    mutateSessionGetConfig: (data?: ConfigurationDto | Promise<ConfigurationDto>, options?: MutatorOptions) =>
-      mutate<ConfigurationDto>(`/api/session/config`, data, options),
 
     /**
      * @description Login with username and password. This API does not comply with OAuth 2.1, and only supports first-party applications (the built-in web frontend). It is based on `grant_type` `password` (which has been drooped in OAuth 2.1) or `refresh_token`. It requires additional parameters for security control. **Request with password** It requires `username`, `password`, `captcha`. ```text username=alice&password=foobar&captcha=foobar&grant_type=password ``` **Request with refresh token** It requires `refresh_token`. ```text grant_type=refresh_token&refresh_token=507f0155-577e-448d-870b-5abe98a41d3f ```
@@ -1613,7 +1088,6 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       data: {
         username?: string;
         password?: string;
-        captcha?: string;
         grant_type?: string;
         refresh_token?: string;
       },
@@ -1643,7 +1117,6 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         {
           username?: string;
           password?: string;
-          captcha?: string;
           grant_type?: string;
           refresh_token?: string;
         }
@@ -1659,7 +1132,6 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
             arg: {
               username?: string;
               password?: string;
-              captcha?: string;
               grant_type?: string;
               refresh_token?: string;
             };
@@ -1752,115 +1224,6 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     /**
      * No description
      *
-     * @tags Torrent
-     * @name TorrentList
-     * @request GET:/api/modules/torrent_directory/torrents
-     * @secure
-     */
-    torrentList: (
-      query?: {
-        query?: string;
-        /** @format int32 */
-        count?: number;
-        /** @format date-time */
-        until?: string;
-      },
-      params: RequestParams = {},
-    ) =>
-      this.request<TorrentDto[], ErrorProdResponse>({
-        path: `/api/modules/torrent_directory/torrents`,
-        method: "GET",
-        query: query,
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags Torrent
-     * @name TorrentList
-     * @request GET:/api/modules/torrent_directory/torrents
-     * @secure
-     */
-    useTorrentList: (
-      query?: {
-        query?: string;
-        /** @format int32 */
-        count?: number;
-        /** @format date-time */
-        until?: string;
-      },
-      options?: SWRConfiguration,
-      doFetch: boolean = true,
-    ) =>
-      useSWR<TorrentDto[], ErrorProdResponse>(
-        doFetch ? [`/api/modules/torrent_directory/torrents`, query] : null,
-        options,
-      ),
-
-    /**
-     * No description
-     *
-     * @tags Torrent
-     * @name TorrentList
-     * @request GET:/api/modules/torrent_directory/torrents
-     * @secure
-     */
-    mutateTorrentList: (
-      query?: {
-        query?: string;
-        /** @format int32 */
-        count?: number;
-        /** @format date-time */
-        until?: string;
-      },
-      data?: TorrentDto[] | Promise<TorrentDto[]>,
-      options?: MutatorOptions,
-    ) => mutate<TorrentDto[]>([`/api/modules/torrent_directory/torrents`, query], data, options),
-
-    /**
-     * No description
-     *
-     * @tags Torrent
-     * @name TorrentFetchPage
-     * @request POST:/api/modules/torrent_directory/providers/{name}/fetch/{page}
-     * @secure
-     */
-    torrentFetchPage: (name: string, page: number, params: RequestParams = {}) =>
-      this.request<FetchPageResponseDto, ErrorProdResponse>({
-        path: `/api/modules/torrent_directory/providers/${name}/fetch/${page}`,
-        method: "POST",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags Torrent
-     * @name TorrentFetchPage
-     * @request POST:/api/modules/torrent_directory/providers/{name}/fetch/{page}
-     * @secure
-     */
-    useTorrentFetchPage: (
-      name: string,
-      page: number,
-      options?: SWRMutationConfiguration<FetchPageResponseDto, ErrorProdResponse, string, never>,
-    ) =>
-      useSWRMutation(
-        `/api/modules/torrent_directory/providers/${name}/fetch/${page}`,
-        (_url: string, { arg }: { arg: never }) =>
-          this.api.torrentFetchPage(name, page, arg).then(
-            (x) => x.data,
-            (x) => Promise.reject(x.error),
-          ),
-        options,
-      ),
-
-    /**
-     * No description
-     *
      * @tags User
      * @name UserList
      * @request GET:/api/users
@@ -1895,40 +1258,6 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
      */
     mutateUserList: (data?: UserDto[] | Promise<UserDto[]>, options?: MutatorOptions) =>
       mutate<UserDto[]>(`/api/users`, data, options),
-
-    /**
-     * No description
-     *
-     * @tags User
-     * @name UserRegister
-     * @request POST:/api/users
-     */
-    userRegister: (data: CreateUserDto, params: RequestParams = {}) =>
-      this.request<UserDto, ErrorProdResponse>({
-        path: `/api/users`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-    /**
-     * No description
-     *
-     * @tags User
-     * @name UserRegister
-     * @request POST:/api/users
-     */
-    useUserRegister: (options?: SWRMutationConfiguration<UserDto, ErrorProdResponse, string, CreateUserDto>) =>
-      useSWRMutation(
-        `/api/users`,
-        (_url: string, { arg }: { arg: CreateUserDto }) =>
-          this.api.userRegister(arg).then(
-            (x) => x.data,
-            (x) => Promise.reject(x.error),
-          ),
-        options,
-      ),
 
     /**
      * No description

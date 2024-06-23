@@ -1,7 +1,6 @@
 import api, { ErrorProdResponse, HttpResponse, LoginResDto, RequestParams } from "../api";
 import { atom, getDefaultStore } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
-import { mutate } from "swr";
 
 interface IAccessToken {
   access_token: string;
@@ -26,27 +25,15 @@ export const hasAuthenticatedAtom = atom(
 
 export const getAccessToken = () => sessionStore.get(accessTokenAtom)?.access_token;
 
-const clearSWRStore = () =>
-  mutate(
-    (key) => {
-      if (key === "/api/session/config") return false;
-      return true;
-    },
-    undefined,
-    true,
-  );
-const handleSessionLoginResponse = async (
-  result: Pick<LoginResDto, "access_token" | "expires_in" | "refresh_token">,
-) => {
+const handleSessionLoginResponse = (result: Pick<LoginResDto, "access_token" | "expires_in" | "refresh_token">) => {
   const expires_at = new Date(Date.now() + result.expires_in * 1000).toJSON();
   sessionStore.set(accessTokenAtom, { access_token: result.access_token, expires_at });
   sessionStore.set(refreshTokenAtom, result.refresh_token);
-  await clearSWRStore();
 };
 
-export const login = async (username: string, password: string, captcha: string) => {
-  const result = await api.sessionLogin({ grant_type: "password", username, password, captcha });
-  await handleSessionLoginResponse(result.data);
+export const login = async (username: string, password: string) => {
+  const result = await api.sessionLogin({ grant_type: "password", username, password });
+  handleSessionLoginResponse(result.data);
 };
 export const refresh = async () => {
   try {
@@ -59,13 +46,13 @@ export const refresh = async () => {
       grant_type: "refresh_token",
       refresh_token: sessionStore.get(refreshTokenAtom) ?? "",
     });
-    await handleSessionLoginResponse(result.data);
+    handleSessionLoginResponse(result.data);
     const observers = refreshTokenObservers;
     refreshTokenObservers = [];
     observers.forEach((observer) => observer(null));
   } catch (err) {
     if ((err as HttpResponse<void, ErrorProdResponse>)?.error?.error_code === "INVALID_REFRESH_TOKEN") {
-      await forceLogout();
+      forceLogout();
     }
   }
   sessionStore.set(isRefreshingAtom, false);
@@ -74,14 +61,14 @@ export const logout = async () => {
   try {
     await api.sessionLogout();
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.error("lougout failed = ", e);
   }
-  await forceLogout();
+  forceLogout();
 };
-export const forceLogout = async () => {
+export const forceLogout = () => {
   sessionStore.set(accessTokenAtom, null);
   sessionStore.set(refreshTokenAtom, null);
-  await clearSWRStore();
 };
 
 /**
