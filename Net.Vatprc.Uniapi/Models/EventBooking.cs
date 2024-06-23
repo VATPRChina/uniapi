@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Net.Vatprc.Uniapi.Models;
 
-public class Booking
+public class EventBooking
 {
     public Ulid Id { get; set; } = Ulid.NewUlid();
 
@@ -16,13 +16,12 @@ public class Booking
 
     public DateTimeOffset UpdatedAt { get; set; }
 
-    public class BookingConfiguration : IEntityTypeConfiguration<Booking>
+    public class EventBookingConfiguration : IEntityTypeConfiguration<EventBooking>
     {
-        public void Configure(EntityTypeBuilder<Booking> builder)
+        public void Configure(EntityTypeBuilder<EventBooking> builder)
         {
             builder.HasIndex(x => x.EventSlotId)
                 .IsUnique();
-
 
             builder.Property(x => x.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -30,6 +29,10 @@ public class Booking
             builder.Property(x => x.UpdatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .ValueGeneratedOnAddOrUpdate();
+
+            builder.HasOne(x => x.EventSlot)
+                .WithOne(x => x.Booking)
+                .IsRequired();
         }
     }
 }

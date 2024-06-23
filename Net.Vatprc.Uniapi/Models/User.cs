@@ -18,7 +18,7 @@ public class User
 
     public DateTimeOffset UpdatedAt { get; set; }
 
-    public ISet<string> Roles { get; set; } = new HashSet<string>();
+    public IList<string> Roles { get; set; } = new List<string>();
 
     public IEnumerable<Session> Sessions { get; set; } = null!;
 

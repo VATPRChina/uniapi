@@ -10,17 +10,8 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/session")]
-public class SessionController : ControllerBase
+public class SessionController(VATPRCContext DbContext, TokenService TokenService) : ControllerBase
 {
-    protected VATPRCContext DbContext { get; init; }
-    protected TokenService TokenService { get; init; }
-
-    public SessionController(VATPRCContext dbContext, TokenService tokenService)
-    {
-        DbContext = dbContext;
-        TokenService = tokenService;
-    }
-
     public record LoginReqDto
     {
         public string username { get; set; } = string.Empty;

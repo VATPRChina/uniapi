@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
+using System.Collections.Immutable;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -11,15 +12,8 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/users")]
-public class UserController : ControllerBase
+public class UserController(VATPRCContext DbContext) : ControllerBase
 {
-    private VATPRCContext DbContext { get; init; }
-
-    public UserController(VATPRCContext dbContext)
-    {
-        DbContext = dbContext;
-    }
-
     public record UserDto
     {
         public Ulid Id { get; init; }
@@ -27,6 +21,7 @@ public class UserController : ControllerBase
         public string FullName { get; init; }
         public DateTimeOffset CreatedAt { get; init; }
         public DateTimeOffset UpdatedAt { get; init; }
+        public ISet<string> Roles { get; init; }
 
         public UserDto(User user)
         {
@@ -35,6 +30,7 @@ public class UserController : ControllerBase
             FullName = user.FullName;
             CreatedAt = user.CreatedAt;
             UpdatedAt = user.UpdatedAt;
+            Roles = user.Roles.ToImmutableHashSet();
         }
     }
 

@@ -2,13 +2,12 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Net.Http.Headers;
+using Net.Vatprc.Uniapi.Models;
 
 namespace Net.Vatprc.Uniapi.Utils;
 
-public class AuthenticationEventHandler(VATPRCContext db) : JwtBearerEvents
+public class AuthenticationEventHandler(VATPRCContext DbContext) : JwtBearerEvents
 {
-    protected VATPRCContext DbContext = db;
-
     public override async Task Challenge(JwtBearerChallengeContext context)
     {
         context.HandleResponse();
@@ -121,7 +120,15 @@ public class AuthenticationEventHandler(VATPRCContext db) : JwtBearerEvents
             var identity = (ClaimsIdentity)context.Principal.Identity!;
             foreach (var role in user!.Roles)
             {
-                identity?.AddClaim(new(ClaimTypes.Role, role.ToString()));
+                identity?.AddClaim(new(ClaimTypes.Role, role));
+            }
+            if (user.Roles.Contains(User.UserRoles.Admin) && !user.Roles.Contains(User.UserRoles.EventCoordinator))
+            {
+                identity?.AddClaim(new(ClaimTypes.Role, User.UserRoles.EventCoordinator));
+            }
+            if (user.Roles.Contains(User.UserRoles.Admin) && !user.Roles.Contains(User.UserRoles.Controller))
+            {
+                identity?.AddClaim(new(ClaimTypes.Role, User.UserRoles.Controller));
             }
         }
         catch (Exception e)

@@ -10,7 +10,7 @@ public class VATPRCContext(DbContextOptions<VATPRCContext> options) : DbContext(
     public DbSet<Event> Event { get; set; } = null!;
     public DbSet<EventSlot> EventSlot { get; set; } = null!;
     public DbSet<EventAirspace> EventAirspace { get; set; } = null!;
-    public DbSet<Booking> Booking { get; set; } = null!;
+    public DbSet<EventBooking> EventBooking { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

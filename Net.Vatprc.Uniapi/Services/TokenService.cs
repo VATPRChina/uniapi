@@ -7,20 +7,9 @@ using Net.Vatprc.Uniapi.Models;
 
 namespace Net.Vatprc.Uniapi.Services;
 
-public class TokenService
+public class TokenService(IOptionsMonitor<TokenService.Option> Options, IServiceScopeFactory Services)
 {
-    protected ILogger<TokenService> Logger { get; init; }
-    protected IOptionsMonitor<Option> Options { get; set; }
-    protected IServiceScopeFactory Services { get; init; }
-
     public TimeSpan FirstPartyExpires => Options.CurrentValue.FirstPartyExpires;
-
-    public TokenService(ILogger<TokenService> logger, IOptionsMonitor<Option> options, IServiceScopeFactory services)
-    {
-        Logger = logger;
-        Options = options;
-        Services = services;
-    }
 
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
     {

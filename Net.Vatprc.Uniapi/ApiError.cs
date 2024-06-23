@@ -64,31 +64,18 @@ public abstract class ApiError : Exception
     }
 
     [AttributeUsage(AttributeTargets.Class)]
-    protected class ErrorAttribute : Attribute
+    protected class ErrorAttribute(HttpStatusCode statusCode, string errorCode, string messageExample = "") : Attribute
     {
-        public HttpStatusCode StatusCode { get; set; }
-        public string ErrorCode { get; set; }
-        public string MessageExample { get; set; }
-
-        public ErrorAttribute(HttpStatusCode statusCode, string errorCode, string messageExample = "")
-        {
-            StatusCode = statusCode;
-            ErrorCode = errorCode;
-            MessageExample = messageExample;
-        }
+        public HttpStatusCode StatusCode { get; set; } = statusCode;
+        public string ErrorCode { get; set; } = errorCode;
+        public string MessageExample { get; set; } = messageExample;
     }
 
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-    protected class WithExtraData : Attribute
+    protected class WithExtraData(string fieldName, Type fieldType) : Attribute
     {
-        public string FieldName { get; set; }
-        public Type FieldType { get; set; }
-
-        public WithExtraData(string fieldName, Type fieldType)
-        {
-            FieldName = fieldName;
-            FieldType = fieldType;
-        }
+        public string FieldName { get; set; } = fieldName;
+        public Type FieldType { get; set; } = fieldType;
     }
 
     public void WithHttpContext(HttpContext context)
@@ -193,17 +180,8 @@ public abstract class ApiError : Exception
         }
     }
 
-    public class ErrorExceptionFilter : IExceptionFilter
+    public class ErrorExceptionFilter(IHostEnvironment HostEnvironment, Serilog.ILogger Logger) : IExceptionFilter
     {
-        private readonly IHostEnvironment HostEnvironment;
-        private readonly Serilog.ILogger Logger;
-
-        public ErrorExceptionFilter(IHostEnvironment hostEnvironment, Serilog.ILogger logger)
-        {
-            HostEnvironment = hostEnvironment;
-            Logger = logger;
-        }
-
         private static IActionResult NormalizeError(Exception exception, ExceptionContext context, bool isProduction)
         {
             var error = exception switch
@@ -243,12 +221,10 @@ public abstract class ApiError : Exception
     }
 
     [Error(HttpStatusCode.InternalServerError, "INTERNAL_SERVER_ERROR", "An internal server error occurred.")]
-    public class InternalServerError : ApiError
+    public class InternalServerError(Exception innerException) : ApiError(
+        $"An internal server error occurred: {innerException.Message}",
+        innerException)
     {
-        public InternalServerError(Exception innerException) : base(
-            $"An internal server error occurred: {innerException.Message}",
-            innerException)
-        { }
     }
 
     [Error(HttpStatusCode.NotFound, "ENDPOINT_NOT_FOUND", "API endpoint not found.")]
@@ -328,6 +304,93 @@ public abstract class ApiError : Exception
             $"Refresh token is not valid for {code}.")
         {
             ExtraData.Add("code", code);
+        }
+    }
+
+    [Error(HttpStatusCode.NotFound, "EVENT_NOT_FOUND", "Event {event_id} not found.")]
+    [WithExtraData("event_id", typeof(string))]
+    public class EventNotFound : ApiError
+    {
+        public EventNotFound(Ulid id) : base(
+            $"Event {id} not found.")
+        {
+            ExtraData.Add("event_id", id);
+        }
+    }
+
+    [Error(HttpStatusCode.NotFound, "EVENT_AIRSPACE_NOT_FOUND", "Event {event_id}'s airspace {airspace_id} not found.")]
+    [WithExtraData("event_id", typeof(string))]
+    [WithExtraData("airspace_id", typeof(string))]
+    public class EventAirspaceNotFound : ApiError
+    {
+        public EventAirspaceNotFound(Ulid event_id, Ulid airspace_id) : base(
+            $"Event {event_id}'s airspace {airspace_id} not found.")
+        {
+            ExtraData.Add("event_id", event_id);
+            ExtraData.Add("airspace_id", airspace_id);
+        }
+    }
+
+    [Error(HttpStatusCode.NotFound, "EVENT_SLOT_NOT_FOUND", "Event {event_id}'s slot {slot_id} not found.")]
+    [WithExtraData("event_id", typeof(string))]
+    [WithExtraData("slot_id", typeof(string))]
+    public class EventSlotNotFound : ApiError
+    {
+        public EventSlotNotFound(Ulid event_id, Ulid slot_id) : base(
+            $"Event {event_id}'s slot {slot_id} not found.")
+        {
+            ExtraData.Add("event_id", event_id);
+            ExtraData.Add("slot_id", slot_id);
+        }
+    }
+
+    [Error(HttpStatusCode.NotFound, "EVENT_SLOT_NOT_BOOKED", "Event {event_id}'s slot {slot_id} has not been booked.")]
+    [WithExtraData("event_id", typeof(string))]
+    [WithExtraData("slot_id", typeof(string))]
+    public class EventSlotNotBooked : ApiError
+    {
+        public EventSlotNotBooked(Ulid event_id, Ulid slot_id) : base(
+            $"Event {event_id}'s slot {slot_id} has not been booked.")
+        {
+            ExtraData.Add("event_id", event_id);
+            ExtraData.Add("slot_id", slot_id);
+        }
+    }
+
+    [Error(HttpStatusCode.Conflict, "EVENT_SLOT_BOOKED", "Event {event_id}'s slot {slot_id} has been booked.")]
+    [WithExtraData("event_id", typeof(string))]
+    [WithExtraData("slot_id", typeof(string))]
+    public class EventSlotBooked : ApiError
+    {
+        public EventSlotBooked(Ulid event_id, Ulid slot_id) : base(
+            $"Event {event_id}'s slot {slot_id} has been booked.")
+        {
+            ExtraData.Add("event_id", event_id);
+            ExtraData.Add("slot_id", slot_id);
+        }
+    }
+
+    [Error(HttpStatusCode.Conflict, "EVENT_BOOK_MAXIMUM_EXCEEDED", "Event {event_id}'s booking limit for current user has been exceeded.")]
+    [WithExtraData("event_id", typeof(string))]
+    public class EventBookMaximumExceeded : ApiError
+    {
+        public EventBookMaximumExceeded(Ulid event_id) : base(
+            $"Event {event_id}'s booking limit for current user has been exceeded.")
+        {
+            ExtraData.Add("event_id", event_id);
+        }
+    }
+
+    [Error(HttpStatusCode.Forbidden, "EVENT_SLOT_BOOKED_BY_ANOTHER_USER", "Event {event_id}'s slot {slot_id} has been booked by another user.")]
+    [WithExtraData("event_id", typeof(string))]
+    [WithExtraData("slot_id", typeof(string))]
+    public class EventSlotBookedByAnotherUser : ApiError
+    {
+        public EventSlotBookedByAnotherUser(Ulid event_id, Ulid slot_id) : base(
+            $"Event {event_id}'s slot {slot_id} has been booked by another user.")
+        {
+            ExtraData.Add("event_id", event_id);
+            ExtraData.Add("slot_id", slot_id);
         }
     }
 }

@@ -16,15 +16,12 @@ namespace Net.Vatprc.Uniapi.Utils.Toml;
 /// <summary>
 /// A Toml file based <see cref="FileConfigurationProvider"/>.
 /// </summary>
-public class TomlConfigurationProvider : FileConfigurationProvider
+/// <remarks>
+/// Constructor.
+/// </remarks>
+/// <param name="source">The <see cref="TomlConfigurationSource"/>.</param>
+public class TomlConfigurationProvider(TomlConfigurationSource source) : FileConfigurationProvider(source)
 {
-
-    /// <summary>
-    /// Constructor.
-    /// </summary>
-    /// <param name="source">The <see cref="TomlConfigurationSource"/>.</param>
-    public TomlConfigurationProvider(TomlConfigurationSource source) : base(source) { }
-
     /// <summary>
     /// Loads Toml configuration key/values from a stream into a provider.
     /// </summary>

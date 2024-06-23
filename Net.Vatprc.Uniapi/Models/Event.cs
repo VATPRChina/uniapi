@@ -4,28 +4,30 @@ namespace Net.Vatprc.Uniapi.Models;
 
 public class Event
 {
-  public Ulid Id { get; set; } = Ulid.NewUlid();
+    public Ulid Id { get; set; } = Ulid.NewUlid();
 
-  public string Title { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
 
-  public DateTimeOffset StartAt { get; set; }
+    public DateTimeOffset StartAt { get; set; }
 
-  public DateTimeOffset EndAt { get; set; }
+    public DateTimeOffset EndAt { get; set; }
 
-  public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 
-  public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
 
-  public class EventConfiguration : IEntityTypeConfiguration<Event>
-  {
-    public void Configure(EntityTypeBuilder<Event> builder)
+    public IEnumerable<EventAirspace> Airspaces { get; set; } = null!;
+
+    public class EventConfiguration : IEntityTypeConfiguration<Event>
     {
-      builder.Property(x => x.CreatedAt)
-          .HasDefaultValueSql("CURRENT_TIMESTAMP");
+        public void Configure(EntityTypeBuilder<Event> builder)
+        {
+            builder.Property(x => x.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-      builder.Property(x => x.UpdatedAt)
-          .HasDefaultValueSql("CURRENT_TIMESTAMP")
-          .ValueGeneratedOnAddOrUpdate();
+            builder.Property(x => x.UpdatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .ValueGeneratedOnAddOrUpdate();
+        }
     }
-  }
 }

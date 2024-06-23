@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -37,7 +36,7 @@ namespace Net.Vatprc.Uniapi.Migrations
                     full_name = table.Column<string>(type: "text", nullable: false),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    roles = table.Column<ISet<string>>(type: "text[]", nullable: false)
+                    roles = table.Column<string[]>(type: "text[]", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -108,7 +107,7 @@ namespace Net.Vatprc.Uniapi.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "booking",
+                name: "event_booking",
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -119,15 +118,15 @@ namespace Net.Vatprc.Uniapi.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_booking", x => x.id);
+                    table.PrimaryKey("pk_event_booking", x => x.id);
                     table.ForeignKey(
-                        name: "fk_booking_event_slot_event_slot_id",
+                        name: "fk_event_booking_event_slot_event_slot_id",
                         column: x => x.event_slot_id,
                         principalTable: "event_slot",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "fk_booking_user_user_id",
+                        name: "fk_event_booking_user_user_id",
                         column: x => x.user_id,
                         principalTable: "user",
                         principalColumn: "id",
@@ -135,20 +134,20 @@ namespace Net.Vatprc.Uniapi.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "ix_booking_event_slot_id",
-                table: "booking",
+                name: "ix_event_airspace_event_id",
+                table: "event_airspace",
+                column: "event_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_event_booking_event_slot_id",
+                table: "event_booking",
                 column: "event_slot_id",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "ix_booking_user_id",
-                table: "booking",
+                name: "ix_event_booking_user_id",
+                table: "event_booking",
                 column: "user_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_event_airspace_event_id",
-                table: "event_airspace",
-                column: "event_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_event_slot_event_airspace_id",
@@ -171,7 +170,7 @@ namespace Net.Vatprc.Uniapi.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "booking");
+                name: "event_booking");
 
             migrationBuilder.DropTable(
                 name: "session");
