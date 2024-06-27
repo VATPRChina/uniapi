@@ -1,7 +1,5 @@
 import client from "@/client";
-import { CreateEvent } from "@/components/create-event";
-import { DevLogin } from "@/components/dev-login";
-import { Alert, Card, Group, Image, SimpleGrid, Text } from "@mantine/core";
+import { Alert, Card, Image, Stack, Text } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { formatRelative } from "date-fns";
@@ -16,12 +14,7 @@ const Index = () => {
     <>
       {error?.message && <Alert title={error?.message} />}
 
-      <Group>
-        <CreateEvent />
-        <DevLogin />
-      </Group>
-
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
+      <Stack>
         {data?.data?.map((event) => (
           <Card key={event.id} shadow="sm" padding="lg" withBorder>
             <Card.Section>
@@ -34,7 +27,7 @@ const Index = () => {
             <Text>End Time: {formatRelative(event.end_at, Date.now())}</Text>
           </Card>
         ))}
-      </SimpleGrid>
+      </Stack>
     </>
   );
 };

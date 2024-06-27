@@ -4,14 +4,14 @@ import { Button, Modal, Stack, TextInput, Title } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@tanstack/react-form";
-import { formatISO } from "date-fns";
+import { formatISO, setSeconds } from "date-fns";
 
 export const CreateEvent = () => {
   const form = useForm({
     defaultValues: {
       title: "",
-      start_at: "",
-      end_at: "",
+      start_at: formatISO(setSeconds(Date.now(), 0)),
+      end_at: formatISO(setSeconds(Date.now(), 0)),
     },
     onSubmit: async ({ value }) => {
       await client.POST("/api/events", { body: value });
@@ -36,7 +36,12 @@ export const CreateEvent = () => {
             <form.Field
               name="title"
               children={(field) => (
-                <TextInput label="Title" onChange={(e) => field.handleChange(e.target.value)}></TextInput>
+                <TextInput
+                  label="Title"
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                ></TextInput>
               )}
             />
             <form.Field
@@ -46,6 +51,8 @@ export const CreateEvent = () => {
                   label="Start at"
                   onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
                   valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                  value={new Date(field.state.value)}
+                  onBlur={field.handleBlur}
                 />
               )}
             />
@@ -56,6 +63,8 @@ export const CreateEvent = () => {
                   label="End at"
                   onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
                   valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                  value={new Date(field.state.value)}
+                  onBlur={field.handleBlur}
                 />
               )}
             />
