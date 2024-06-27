@@ -60,8 +60,8 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         var eventt = new Event()
         {
             Title = dto.Title,
-            StartAt = dto.StartAt,
-            EndAt = dto.EndAt,
+            StartAt = dto.StartAt.ToUniversalTime(),
+            EndAt = dto.EndAt.ToUniversalTime(),
         };
         DbContext.Event.Add(eventt);
         await DbContext.SaveChangesAsync();
@@ -81,8 +81,8 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
     {
         var eventt = await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid);
         eventt.Title = dto.Title;
-        eventt.StartAt = dto.StartAt;
-        eventt.EndAt = dto.EndAt;
+        eventt.StartAt = dto.StartAt.ToUniversalTime();
+        eventt.EndAt = dto.EndAt.ToUniversalTime();
         await DbContext.SaveChangesAsync();
         return new(eventt);
     }

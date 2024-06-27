@@ -1,22 +1,24 @@
 import logo from "../assets/standard.svg";
+import { Button, Container, Group, Image, Stack } from "@mantine/core";
 import { Link, Outlet, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 
 export const Route = createRootRoute({
   component: () => (
-    <div className="my-4 container flex flex-col gap-2">
-      <div className="p-2 flex gap-2 items-center">
-        <img src={logo} alt="logo" className="h-8" />
-        <Link to="/" className="[&.active]:font-bold">
-          Home
-        </Link>
-        <Link to="/about" className="[&.active]:font-bold">
-          About
-        </Link>
-      </div>
-      <hr />
-      <Outlet />
+    <Container>
+      <Stack mt={16}>
+        <Group>
+          <Image src={logo} alt="logo" h={32} />
+          <Link to="/">
+            <Button variant="light">Home</Button>
+          </Link>
+          <Link to="/about">
+            <Button variant="subtle">About</Button>
+          </Link>
+        </Group>
+        <Outlet />
+      </Stack>
       <TanStackRouterDevtools />
-    </div>
+    </Container>
   ),
 });

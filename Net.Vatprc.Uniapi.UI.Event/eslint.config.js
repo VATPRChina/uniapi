@@ -3,7 +3,7 @@ import eslint from "@eslint/js";
 import prettier from "eslint-config-prettier";
 import react from "eslint-plugin-react";
 import reacthooks from "eslint-plugin-react-hooks";
-import reactRecommended from "eslint-plugin-react/configs/jsx-runtime";
+import reactRecommended from "eslint-plugin-react/configs/jsx-runtime.js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(

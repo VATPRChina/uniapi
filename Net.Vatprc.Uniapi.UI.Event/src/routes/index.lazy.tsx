@@ -1,8 +1,7 @@
 import client from "@/client";
 import { CreateEvent } from "@/components/create-event";
 import { DevLogin } from "@/components/dev-login";
-import { Alert, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, Card, Group, Image, SimpleGrid, Text } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { formatRelative } from "date-fns";
@@ -15,28 +14,27 @@ const Index = () => {
 
   return (
     <>
-      {error?.message && (
-        <Alert>
-          <AlertTitle>{error?.message}</AlertTitle>
-        </Alert>
-      )}
+      {error?.message && <Alert title={error?.message} />}
 
-      <div className="flex gap-x-2">
+      <Group>
         <CreateEvent />
         <DevLogin />
-      </div>
+      </Group>
 
-      {data?.data?.map((event) => (
-        <Card key={event.id} className="max-w-2xl">
-          <CardHeader>
-            <CardTitle>{event.title}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Start Time: {formatRelative(event.start_at, Date.now())}</p>
-            <p>End Time: {formatRelative(event.end_at, Date.now())}</p>
-          </CardContent>
-        </Card>
-      ))}
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
+        {data?.data?.map((event) => (
+          <Card key={event.id} shadow="sm" padding="lg" withBorder>
+            <Card.Section>
+              <Image src="https://community.vatprc.net/uploads/default/optimized/2X/3/35599eef688f188dc6325654461f2b4353576346_2_1380x776.jpeg" />
+            </Card.Section>
+            <Text fw={500} my="sm">
+              {event.title}
+            </Text>
+            <Text>Start Time: {formatRelative(event.start_at, Date.now())}</Text>
+            <Text>End Time: {formatRelative(event.end_at, Date.now())}</Text>
+          </Card>
+        ))}
+      </SimpleGrid>
     </>
   );
 };

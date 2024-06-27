@@ -1,5 +1,8 @@
 import "@/index.css";
 import { routeTree } from "@/routeTree.gen";
+import { MantineProvider } from "@mantine/core";
+import "@mantine/core/styles.css";
+import "@mantine/dates/styles.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import React from "react";
@@ -14,8 +17,10 @@ const container = document.getElementById("root");
 const root = createRoot(container!);
 root.render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <MantineProvider>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </MantineProvider>
   </React.StrictMode>,
 );
