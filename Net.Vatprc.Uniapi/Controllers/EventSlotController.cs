@@ -46,6 +46,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IEnumerable<EventSlotDto>> List(Ulid eid)
     {
         var eventt = await DbContext.Event
@@ -57,6 +58,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpGet("{sid}")]
+    [AllowAnonymous]
     [ApiError.Has<ApiError.EventNotFound>]
     public async Task<EventSlotDto> Get(Ulid eid, Ulid sid)
     {

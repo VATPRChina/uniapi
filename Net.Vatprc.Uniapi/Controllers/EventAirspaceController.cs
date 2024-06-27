@@ -39,6 +39,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IEnumerable<EventAirspaceDto>> List(Ulid eid)
     {
         var eventt = await DbContext.Event.SingleOrDefaultAsync(x => x.Id == eid)
@@ -47,6 +48,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpGet("{aid}")]
+    [AllowAnonymous]
     [ApiError.Has<ApiError.EventNotFound>]
     public async Task<EventAirspaceDto> Get(Ulid eid, Ulid aid)
     {

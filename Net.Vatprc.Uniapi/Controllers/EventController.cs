@@ -32,12 +32,14 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IEnumerable<EventDto>> List()
     {
         return await DbContext.Event.Select(x => new EventDto(x)).ToListAsync();
     }
 
     [HttpGet("{eid}")]
+    [AllowAnonymous]
     [ApiError.Has<ApiError.EventNotFound>]
     public async Task<EventDto> Get(Ulid eid)
     {

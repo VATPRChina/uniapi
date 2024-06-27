@@ -29,5 +29,5 @@ export default tseslint.config(
       "no-console": "error",
     },
   },
-  { ignores: ["src/components/ui/*.tsx"] },
+  { ignores: ["src/components/ui/*.tsx", "src/api.d.ts", "*.config.js"] },
 );

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
 
@@ -38,6 +39,7 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<EventBookingDto> Get(Ulid eid, Ulid sid)
     {
         var booking = await LoadAsync(eid, sid);

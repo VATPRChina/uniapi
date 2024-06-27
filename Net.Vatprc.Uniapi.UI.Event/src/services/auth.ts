@@ -1,6 +1,9 @@
-import api, { ErrorProdResponse, HttpResponse, LoginResDto, RequestParams } from "../api";
+import { components, paths } from "../api";
 import { atom, getDefaultStore } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
+import createClient, { type Middleware } from "openapi-fetch";
+
+const authClient = createClient<paths>({ baseUrl: "/" });
 
 interface IAccessToken {
   access_token: string;
@@ -25,41 +28,44 @@ export const hasAuthenticatedAtom = atom(
 
 export const getAccessToken = () => sessionStore.get(accessTokenAtom)?.access_token;
 
-const handleSessionLoginResponse = (result: Pick<LoginResDto, "access_token" | "expires_in" | "refresh_token">) => {
+const handleSessionLoginResponse = (
+  result: Pick<components["schemas"]["LoginResDto"], "access_token" | "expires_in" | "refresh_token">,
+) => {
   const expires_at = new Date(Date.now() + result.expires_in * 1000).toJSON();
   sessionStore.set(accessTokenAtom, { access_token: result.access_token, expires_at });
   sessionStore.set(refreshTokenAtom, result.refresh_token);
 };
 
-export const login = async (username: string, password: string) => {
-  const result = await api.sessionLogin({ grant_type: "password", username, password });
-  handleSessionLoginResponse(result.data);
+export const devLogin = async (username: string, password: string) => {
+  const data = await authClient.POST("/api/session", { query: { grant_type: "password", username, password } });
+  if (data.error) throw data.error;
+  handleSessionLoginResponse(data.data);
 };
 export const refresh = async () => {
-  try {
-    if (sessionStore.get(isRefreshingAtom)) {
-      await new Promise((resolve, _) => refreshTokenObservers.push(resolve));
-      return;
-    }
-    sessionStore.set(isRefreshingAtom, true);
-    const result = await api.sessionLogin({
-      grant_type: "refresh_token",
-      refresh_token: sessionStore.get(refreshTokenAtom) ?? "",
-    });
-    handleSessionLoginResponse(result.data);
-    const observers = refreshTokenObservers;
-    refreshTokenObservers = [];
-    observers.forEach((observer) => observer(null));
-  } catch (err) {
-    if ((err as HttpResponse<void, ErrorProdResponse>)?.error?.error_code === "INVALID_REFRESH_TOKEN") {
-      forceLogout();
-    }
+  if (sessionStore.get(isRefreshingAtom)) {
+    await new Promise((resolve, _) => refreshTokenObservers.push(resolve));
+    return;
   }
+  sessionStore.set(isRefreshingAtom, true);
+  const result = await authClient.POST("/api/session", {
+    grant_type: "refresh_token",
+    refresh_token: sessionStore.get(refreshTokenAtom) ?? "",
+  });
+  if (result.error?.error_code === "INVALID_REFRESH_TOKEN") {
+    forceLogout();
+    return;
+  } else if (!result.data) {
+    throw result.error;
+  }
+  handleSessionLoginResponse(result.data);
+  const observers = refreshTokenObservers;
+  refreshTokenObservers = [];
+  observers.forEach((observer) => observer(null));
   sessionStore.set(isRefreshingAtom, false);
 };
 export const logout = async () => {
   try {
-    await api.sessionLogout();
+    await authClient.DELETE("/api/session");
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error("lougout failed = ", e);
@@ -80,15 +86,16 @@ export const forceLogout = () => {
  *     2. if not, force logout
  * @returns request parameters with authentication
  */
-export const apiSecurityWorker = async (): Promise<RequestParams> => {
-  const accessToken = sessionStore.get(accessTokenAtom);
-  const refreshToken = sessionStore.get(refreshTokenAtom);
-  if (!accessToken || Date.parse(accessToken.expires_at) < Date.now()) {
-    if (refreshToken) await refresh();
-  }
-  return {
-    headers: {
-      Authorization: `Bearer ${getAccessToken()}`,
-    },
-  };
+export const authMiddleware: Middleware = {
+  async onRequest({ request }) {
+    const accessToken = sessionStore.get(accessTokenAtom);
+    const refreshToken = sessionStore.get(refreshTokenAtom);
+    if (!accessToken || Date.parse(accessToken.expires_at) < Date.now()) {
+      if (refreshToken) await refresh();
+    }
+    if (accessToken) {
+      request.headers.set("Authorization", `Bearer ${getAccessToken()}`);
+    }
+    return request;
+  },
 };

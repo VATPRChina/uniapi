@@ -1,11 +1,11 @@
-import { fetcher } from "./api";
-import { routeTree } from "./routeTree.gen";
 import "@/index.css";
+import { routeTree } from "@/routeTree.gen";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { SWRConfig } from "swr";
-import { defaultConfig } from "swr/_internal";
+
+const queryClient = new QueryClient();
 
 const router = createRouter({ routeTree });
 
@@ -14,19 +14,8 @@ const container = document.getElementById("root");
 const root = createRoot(container!);
 root.render(
   <React.StrictMode>
-    <SWRConfig
-      value={{
-        fetcher,
-        onErrorRetry(err, key, config, revalidate, revalidateOpts) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          if (err.error_code === "INVALID_TOKEN") {
-            return;
-          }
-          defaultConfig.onErrorRetry(err, key, config, revalidate, revalidateOpts);
-        },
-      }}
-    >
+    <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-    </SWRConfig>
+    </QueryClientProvider>
   </React.StrictMode>,
 );
