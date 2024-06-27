@@ -1,12 +1,14 @@
 import client from "@/client";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CreateEvent } from "@/components/create-event";
+import { DevLogin } from "@/components/dev-login";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { createLazyFileRoute } from "@tanstack/react-router";
-import React from "react";
+import { formatRelative } from "date-fns";
 
 const Index = () => {
-  const { isPending, error, data } = useQuery({
+  const { error, data } = useQuery({
     queryKey: ["repoData"],
     queryFn: () => client.GET("/api/events"),
   });
@@ -19,15 +21,19 @@ const Index = () => {
         </Alert>
       )}
 
+      <div className="flex gap-x-2">
+        <CreateEvent />
+        <DevLogin />
+      </div>
+
       {data?.data?.map((event) => (
         <Card key={event.id} className="max-w-2xl">
           <CardHeader>
             <CardTitle>{event.title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>
-              {event.start_at} {event.end_at}
-            </p>
+            <p>Start Time: {formatRelative(event.start_at, Date.now())}</p>
+            <p>End Time: {formatRelative(event.end_at, Date.now())}</p>
           </CardContent>
         </Card>
       ))}

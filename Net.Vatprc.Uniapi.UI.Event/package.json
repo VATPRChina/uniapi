@@ -16,12 +16,18 @@
     "build-api": "openapi-typescript http://localhost:5000/api/swagger/v1/swagger.json -o src/api.d.ts && prettier --write src/api.d.ts"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.1",
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-popover": "^1.1.1",
     "@radix-ui/react-slot": "^1.1.0",
+    "@tanstack/react-form": "^0.24.0",
     "@tanstack/react-query": "^5.48.0",
     "@tanstack/react-router": "^1.40.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
     "jotai": "^2.7.0",
+    "lucide-react": "^0.397.0",
     "openapi-fetch": "^0.10.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

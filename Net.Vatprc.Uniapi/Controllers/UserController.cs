@@ -30,7 +30,12 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
             FullName = user.FullName;
             CreatedAt = user.CreatedAt;
             UpdatedAt = user.UpdatedAt;
-            Roles = user.Roles.ToImmutableHashSet();
+            Roles = user.Roles.ToHashSet();
+            if (user.Roles.Contains(Models.User.UserRoles.Admin))
+            {
+                Roles.Add(Models.User.UserRoles.EventCoordinator);
+                Roles.Add(Models.User.UserRoles.Controller);
+            }
         }
     }
 

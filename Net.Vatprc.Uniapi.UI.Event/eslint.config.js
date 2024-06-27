@@ -3,7 +3,7 @@ import eslint from "@eslint/js";
 import prettier from "eslint-config-prettier";
 import react from "eslint-plugin-react";
 import reacthooks from "eslint-plugin-react-hooks";
-import reactRecommended from "eslint-plugin-react/configs/recommended.js";
+import reactRecommended from "eslint-plugin-react/configs/jsx-runtime";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -27,6 +27,7 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-unused-vars": ["error", { varsIgnorePattern: "^_", argsIgnorePattern: "^_" }],
       "no-console": "error",
+      "react/no-children-prop": ["error", { allowFunctions: true }],
     },
   },
   { ignores: ["src/components/ui/*.tsx", "src/api.d.ts", "*.config.js"] },

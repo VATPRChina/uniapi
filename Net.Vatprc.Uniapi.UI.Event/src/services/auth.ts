@@ -1,4 +1,6 @@
 import { components, paths } from "../api";
+import client from "@/client";
+import { useQuery } from "@tanstack/react-query";
 import { atom, getDefaultStore } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import createClient, { type Middleware } from "openapi-fetch";
@@ -37,7 +39,15 @@ const handleSessionLoginResponse = (
 };
 
 export const devLogin = async (username: string, password: string) => {
-  const data = await authClient.POST("/api/session", { query: { grant_type: "password", username, password } });
+  const data = await authClient.POST("/api/session", {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: { grant_type: "password", username, password },
+    bodySerializer(body) {
+      return new URLSearchParams(body).toString();
+    },
+  });
   if (data.error) throw data.error;
   handleSessionLoginResponse(data.data);
 };
@@ -48,8 +58,16 @@ export const refresh = async () => {
   }
   sessionStore.set(isRefreshingAtom, true);
   const result = await authClient.POST("/api/session", {
-    grant_type: "refresh_token",
-    refresh_token: sessionStore.get(refreshTokenAtom) ?? "",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: {
+      grant_type: "refresh_token",
+      refresh_token: sessionStore.get(refreshTokenAtom) ?? "",
+    },
+    bodySerializer(body) {
+      return new URLSearchParams(body).toString();
+    },
   });
   if (result.error?.error_code === "INVALID_REFRESH_TOKEN") {
     forceLogout();
@@ -98,4 +116,12 @@ export const authMiddleware: Middleware = {
     }
     return request;
   },
+};
+
+export const useUser = () => {
+  const { data } = useQuery({
+    queryKey: ["/api/session"],
+    queryFn: () => client.GET("/api/session").then((res) => res.data?.user),
+  });
+  return data;
 };

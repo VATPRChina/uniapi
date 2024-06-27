@@ -1,7 +1,6 @@
 import logo from "../assets/standard.svg";
 import { Link, Outlet, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
-import React from "react";
 
 export const Route = createRootRoute({
   component: () => (
