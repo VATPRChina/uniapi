@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
@@ -10,15 +11,13 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/events/{eid}/slots/{sid}/booking")]
 public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBase
 {
-    protected async Task<EventBooking> LoadAsync(Ulid eid, Ulid sid)
+    protected async Task<EventBooking?> LoadAsync(Ulid eid, Ulid sid)
     {
         var slot = await DbContext.EventSlot
             .Include(x => x.EventAirspace)
-                .ThenInclude(x => x.Event)
             .Include(x => x.Booking)
             .SingleOrDefaultAsync(x => x.Id == sid && x.EventAirspace.EventId == eid)
             ?? throw new ApiError.EventSlotNotFound(eid, sid);
-        if (slot.Booking == null) throw new ApiError.EventSlotNotBooked(eid, sid);
         return slot.Booking;
     }
 
@@ -42,7 +41,7 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
     [AllowAnonymous]
     public async Task<EventBookingDto> Get(Ulid eid, Ulid sid)
     {
-        var booking = await LoadAsync(eid, sid);
+        var booking = await LoadAsync(eid, sid) ?? throw new ApiError.EventSlotNotBooked(eid, sid);
         return new(booking);
     }
 
@@ -50,7 +49,7 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
     [ApiError.Has<ApiError.EventNotFound>]
     public async Task<EventBookingDto> Put(Ulid eid, Ulid sid)
     {
-        var uid = Ulid.Parse(User.Identity!.Name);
+        var uid = Ulid.Parse(User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)?.Value);
         var booking = await LoadAsync(eid, sid);
         if (booking != null) throw new ApiError.EventSlotBooked(eid, sid);
         var bookCount = await DbContext.EventBooking.CountAsync(x => x.UserId == uid && x.EventSlot.EventAirspace.EventId == eid);
@@ -63,6 +62,7 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
             UserId = uid,
             EventSlotId = sid,
         };
+        DbContext.EventBooking.Add(booking);
         await DbContext.SaveChangesAsync();
         return new(booking);
     }
@@ -70,7 +70,7 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
     [HttpDelete]
     public async Task<EventBookingDto> Delete(Ulid eid, Ulid sid)
     {
-        var booking = await LoadAsync(eid, sid);
+        var booking = await LoadAsync(eid, sid) ?? throw new ApiError.EventSlotNotBooked(eid, sid);
         if (booking.UserId.ToString() != User.Identity?.Name && !User.IsInRole(Models.User.UserRoles.Admin))
         {
             throw new ApiError.EventSlotBookedByAnotherUser(eid, sid);

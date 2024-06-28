@@ -26,18 +26,19 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
     {
         public Ulid Id { get; set; }
         public Ulid EventId { get; set; }
-        public Ulid EventAirspaceId { get; set; }
+        public Ulid AirspaceId { get; set; }
+        public EventAirspaceController.EventAirspaceDto Airspace { get; set; }
         public DateTimeOffset EnterAt { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         public EventSlotBookingController.EventBookingDto? Booking { get; set; }
 
-
         public EventSlotDto(EventSlot slot)
         {
             Id = slot.Id;
             EventId = slot.EventAirspace.EventId;
-            EventAirspaceId = slot.EventAirspaceId;
+            AirspaceId = slot.EventAirspaceId;
+            Airspace = new(slot.EventAirspace);
             EnterAt = slot.EnterAt;
             CreatedAt = slot.CreatedAt;
             UpdatedAt = slot.UpdatedAt;
@@ -52,6 +53,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
         var eventt = await DbContext.Event
             .Include(x => x.Airspaces)
             .ThenInclude(x => x.Slots)
+            .ThenInclude(x => x.Booking)
             .SingleOrDefaultAsync(x => x.Id == eid)
             ?? throw new ApiError.EventNotFound(eid);
         return eventt.Airspaces.SelectMany(x => x.Slots).Select(x => new EventSlotDto(x)).ToArray();

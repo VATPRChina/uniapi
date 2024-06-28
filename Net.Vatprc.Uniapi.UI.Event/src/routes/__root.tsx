@@ -12,12 +12,11 @@ export const Route = createRootRoute({
         <Group justify="space-between">
           <Group>
             <Image src={logo} alt="logo" h={32} />
-            <Link to="/">
-              <Button variant="light">Home</Button>
-            </Link>
-            <Link to="/about">
-              <Button variant="subtle">About</Button>
-            </Link>
+            <Link
+              to="/"
+              activeOptions={{ exact: true }}
+              children={(state) => <Button variant={state.isActive ? "light" : "subtle"}>Events</Button>}
+            />
           </Group>
           <Group>
             <CreateEvent />

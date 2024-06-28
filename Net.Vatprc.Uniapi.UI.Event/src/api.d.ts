@@ -245,7 +245,8 @@ export interface components {
     EventSlotDto: {
       id: string;
       event_id: string;
-      event_airspace_id: string;
+      airspace_id: string;
+      airspace: components["schemas"]["EventAirspaceDto"];
       /** Format: date-time */
       enter_at: string;
       /** Format: date-time */
@@ -321,15 +322,6 @@ export interface operations {
           "application/json": components["schemas"]["EventDto"][];
         };
       };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
       /** @description INTERNAL_SERVER_ERROR */
       500: {
         headers: {
@@ -401,15 +393,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["EventDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
         };
       };
       /** @description EVENT_NOT_FOUND */
@@ -536,15 +519,6 @@ export interface operations {
           "application/json": components["schemas"]["EventAirspaceDto"][];
         };
       };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
       /** @description INTERNAL_SERVER_ERROR */
       500: {
         headers: {
@@ -619,15 +593,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["EventAirspaceDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
         };
       };
       /** @description EVENT_NOT_FOUND */
@@ -756,15 +721,6 @@ export interface operations {
           "application/json": components["schemas"]["EventSlotDto"][];
         };
       };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
       /** @description INTERNAL_SERVER_ERROR */
       500: {
         headers: {
@@ -839,15 +795,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["EventSlotDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
         };
       };
       /** @description EVENT_NOT_FOUND */
@@ -975,15 +922,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["EventBookingDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
         };
       };
       /** @description INTERNAL_SERVER_ERROR */

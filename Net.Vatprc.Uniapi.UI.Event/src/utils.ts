@@ -26,6 +26,8 @@ export const promiseWithToast = (promise: PromiseOrFunction, final?: () => unkno
     .finally(final);
 };
 
+export const wrapPromiseWithToast = (promise: PromiseOrFunction) => () => promiseWithToast(promise);
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

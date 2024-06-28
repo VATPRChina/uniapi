@@ -1,7 +1,7 @@
 import client from "@/client";
-import { Alert, Card, Image, Stack, Text } from "@mantine/core";
+import { Alert, Anchor, Card, Image, Stack, Text } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
-import { createLazyFileRoute } from "@tanstack/react-router";
+import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { formatRelative } from "date-fns";
 
 const Index = () => {
@@ -20,9 +20,9 @@ const Index = () => {
             <Card.Section>
               <Image src="https://community.vatprc.net/uploads/default/optimized/2X/3/35599eef688f188dc6325654461f2b4353576346_2_1380x776.jpeg" />
             </Card.Section>
-            <Text fw={500} my="sm">
+            <Anchor fw={500} my="sm" component={Link} to={"/events/" + event.id}>
               {event.title}
-            </Text>
+            </Anchor>
             <Text>Start Time: {formatRelative(event.start_at, Date.now())}</Text>
             <Text>End Time: {formatRelative(event.end_at, Date.now())}</Text>
           </Card>
