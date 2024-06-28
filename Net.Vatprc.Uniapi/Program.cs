@@ -180,6 +180,8 @@ builder.Services.AddAuthentication(opts =>
 });
 builder.Services.AddAuthorization();
 
+DiscordWorker.ConfigureOn(builder);
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

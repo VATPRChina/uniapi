@@ -53,7 +53,7 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
         var booking = await LoadAsync(eid, sid);
         if (booking != null) throw new ApiError.EventSlotBooked(eid, sid);
         var bookCount = await DbContext.EventBooking.CountAsync(x => x.UserId == uid && x.EventSlot.EventAirspace.EventId == eid);
-        if (bookCount > 1)
+        if (bookCount >= 1)
         {
             throw new ApiError.EventBookMaximumExceeded(eid);
         }
