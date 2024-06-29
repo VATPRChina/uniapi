@@ -29,6 +29,7 @@
     "openapi-fetch": "^0.10.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-icons": "^5.2.1",
     "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
@@ -48,6 +49,7 @@
     "eslint-plugin-react": "^7.34.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "openapi-typescript": "^7.0.0",
+    "openapi-typescript-helpers": "^0.0.9",
     "postcss": "^8.4.38",
     "postcss-preset-mantine": "^1.15.0",
     "postcss-simple-vars": "^7.0.1",

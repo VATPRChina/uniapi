@@ -1,6 +1,5 @@
 import { components, paths } from "../api";
-import client from "@/client";
-import { useQuery } from "@tanstack/react-query";
+import { useClientQuery } from "@/utils";
 import { atom, getDefaultStore } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import createClient, { type Middleware } from "openapi-fetch";
@@ -119,9 +118,6 @@ export const authMiddleware: Middleware = {
 };
 
 export const useUser = () => {
-  const { data } = useQuery({
-    queryKey: ["/api/session"],
-    queryFn: () => client.GET("/api/session").then((res) => res.data?.user),
-  });
-  return data;
+  const { data } = useClientQuery("/api/session", {});
+  return data?.user;
 };

@@ -2,6 +2,7 @@ import logo from "../assets/standard.svg";
 import { CreateEvent } from "@/components/create-event";
 import { DevLogin } from "@/components/dev-login";
 import { Button, Container, Group, Image, Stack } from "@mantine/core";
+import { Notifications } from "@mantine/notifications";
 import { Link, Outlet, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 
@@ -25,6 +26,7 @@ export const Route = createRootRoute({
         </Group>
         <Outlet />
       </Stack>
+      <Notifications position="top-center" />
       <TanStackRouterDevtools />
     </Container>
   ),

@@ -1,21 +1,17 @@
-import client from "@/client";
+import { useClientQuery } from "@/utils";
 import { Alert, Anchor, Card, Image, Stack, Text } from "@mantine/core";
-import { useQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { formatRelative } from "date-fns";
 
 const Index = () => {
-  const { error, data } = useQuery({
-    queryKey: ["repoData"],
-    queryFn: () => client.GET("/api/events"),
-  });
+  const { error, data } = useClientQuery("/api/events", {});
 
   return (
     <>
       {error?.message && <Alert title={error?.message} />}
 
       <Stack>
-        {data?.data?.map((event) => (
+        {data?.map((event) => (
           <Card key={event.id} shadow="sm" padding="lg" withBorder>
             <Card.Section>
               <Image src="https://community.vatprc.net/uploads/default/optimized/2X/3/35599eef688f188dc6325654461f2b4353576346_2_1380x776.jpeg" />

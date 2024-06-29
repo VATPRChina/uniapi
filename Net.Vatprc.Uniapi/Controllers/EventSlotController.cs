@@ -56,7 +56,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
             .ThenInclude(x => x.Booking)
             .SingleOrDefaultAsync(x => x.Id == eid)
             ?? throw new ApiError.EventNotFound(eid);
-        return eventt.Airspaces.SelectMany(x => x.Slots).Select(x => new EventSlotDto(x)).ToArray();
+        return eventt.Airspaces.SelectMany(x => x.Slots).OrderBy(x => x.EnterAt).Select(x => new EventSlotDto(x)).ToArray();
     }
 
     [HttpGet("{sid}")]
@@ -83,7 +83,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
         var slot = new EventSlot()
         {
             EventAirspace = airspace,
-            EnterAt = dto.EnterAt,
+            EnterAt = dto.EnterAt.ToUniversalTime(),
         };
         DbContext.EventSlot.Add(slot);
         await DbContext.SaveChangesAsync();
