@@ -1,15 +1,14 @@
+import { queryClient } from "./client";
 import "@/index.css";
 import { routeTree } from "@/routeTree.gen";
 import { MantineProvider } from "@mantine/core";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
 import "@mantine/notifications/styles.css";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import React from "react";
 import { createRoot } from "react-dom/client";
-
-const queryClient = new QueryClient();
 
 const router = createRouter({ routeTree });
 

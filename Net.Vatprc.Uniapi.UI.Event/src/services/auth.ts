@@ -1,5 +1,5 @@
 import { components, paths } from "../api";
-import { useClientQuery } from "@/utils";
+import { useApi } from "@/client";
 import { atom, getDefaultStore } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import createClient, { type Middleware } from "openapi-fetch";
@@ -118,6 +118,6 @@ export const authMiddleware: Middleware = {
 };
 
 export const useUser = () => {
-  const { data } = useClientQuery("/api/session", {});
+  const { data } = useApi("/api/session", {});
   return data?.user;
 };

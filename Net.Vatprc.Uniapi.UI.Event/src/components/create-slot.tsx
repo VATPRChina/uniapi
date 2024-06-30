@@ -1,5 +1,5 @@
-import client from "@/client";
-import { promiseWithToast, useClientQuery, wrapPromiseWithToast } from "@/utils";
+import { useApi, useApiPost } from "@/client";
+import { promiseWithToast, wrapPromiseWithToast } from "@/utils";
 import {
   ActionIcon,
   Button,
@@ -15,31 +15,14 @@ import {
 import { DateTimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addMinutes, format, formatISO, setSeconds } from "date-fns";
 import { useState } from "react";
 import { IoAdd } from "react-icons/io5";
 
 export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; eventId: string }) => {
-  const queryClient = useQueryClient();
   const [rows, setRows] = useState([] as { airspace_name: string; enter_at: Date }[]);
-  const { data: airspaces } = useClientQuery("/api/events/{eid}/airspaces", { params: { path: { eid: eventId } } });
-  const { isPending, mutateAsync } = useMutation({
-    mutationKey: ["/api/events/{eid}/slots", eventId],
-    mutationFn: () =>
-      Promise.all(
-        rows.map((row) =>
-          client.POST("/api/events/{eid}/slots", {
-            params: { path: { eid: eventId } },
-            body: { airspace_id: row.airspace_name, enter_at: formatISO(row.enter_at) },
-          }),
-        ),
-      ),
-    onSuccess: () => {
-      close();
-      return queryClient.invalidateQueries({ queryKey: ["/api/events/{eid}/slots", eventId] });
-    },
-  });
+  const { data: airspaces } = useApi("/api/events/{eid}/airspaces", { path: { eid: eventId } });
+  const { isPending, mutateAsync } = useApiPost("/api/events/{eid}/slots", { path: { eid: eventId } });
 
   const form = useForm({
     defaultValues: {
@@ -145,7 +128,10 @@ export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; ev
             </Table.Tbody>
           </Table>
         </ScrollArea>
-        <Button loading={isPending} onClick={() => wrapPromiseWithToast(mutateAsync())}>
+        <Button
+          loading={isPending}
+          onClick={() => wrapPromiseWithToast(mutateAsync({ airspace_id: "", enter_at: new Date().toString() }))}
+        >
           Create
         </Button>
       </Modal>

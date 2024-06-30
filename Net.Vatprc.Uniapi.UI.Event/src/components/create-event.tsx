@@ -1,4 +1,4 @@
-import client from "@/client";
+import { useApiPost } from "@/client";
 import { promiseWithToast } from "@/utils";
 import { Button, Modal, Stack, TextInput, Title } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
@@ -7,15 +7,14 @@ import { useForm } from "@tanstack/react-form";
 import { formatISO, setSeconds } from "date-fns";
 
 export const CreateEvent = () => {
+  const { mutate, isPending } = useApiPost("/api/events", {});
   const form = useForm({
     defaultValues: {
       title: "",
       start_at: formatISO(setSeconds(Date.now(), 0)),
       end_at: formatISO(setSeconds(Date.now(), 0)),
     },
-    onSubmit: async ({ value }) => {
-      await client.POST("/api/events", { body: value });
-    },
+    onSubmit: ({ value }) => mutate(value),
   });
 
   const [opened, { toggle, close }] = useDisclosure(false);
@@ -68,7 +67,7 @@ export const CreateEvent = () => {
                 />
               )}
             />
-            <Button variant="subtle" type="submit">
+            <Button variant="subtle" type="submit" loading={isPending}>
               Create
             </Button>
           </Stack>

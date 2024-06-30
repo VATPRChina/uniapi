@@ -1,26 +1,18 @@
-import client from "@/client";
-import { promiseWithToast } from "@/utils";
+import { useApiPost } from "@/client";
+import { promiseWithLog, promiseWithToast } from "@/utils";
 import { ActionIcon, Button, MantineSpacing, Modal, Stack, StyleProp, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@tanstack/react-form";
-import { useQueryClient } from "@tanstack/react-query";
 import { IoAdd } from "react-icons/io5";
 
 export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; eventId: string }) => {
-  const queryClient = useQueryClient();
+  const { mutateAsync } = useApiPost("/api/events/{eid}/airspaces", { path: { eid: eventId } });
   const form = useForm({
     defaultValues: {
       name: "",
     },
     onSubmit: ({ value }) => {
-      promiseWithToast(
-        client
-          .POST("/api/events/{eid}/airspaces", { params: { path: { eid: eventId } }, body: { name: value.name } })
-          .then(() => {
-            close();
-            return queryClient.invalidateQueries({ queryKey: ["/api/events/{eid}/airspaces", eventId] });
-          }),
-      );
+      promiseWithLog(mutateAsync({ name: value.name }).then(() => close()));
     },
   });
 

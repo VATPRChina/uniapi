@@ -1,17 +1,17 @@
-import { useClientQuery } from "@/utils";
+import { useApi } from "@/client";
 import { Alert, Anchor, Card, Image, Stack, Text } from "@mantine/core";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { formatRelative } from "date-fns";
 
 const Index = () => {
-  const { error, data } = useClientQuery("/api/events", {});
+  const { error, data: events } = useApi("/api/events", {});
 
   return (
     <>
       {error?.message && <Alert title={error?.message} />}
 
       <Stack>
-        {data?.map((event) => (
+        {events?.map((event) => (
           <Card key={event.id} shadow="sm" padding="lg" withBorder>
             <Card.Section>
               <Image src="https://community.vatprc.net/uploads/default/optimized/2X/3/35599eef688f188dc6325654461f2b4353576346_2_1380x776.jpeg" />

@@ -1,20 +1,26 @@
-import client from "@/client";
+import { useApi, useApiDelete, useApiPut } from "@/client";
 import { CreateAirspace } from "@/components/create-airspace";
 import { CreateSlot } from "@/components/create-slot";
 import { useUser } from "@/services/auth";
-import { promiseWithToast, useClientQuery } from "@/utils";
 import { Button, Card, Group, Image, Stack, Table, Text, Title } from "@mantine/core";
-import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
+import { useState } from "react";
 
 const EventComponent = () => {
   const { event_id } = Route.useParams();
-  const queryClient = useQueryClient();
-  const { data: event } = useClientQuery("/api/events/{eid}", { params: { path: { eid: event_id } } });
-  const { data: slots } = useClientQuery("/api/events/{eid}/slots", { params: { path: { eid: event_id } } });
-  const { data: airspaces } = useClientQuery("/api/events/{eid}/airspaces", { params: { path: { eid: event_id } } });
+  const { data: event } = useApi("/api/events/{eid}", { path: { eid: event_id } });
+  const { data: slots } = useApi("/api/events/{eid}/slots", { path: { eid: event_id } });
+  const { data: airspaces } = useApi("/api/events/{eid}/airspaces", { path: { eid: event_id } });
   const user = useUser();
+
+  const [slotId, setSlotId] = useState("");
+  const { mutate: book } = useApiPut("/api/events/{eid}/slots/{sid}/booking", {
+    path: { eid: event_id, sid: slotId },
+  });
+  const { mutate: unbook } = useApiDelete("/api/events/{eid}/slots/{sid}/booking", {
+    path: { eid: event_id, sid: slotId },
+  });
 
   const rows = slots?.map((element, id) => (
     <Table.Tr key={id}>
@@ -23,34 +29,12 @@ const EventComponent = () => {
       <Table.Td>
         <Group>
           {!element.booking && (
-            <Button
-              variant="subtle"
-              onClick={() => {
-                promiseWithToast(
-                  client
-                    .PUT("/api/events/{eid}/slots/{sid}/booking", {
-                      params: { path: { eid: event_id, sid: element.id } },
-                    })
-                    .then(() => queryClient.invalidateQueries({ queryKey: ["/api/events/{eid}/slots", event_id] })),
-                );
-              }}
-            >
+            <Button variant="subtle" onClick={() => (setSlotId(element.id), book({}))}>
               Book
             </Button>
           )}
           {element.booking?.user_id == user?.id && (
-            <Button
-              variant="subtle"
-              onClick={() => {
-                promiseWithToast(
-                  client
-                    .DELETE("/api/events/{eid}/slots/{sid}/booking", {
-                      params: { path: { eid: event_id, sid: element.id } },
-                    })
-                    .then(() => queryClient.invalidateQueries({ queryKey: ["/api/events/{eid}/slots", event_id] })),
-                );
-              }}
-            >
+            <Button variant="subtle" onClick={() => (setSlotId(element.id), unbook({}))}>
               Unbook
             </Button>
           )}
