@@ -166,7 +166,7 @@ public class SessionController(VATPRCContext DbContext, TokenService TokenServic
         }
         var refresh = User.FindFirstValue(JwtRegisteredClaimNames.Sid) ??
             throw new ApiError.InvalidToken("vatprc_sid_not_present", "no sid in token", null);
-        var tokenId = Guid.Parse(refresh);
+        var tokenId = Ulid.Parse(refresh);
         var token = await DbContext.Session.FindAsync(tokenId) ??
             throw new ApiError.InvalidToken("vatprc_refresh_token_not_found", $"refresh token {refresh} not found", null);
         DbContext.Session.Remove(token);

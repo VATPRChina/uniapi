@@ -1,5 +1,5 @@
 import { components, paths } from "../api";
-import { useApi } from "@/client";
+import client, { queryClient, useApi } from "@/client";
 import { atom, getDefaultStore } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import createClient, { type Middleware } from "openapi-fetch";
@@ -35,6 +35,7 @@ const handleSessionLoginResponse = (
   const expires_at = new Date(Date.now() + result.expires_in * 1000).toJSON();
   sessionStore.set(accessTokenAtom, { access_token: result.access_token, expires_at });
   sessionStore.set(refreshTokenAtom, result.refresh_token);
+  queryClient.invalidateQueries().catch(console.error); // eslint-disable-line no-console
 };
 
 export const devLogin = async (username: string, password: string) => {
@@ -82,12 +83,13 @@ export const refresh = async () => {
 };
 export const logout = async () => {
   try {
-    await authClient.DELETE("/api/session");
+    await client.DELETE("/api/session");
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error("lougout failed = ", e);
   }
   forceLogout();
+  queryClient.invalidateQueries().catch(console.error); // eslint-disable-line no-console
 };
 export const forceLogout = () => {
   sessionStore.set(accessTokenAtom, null);

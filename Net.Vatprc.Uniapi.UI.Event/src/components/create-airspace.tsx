@@ -1,4 +1,5 @@
 import { useApiPost } from "@/client";
+import { useUser } from "@/services/auth";
 import { promiseWithLog, promiseWithToast } from "@/utils";
 import { ActionIcon, Button, MantineSpacing, Modal, Stack, StyleProp, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
@@ -6,6 +7,7 @@ import { useForm } from "@tanstack/react-form";
 import { IoAdd } from "react-icons/io5";
 
 export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; eventId: string }) => {
+  const user = useUser();
   const { mutateAsync } = useApiPost("/api/events/{eid}/airspaces", { path: { eid: eventId } });
   const form = useForm({
     defaultValues: {
@@ -17,6 +19,8 @@ export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>
   });
 
   const [opened, { toggle, close }] = useDisclosure(false);
+
+  if (!user?.roles.includes("ec")) return null;
 
   return (
     <>

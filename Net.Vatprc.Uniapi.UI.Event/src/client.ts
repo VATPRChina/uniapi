@@ -20,7 +20,7 @@ const throwMiddleware: Middleware = {
     if (!response.ok) {
       const body = (await response.clone().json()) as components["schemas"]["ErrorProdResponse"];
       const err = new ApiError(body.message, response.status, body.error_code);
-      throw err;
+      if (err.errorCode !== "INVALID_TOKEN") throw err;
     }
   },
 };
@@ -51,7 +51,7 @@ export const createHooks = <Paths>() => {
     return useQuery({
       queryKey,
       // @ts-expect-error - URL cannot be inferred here
-      queryFn: () => client.GET(url, { params }).then((data) => data.data),
+      queryFn: () => client.GET(url, { params }).then((data) => data.data ?? null),
     });
   };
 
@@ -79,7 +79,7 @@ export const createHooks = <Paths>() => {
         mutationKey,
         // @ts-expect-error - URL cannot be inferred here
         // eslint-disable-next-line
-        mutationFn: (body) => client[clientMethod](url, { params, body }).then((data) => data.data),
+        mutationFn: (body) => client[clientMethod](url, { params, body }).then((data) => data.data ?? null),
         async onSuccess() {
           onSuccess?.();
           await queryClient.invalidateQueries({ queryKey: mutationKey });

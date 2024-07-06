@@ -1,5 +1,6 @@
 import { CreateAirspace } from "./create-airspace";
 import client, { formatPath, useApi } from "@/client";
+import { useUser } from "@/services/auth";
 import { promiseWithToast, wrapPromiseWithToast } from "@/utils";
 import {
   ActionIcon,
@@ -23,6 +24,7 @@ import { useState } from "react";
 import { IoAdd } from "react-icons/io5";
 
 export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; eventId: string }) => {
+  const user = useUser();
   const [rows, setRows] = useState([] as { airspace_id: string; airspace_name: string; enter_at: Date }[]);
   const { data: event } = useApi("/api/events/{eid}", { path: { eid: eventId } });
   const { data: airspaces } = useApi("/api/events/{eid}/airspaces", { path: { eid: eventId } });
@@ -64,6 +66,7 @@ export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; ev
 
   const [opened, { toggle, close }] = useDisclosure(false);
 
+  if (!user?.roles.includes("ec")) return null;
   return (
     <>
       <ActionIcon variant="subtle" aria-label="Settings" ml={ml} onClick={toggle}>

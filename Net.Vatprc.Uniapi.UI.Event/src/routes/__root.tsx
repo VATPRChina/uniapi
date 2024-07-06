@@ -1,10 +1,30 @@
 import logo from "../assets/standard.svg";
 import { CreateEvent } from "@/components/create-event";
 import { DevLogin } from "@/components/dev-login";
+import { logout, useUser } from "@/services/auth";
+import { promiseWithToast } from "@/utils";
 import { Button, Container, Group, Image, Stack } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { Link, Outlet, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
+
+const Logout = () => {
+  const user = useUser();
+
+  const onClick = () => {
+    promiseWithToast(logout());
+  };
+
+  if (!user) return null;
+  return (
+    <>
+      <Button variant="transparent">{user.cid}</Button>
+      <Button variant="outline" onClick={onClick}>
+        Logout
+      </Button>
+    </>
+  );
+};
 
 export const Route = createRootRoute({
   component: () => (
@@ -22,6 +42,7 @@ export const Route = createRootRoute({
           <Group>
             <CreateEvent />
             <DevLogin />
+            <Logout />
           </Group>
         </Group>
         <Outlet />

@@ -1,4 +1,5 @@
 import { useApiPost } from "@/client";
+import { useUser } from "@/services/auth";
 import { promiseWithToast } from "@/utils";
 import { Button, Modal, Stack, TextInput, Title } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
@@ -7,6 +8,7 @@ import { useForm } from "@tanstack/react-form";
 import { formatISO, setSeconds } from "date-fns";
 
 export const CreateEvent = () => {
+  const user = useUser();
   const { mutate, isPending } = useApiPost("/api/events", {});
   const form = useForm({
     defaultValues: {
@@ -20,6 +22,8 @@ export const CreateEvent = () => {
   });
 
   const [opened, { toggle, close }] = useDisclosure(false);
+
+  if (!user?.roles.includes("ec")) return null;
 
   return (
     <>
