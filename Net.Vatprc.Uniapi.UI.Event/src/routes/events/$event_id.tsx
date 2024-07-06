@@ -5,7 +5,6 @@ import { useUser } from "@/services/auth";
 import { Button, Card, Group, Image, Stack, Table, Text, Title } from "@mantine/core";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { useState } from "react";
 
 const EventComponent = () => {
   const { event_id } = Route.useParams();
@@ -14,12 +13,11 @@ const EventComponent = () => {
   const { data: airspaces } = useApi("/api/events/{eid}/airspaces", { path: { eid: event_id } });
   const user = useUser();
 
-  const [slotId, setSlotId] = useState("");
   const { mutate: book } = useApiPut("/api/events/{eid}/slots/{sid}/booking", {
-    path: { eid: event_id, sid: slotId },
+    path: { eid: event_id },
   });
   const { mutate: unbook } = useApiDelete("/api/events/{eid}/slots/{sid}/booking", {
-    path: { eid: event_id, sid: slotId },
+    path: { eid: event_id },
   });
 
   const rows = slots?.map((element, id) => (
@@ -29,12 +27,12 @@ const EventComponent = () => {
       <Table.Td>
         <Group>
           {!element.booking && (
-            <Button variant="subtle" onClick={() => (setSlotId(element.id), book({}))}>
+            <Button variant="subtle" onClick={() => book({ path: { sid: element.id } })}>
               Book
             </Button>
           )}
           {element.booking?.user_id == user?.id && (
-            <Button variant="subtle" onClick={() => (setSlotId(element.id), unbook({}))}>
+            <Button variant="subtle" onClick={() => unbook({ path: { sid: element.id } })}>
               Unbook
             </Button>
           )}
