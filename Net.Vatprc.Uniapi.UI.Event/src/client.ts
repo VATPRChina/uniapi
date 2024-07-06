@@ -98,3 +98,9 @@ export const createHooks = <Paths>() => {
   return { useApi, useApiPost, useApiPut, useApiDelete, useApiPatch };
 };
 export const { useApi, useApiPost, useApiPut, useApiDelete, useApiPatch } = createHooks<paths>();
+
+export const formatPath = <Path extends keyof paths>(url: Path, path: paths[Path]["get"]["parameters"]["path"]) => {
+  return defaultPathSerializer(url, path ?? {})
+    .split("/")
+    .filter((s) => !!s);
+};

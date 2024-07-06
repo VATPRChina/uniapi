@@ -1,4 +1,4 @@
-import { useApi, useApiDelete, useApiPut } from "@/client";
+import { formatPath, useApi, useApiDelete, useApiPut } from "@/client";
 import { CreateAirspace } from "@/components/create-airspace";
 import { CreateSlot } from "@/components/create-slot";
 import { useUser } from "@/services/auth";
@@ -22,7 +22,8 @@ const EventBookingButtons = ({
   canUnbook: boolean;
 }) => {
   const queryClient = useQueryClient();
-  const postMutate = () => queryClient.invalidateQueries({ queryKey: ["api", "events", eventId, "slots"] });
+  const postMutate = () =>
+    queryClient.invalidateQueries({ queryKey: formatPath("/api/events/{eid}/slots", { eid: eventId }) });
   const { mutate: book } = useApiPut(
     "/api/events/{eid}/slots/{sid}/booking",
     {

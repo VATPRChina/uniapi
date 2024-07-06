@@ -1,5 +1,5 @@
 import { CreateAirspace } from "./create-airspace";
-import client, { useApi } from "@/client";
+import client, { formatPath, useApi } from "@/client";
 import { promiseWithToast, wrapPromiseWithToast } from "@/utils";
 import {
   ActionIcon,
@@ -40,7 +40,7 @@ export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; ev
       ),
     onSuccess: () => {
       close();
-      return queryClient.invalidateQueries({ queryKey: ["api", "events", eventId, "slots"] });
+      return queryClient.invalidateQueries({ queryKey: formatPath("/api/events/{eid}/slots", { eid: eventId }) });
     },
   });
 
