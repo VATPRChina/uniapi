@@ -1,7 +1,8 @@
 import { useApi } from "@/client";
-import { Alert, Anchor, Card, Image, Stack, Text } from "@mantine/core";
+import { Alert, Anchor, Card, Image, Stack, Text, Tooltip } from "@mantine/core";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
-import { formatRelative } from "date-fns";
+import { format, formatRelative } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
 const Index = () => {
   const { error, data: events } = useApi("/api/events", {});
@@ -19,8 +20,20 @@ const Index = () => {
             <Anchor fw={500} my="sm" component={Link} to={"/events/" + event.id}>
               {event.title}
             </Anchor>
-            <Text>Start Time: {formatRelative(event.start_at, Date.now())}</Text>
-            <Text>End Time: {formatRelative(event.end_at, Date.now())}</Text>
+            <Text>
+              Start Time:
+              <Tooltip label={format(event.start_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
+                <span> {formatInTimeZone(event.start_at, "UTC", "yyyy-MM-dd HH:mm")}Z</span>
+              </Tooltip>
+              ({formatRelative(event.start_at, Date.now())})
+            </Text>
+            <Text>
+              End Time:
+              <Tooltip label={format(event.start_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
+                <span> {formatInTimeZone(event.start_at, "UTC", "yyyy-MM-dd HH:mm")}Z</span>
+              </Tooltip>
+              ({formatRelative(event.end_at, Date.now())})
+            </Text>
           </Card>
         ))}
       </Stack>

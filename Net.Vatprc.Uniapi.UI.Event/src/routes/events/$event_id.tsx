@@ -2,10 +2,11 @@ import { useApi, useApiDelete, useApiPut } from "@/client";
 import { CreateAirspace } from "@/components/create-airspace";
 import { CreateSlot } from "@/components/create-slot";
 import { useUser } from "@/services/auth";
-import { Button, Card, Group, Image, Stack, Table, Text, Title } from "@mantine/core";
+import { Button, Card, Group, Image, Stack, Table, Text, Title, Tooltip } from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
 const EventBookingButtons = ({
   eventId,
@@ -65,7 +66,11 @@ const EventComponent = () => {
   const rows = slots?.map((element, id) => (
     <Table.Tr key={id}>
       <Table.Td>{element.airspace.name}</Table.Td>
-      <Table.Td>{format(element.enter_at, "yyyy-MM-dd HH:mm zzzz")}</Table.Td>
+      <Table.Td>
+        <Tooltip label={format(element.enter_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
+          <Text>{formatInTimeZone(element.enter_at, "UTC", "yyyy-MM-dd HH:mm")}Z</Text>
+        </Tooltip>
+      </Table.Td>
       <Table.Td>
         <EventBookingButtons
           eventId={event_id}
