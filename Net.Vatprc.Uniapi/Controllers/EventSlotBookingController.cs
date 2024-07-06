@@ -15,6 +15,7 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
     {
         var slot = await DbContext.EventSlot
             .Include(x => x.EventAirspace)
+                .ThenInclude(x => x.Event)
             .Include(x => x.Booking)
             .SingleOrDefaultAsync(x => x.Id == sid && x.EventAirspace.EventId == eid)
             ?? throw new ApiError.EventSlotNotFound(eid, sid);
@@ -52,6 +53,12 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
         var uid = Ulid.Parse(User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)?.Value);
         var booking = await LoadAsync(eid, sid);
         if (booking != null) throw new ApiError.EventSlotBooked(eid, sid);
+        var eventt = await DbContext.Event.FindAsync(eid) ??
+            throw new ApiError.EventNotFound(eid);
+        if (!eventt.IsInBookingPeriod)
+        {
+            throw new ApiError.EventNotInBookingTime(eid);
+        }
         var bookCount = await DbContext.EventBooking.CountAsync(x => x.UserId == uid && x.EventSlot.EventAirspace.EventId == eid);
         if (bookCount >= 1)
         {
@@ -71,6 +78,10 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
     public async Task<EventBookingDto> Delete(Ulid eid, Ulid sid)
     {
         var booking = await LoadAsync(eid, sid) ?? throw new ApiError.EventSlotNotBooked(eid, sid);
+        if (!booking.EventSlot.EventAirspace.Event.IsInBookingPeriod)
+        {
+            throw new ApiError.EventNotInBookingTime(eid);
+        }
         if (booking.UserId.ToString() != User.Identity?.Name && !User.IsInRole(Models.User.UserRoles.Admin))
         {
             throw new ApiError.EventSlotBookedByAnotherUser(eid, sid);

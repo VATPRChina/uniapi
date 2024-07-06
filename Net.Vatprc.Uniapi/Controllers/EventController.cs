@@ -19,6 +19,8 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         public string Title { get; init; }
         public DateTimeOffset StartAt { get; init; }
         public DateTimeOffset EndAt { get; init; }
+        public DateTimeOffset StartBookingAt { get; init; }
+        public DateTimeOffset EndBookingAt { get; init; }
 
         public EventDto(Event eventt)
         {
@@ -28,6 +30,8 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
             Title = eventt.Title;
             StartAt = eventt.StartAt;
             EndAt = eventt.EndAt;
+            StartBookingAt = eventt.StartBookingAt;
+            EndBookingAt = eventt.EndBookingAt;
         }
     }
 
@@ -35,7 +39,10 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
     [AllowAnonymous]
     public async Task<IEnumerable<EventDto>> List()
     {
-        return await DbContext.Event.Select(x => new EventDto(x)).ToListAsync();
+        return await DbContext.Event
+            .Where(x => x.StartBookingAt > DateTimeOffset.UtcNow.AddDays(-7))
+            .Where(x => x.EndAt > DateTimeOffset.UtcNow)
+            .Select(x => new EventDto(x)).ToListAsync();
     }
 
     [HttpGet("{eid}")]
@@ -51,6 +58,8 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         public required string Title { get; set; }
         public required DateTimeOffset StartAt { get; set; }
         public required DateTimeOffset EndAt { get; set; }
+        public required DateTimeOffset StartBookingAt { get; init; }
+        public required DateTimeOffset EndBookingAt { get; init; }
     }
 
     [HttpPost]
@@ -62,6 +71,8 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
             Title = dto.Title,
             StartAt = dto.StartAt.ToUniversalTime(),
             EndAt = dto.EndAt.ToUniversalTime(),
+            StartBookingAt = dto.StartBookingAt.ToUniversalTime(),
+            EndBookingAt = dto.EndBookingAt.ToUniversalTime(),
         };
         DbContext.Event.Add(eventt);
         await DbContext.SaveChangesAsync();
@@ -73,6 +84,8 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         public required string Title { get; set; }
         public required DateTimeOffset StartAt { get; set; }
         public required DateTimeOffset EndAt { get; set; }
+        public required DateTimeOffset StartBookingAt { get; init; }
+        public required DateTimeOffset EndBookingAt { get; init; }
     }
 
     [HttpPost("{eid}")]
@@ -83,6 +96,8 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         eventt.Title = dto.Title;
         eventt.StartAt = dto.StartAt.ToUniversalTime();
         eventt.EndAt = dto.EndAt.ToUniversalTime();
+        eventt.StartBookingAt = dto.StartBookingAt.ToUniversalTime();
+        eventt.EndBookingAt = dto.EndBookingAt.ToUniversalTime();
         await DbContext.SaveChangesAsync();
         return new(eventt);
     }

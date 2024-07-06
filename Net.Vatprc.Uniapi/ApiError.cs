@@ -393,4 +393,16 @@ public abstract class ApiError : Exception
             ExtraData.Add("slot_id", slot_id);
         }
     }
+
+    [Error(HttpStatusCode.Forbidden, "EVENT_NOT_IN_BOOKING_TIME", "Event {event_id} is not in booking time.")]
+    [WithExtraData("event_id", typeof(string))]
+    [WithExtraData("slot_id", typeof(string))]
+    public class EventNotInBookingTime : ApiError
+    {
+        public EventNotInBookingTime(Ulid event_id) : base(
+            $"Event {event_id} is not in booking time.")
+        {
+            ExtraData.Add("event_id", event_id);
+        }
+    }
 }

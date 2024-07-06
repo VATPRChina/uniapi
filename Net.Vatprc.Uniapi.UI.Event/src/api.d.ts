@@ -202,6 +202,10 @@ export interface components {
       start_at: string;
       /** Format: date-time */
       end_at: string;
+      /** Format: date-time */
+      start_booking_at: string;
+      /** Format: date-time */
+      end_booking_at: string;
     };
     CreateEventSlotDto: {
       airspace_id: string;
@@ -241,6 +245,10 @@ export interface components {
       start_at: string;
       /** Format: date-time */
       end_at: string;
+      /** Format: date-time */
+      start_booking_at: string;
+      /** Format: date-time */
+      end_booking_at: string;
     };
     EventSlotDto: {
       id: string;
@@ -280,6 +288,10 @@ export interface components {
       start_at: string;
       /** Format: date-time */
       end_at: string;
+      /** Format: date-time */
+      start_booking_at: string;
+      /** Format: date-time */
+      end_booking_at: string;
     };
     UpdateEventSlotDto: {
       /** Format: date-time */

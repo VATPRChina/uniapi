@@ -5,7 +5,7 @@ import { useUser } from "@/services/auth";
 import { Button, Card, Group, Image, Stack, Table, Text, Title, Tooltip } from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { format } from "date-fns";
+import { format, formatRelative } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 
 const EventBookingButtons = ({
@@ -90,6 +90,38 @@ const EventComponent = () => {
     <Stack>
       <Image src="https://cdn.sa.net/2024/07/06/OSoUsbluV69nhCw.png" alt={event?.title} radius="md" />
       <Title order={1}>{event?.title}</Title>
+      {event && (
+        <>
+          <Text>
+            Start Time:
+            <Tooltip label={format(event.start_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
+              <span> {formatInTimeZone(event.start_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
+            </Tooltip>
+            ({formatRelative(event.start_at, Date.now())})
+          </Text>
+          <Text>
+            End Time:
+            <Tooltip label={format(event.end_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
+              <span> {formatInTimeZone(event.end_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
+            </Tooltip>
+            ({formatRelative(event.end_at, Date.now())})
+          </Text>
+          <Text>
+            Start Booking Time:
+            <Tooltip label={format(event.start_booking_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
+              <span> {formatInTimeZone(event.start_booking_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
+            </Tooltip>
+            ({formatRelative(event.start_booking_at, Date.now())})
+          </Text>
+          <Text>
+            End Booking Time:
+            <Tooltip label={format(event.end_booking_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
+              <span> {formatInTimeZone(event.end_booking_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
+            </Tooltip>
+            ({formatRelative(event.end_booking_at, Date.now())})
+          </Text>
+        </>
+      )}
       <Title order={2}>
         Slots
         <CreateSlot ml={4} eventId={event_id} />

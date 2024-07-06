@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Net.Vatprc.Uniapi.Models;
@@ -16,7 +17,17 @@ public class Event
 
     public DateTimeOffset UpdatedAt { get; set; }
 
+    public DateTimeOffset StartBookingAt { get; set; }
+
+    public DateTimeOffset EndBookingAt { get; set; }
+
     public IEnumerable<EventAirspace> Airspaces { get; set; } = null!;
+
+    [JsonIgnore]
+    public bool IsInBookingPeriod
+    {
+        get => DateTimeOffset.Now > StartBookingAt && DateTimeOffset.Now < EndBookingAt;
+    }
 
     public class EventConfiguration : IEntityTypeConfiguration<Event>
     {

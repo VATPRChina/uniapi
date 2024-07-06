@@ -13,6 +13,8 @@ export const CreateEvent = () => {
       title: "",
       start_at: formatISO(setSeconds(Date.now(), 0)),
       end_at: formatISO(setSeconds(Date.now(), 0)),
+      start_booking_at: formatISO(setSeconds(Date.now(), 0)),
+      end_booking_at: formatISO(setSeconds(Date.now(), 0)),
     },
     onSubmit: ({ value }) => mutate(value),
   });
@@ -60,6 +62,30 @@ export const CreateEvent = () => {
               children={(field) => (
                 <DateTimePicker
                   label="End at"
+                  onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                  valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                  value={new Date(field.state.value)}
+                  onBlur={field.handleBlur}
+                />
+              )}
+            />
+            <form.Field
+              name="start_booking_at"
+              children={(field) => (
+                <DateTimePicker
+                  label="Start booking at"
+                  onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                  valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                  value={new Date(field.state.value)}
+                  onBlur={field.handleBlur}
+                />
+              )}
+            />
+            <form.Field
+              name="end_booking_at"
+              children={(field) => (
+                <DateTimePicker
+                  label="End booking at"
                   onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
                   valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
                   value={new Date(field.state.value)}

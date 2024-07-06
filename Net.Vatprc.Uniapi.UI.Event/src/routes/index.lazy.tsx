@@ -23,16 +23,30 @@ const Index = () => {
             <Text>
               Start Time:
               <Tooltip label={format(event.start_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-                <span> {formatInTimeZone(event.start_at, "UTC", "yyyy-MM-dd HH:mm")}Z</span>
+                <span> {formatInTimeZone(event.start_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
               </Tooltip>
               ({formatRelative(event.start_at, Date.now())})
             </Text>
             <Text>
               End Time:
-              <Tooltip label={format(event.start_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-                <span> {formatInTimeZone(event.start_at, "UTC", "yyyy-MM-dd HH:mm")}Z</span>
+              <Tooltip label={format(event.end_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
+                <span> {formatInTimeZone(event.end_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
               </Tooltip>
               ({formatRelative(event.end_at, Date.now())})
+            </Text>
+            <Text>
+              Start Booking Time:
+              <Tooltip label={format(event.start_booking_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
+                <span> {formatInTimeZone(event.start_booking_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
+              </Tooltip>
+              ({formatRelative(event.start_booking_at, Date.now())})
+            </Text>
+            <Text>
+              End Booking Time:
+              <Tooltip label={format(event.end_booking_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
+                <span> {formatInTimeZone(event.end_booking_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
+              </Tooltip>
+              ({formatRelative(event.end_booking_at, Date.now())})
             </Text>
           </Card>
         ))}
