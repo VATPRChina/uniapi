@@ -15,6 +15,7 @@ export default tseslint.config(
     plugins: { "react-hooks": reacthooks },
     rules: { "react-hooks/rules-of-hooks": "error", "react-hooks/exhaustive-deps": "warn" },
   },
+  // @ts-ignore
   prettier,
   {
     languageOptions: {

@@ -4,7 +4,7 @@ import { atom, getDefaultStore } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import createClient, { type Middleware } from "openapi-fetch";
 
-const authClient = createClient<paths>({ baseUrl: "/" });
+const authClient = createClient<paths>({ baseUrl: import.meta.env.VITE_VATPRC_UNIAPI_ENDPOINT });
 
 interface IAccessToken {
   access_token: string;

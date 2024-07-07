@@ -183,6 +183,21 @@ builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, Authorizati
 
 DiscordWorker.ConfigureOn(builder);
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("https://*.vatprc.net")
+            .SetIsOriginAllowedToAllowWildcardSubdomains();
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.WithOrigins("http://localhost:3000");
+        }
+        policy.AllowAnyMethod()
+            .WithHeaders("authorization", "content-type");
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -208,6 +223,8 @@ app.UseSerilogRequestLogging();
 if (app.Environment.IsProduction()) app.UseHttpsRedirection();
 
 app.UseRouting();
+
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();

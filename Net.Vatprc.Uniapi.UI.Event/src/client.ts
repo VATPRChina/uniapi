@@ -25,7 +25,7 @@ const throwMiddleware: Middleware = {
   },
 };
 
-export const client = createClient<paths>({ baseUrl: "/" });
+export const client = createClient<paths>({ baseUrl: import.meta.env.VITE_VATPRC_UNIAPI_ENDPOINT });
 client.use(authMiddleware);
 client.use(throwMiddleware);
 
