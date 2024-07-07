@@ -179,6 +179,7 @@ builder.Services.AddAuthentication(opts =>
     opts.EventsType = typeof(AuthenticationEventHandler);
 });
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, AuthorizationHandler>();
 
 DiscordWorker.ConfigureOn(builder);
 

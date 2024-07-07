@@ -405,4 +405,15 @@ public abstract class ApiError : Exception
             ExtraData.Add("event_id", event_id);
         }
     }
+
+    [Error(HttpStatusCode.Forbidden, "FORBIDDEN", "Permission is not sufficient, lacks {roles}.")]
+    [WithExtraData("required_roles", typeof(IEnumerable<string>))]
+    public class Forbidden : ApiError
+    {
+        public Forbidden(IEnumerable<string> required_roles) : base(
+            $"Permission is not sufficient, lacks {string.Join(",", required_roles)}.")
+        {
+            ExtraData.Add("required_roles", required_roles);
+        }
+    }
 }
