@@ -132,11 +132,6 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         public SecurityKey SecurityKey { get; set; } = null!;
 
         public SigningCredentials Credentials { get; set; } = null!;
-
-        public void BuildKeys()
-        {
-
-        }
     }
 
     public class OptionConfigure : IConfigureOptions<Option>

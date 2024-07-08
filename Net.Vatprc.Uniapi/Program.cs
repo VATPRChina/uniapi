@@ -151,6 +151,7 @@ builder.Services.AddSwaggerGen(opts =>
 TokenService.ConfigureOn(builder);
 builder.Services.AddTransient<AuthenticationEventHandler>();
 
+VatsimAuthService.ConfigureOn(builder);
 // FIXME: This will raise "No XML encryptor configured. Key {GUID} may be
 // persisted to storage in unencrypted form." on start, but I think it is ok
 // as the JWT keys are managed manually.

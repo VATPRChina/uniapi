@@ -49,3 +49,9 @@ Issuer = "https://uniapi.vatprc.net"
 AudienceFirstParty = "https://uniapi.vatprc.net"
 FirstPartyExpires = 01:00:00
 RefreshExpiresDays = 7
+
+[Authentication.Vatsim]
+Endpoint = "https://auth-dev.vatsim.net"
+ClientId = "841"
+ClientSecret = "SUA4O6tE0AzNjZ7Y5WSwGJSHX7vW5s6LvsGxdvsN"
+RedirectUri = "https://localhost:5001/auth/callback/vatsim"
