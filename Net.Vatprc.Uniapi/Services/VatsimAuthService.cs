@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json.Serialization;
 using Flurl;
 using Flurl.Http;
@@ -13,6 +15,30 @@ public class VatsimAuthService(IOptions<VatsimAuthService.Option> Options)
         builder.Services.AddSingleton<VatsimAuthService>();
         return builder;
     }
+
+    /// <summary>
+    /// Generates a code_verifier and the corresponding code_challenge, as specified in the rfc-7636.
+    /// </summary>
+    /// <remarks>See https://datatracker.ietf.org/doc/html/rfc7636#section-4.1 and https://datatracker.ietf.org/doc/html/rfc7636#section-4.2</remarks>
+    public static (string code_challenge, string verifier) GeneratePkce(int size = 32)
+    {
+        using var rng = RandomNumberGenerator.Create();
+        var randomBytes = new byte[size];
+        rng.GetBytes(randomBytes);
+        var verifier = Base64UrlEncode(randomBytes);
+
+        var buffer = Encoding.UTF8.GetBytes(verifier);
+        var hash = SHA256.HashData(buffer);
+        var challenge = Base64UrlEncode(hash);
+
+        return (challenge, verifier);
+    }
+
+    private static string Base64UrlEncode(byte[] data) =>
+        Convert.ToBase64String(data)
+            .Replace("+", "-")
+            .Replace("/", "_")
+            .TrimEnd('=');
 
     public class TokenResponse
     {
@@ -32,7 +58,7 @@ public class VatsimAuthService(IOptions<VatsimAuthService.Option> Options)
         public required IEnumerable<string> Scopes { get; set; }
     }
 
-    public async Task<TokenResponse> GetTokenAsync(string code)
+    public async Task<TokenResponse> GetTokenAsync(string code, string verifier)
     {
         var response = await new Url(Options.Value.Endpoint)
             .AppendPathSegment("oauth/token")
@@ -43,7 +69,7 @@ public class VatsimAuthService(IOptions<VatsimAuthService.Option> Options)
                 client_secret = Options.Value.ClientSecret,
                 redirect_uri = Options.Value.RedirectUri,
                 code,
-                code_verifier = "b727bef46e0b546964eaac18403d95e5bc284e9c1eab6ea48ae77a93",
+                code_verifier = verifier,
             })
             .ReceiveJson<TokenResponse>();
         return response;
@@ -57,7 +83,7 @@ public class VatsimAuthService(IOptions<VatsimAuthService.Option> Options)
         public class DataObject
         {
             [JsonPropertyName("cid")]
-            public required long Cid { get; set; }
+            public required string Cid { get; set; }
 
             [JsonPropertyName("oauth")]
             public required OauthObject Oauth { get; set; }
@@ -66,10 +92,9 @@ public class VatsimAuthService(IOptions<VatsimAuthService.Option> Options)
         public class OauthObject
         {
             [JsonPropertyName("token_valid")]
-            public required bool TokenValid { get; set; }
+            public required string TokenValid { get; set; }
         }
     }
-
 
     public async Task<UserResponse> GetUserAsync(string accessToken)
     {

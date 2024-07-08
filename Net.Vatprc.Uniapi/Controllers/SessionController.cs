@@ -60,6 +60,7 @@ public class SessionController(VATPRCContext DbContext, TokenService TokenServic
     [ResponseCache(NoStore = true)]
     [Consumes("application/x-www-form-urlencoded")]
     [ApiError.Has<ApiError.InvalidGrantType>]
+    [ApiError.Has<ApiError.InvalidRefreshToken>]
     public async Task<LoginResDto> Login([FromForm] LoginReqDto req)
     {
         if (req.grant_type == "password")
