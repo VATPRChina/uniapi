@@ -15,6 +15,8 @@ public class Session
 
     public DateTimeOffset CreatedAt { get; set; }
 
+    public Ulid? Code { get; set; }
+
     public class SessionConfiguration : IEntityTypeConfiguration<Session>
     {
         public void Configure(EntityTypeBuilder<Session> builder)

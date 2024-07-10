@@ -51,6 +51,24 @@ export const devLogin = async (username: string, password: string) => {
   if (data.error) throw data.error;
   handleSessionLoginResponse(data.data);
 };
+export const login = async (code: string) => {
+  const data = await authClient.POST("/api/session", {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: {
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: "http://localhost:3000/auth/callback",
+      client_id: "01J2ED6BDX9J9BTYS2RVW83ME7",
+    },
+    bodySerializer(body) {
+      return new URLSearchParams(body).toString();
+    },
+  });
+  if (data.error) throw data.error;
+  handleSessionLoginResponse(data.data);
+};
 export const refresh = async () => {
   if (sessionStore.get(isRefreshingAtom)) {
     await new Promise((resolve, _) => refreshTokenObservers.push(resolve));

@@ -1,6 +1,7 @@
 import logo from "../assets/standard.svg";
 import { CreateEvent } from "@/components/create-event";
 import { DevLogin } from "@/components/dev-login";
+import { Login } from "@/components/login";
 import { logout, useUser } from "@/services/auth";
 import { promiseWithToast } from "@/utils";
 import { Button, Container, Group, Image, Stack } from "@mantine/core";
@@ -42,6 +43,7 @@ export const Route = createRootRoute({
           <Group>
             <CreateEvent />
             <DevLogin />
+            <Login />
             <Logout />
           </Group>
         </Group>

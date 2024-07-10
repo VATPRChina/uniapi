@@ -4,6 +4,54 @@
  */
 
 export interface paths {
+  "/auth/authorize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["Auth_Authorize"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["Auth_Login"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/callback/vatsim": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["Auth_VatsimCallback"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/events": {
     parameters: {
       query?: never;
@@ -316,6 +364,94 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  Auth_Authorize: {
+    parameters: {
+      query?: {
+        response_type?: string;
+        client_id?: string;
+        redirect_uri?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description INTERNAL_SERVER_ERROR */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorProdResponse"];
+        };
+      };
+    };
+  };
+  Auth_Login: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description INTERNAL_SERVER_ERROR */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorProdResponse"];
+        };
+      };
+    };
+  };
+  Auth_VatsimCallback: {
+    parameters: {
+      query?: {
+        code?: string;
+        state?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description INTERNAL_SERVER_ERROR */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorProdResponse"];
+        };
+      };
+    };
+  };
   Event_List: {
     parameters: {
       query?: never;
@@ -1099,6 +1235,9 @@ export interface operations {
           password?: string;
           grant_type?: string;
           refresh_token?: string;
+          client_id?: string;
+          code?: string;
+          redirect_uri?: string;
         };
       };
     };
@@ -1114,6 +1253,15 @@ export interface operations {
       };
       /** @description INVALID_GRANT_TYPE */
       400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorProdResponse"];
+        };
+      };
+      /** @description INVALID_REFRESH_TOKEN */
+      403: {
         headers: {
           [name: string]: unknown;
         };

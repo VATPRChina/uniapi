@@ -10,9 +10,33 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [AllowAnonymous]
 public class AuthController(
     IOptions<VatsimAuthService.Option> Options,
+    TokenService TokenService,
     VatsimAuthService AuthService,
     VATPRCContext DbContext) : ControllerBase
 {
+    [HttpGet("authorize")]
+    public IActionResult Authorize(
+        [FromQuery] string response_type,
+        [FromQuery] string client_id,
+        [FromQuery] string redirect_uri)
+    {
+        if (response_type != "code")
+        {
+            return BadRequest("invalid response_type");
+        }
+        if (!TokenService.ValidateClient(client_id, redirect_uri, ""))
+        {
+            return Unauthorized("client is invalid");
+        }
+        Response.Cookies.Append("redirect", redirect_uri, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Lax,
+        });
+        return RedirectToActionPreserveMethod(nameof(Login), "Auth");
+    }
+
     [HttpGet("login")]
     public IActionResult Login()
     {
@@ -28,7 +52,7 @@ public class AuthController(
         {
             HttpOnly = true,
             Secure = true,
-            SameSite = SameSiteMode.Strict,
+            SameSite = SameSiteMode.Lax,
         });
         return RedirectPreserveMethod(url.ToString());
     }
@@ -51,6 +75,18 @@ public class AuthController(
             };
             DbContext.User.Add(user);
             await DbContext.SaveChangesAsync();
+        }
+
+        if (Request.Cookies.TryGetValue("redirect", out var redirect)
+            && !string.IsNullOrEmpty(redirect)
+            && Uri.TryCreate(redirect, UriKind.Absolute, out var redirectUri))
+        {
+            Response.Cookies.Delete("redirect");
+            var refresh = await TokenService.IssueFirstPartyRefreshToken(user, createCode: true);
+            var redirectTarget = redirectUri
+                .SetQueryParam("code", refresh.Code)
+                .ToString();
+            return RedirectPreserveMethod(redirectTarget);
         }
 
         return Ok(new

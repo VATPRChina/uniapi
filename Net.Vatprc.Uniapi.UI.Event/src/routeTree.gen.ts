@@ -14,6 +14,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as EventsEventidImport } from './routes/events/$event_id'
+import { Route as AuthCallbackImport } from './routes/auth/callback'
 
 // Create Virtual Routes
 
@@ -31,6 +32,11 @@ const EventsEventidRoute = EventsEventidImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const AuthCallbackRoute = AuthCallbackImport.update({
+  path: '/auth/callback',
+  getParentRoute: () => rootRoute,
+} as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -40,6 +46,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexLazyImport
+      parentRoute: typeof rootRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackImport
       parentRoute: typeof rootRoute
     }
     '/events/$event_id': {
@@ -56,6 +69,7 @@ declare module '@tanstack/react-router' {
 
 export const routeTree = rootRoute.addChildren({
   IndexLazyRoute,
+  AuthCallbackRoute,
   EventsEventidRoute,
 })
 
@@ -68,11 +82,15 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/auth/callback",
         "/events/$event_id"
       ]
     },
     "/": {
       "filePath": "index.lazy.tsx"
+    },
+    "/auth/callback": {
+      "filePath": "auth/callback.tsx"
     },
     "/events/$event_id": {
       "filePath": "events/$event_id.tsx"

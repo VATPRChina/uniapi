@@ -307,6 +307,14 @@ public abstract class ApiError : Exception
         }
     }
 
+    [Error(HttpStatusCode.Forbidden, "INVALID_AUTHORIZATION_CODE", "Authorization code is not valid.")]
+    public class InvalidAuthorizationCode : ApiError
+    {
+        public InvalidAuthorizationCode() : base($"Refresh token is not valid.")
+        {
+        }
+    }
+
     [Error(HttpStatusCode.NotFound, "EVENT_NOT_FOUND", "Event {event_id} not found.")]
     [WithExtraData("event_id", typeof(string))]
     public class EventNotFound : ApiError

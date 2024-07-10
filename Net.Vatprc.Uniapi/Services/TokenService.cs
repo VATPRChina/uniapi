@@ -36,7 +36,7 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
             new (JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new (JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
             new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new (JwtClaimNames.Scope, EncodeScopes(new[]{ JwtScopes.OAuth })),
+            new (JwtClaimNames.Scope, EncodeScopes([JwtScopes.OAuth])),
             new (JwtClaimNames.UpdatedAt, user.UpdatedAt.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
             new (JwtRegisteredClaimNames.Sid, refresh.Token.ToString()),
             new (JwtClaimNames.ClientId, BuiltInClientId),
@@ -59,7 +59,7 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
                 .Any(x => x.Value == Options.CurrentValue.AudienceFirstParty);
     }
 
-    public async Task<Session> IssueFirstPartyRefreshToken(User user, Session? oldToken)
+    public async Task<Session> IssueFirstPartyRefreshToken(User user, Session? oldToken = null, bool createCode = false)
     {
         var now = DateTimeOffset.UtcNow;
         var expireTime = DateTimeOffset.UtcNow.Add(TimeSpan.FromDays(Options.CurrentValue.RefreshExpiresDays));
@@ -68,7 +68,8 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
             UserId = user.Id,
             UserUpdatedAt = user.UpdatedAt,
             Token = Ulid.NewUlid(),
-            ExpiresIn = expireTime
+            ExpiresIn = expireTime,
+            Code = createCode ? Ulid.NewUlid() : null,
         };
         using var services = Services.CreateScope();
         using var db = services.ServiceProvider.GetRequiredService<VATPRCContext>();
@@ -88,6 +89,29 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
             .ExecuteDeleteAsync();
         await transaction.CommitAsync();
         return token;
+    }
+
+    public async Task<Session?> GetRefreshTokenByCode(Ulid code)
+    {
+        using var services = Services.CreateScope();
+        using var db = services.ServiceProvider.GetRequiredService<VATPRCContext>();
+        var session = await db.Session
+            .Include(x => x.User)
+            .FirstOrDefaultAsync(x => x.Code == code);
+        if (session != null)
+        {
+            session.Code = null;
+            await db.SaveChangesAsync();
+        }
+        // TODO: validate client_id and redirect_uri
+        return session;
+    }
+
+    public bool ValidateClient(string clientId, string redirectUri, string code)
+    {
+        // TODO: validate client_id and redirect_uri
+        return Options.CurrentValue.Clients
+            .Any(x => x.ClientId == clientId && x.RedirectUri.Contains(redirectUri));
     }
 
     public struct JwtClaimNames
@@ -132,6 +156,15 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         public SecurityKey SecurityKey { get; set; } = null!;
 
         public SigningCredentials Credentials { get; set; } = null!;
+
+        public IEnumerable<Client> Clients { get; set; } = [];
+
+        public class Client
+        {
+            public string ClientId { get; set; } = string.Empty;
+
+            public IEnumerable<string> RedirectUri { get; set; } = [];
+        }
     }
 
     public class OptionConfigure : IConfigureOptions<Option>

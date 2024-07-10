@@ -10,7 +10,10 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/session")]
-public class SessionController(VATPRCContext DbContext, TokenService TokenService) : ControllerBase
+public class SessionController(
+    VATPRCContext DbContext,
+    TokenService TokenService
+) : ControllerBase
 {
     public record LoginReqDto
     {
@@ -18,6 +21,9 @@ public class SessionController(VATPRCContext DbContext, TokenService TokenServic
         public string password { get; set; } = string.Empty;
         public string grant_type { get; set; } = string.Empty;
         public string refresh_token { get; set; } = string.Empty;
+        public string client_id { get; set; } = string.Empty;
+        public string code { get; set; } = string.Empty;
+        public string redirect_uri { get; set; } = string.Empty;
     }
 
     public record LoginResDto(
@@ -115,6 +121,28 @@ public class SessionController(VATPRCContext DbContext, TokenService TokenServic
                 AccessToken: token,
                 ExpiresIn: (uint)(expires - now),
                 RefreshToken: newRefresh.Token.ToString(),
+                Scope: scopes);
+        }
+        else if (req.grant_type == "authorization_code")
+        {
+            if (string.IsNullOrEmpty(req.client_id) || string.IsNullOrEmpty(req.code) || string.IsNullOrEmpty(req.redirect_uri))
+            {
+                throw new ApiError.BadRequest("missing parameters for authorization_code");
+            }
+            if (!TokenService.ValidateClient(req.client_id, req.redirect_uri, req.code))
+            {
+                throw new ApiError.BadRequest("invalid client_id or redirect_uri");
+            }
+            var session = await TokenService.GetRefreshTokenByCode(Ulid.Parse(req.code)) ??
+                throw new ApiError.InvalidAuthorizationCode();
+            var (token, jwt) = TokenService.IssueFirstParty(session.User, session);
+            var expires = jwt.Payload.Expiration ?? 0;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
+            return new(
+                AccessToken: token,
+                ExpiresIn: (uint)(expires - now),
+                RefreshToken: session.Token.ToString(),
                 Scope: scopes);
         }
         else
