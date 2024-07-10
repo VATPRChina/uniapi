@@ -24,10 +24,16 @@ public class AuthController(
         {
             return BadRequest("invalid response_type");
         }
-        if (!TokenService.ValidateClient(client_id, redirect_uri, ""))
+        if (!TokenService.CheckClientExists(client_id, redirect_uri))
         {
             return Unauthorized("client is invalid");
         }
+        Response.Cookies.Append("client_id", client_id, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Lax,
+        });
         Response.Cookies.Append("redirect", redirect_uri, new CookieOptions
         {
             HttpOnly = true,
@@ -79,12 +85,16 @@ public class AuthController(
 
         if (Request.Cookies.TryGetValue("redirect", out var redirect)
             && !string.IsNullOrEmpty(redirect)
+            && Request.Cookies.TryGetValue("client_id", out var clientId)
+            && !string.IsNullOrEmpty(clientId)
             && Uri.TryCreate(redirect, UriKind.Absolute, out var redirectUri))
         {
+            Response.Cookies.Delete("client_id");
             Response.Cookies.Delete("redirect");
             var refresh = await TokenService.IssueFirstPartyRefreshToken(user, createCode: true);
+            var authCode = TokenService.GenerateAuthCode(refresh, clientId, redirect.ToString());
             var redirectTarget = redirectUri
-                .SetQueryParam("code", refresh.Code)
+                .SetQueryParam("code", authCode)
                 .ToString();
             return RedirectPreserveMethod(redirectTarget);
         }

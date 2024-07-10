@@ -4,7 +4,7 @@ import { atom, getDefaultStore } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import createClient, { type Middleware } from "openapi-fetch";
 
-const authClient = createClient<paths>({ baseUrl: import.meta.env.VITE_VATPRC_UNIAPI_ENDPOINT });
+const authClient = createClient<paths>({ baseUrl: import.meta.env.VITE_API_ENDPOINT });
 
 interface IAccessToken {
   access_token: string;
@@ -40,9 +40,7 @@ const handleSessionLoginResponse = (
 
 export const devLogin = async (username: string, password: string) => {
   const data = await authClient.POST("/api/session", {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: { grant_type: "password", username, password },
     bodySerializer(body) {
       return new URLSearchParams(body).toString();
@@ -53,14 +51,12 @@ export const devLogin = async (username: string, password: string) => {
 };
 export const login = async (code: string) => {
   const data = await authClient.POST("/api/session", {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: {
       grant_type: "authorization_code",
       code,
-      redirect_uri: "http://localhost:3000/auth/callback",
-      client_id: "01J2ED6BDX9J9BTYS2RVW83ME7",
+      redirect_uri: import.meta.env.VITE_API_REDIRECT_URI,
+      client_id: import.meta.env.VITE_API_CLIENT_ID,
     },
     bodySerializer(body) {
       return new URLSearchParams(body).toString();

@@ -7,20 +7,18 @@ export const DevLogin = () => {
   const user = useUser();
 
   const form = useForm({
-    defaultValues: {
-      username: "",
-    },
+    defaultValues: { username: "" },
     onSubmit: async ({ value }) => {
-      // Do something with form data
       await devLogin(value.username, "foobar");
     },
   });
 
+  if (import.meta.env.PROD) return null;
   if (user) return null;
   return (
     <Popover>
       <Popover.Target>
-        <Button variant="outline">Login</Button>
+        <Button variant="outline">Dev Login</Button>
       </Popover.Target>
       <Popover.Dropdown>
         <form

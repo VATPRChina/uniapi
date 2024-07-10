@@ -129,21 +129,24 @@ public class SessionController(
             {
                 throw new ApiError.BadRequest("missing parameters for authorization_code");
             }
-            if (!TokenService.ValidateClient(req.client_id, req.redirect_uri, req.code))
+            try
             {
-                throw new ApiError.BadRequest("invalid client_id or redirect_uri");
+                var session = await TokenService.GetRefreshTokenByCode(req.code, req.client_id, req.redirect_uri) ??
+                    throw new ApiError.InvalidAuthorizationCode();
+                var (token, jwt) = TokenService.IssueFirstParty(session.User, session);
+                var expires = jwt.Payload.Expiration ?? 0;
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
+                return new(
+                    AccessToken: token,
+                    ExpiresIn: (uint)(expires - now),
+                    RefreshToken: session.Token.ToString(),
+                    Scope: scopes);
             }
-            var session = await TokenService.GetRefreshTokenByCode(Ulid.Parse(req.code)) ??
+            catch (TokenService.InvalidClientIdOrRedirectUriException)
+            {
                 throw new ApiError.InvalidAuthorizationCode();
-            var (token, jwt) = TokenService.IssueFirstParty(session.User, session);
-            var expires = jwt.Payload.Expiration ?? 0;
-            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
-            return new(
-                AccessToken: token,
-                ExpiresIn: (uint)(expires - now),
-                RefreshToken: session.Token.ToString(),
-                Scope: scopes);
+            }
         }
         else
         {

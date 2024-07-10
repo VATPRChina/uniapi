@@ -91,25 +91,64 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         return token;
     }
 
-    public async Task<Session?> GetRefreshTokenByCode(Ulid code)
+    public string GenerateAuthCode(Session session, string clientId, string redirectUri)
     {
+        var code = session.Code.ToString() ?? throw new ArgumentException("Session code is empty");
+        var claims = new List<Claim>
+        {
+            new (JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            new (JwtClaimNames.ClientId, clientId),
+            new (JwtClaimNames.RedirectUri, redirectUri),
+            new (JwtClaimNames.AuthCode, code),
+            new (JwtRegisteredClaimNames.Jti, code),
+        };
+        var token = new JwtSecurityToken(
+            issuer: Options.CurrentValue.Issuer,
+            audience: Options.CurrentValue.AudienceFirstParty,
+            expires: DateTime.Now.Add(Options.CurrentValue.FirstPartyExpires),
+            notBefore: DateTime.Now,
+            claims: claims,
+            signingCredentials: Options.CurrentValue.Credentials);
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public class InvalidClientIdOrRedirectUriException : Exception
+    {
+        public InvalidClientIdOrRedirectUriException() : base("invalid client_id or redirect_uri") { }
+    }
+
+    public async Task<Session?> GetRefreshTokenByCode(string code, string clientId, string redirectUri)
+    {
+        var claims = new JwtSecurityTokenHandler().ValidateToken(code, new TokenValidationParameters
+        {
+            IssuerSigningKey = Options.CurrentValue.SecurityKey,
+            ValidIssuer = Options.CurrentValue.Issuer,
+            ValidAudience = Options.CurrentValue.AudienceFirstParty,
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+        }, out var token);
+        if (claims.FindFirstValue(JwtClaimNames.ClientId) != clientId ||
+            claims.FindFirstValue(JwtClaimNames.RedirectUri) != redirectUri)
+        {
+            throw new InvalidClientIdOrRedirectUriException();
+        }
         using var services = Services.CreateScope();
         using var db = services.ServiceProvider.GetRequiredService<VATPRCContext>();
         var session = await db.Session
             .Include(x => x.User)
-            .FirstOrDefaultAsync(x => x.Code == code);
+            .FirstOrDefaultAsync(x => x.Code == Ulid.Parse(token.Id));
         if (session != null)
         {
             session.Code = null;
             await db.SaveChangesAsync();
         }
-        // TODO: validate client_id and redirect_uri
         return session;
     }
 
-    public bool ValidateClient(string clientId, string redirectUri, string code)
+    public bool CheckClientExists(string clientId, string redirectUri)
     {
-        // TODO: validate client_id and redirect_uri
         return Options.CurrentValue.Clients
             .Any(x => x.ClientId == clientId && x.RedirectUri.Contains(redirectUri));
     }
@@ -128,6 +167,14 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         /// https://www.rfc-editor.org/rfc/rfc8693.html#name-client_id-client-identifier
         /// </summary>
         public const string ClientId = "client_id";
+        /// <summary>
+        /// redirect uri, only used in auth code
+        /// </summary>
+        public const string RedirectUri = "redirect_uri";
+        /// <summary>
+        /// redirect uri, only used in auth code
+        /// </summary>
+        public const string AuthCode = "authorization_code";
     }
 
     public struct JwtScopes
