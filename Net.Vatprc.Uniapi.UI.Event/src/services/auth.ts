@@ -107,11 +107,12 @@ export const forceLogout = () => {
  */
 export const authMiddleware: Middleware = {
   async onRequest({ request }) {
-    const accessToken = sessionStore.get(accessTokenAtom);
+    let accessToken = sessionStore.get(accessTokenAtom);
     const refreshToken = sessionStore.get(refreshTokenAtom);
     if (!accessToken || Date.parse(accessToken.expires_at) < Date.now()) {
       if (refreshToken) await refresh();
     }
+    accessToken = sessionStore.get(accessTokenAtom);
     if (accessToken) {
       request.headers.set("Authorization", `Bearer ${getAccessToken()}`);
     }
