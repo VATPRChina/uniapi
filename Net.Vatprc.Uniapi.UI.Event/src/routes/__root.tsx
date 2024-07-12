@@ -7,7 +7,6 @@ import { promiseWithToast } from "@/utils";
 import { Button, Container, Group, Image, Stack } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { Link, Outlet, createRootRoute } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 
 const Logout = () => {
   const user = useUser();
@@ -50,7 +49,6 @@ export const Route = createRootRoute({
         <Outlet />
       </Stack>
       <Notifications position="top-center" />
-      <TanStackRouterDevtools />
     </Container>
   ),
 });
