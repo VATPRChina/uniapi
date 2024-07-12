@@ -53,7 +53,8 @@ public class AuthController(
             .SetQueryParam("client_id", Options.Value.ClientId)
             .SetQueryParam("redirect_uri", Options.Value.RedirectUri)
             .SetQueryParam("code_challenge", challenge)
-            .SetQueryParam("code_challenge_method", "S256");
+            .SetQueryParam("code_challenge_method", "S256")
+            .SetQueryParam("scope", "full_name email");
         Response.Cookies.Append("code_verifier", verifier, new CookieOptions
         {
             HttpOnly = true,

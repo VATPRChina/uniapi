@@ -70,6 +70,7 @@ public class VatsimAuthService(IOptions<VatsimAuthService.Option> Options)
                 redirect_uri = Options.Value.RedirectUri,
                 code,
                 code_verifier = verifier,
+                scope = "full_name email",
             })
             .ReceiveJson<TokenResponse>();
         return response;
