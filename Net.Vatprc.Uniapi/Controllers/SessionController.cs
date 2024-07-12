@@ -12,7 +12,8 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/session")]
 public class SessionController(
     VATPRCContext DbContext,
-    TokenService TokenService
+    TokenService TokenService,
+    IWebHostEnvironment Environment
 ) : ControllerBase
 {
     public record LoginReqDto
@@ -69,10 +70,9 @@ public class SessionController(
     [ApiError.Has<ApiError.InvalidRefreshToken>]
     public async Task<LoginResDto> Login([FromForm] LoginReqDto req)
     {
-        if (req.grant_type == "password")
+        if (req.grant_type == "password" && Environment.IsDevelopment())
         {
             var user = await DbContext.User.FirstOrDefaultAsync(x => x.Cid == req.username);
-            // FIXME: password grant should only be used in dev
             if (user == null)
             {
                 user = new()
