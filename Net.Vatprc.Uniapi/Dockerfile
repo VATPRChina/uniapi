@@ -3,14 +3,7 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG TARGETARCH
 
 RUN apt update && \
-    apt install -y ca-certificates curl gnupg2 && \
-    mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
-        | tee /etc/apt/sources.list.d/nodesource.list && \
-    apt install -y build-essential nodejs npm && \
-    npm install -g pnpm
+    apt install -y ca-certificates curl gnupg2
 
 COPY "Net.Vatprc.Uniapi.csproj" "/src/"
 COPY "packages.lock.json" "/src/"
