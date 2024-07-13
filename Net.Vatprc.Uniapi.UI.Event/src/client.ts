@@ -41,7 +41,7 @@ type RequestBodyOf<Operation> = Operation extends { requestBody?: infer P } ? P 
 export const createHooks = <Paths>() => {
   const useApi = <Path extends keyof Paths & string, Method extends string = "get">(
     url: Path,
-    params: ParameterOf<MethodOn<Paths[Path], Method>>,
+    params: ParameterOf<MethodOn<Paths[Path], Method>> & { enabled?: boolean },
   ): UseQueryResult<ContentOf<SuccessResponseOf<ResponsesOf<MethodOn<Paths[Path], Method>>>>, Error> => {
     // @ts-expect-error - Path cannot be inferred here
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
@@ -52,6 +52,7 @@ export const createHooks = <Paths>() => {
       queryKey,
       // @ts-expect-error - URL cannot be inferred here
       queryFn: () => client.GET(url, { params }).then((data) => data.data ?? null),
+      enabled: params.enabled ?? true,
     });
   };
 

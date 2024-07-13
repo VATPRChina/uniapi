@@ -1,5 +1,6 @@
 import { formatPath, useApi, useApiDelete, useApiPut } from "@/client";
 import { CreateAirspace } from "@/components/create-airspace";
+import { CreateEvent } from "@/components/create-event";
 import { CreateSlot } from "@/components/create-slot";
 import { useUser } from "@/services/auth";
 import { Button, Card, Group, Image, Stack, Table, Text, Title, Tooltip } from "@mantine/core";
@@ -90,7 +91,10 @@ const EventComponent = () => {
   return (
     <Stack>
       <Image src="https://cdn.sa.net/2024/07/06/OSoUsbluV69nhCw.png" alt={event?.title} radius="md" />
-      <Title order={1}>{event?.title}</Title>
+      <Group>
+        <Title order={1}>{event?.title}</Title>
+        <CreateEvent eventId={event_id} />
+      </Group>
       {event && (
         <>
           <Text>
