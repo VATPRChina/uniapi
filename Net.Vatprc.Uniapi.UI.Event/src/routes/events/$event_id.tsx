@@ -4,6 +4,7 @@ import { CreateEvent } from "@/components/create-event";
 import { CreateSlot } from "@/components/create-slot";
 import { DeleteAirspace } from "@/components/delete-airspace";
 import { DeleteEvent } from "@/components/delete-event";
+import { DeleteSlot } from "@/components/delete-slot";
 import { useUser } from "@/services/auth";
 import {
   ActionIcon,
@@ -67,6 +68,7 @@ const EventBookingButtons = ({
           Unbook
         </Button>
       )}
+      <DeleteSlot eventId={eventId} slotId={slotId} />
     </Group>
   );
 };
