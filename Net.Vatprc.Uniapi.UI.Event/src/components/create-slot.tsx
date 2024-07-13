@@ -72,7 +72,7 @@ export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; ev
       <ActionIcon variant="subtle" aria-label="Settings" ml={ml} onClick={toggle}>
         <IoAdd />
       </ActionIcon>
-      <Modal opened={opened} onClose={close} title="Create slots">
+      <Modal opened={opened} onClose={close} title="Create slots" size="xl">
         <form
           onSubmit={(e) => {
             e.preventDefault();

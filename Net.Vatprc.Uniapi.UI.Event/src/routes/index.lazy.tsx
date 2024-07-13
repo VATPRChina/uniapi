@@ -5,13 +5,18 @@ import { format, formatRelative } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 
 const Index = () => {
-  const { error, data: events } = useApi("/api/events", {});
+  const { error, data: events, isLoading } = useApi("/api/events", {});
 
   return (
     <>
-      {error?.message && <Alert title={error?.message} />}
+      <Alert
+        title="VATPRC Events is under construction and is not available to public now. Contents are subject to changes."
+        color="yellow"
+      />
+      {error?.message && <Alert title={error?.message} color="red" />}
 
       <Stack>
+        {events?.length === 0 && !isLoading && <Alert title="No available event now." />}
         {events?.map((event) => (
           <Card key={event.id} shadow="sm" padding="lg" withBorder>
             <Card.Section>

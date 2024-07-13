@@ -2,8 +2,9 @@ import { formatPath, useApi, useApiDelete, useApiPut } from "@/client";
 import { CreateAirspace } from "@/components/create-airspace";
 import { CreateEvent } from "@/components/create-event";
 import { CreateSlot } from "@/components/create-slot";
+import { DeleteEvent } from "@/components/delete-event";
 import { useUser } from "@/services/auth";
-import { Button, Card, Group, Image, Stack, Table, Text, Title, Tooltip } from "@mantine/core";
+import { ActionIcon, Button, Card, Group, Image, Stack, Table, Text, Title, Tooltip } from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { format, formatRelative } from "date-fns";
@@ -91,9 +92,12 @@ const EventComponent = () => {
   return (
     <Stack>
       <Image src="https://cdn.sa.net/2024/07/06/OSoUsbluV69nhCw.png" alt={event?.title} radius="md" />
-      <Group>
+      <Group gap="xs">
         <Title order={1}>{event?.title}</Title>
-        <CreateEvent eventId={event_id} />
+        <ActionIcon.Group>
+          <CreateEvent eventId={event_id} />
+          <DeleteEvent eventId={event_id} />
+        </ActionIcon.Group>
       </Group>
       {event && (
         <>

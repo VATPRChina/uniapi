@@ -86,6 +86,7 @@ export const createHooks = <Paths>() => {
           await queryClient.invalidateQueries({ queryKey: mutationKey });
         },
         onError(err) {
+          console.error(err); // eslint-disable-line no-console
           errorToast(err);
         },
       });

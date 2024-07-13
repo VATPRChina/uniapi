@@ -53,7 +53,7 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
       ) : (
         <Button onClick={toggle}>Create Event</Button>
       )}
-      <Modal opened={opened} onClose={close}>
+      <Modal opened={opened} onClose={close} size="xl">
         <form
           onSubmit={(e) => {
             e.preventDefault();
