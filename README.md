@@ -2,17 +2,38 @@
 
 This project targets providing an universal API server for all the services VATPRC requires.
 
-- [ ] Slot (**Ongoing**)
+- [x] Slot
 - [ ] ATC Management
 - [ ] CORS Proxy
-- [ ] Discord Bot
+- [x] Discord Bot
 
 ## Architecture
 
-This project follows a modified version of [The Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html).
+TODO.
 
-The `entity` folder contains core business entities, which also serves as database models.
+## License
 
-The `usecase` folder contains business logic for the manipulation of entities.
+<sup>
+VATPRC UniAPI - Universal API endpoint for VATPRC
+Copyright (C) 2024 VATPRC Staff
 
-The `external` folder is for external interfaces, including database, REST API, etc. We do not have interface adapters, but instead, the implementation is also considered as an interface to avoid over-designing.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+</sup>
+
+### Contributor License Agreement
+
+By contributing to the repository, in addition to the open-source license attached
+to the library, the contributors are additionally granting VATPRC staffs an
+unrevokeable right to use the code freely for any purposes related to VATSIM or
+VATPRC.
