@@ -106,3 +106,7 @@ export const formatPath = <Path extends keyof paths>(url: Path, path: paths[Path
     .split("/")
     .filter((s) => !!s);
 };
+
+export const invalidatePath = <Path extends keyof paths>(url: Path, path: paths[Path]["get"]["parameters"]["path"]) => {
+  return queryClient.invalidateQueries({ queryKey: formatPath(url, path) });
+};

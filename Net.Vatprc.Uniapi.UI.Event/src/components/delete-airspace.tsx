@@ -1,21 +1,26 @@
-import { useApi, useApiDelete } from "@/client";
+import { invalidatePath, useApi, useApiDelete } from "@/client";
 import { useUser } from "@/services/auth";
 import { ActionIcon, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useRouter } from "@tanstack/react-router";
 import { IoTrash } from "react-icons/io5";
 
-export const DeleteEvent = ({ eventId }: { eventId: string }) => {
+export const DeleteAirspace = ({ eventId, airspaceId }: { eventId: string; airspaceId: string }) => {
   const user = useUser();
-  const { data: event, isLoading } = useApi(`/api/events/{eid}`, {
-    path: { eid: eventId },
+  const { data: airspace, isLoading } = useApi(`/api/events/{eid}/airspaces/{aid}`, {
+    path: { eid: eventId, aid: airspaceId },
     enabled: !!eventId,
   });
   const { navigate } = useRouter();
-  const { mutate, isPending } = useApiDelete("/api/events/{eid}", { path: { eid: eventId } }, async () => {
-    close();
-    await navigate({ to: "/" });
-  });
+  const { mutate, isPending } = useApiDelete(
+    "/api/events/{eid}/airspaces/{aid}",
+    { path: { eid: eventId, aid: airspaceId } },
+    async () => {
+      await invalidatePath("/api/events/{eid}/airspaces", { eid: eventId });
+      close();
+      await navigate({ to: "/events/" + eventId });
+    },
+  );
   const [opened, { toggle, close }] = useDisclosure(false);
 
   if (!user?.roles.includes("ec")) return null;
@@ -27,7 +32,7 @@ export const DeleteEvent = ({ eventId }: { eventId: string }) => {
       </ActionIcon>
       <Modal opened={opened} onClose={close} title="Delete Event">
         <Stack>
-          <Text>Do you want to delete event {event?.title}?</Text>
+          <Text>Do you want to delete airspace {airspace?.name}?</Text>
           <Group>
             <Button onClick={toggle}>Cancel</Button>
             <Button color="red" onClick={() => mutate({})} loading={isPending} disabled={isLoading}>

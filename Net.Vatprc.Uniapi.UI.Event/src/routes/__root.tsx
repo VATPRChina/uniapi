@@ -28,7 +28,7 @@ const Logout = () => {
 
 export const Route = createRootRoute({
   component: () => (
-    <Container>
+    <Container mb="lg">
       <Stack mt={16}>
         <Group justify="space-between">
           <Group>

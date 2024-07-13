@@ -2,9 +2,23 @@ import { formatPath, useApi, useApiDelete, useApiPut } from "@/client";
 import { CreateAirspace } from "@/components/create-airspace";
 import { CreateEvent } from "@/components/create-event";
 import { CreateSlot } from "@/components/create-slot";
+import { DeleteAirspace } from "@/components/delete-airspace";
 import { DeleteEvent } from "@/components/delete-event";
 import { useUser } from "@/services/auth";
-import { ActionIcon, Button, Card, Group, Image, Stack, Table, Text, Title, Tooltip } from "@mantine/core";
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Card,
+  Group,
+  Image,
+  LoadingOverlay,
+  Stack,
+  Table,
+  Text,
+  Title,
+  Tooltip,
+} from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { format, formatRelative } from "date-fns";
@@ -61,9 +75,11 @@ const EVENT_BOOKING_LIMIT = 1;
 
 const EventComponent = () => {
   const { event_id } = Route.useParams();
-  const { data: event } = useApi("/api/events/{eid}", { path: { eid: event_id } });
-  const { data: slots } = useApi("/api/events/{eid}/slots", { path: { eid: event_id } });
-  const { data: airspaces } = useApi("/api/events/{eid}/airspaces", { path: { eid: event_id } });
+  const { data: event, isLoading } = useApi("/api/events/{eid}", { path: { eid: event_id } });
+  const { data: slots, isLoading: isLoadingSlots } = useApi("/api/events/{eid}/slots", { path: { eid: event_id } });
+  const { data: airspaces, isLoading: isLoadingAirspaces } = useApi("/api/events/{eid}/airspaces", {
+    path: { eid: event_id },
+  });
   const user = useUser();
 
   const rows = slots?.map((element, id) => (
@@ -91,6 +107,10 @@ const EventComponent = () => {
 
   return (
     <Stack>
+      <LoadingOverlay
+        visible={isLoading || isLoadingAirspaces || isLoadingSlots}
+        overlayProps={{ radius: "sm", blur: 2 }}
+      />
       <Image src="https://cdn.sa.net/2024/07/06/OSoUsbluV69nhCw.png" alt={event?.title} radius="md" />
       <Group gap="xs">
         <Title order={1}>{event?.title}</Title>
@@ -135,24 +155,31 @@ const EventComponent = () => {
         Slots
         <CreateSlot ml={4} eventId={event_id} />
       </Title>
-      <Table highlightOnHover>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Airspace Name</Table.Th>
-            <Table.Th>Enter at</Table.Th>
-            <Table.Th></Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>{rows}</Table.Tbody>
-      </Table>
+      {slots?.length === 0 && <Alert title="No available slot now." />}
+      {(slots?.length ?? 0) > 0 && (
+        <Table highlightOnHover>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Airspace Name</Table.Th>
+              <Table.Th>Enter at</Table.Th>
+              <Table.Th></Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>{rows}</Table.Tbody>
+        </Table>
+      )}
       <Title order={2}>
         Airspaces
         <CreateAirspace ml={4} eventId={event_id} />
       </Title>
+      {airspaces?.length === 0 && <Alert title="No available airspace now." />}
       <Group>
         {airspaces?.map((airspace) => (
           <Card shadow="sm" padding="lg" radius="md" withBorder key={airspace.id}>
-            <Text>{airspace.name}</Text>
+            <Group>
+              <Text>{airspace.name}</Text>
+              <DeleteAirspace eventId={event_id} airspaceId={airspace.id} />
+            </Group>
           </Card>
         ))}
       </Group>
