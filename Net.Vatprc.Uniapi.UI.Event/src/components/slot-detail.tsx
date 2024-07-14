@@ -10,9 +10,9 @@ import { addMinutes } from "date-fns";
 import React from "react";
 
 const TIMES = [
-  { name: "Clearance", color: "red", span: 3, offset: 0, startMin: -30, endMin: -15 },
-  { name: "Pushback", color: "yellow", span: 4, offset: 2, startMin: -20, endMin: 0 },
-  { name: "Takeoff", color: "green", span: 3, offset: 5, startMin: -5, endMin: 10 },
+  { name: "Request for Clearance Delivery", color: "red", span: 3, offset: 0, startMin: -30, endMin: -15 },
+  { name: "Request for Pushback", color: "yellow", span: 4, offset: 2, startMin: -20, endMin: 0 },
+  { name: "Expect Takeoff", color: "green", span: 3, offset: 5, startMin: -5, endMin: 10 },
 ] as const;
 
 export const SlotDetail = ({ eventId, slotId }: { eventId: string; slotId: string }) => {
@@ -64,19 +64,20 @@ export const SlotDetail = ({ eventId, slotId }: { eventId: string; slotId: strin
               TIMES.map((time, i) => (
                 <React.Fragment key={i}>
                   <Grid.Col span={time.span} offset={time.offset} bg={theme.colors[time.color][1]}>
-                    <Group gap={4}>
+                    <Stack gap={4} align="center">
                       <Text component="span" fw={700}>
                         {time.name}
                       </Text>
-                      From
-                      <DateTime noDistance noDate>
-                        {addMinutes(slot?.enter_at, time.startMin)}
-                      </DateTime>
-                      To
-                      <DateTime noDistance noDate>
-                        {addMinutes(slot?.enter_at, time.endMin)}
-                      </DateTime>
-                    </Group>
+                      <Text>
+                        <DateTime noDistance noDate position="bottom">
+                          {addMinutes(slot?.enter_at, time.startMin)}
+                        </DateTime>
+                        -
+                        <DateTime noDistance noDate position="bottom">
+                          {addMinutes(slot?.enter_at, time.endMin)}
+                        </DateTime>
+                      </Text>
+                    </Stack>
                   </Grid.Col>
                   <Grid.Col span={8 - (time.offset + time.span)}></Grid.Col>
                 </React.Fragment>
