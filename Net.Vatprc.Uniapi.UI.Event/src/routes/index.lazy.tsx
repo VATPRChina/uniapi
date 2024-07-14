@@ -1,3 +1,4 @@
+import NoEventImage from "@/assets/no-event-image.svg";
 import { useApi } from "@/client";
 import { Alert, Anchor, Card, Image, Stack, Text, Tooltip } from "@mantine/core";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
@@ -20,7 +21,7 @@ const Index = () => {
         {events?.map((event) => (
           <Card key={event.id} shadow="sm" padding="lg" withBorder>
             <Card.Section>
-              <Image src="https://community.vatprc.net/uploads/default/optimized/2X/3/35599eef688f188dc6325654461f2b4353576346_2_1380x776.jpeg" />
+              <Image src={event?.image_url ?? NoEventImage} />
             </Card.Section>
             <Anchor fw={500} my="sm" component={Link} to={"/events/" + event.id}>
               {event.title}

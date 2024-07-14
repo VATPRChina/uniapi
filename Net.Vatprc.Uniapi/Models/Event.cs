@@ -21,6 +21,8 @@ public class Event
 
     public DateTimeOffset EndBookingAt { get; set; }
 
+    public string? ImageUrl { get; set; }
+
     public IEnumerable<EventAirspace> Airspaces { get; set; } = null!;
 
     [JsonIgnore]
@@ -39,6 +41,9 @@ public class Event
             builder.Property(x => x.UpdatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .ValueGeneratedOnAddOrUpdate();
+
+            builder.Property(x => x.ImageUrl)
+                .IsRequired(false);
         }
     }
 }

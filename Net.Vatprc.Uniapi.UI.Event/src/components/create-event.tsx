@@ -1,7 +1,19 @@
+import NoEventImage from "@/assets/no-event-image.svg";
 import { useApi, useApiPost } from "@/client";
 import { useUser } from "@/services/auth";
 import { promiseWithToast } from "@/utils";
-import { ActionIcon, Button, MantineSpacing, Modal, Stack, StyleProp, TextInput, Title } from "@mantine/core";
+import {
+  ActionIcon,
+  Button,
+  Group,
+  Image,
+  MantineSpacing,
+  Modal,
+  Stack,
+  StyleProp,
+  TextInput,
+  Title,
+} from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@tanstack/react-form";
@@ -30,6 +42,7 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
       end_at: event?.end_at ?? formatISO(setSeconds(Date.now(), 0)),
       start_booking_at: event?.start_booking_at ?? formatISO(setSeconds(Date.now(), 0)),
       end_booking_at: event?.end_booking_at ?? formatISO(setSeconds(Date.now(), 0)),
+      image_url: event?.image_url ?? null,
     },
     onSubmit: ({ value }) => {
       if (eventId) {
@@ -75,58 +88,77 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
                 ></TextInput>
               )}
             />
+            <Group grow>
+              <form.Field
+                name="start_at"
+                children={(field) => (
+                  <DateTimePicker
+                    label="Start at"
+                    onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                    value={new Date(field.state.value)}
+                    onBlur={field.handleBlur}
+                    disabled={isLoading}
+                  />
+                )}
+              />
+              <form.Field
+                name="end_at"
+                children={(field) => (
+                  <DateTimePicker
+                    label="End at"
+                    onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                    value={new Date(field.state.value)}
+                    onBlur={field.handleBlur}
+                    disabled={isLoading}
+                  />
+                )}
+              />
+            </Group>
+            <Group grow>
+              <form.Field
+                name="start_booking_at"
+                children={(field) => (
+                  <DateTimePicker
+                    label="Start booking at"
+                    onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                    value={new Date(field.state.value)}
+                    onBlur={field.handleBlur}
+                    disabled={isLoading}
+                  />
+                )}
+              />
+              <form.Field
+                name="end_booking_at"
+                children={(field) => (
+                  <DateTimePicker
+                    label="End booking at"
+                    onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                    value={new Date(field.state.value)}
+                    onBlur={field.handleBlur}
+                    disabled={isLoading}
+                  />
+                )}
+              />
+            </Group>
             <form.Field
-              name="start_at"
+              name="image_url"
               children={(field) => (
-                <DateTimePicker
-                  label="Start at"
-                  onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
-                  valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                  value={new Date(field.state.value)}
+                <TextInput
+                  label="Image URL"
+                  onChange={(e) => field.handleChange(e.target.value || null)}
+                  value={field.state.value ?? ""}
                   onBlur={field.handleBlur}
                   disabled={isLoading}
                 />
               )}
             />
-            <form.Field
-              name="end_at"
-              children={(field) => (
-                <DateTimePicker
-                  label="End at"
-                  onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
-                  valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                  value={new Date(field.state.value)}
-                  onBlur={field.handleBlur}
-                  disabled={isLoading}
-                />
-              )}
-            />
-            <form.Field
-              name="start_booking_at"
-              children={(field) => (
-                <DateTimePicker
-                  label="Start booking at"
-                  onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
-                  valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                  value={new Date(field.state.value)}
-                  onBlur={field.handleBlur}
-                  disabled={isLoading}
-                />
-              )}
-            />
-            <form.Field
-              name="end_booking_at"
-              children={(field) => (
-                <DateTimePicker
-                  label="End booking at"
-                  onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
-                  valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                  value={new Date(field.state.value)}
-                  onBlur={field.handleBlur}
-                  disabled={isLoading}
-                />
-              )}
-            />
+            <form.Subscribe selector={(state) => state.values.image_url}>
+              {(image_url) => <Image src={image_url ?? NoEventImage} />}
+            </form.Subscribe>
             <Button variant="subtle" type="submit" loading={isCreatePending || isUpdatePending}>
               {eventId ? "Save" : "Create"}
             </Button>

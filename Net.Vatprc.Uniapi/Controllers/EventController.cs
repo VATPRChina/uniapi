@@ -21,6 +21,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         public DateTimeOffset EndAt { get; init; }
         public DateTimeOffset StartBookingAt { get; init; }
         public DateTimeOffset EndBookingAt { get; init; }
+        public string? ImageUrl { get; set; }
 
         public EventDto(Event eventt)
         {
@@ -32,6 +33,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
             EndAt = eventt.EndAt;
             StartBookingAt = eventt.StartBookingAt;
             EndBookingAt = eventt.EndBookingAt;
+            ImageUrl = eventt.ImageUrl;
         }
     }
 
@@ -60,6 +62,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         public required DateTimeOffset EndAt { get; set; }
         public required DateTimeOffset StartBookingAt { get; init; }
         public required DateTimeOffset EndBookingAt { get; init; }
+        public string? ImageUrl { get; init; }
     }
 
     [HttpPost]
@@ -73,6 +76,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
             EndAt = dto.EndAt.ToUniversalTime(),
             StartBookingAt = dto.StartBookingAt.ToUniversalTime(),
             EndBookingAt = dto.EndBookingAt.ToUniversalTime(),
+            ImageUrl = dto.ImageUrl,
         };
         DbContext.Event.Add(eventt);
         await DbContext.SaveChangesAsync();
@@ -86,6 +90,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         public required DateTimeOffset EndAt { get; set; }
         public required DateTimeOffset StartBookingAt { get; init; }
         public required DateTimeOffset EndBookingAt { get; init; }
+        public string? ImageUrl { get; init; }
     }
 
     [HttpPost("{eid}")]
@@ -98,6 +103,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         eventt.EndAt = dto.EndAt.ToUniversalTime();
         eventt.StartBookingAt = dto.StartBookingAt.ToUniversalTime();
         eventt.EndBookingAt = dto.EndBookingAt.ToUniversalTime();
+        eventt.ImageUrl = dto.ImageUrl;
         await DbContext.SaveChangesAsync();
         return new(eventt);
     }

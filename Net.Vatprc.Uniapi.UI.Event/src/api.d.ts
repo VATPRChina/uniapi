@@ -297,6 +297,7 @@ export interface components {
       start_booking_at: string;
       /** Format: date-time */
       end_booking_at: string;
+      image_url?: string | null;
     };
     EventSlotDto: {
       id: string;

@@ -1,3 +1,4 @@
+import NoEventImage from "@/assets/no-event-image.svg";
 import { formatPath, useApi, useApiDelete, useApiPut } from "@/client";
 import { CreateAirspace } from "@/components/create-airspace";
 import { CreateEvent } from "@/components/create-event";
@@ -113,7 +114,7 @@ const EventComponent = () => {
         visible={isLoading || isLoadingAirspaces || isLoadingSlots}
         overlayProps={{ radius: "sm", blur: 2 }}
       />
-      <Image src="https://cdn.sa.net/2024/07/06/OSoUsbluV69nhCw.png" alt={event?.title} radius="md" />
+      <Image src={event?.image_url ?? NoEventImage} alt={event?.title} radius="md" />
       <Group gap="xs">
         <Title order={1}>{event?.title}</Title>
         <ActionIcon.Group>
