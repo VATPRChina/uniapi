@@ -1,20 +1,21 @@
 import { useApiPost } from "@/client";
 import { useUser } from "@/services/auth";
-import { promiseWithLog, promiseWithToast } from "@/utils";
-import { ActionIcon, Button, MantineSpacing, Modal, Stack, StyleProp, TextInput } from "@mantine/core";
+import { promiseWithToast } from "@/utils";
+import { ActionIcon, Button, MantineSpacing, Modal, Stack, StyleProp, TagsInput, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconPlus } from "@tabler/icons-react";
 import { useForm } from "@tanstack/react-form";
 
 export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; eventId: string }) => {
   const user = useUser();
-  const { mutateAsync } = useApiPost("/api/events/{eid}/airspaces", { path: { eid: eventId } });
+  const { mutate } = useApiPost("/api/events/{eid}/airspaces", { path: { eid: eventId } }, () => close());
   const form = useForm({
     defaultValues: {
       name: "",
+      icaoCodes: [] as string[],
     },
     onSubmit: ({ value }) => {
-      promiseWithLog(mutateAsync({ name: value.name }).then(() => close()));
+      mutate({ name: value.name, icao_codes: value.icaoCodes });
     },
   });
 
@@ -40,11 +41,22 @@ export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>
               name="name"
               children={(field) => (
                 <TextInput
-                  label="Airspace name"
+                  label="Area name"
                   onChange={(e) => field.handleChange(e.target.value)}
                   value={field.state.value}
                   onBlur={field.handleBlur}
                 ></TextInput>
+              )}
+            />
+            <form.Field
+              name="icaoCodes"
+              children={(field) => (
+                <TagsInput
+                  label="Related ICAO codes"
+                  onChange={(e) => field.handleChange(e)}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                ></TagsInput>
               )}
             />
             <Button variant="subtle" type="submit">

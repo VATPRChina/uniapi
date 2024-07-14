@@ -3,7 +3,7 @@ import { SlotBookButton } from "./slot-button-book";
 import { SlotReleaseButton } from "./slot-button-release";
 import { useApi } from "@/client";
 import { useUser } from "@/services/auth";
-import { Alert, Button, Grid, Group, Modal, Stack, Text, Title, useMantineTheme } from "@mantine/core";
+import { Alert, Button, Grid, Group, Modal, Pill, Stack, Text, Title, useMantineTheme } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconCircleCheck, IconCircleDashed, IconCircleMinus } from "@tabler/icons-react";
 import { addMinutes } from "date-fns";
@@ -48,16 +48,17 @@ export const SlotDetail = ({ eventId, slotId }: { eventId: string; slotId: strin
           )}
           <Text>
             <Text component="span" fw={700} mr="xs">
-              Airspace:
+              Area:
             </Text>
             {slot?.airspace?.name}
           </Text>
-          <Text>
+          <Group gap={0}>
             <Text component="span" fw={700} mr="xs">
-              CTOT:
+              Enter at:
             </Text>
+            <Pill mr="xs">CTOT</Pill>
             <DateTime>{slot?.enter_at}</DateTime>
-          </Text>
+          </Group>
           <Title order={3}>Time detail</Title>
           <Grid columns={8}>
             {slot?.enter_at &&

@@ -87,7 +87,7 @@ export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; ev
               name="airspaceId"
               children={(field) => (
                 <Select
-                  label="Airspace name"
+                  label="Area name"
                   data={airspaces?.map((a) => ({ value: a.id, label: a.name }))}
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e ?? "")}
@@ -146,7 +146,7 @@ export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; ev
           <Table>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Airspace Name</Table.Th>
+                <Table.Th>Area</Table.Th>
                 <Table.Th>Enter at</Table.Th>
                 <Table.Th></Table.Th>
               </Table.Tr>

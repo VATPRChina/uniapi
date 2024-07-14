@@ -243,6 +243,7 @@ export interface components {
   schemas: {
     CreateEventAirspaceDto: {
       name: string;
+      icao_codes: string[];
     };
     CreateEventDto: {
       title: string;
@@ -254,6 +255,7 @@ export interface components {
       start_booking_at: string;
       /** Format: date-time */
       end_booking_at: string;
+      image_url?: string | null;
     };
     CreateEventSlotDto: {
       airspace_id: string;
@@ -273,6 +275,7 @@ export interface components {
       created_at: string;
       /** Format: date-time */
       updated_at: string;
+      icao_codes: string[];
     };
     EventBookingDto: {
       id: string;
@@ -330,6 +333,7 @@ export interface components {
     };
     UpdateEventAirspaceDto: {
       name: string;
+      icao_codes: string[];
     };
     UpdateEventDto: {
       title: string;
@@ -341,6 +345,7 @@ export interface components {
       start_booking_at: string;
       /** Format: date-time */
       end_booking_at: string;
+      image_url?: string | null;
     };
     UpdateEventSlotDto: {
       /** Format: date-time */

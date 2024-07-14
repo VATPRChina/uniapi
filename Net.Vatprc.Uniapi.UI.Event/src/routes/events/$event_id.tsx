@@ -11,7 +11,7 @@ import { SlotReleaseButton } from "@/components/slot-button-release";
 import { CreateSlot } from "@/components/slot-create";
 import { DeleteSlot } from "@/components/slot-delete";
 import { SlotDetail } from "@/components/slot-detail";
-import { ActionIcon, Alert, Card, Group, Image, LoadingOverlay, Stack, Table, Text, Title } from "@mantine/core";
+import { ActionIcon, Alert, Card, Group, Image, LoadingOverlay, Pill, Stack, Table, Text, Title } from "@mantine/core";
 import { createFileRoute } from "@tanstack/react-router";
 
 const EventComponent = () => {
@@ -27,7 +27,8 @@ const EventComponent = () => {
       <Table.Td>{slot.airspace.name}</Table.Td>
       <Table.Td>
         <Text>
-          CTOT <DateTime>{slot.enter_at}</DateTime>
+          <Pill mr="xs">CTOT</Pill>
+          <DateTime>{slot.enter_at}</DateTime>
         </Text>
       </Table.Td>
       <Table.Td>
@@ -65,7 +66,7 @@ const EventComponent = () => {
         <Table highlightOnHover>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Airspace Name</Table.Th>
+              <Table.Th>Area</Table.Th>
               <Table.Th>Enter at</Table.Th>
               <Table.Th></Table.Th>
             </Table.Tr>
@@ -74,17 +75,26 @@ const EventComponent = () => {
         </Table>
       )}
       <Title order={2}>
-        Airspaces
+        Areas
         <CreateAirspace ml={4} eventId={event_id} />
       </Title>
       {airspaces?.length === 0 && <Alert title="No available airspace now." />}
-      <Group>
+      <Group align="stretch">
         {airspaces?.map((airspace) => (
           <Card shadow="sm" padding="lg" radius="md" withBorder key={airspace.id}>
-            <Group>
-              <Text>{airspace.name}</Text>
-              <DeleteAirspace eventId={event_id} airspaceId={airspace.id} />
-            </Group>
+            <Stack>
+              <Group>
+                <Text>{airspace.name}</Text>
+                <DeleteAirspace eventId={event_id} airspaceId={airspace.id} />
+              </Group>
+              {airspace.icao_codes.length > 0 && (
+                <Group>
+                  {airspace.icao_codes.map((icao) => (
+                    <Pill key={icao}>{icao}</Pill>
+                  ))}
+                </Group>
+              )}
+            </Stack>
           </Card>
         ))}
       </Group>

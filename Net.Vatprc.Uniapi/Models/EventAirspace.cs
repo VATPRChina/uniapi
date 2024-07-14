@@ -11,6 +11,8 @@ public class EventAirspace
 
     public string Name { get; set; } = string.Empty;
 
+    public IList<string> IcaoCodes { get; set; } = [];
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }
