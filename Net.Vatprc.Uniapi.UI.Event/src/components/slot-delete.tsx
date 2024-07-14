@@ -7,10 +7,6 @@ import { useRouter } from "@tanstack/react-router";
 
 export const DeleteSlot = ({ eventId, slotId }: { eventId: string; slotId: string }) => {
   const user = useUser();
-  const { data: slot, isLoading } = useApi("/api/events/{eid}/slots/{sid}", {
-    path: { eid: eventId, sid: slotId },
-    enabled: !!eventId,
-  });
   const { navigate } = useRouter();
   const { mutate, isPending } = useApiDelete(
     "/api/events/{eid}/slots/{sid}",
@@ -22,6 +18,10 @@ export const DeleteSlot = ({ eventId, slotId }: { eventId: string; slotId: strin
     },
   );
   const [opened, { toggle, close }] = useDisclosure(false);
+  const { data: slot, isLoading } = useApi("/api/events/{eid}/slots/{sid}", {
+    path: { eid: eventId, sid: slotId },
+    enabled: !!eventId && opened,
+  });
 
   if (!user?.roles.includes("ec")) return null;
 

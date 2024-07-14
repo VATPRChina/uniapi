@@ -1,79 +1,18 @@
 import NoEventImage from "@/assets/no-event-image.svg";
-import { formatPath, useApi, useApiDelete, useApiPut } from "@/client";
+import { useApi } from "@/client";
 import { CreateAirspace } from "@/components/airspace-create";
 import { DeleteAirspace } from "@/components/airspace-delete";
 import { DateTime } from "@/components/datetime";
 import { CreateEvent } from "@/components/event-create";
 import { DeleteEvent } from "@/components/event-delete";
 import { EventDetail } from "@/components/event-detail";
+import { SlotBookButton } from "@/components/slot-button-book";
+import { SlotReleaseButton } from "@/components/slot-button-release";
 import { CreateSlot } from "@/components/slot-create";
 import { DeleteSlot } from "@/components/slot-delete";
-import { useUser } from "@/services/auth";
-import {
-  ActionIcon,
-  Alert,
-  Button,
-  Card,
-  Group,
-  Image,
-  LoadingOverlay,
-  Stack,
-  Table,
-  Text,
-  Title,
-} from "@mantine/core";
-import { useQueryClient } from "@tanstack/react-query";
+import { SlotDetail } from "@/components/slot-detail";
+import { ActionIcon, Alert, Card, Group, Image, LoadingOverlay, Stack, Table, Text, Title } from "@mantine/core";
 import { createFileRoute } from "@tanstack/react-router";
-
-const EventBookingButtons = ({
-  eventId,
-  slotId,
-  canBook,
-  disableBook,
-  canUnbook,
-}: {
-  eventId: string;
-  slotId: string;
-  canBook: boolean;
-  disableBook: boolean;
-  canUnbook: boolean;
-}) => {
-  const queryClient = useQueryClient();
-  const postMutate = () =>
-    queryClient.invalidateQueries({ queryKey: formatPath("/api/events/{eid}/slots", { eid: eventId }) });
-  const { mutate: book } = useApiPut(
-    "/api/events/{eid}/slots/{sid}/booking",
-    {
-      path: { eid: eventId, sid: slotId },
-    },
-    postMutate,
-  );
-  const { mutate: unbook } = useApiDelete(
-    "/api/events/{eid}/slots/{sid}/booking",
-    {
-      path: { eid: eventId, sid: slotId },
-    },
-    postMutate,
-  );
-
-  return (
-    <Group>
-      {canBook && (
-        <Button variant="subtle" onClick={() => book({})} disabled={disableBook}>
-          Book
-        </Button>
-      )}
-      {canUnbook && (
-        <Button variant="subtle" onClick={() => unbook({})}>
-          Unbook
-        </Button>
-      )}
-      <DeleteSlot eventId={eventId} slotId={slotId} />
-    </Group>
-  );
-};
-
-const EVENT_BOOKING_LIMIT = 1;
 
 const EventComponent = () => {
   const { event_id } = Route.useParams();
@@ -82,27 +21,22 @@ const EventComponent = () => {
   const { data: airspaces, isLoading: isLoadingAirspaces } = useApi("/api/events/{eid}/airspaces", {
     path: { eid: event_id },
   });
-  const user = useUser();
 
-  const rows = slots?.map((element, id) => (
-    <Table.Tr key={id}>
-      <Table.Td>{element.airspace.name}</Table.Td>
+  const rows = slots?.map((slot) => (
+    <Table.Tr key={slot.id}>
+      <Table.Td>{slot.airspace.name}</Table.Td>
       <Table.Td>
         <Text>
-          <DateTime>{element.enter_at}</DateTime>
+          CTOT <DateTime>{slot.enter_at}</DateTime>
         </Text>
       </Table.Td>
       <Table.Td>
-        <EventBookingButtons
-          eventId={event_id}
-          slotId={element.id}
-          canBook={!element.booking}
-          canUnbook={element.booking?.user_id == user?.id}
-          disableBook={
-            slots.filter((slot) => slot.booking?.user_id == user?.id).length >= EVENT_BOOKING_LIMIT &&
-            element.booking?.user_id != user?.id
-          }
-        />
+        <Group>
+          <SlotDetail eventId={event_id} slotId={slot.id} />
+          <SlotBookButton eventId={event_id} slotId={slot.id} slot={slot} />
+          <SlotReleaseButton eventId={event_id} slotId={slot.id} slot={slot} />
+          <DeleteSlot eventId={event_id} slotId={slot.id} />
+        </Group>
       </Table.Td>
     </Table.Tr>
   ));
