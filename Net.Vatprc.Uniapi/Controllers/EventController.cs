@@ -41,9 +41,14 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
     [AllowAnonymous]
     public async Task<IEnumerable<EventDto>> List()
     {
-        return await DbContext.Event
-            .Where(x => x.StartBookingAt > DateTimeOffset.UtcNow.AddDays(-7))
-            .Where(x => x.EndAt > DateTimeOffset.UtcNow)
+        var query = DbContext.Event.AsQueryable();
+        if (!User.IsInRole(Models.User.UserRoles.EventCoordinator))
+        {
+            query = query.Where(x => DateTimeOffset.UtcNow.AddDays(7) > x.StartBookingAt)
+                .Where(x => DateTimeOffset.UtcNow < x.EndAt);
+        }
+        return await query
+            .OrderBy(x => x.StartBookingAt)
             .Select(x => new EventDto(x)).ToListAsync();
     }
 
