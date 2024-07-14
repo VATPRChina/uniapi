@@ -1,13 +1,13 @@
 import NoEventImage from "@/assets/no-event-image.svg";
 import { formatPath, useApi, useApiDelete, useApiPut } from "@/client";
-import { CreateAirspace } from "@/components/create-airspace";
-import { CreateEvent } from "@/components/create-event";
-import { CreateSlot } from "@/components/create-slot";
+import { CreateAirspace } from "@/components/airspace-create";
+import { DeleteAirspace } from "@/components/airspace-delete";
 import { DateTime } from "@/components/datetime";
-import { DeleteAirspace } from "@/components/delete-airspace";
-import { DeleteEvent } from "@/components/delete-event";
-import { DeleteSlot } from "@/components/delete-slot";
+import { CreateEvent } from "@/components/event-create";
+import { DeleteEvent } from "@/components/event-delete";
 import { EventDetail } from "@/components/event-detail";
+import { CreateSlot } from "@/components/slot-create";
+import { DeleteSlot } from "@/components/slot-delete";
 import { useUser } from "@/services/auth";
 import {
   ActionIcon,

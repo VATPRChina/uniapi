@@ -1,4 +1,4 @@
-import { CreateAirspace } from "./create-airspace";
+import { CreateAirspace } from "./airspace-create";
 import { DateTime } from "./datetime";
 import client, { formatPath, useApi } from "@/client";
 import { useUser } from "@/services/auth";

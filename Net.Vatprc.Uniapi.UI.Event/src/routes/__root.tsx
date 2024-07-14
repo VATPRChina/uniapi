@@ -1,7 +1,7 @@
 import logo from "../assets/standard.svg";
-import { CreateEvent } from "@/components/create-event";
-import { DevLogin } from "@/components/dev-login";
+import { CreateEvent } from "@/components/event-create";
 import { Login } from "@/components/login";
+import { DevLogin } from "@/components/login-dev";
 import { logout, useUser } from "@/services/auth";
 import { promiseWithToast } from "@/utils";
 import { Button, Container, Group, Image, Stack } from "@mantine/core";
