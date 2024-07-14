@@ -1,4 +1,5 @@
 import { CreateAirspace } from "./create-airspace";
+import { DateTime } from "./datetime";
 import client, { formatPath, useApi } from "@/client";
 import { useUser } from "@/services/auth";
 import { promiseWithToast, wrapPromiseWithToast } from "@/utils";
@@ -13,13 +14,14 @@ import {
   Stack,
   StyleProp,
   Table,
+  Text,
   Tooltip,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { addMinutes, format, formatISO, setSeconds } from "date-fns";
+import { addMinutes, formatISO, setSeconds } from "date-fns";
 import { useState } from "react";
 import { IoAdd } from "react-icons/io5";
 
@@ -97,13 +99,18 @@ export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; ev
             <form.Field
               name="start_at"
               children={(field) => (
-                <DateTimePicker
-                  label="Start at"
-                  onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
-                  valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                  value={new Date(field.state.value)}
-                  onBlur={field.handleBlur}
-                />
+                <Stack gap="xs">
+                  <DateTimePicker
+                    label="Start at"
+                    onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                    value={new Date(field.state.value)}
+                    onBlur={field.handleBlur}
+                  />
+                  <Text size="xs">
+                    <DateTime>{field.state.value}</DateTime>
+                  </Text>
+                </Stack>
               )}
             />
             <form.Field
@@ -152,7 +159,9 @@ export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; ev
                       <span>{row.airspace_name}</span>
                     </Tooltip>
                   </Table.Td>
-                  <Table.Td>{format(row.enter_at, "yyyy-MM-dd HH:mm zzzz")}</Table.Td>
+                  <Table.Td>
+                    <DateTime>{row.enter_at}</DateTime>
+                  </Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>

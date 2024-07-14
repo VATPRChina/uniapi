@@ -3,6 +3,7 @@ import { formatPath, useApi, useApiDelete, useApiPut } from "@/client";
 import { CreateAirspace } from "@/components/create-airspace";
 import { CreateEvent } from "@/components/create-event";
 import { CreateSlot } from "@/components/create-slot";
+import { DateTime } from "@/components/datetime";
 import { DeleteAirspace } from "@/components/delete-airspace";
 import { DeleteEvent } from "@/components/delete-event";
 import { DeleteSlot } from "@/components/delete-slot";
@@ -19,12 +20,9 @@ import {
   Table,
   Text,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { format, formatRelative } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
 
 const EventBookingButtons = ({
   eventId,
@@ -89,9 +87,9 @@ const EventComponent = () => {
     <Table.Tr key={id}>
       <Table.Td>{element.airspace.name}</Table.Td>
       <Table.Td>
-        <Tooltip label={format(element.enter_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-          <Text>{formatInTimeZone(element.enter_at, "UTC", "yyyy-MM-dd HH:mm")}Z</Text>
-        </Tooltip>
+        <Text>
+          <DateTime>{element.enter_at}</DateTime>
+        </Text>
       </Table.Td>
       <Table.Td>
         <EventBookingButtons
@@ -125,32 +123,16 @@ const EventComponent = () => {
       {event && (
         <>
           <Text>
-            Start Time:
-            <Tooltip label={format(event.start_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-              <span> {formatInTimeZone(event.start_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
-            </Tooltip>
-            ({formatRelative(event.start_at, Date.now())})
+            Start Time: <DateTime>{event.start_at}</DateTime>
           </Text>
           <Text>
-            End Time:
-            <Tooltip label={format(event.end_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-              <span> {formatInTimeZone(event.end_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
-            </Tooltip>
-            ({formatRelative(event.end_at, Date.now())})
+            End Time: <DateTime>{event.end_at}</DateTime>
           </Text>
           <Text>
-            Start Booking Time:
-            <Tooltip label={format(event.start_booking_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-              <span> {formatInTimeZone(event.start_booking_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
-            </Tooltip>
-            ({formatRelative(event.start_booking_at, Date.now())})
+            Start Booking Time: <DateTime>{event.start_booking_at}</DateTime>
           </Text>
           <Text>
-            End Booking Time:
-            <Tooltip label={format(event.end_booking_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-              <span> {formatInTimeZone(event.end_booking_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
-            </Tooltip>
-            ({formatRelative(event.end_booking_at, Date.now())})
+            End Booking Time: <DateTime>{event.end_booking_at}</DateTime>
           </Text>
         </>
       )}

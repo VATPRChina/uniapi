@@ -1,3 +1,4 @@
+import { DateTime } from "./datetime";
 import NoEventImage from "@/assets/no-event-image.svg";
 import { useApi, useApiPost } from "@/client";
 import { useUser } from "@/services/auth";
@@ -11,6 +12,7 @@ import {
   Modal,
   Stack,
   StyleProp,
+  Text,
   TextInput,
   Title,
 } from "@mantine/core";
@@ -92,27 +94,37 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
               <form.Field
                 name="start_at"
                 children={(field) => (
-                  <DateTimePicker
-                    label="Start at"
-                    onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
-                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                    value={new Date(field.state.value)}
-                    onBlur={field.handleBlur}
-                    disabled={isLoading}
-                  />
+                  <Stack gap="xs">
+                    <DateTimePicker
+                      label="Start at"
+                      onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                      valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                      value={new Date(field.state.value)}
+                      onBlur={field.handleBlur}
+                      disabled={isLoading}
+                    />
+                    <Text size="xs">
+                      <DateTime>{field.state.value}</DateTime>
+                    </Text>
+                  </Stack>
                 )}
               />
               <form.Field
                 name="end_at"
                 children={(field) => (
-                  <DateTimePicker
-                    label="End at"
-                    onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
-                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                    value={new Date(field.state.value)}
-                    onBlur={field.handleBlur}
-                    disabled={isLoading}
-                  />
+                  <Stack gap="xs">
+                    <DateTimePicker
+                      label="End at"
+                      onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                      valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                      value={new Date(field.state.value)}
+                      onBlur={field.handleBlur}
+                      disabled={isLoading}
+                    />
+                    <Text size="xs">
+                      <DateTime>{field.state.value}</DateTime>
+                    </Text>
+                  </Stack>
                 )}
               />
             </Group>
@@ -120,27 +132,37 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
               <form.Field
                 name="start_booking_at"
                 children={(field) => (
-                  <DateTimePicker
-                    label="Start booking at"
-                    onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
-                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                    value={new Date(field.state.value)}
-                    onBlur={field.handleBlur}
-                    disabled={isLoading}
-                  />
+                  <Stack gap="xs">
+                    <DateTimePicker
+                      label="Start booking at"
+                      onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                      valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                      value={new Date(field.state.value)}
+                      onBlur={field.handleBlur}
+                      disabled={isLoading}
+                    />
+                    <Text size="xs">
+                      <DateTime>{field.state.value}</DateTime>
+                    </Text>
+                  </Stack>
                 )}
               />
               <form.Field
                 name="end_booking_at"
                 children={(field) => (
-                  <DateTimePicker
-                    label="End booking at"
-                    onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
-                    valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
-                    value={new Date(field.state.value)}
-                    onBlur={field.handleBlur}
-                    disabled={isLoading}
-                  />
+                  <Stack gap="xs">
+                    <DateTimePicker
+                      label="End booking at"
+                      onChange={(e) => field.handleChange(formatISO(e ?? new Date()))}
+                      valueFormat="YYYY-MM-DD HH:mm:ss ZZ"
+                      value={new Date(field.state.value)}
+                      onBlur={field.handleBlur}
+                      disabled={isLoading}
+                    />
+                    <Text size="xs">
+                      <DateTime>{field.state.value}</DateTime>
+                    </Text>
+                  </Stack>
                 )}
               />
             </Group>

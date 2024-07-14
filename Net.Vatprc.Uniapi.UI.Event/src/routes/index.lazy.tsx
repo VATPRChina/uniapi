@@ -1,9 +1,8 @@
 import NoEventImage from "@/assets/no-event-image.svg";
 import { useApi } from "@/client";
-import { Alert, Anchor, Card, Image, Stack, Text, Tooltip } from "@mantine/core";
+import { DateTime } from "@/components/datetime";
+import { Alert, Anchor, Card, Image, Stack, Text } from "@mantine/core";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
-import { format, formatRelative } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
 
 const Index = () => {
   const { error, data: events, isLoading } = useApi("/api/events", {});
@@ -27,32 +26,16 @@ const Index = () => {
               {event.title}
             </Anchor>
             <Text>
-              Start Time:
-              <Tooltip label={format(event.start_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-                <span> {formatInTimeZone(event.start_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
-              </Tooltip>
-              ({formatRelative(event.start_at, Date.now())})
+              Start Time: <DateTime>{event.start_at}</DateTime>
             </Text>
             <Text>
-              End Time:
-              <Tooltip label={format(event.end_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-                <span> {formatInTimeZone(event.end_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
-              </Tooltip>
-              ({formatRelative(event.end_at, Date.now())})
+              End Time: <DateTime>{event.end_at}</DateTime>
             </Text>
             <Text>
-              Start Booking Time:
-              <Tooltip label={format(event.start_booking_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-                <span> {formatInTimeZone(event.start_booking_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
-              </Tooltip>
-              ({formatRelative(event.start_booking_at, Date.now())})
+              Start Booking Time: <DateTime>{event.start_booking_at}</DateTime>
             </Text>
             <Text>
-              End Booking Time:
-              <Tooltip label={format(event.end_booking_at, "yyyy-MM-dd HH:mm zzzz")} position="top-start">
-                <span> {formatInTimeZone(event.end_booking_at, "UTC", "yyyy-MM-dd HH:mm")}Z </span>
-              </Tooltip>
-              ({formatRelative(event.end_booking_at, Date.now())})
+              End Booking Time: <DateTime>{event.end_booking_at}</DateTime>
             </Text>
           </Card>
         ))}

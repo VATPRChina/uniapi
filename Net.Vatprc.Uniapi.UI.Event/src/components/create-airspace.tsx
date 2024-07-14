@@ -27,7 +27,7 @@ export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>
       <ActionIcon variant="subtle" aria-label="Settings" ml={ml} onClick={toggle}>
         <IoAdd />
       </ActionIcon>
-      <Modal opened={opened} onClose={close} title="Create slots" size="xl">
+      <Modal opened={opened} onClose={close} title="Create slots">
         <form
           onSubmit={(e) => {
             e.preventDefault();
