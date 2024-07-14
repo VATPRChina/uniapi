@@ -3,8 +3,8 @@ import { useUser } from "@/services/auth";
 import { promiseWithLog, promiseWithToast } from "@/utils";
 import { ActionIcon, Button, MantineSpacing, Modal, Stack, StyleProp, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { IconPlus } from "@tabler/icons-react";
 import { useForm } from "@tanstack/react-form";
-import { IoAdd } from "react-icons/io5";
 
 export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; eventId: string }) => {
   const user = useUser();
@@ -25,7 +25,7 @@ export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>
   return (
     <>
       <ActionIcon variant="subtle" aria-label="Settings" ml={ml} onClick={toggle}>
-        <IoAdd />
+        <IconPlus size={18} />
       </ActionIcon>
       <Modal opened={opened} onClose={close} title="Create slots">
         <form

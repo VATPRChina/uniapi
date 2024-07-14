@@ -20,6 +20,9 @@ importers:
       '@mantine/notifications':
         specifier: ^7.11.0
         version: 7.11.0(@mantine/core@7.11.0(@mantine/hooks@7.11.0(react@18.2.0))(@types/react@18.2.63)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(@mantine/hooks@7.11.0(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@tabler/icons-react':
+        specifier: ^3.10.0
+        version: 3.10.0(react@18.2.0)
       '@tanstack/react-form':
         specifier: ^0.24.0
         version: 0.24.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -50,9 +53,6 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.2.0(react@18.2.0)
-      react-icons:
-        specifier: ^5.2.1
-        version: 5.2.1(react@18.2.0)
       tailwind-merge:
         specifier: ^2.3.0
         version: 2.3.0
@@ -730,6 +730,14 @@ packages:
     resolution: {integrity: sha512-n+vkrSyphvmU0qkQ6QBNXCGr2mKjhP08mPRM/Xp5Ck2FV4NrHU+y6axzDeixUrCBHVUS51TZhjqrKBBsHLKb2Q==}
     cpu: [x64]
     os: [win32]
+
+  '@tabler/icons-react@3.10.0':
+    resolution: {integrity: sha512-FTES0wJLIV+M9Ggng0j/6Kn/j43ZuBukR5n6DNV8Npk4woPCDcRjA+2KzKQyvSdwtPMAM6o1e8fQBPDS337Spg==}
+    peerDependencies:
+      react: '>= 16'
+
+  '@tabler/icons@3.10.0':
+    resolution: {integrity: sha512-jCMO+hDTw8Gn1CNb15zIENLQ9b0UplGXtjMnEUhDoKH+Q4fta8tBLUxZpPpFtpV+q+gzGqfM76xNAoD1GBpmnA==}
 
   '@tanstack/form-core@0.24.0':
     resolution: {integrity: sha512-404IUmqt/OAe4RoEk9zRFeYdm/N5mbdzc0WmpL8teGGYo9CRjMGT+rhCfl4L72fLDd+3M+jXT0KyYLREkuSUhA==}
@@ -1831,11 +1839,6 @@ packages:
     peerDependencies:
       react: ^18.2.0
 
-  react-icons@5.2.1:
-    resolution: {integrity: sha512-zdbW5GstTzXaVKvGSyTaBalt7HSfuK5ovrzlpyiWHAFXndXTdd/1hdDHI4xBM1Mn7YriT6aqESucFl9kEXzrdw==}
-    peerDependencies:
-      react: '*'
-
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
 
@@ -2929,6 +2932,13 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.12.1':
     optional: true
+
+  '@tabler/icons-react@3.10.0(react@18.2.0)':
+    dependencies:
+      '@tabler/icons': 3.10.0
+      react: 18.2.0
+
+  '@tabler/icons@3.10.0': {}
 
   '@tanstack/form-core@0.24.0':
     dependencies:
@@ -4217,10 +4227,6 @@ snapshots:
       loose-envify: 1.4.0
       react: 18.2.0
       scheduler: 0.23.0
-
-  react-icons@5.2.1(react@18.2.0):
-    dependencies:
-      react: 18.2.0
 
   react-is@16.13.1: {}
 

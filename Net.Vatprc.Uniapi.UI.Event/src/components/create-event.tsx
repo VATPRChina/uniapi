@@ -18,9 +18,9 @@ import {
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
+import { IconEdit } from "@tabler/icons-react";
 import { useForm } from "@tanstack/react-form";
 import { formatISO, setSeconds } from "date-fns";
-import { IoPencil } from "react-icons/io5";
 
 const NULL_ULID = "01J2N4V2BNSP3E5Q9MBA3AE8E3";
 export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; eventId?: string }) => {
@@ -63,7 +63,7 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
     <>
       {eventId ? (
         <ActionIcon variant="subtle" aria-label="Settings" ml={ml} onClick={toggle}>
-          <IoPencil />
+          <IconEdit size={18} />
         </ActionIcon>
       ) : (
         <Button onClick={toggle}>Create Event</Button>

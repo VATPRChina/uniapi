@@ -19,11 +19,11 @@ import {
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
+import { IconPlus } from "@tabler/icons-react";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addMinutes, formatISO, setSeconds } from "date-fns";
 import { useState } from "react";
-import { IoAdd } from "react-icons/io5";
 
 export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; eventId: string }) => {
   const user = useUser();
@@ -72,7 +72,7 @@ export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; ev
   return (
     <>
       <ActionIcon variant="subtle" aria-label="Settings" ml={ml} onClick={toggle}>
-        <IoAdd />
+        <IconPlus size={18} />
       </ActionIcon>
       <Modal opened={opened} onClose={close} title="Create slots" size="xl">
         <form

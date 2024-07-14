@@ -1,7 +1,8 @@
 import { invalidatePath, useApi, useApiDelete } from "@/client";
 import { useUser } from "@/services/auth";
-import { Button, Group, Popover, Stack, Text } from "@mantine/core";
+import { ActionIcon, Button, Group, Popover, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { IconTrash } from "@tabler/icons-react";
 import { useRouter } from "@tanstack/react-router";
 
 export const DeleteSlot = ({ eventId, slotId }: { eventId: string; slotId: string }) => {
@@ -27,9 +28,9 @@ export const DeleteSlot = ({ eventId, slotId }: { eventId: string; slotId: strin
   return (
     <Popover opened={opened} onClose={close}>
       <Popover.Target>
-        <Button color="red" onClick={toggle} variant="subtle">
-          Delete
-        </Button>
+        <ActionIcon color="red" onClick={toggle} variant="subtle">
+          <IconTrash size={18} />
+        </ActionIcon>
       </Popover.Target>
       <Popover.Dropdown>
         <Stack>

@@ -7,6 +7,7 @@ import { DateTime } from "@/components/datetime";
 import { DeleteAirspace } from "@/components/delete-airspace";
 import { DeleteEvent } from "@/components/delete-event";
 import { DeleteSlot } from "@/components/delete-slot";
+import { EventDetail } from "@/components/event-detail";
 import { useUser } from "@/services/auth";
 import {
   ActionIcon,
@@ -120,22 +121,7 @@ const EventComponent = () => {
           <DeleteEvent eventId={event_id} />
         </ActionIcon.Group>
       </Group>
-      {event && (
-        <>
-          <Text>
-            Start Time: <DateTime>{event.start_at}</DateTime>
-          </Text>
-          <Text>
-            End Time: <DateTime>{event.end_at}</DateTime>
-          </Text>
-          <Text>
-            Start Booking Time: <DateTime>{event.start_booking_at}</DateTime>
-          </Text>
-          <Text>
-            End Booking Time: <DateTime>{event.end_booking_at}</DateTime>
-          </Text>
-        </>
-      )}
+      <EventDetail eventId={event_id} />
       <Title order={2}>
         Slots
         <CreateSlot ml={4} eventId={event_id} />

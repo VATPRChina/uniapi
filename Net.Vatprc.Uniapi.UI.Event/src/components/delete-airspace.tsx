@@ -2,8 +2,8 @@ import { invalidatePath, useApi, useApiDelete } from "@/client";
 import { useUser } from "@/services/auth";
 import { ActionIcon, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { IconTrash } from "@tabler/icons-react";
 import { useRouter } from "@tanstack/react-router";
-import { IoTrash } from "react-icons/io5";
 
 export const DeleteAirspace = ({ eventId, airspaceId }: { eventId: string; airspaceId: string }) => {
   const user = useUser();
@@ -28,7 +28,7 @@ export const DeleteAirspace = ({ eventId, airspaceId }: { eventId: string; airsp
   return (
     <>
       <ActionIcon variant="subtle" color="red" aria-label="Settings" onClick={toggle}>
-        <IoTrash />
+        <IconTrash size={18} />
       </ActionIcon>
       <Modal opened={opened} onClose={close} title="Delete Event">
         <Stack>
