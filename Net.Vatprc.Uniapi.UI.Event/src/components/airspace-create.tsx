@@ -21,7 +21,7 @@ export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>
 
   const [opened, { toggle, close }] = useDisclosure(false);
 
-  if (!user?.roles.includes("ec")) return null;
+  if (!user.roles.includes("ec")) return null;
 
   return (
     <>

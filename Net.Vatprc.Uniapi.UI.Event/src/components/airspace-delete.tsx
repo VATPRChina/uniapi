@@ -23,7 +23,7 @@ export const DeleteAirspace = ({ eventId, airspaceId }: { eventId: string; airsp
   );
   const [opened, { toggle, close }] = useDisclosure(false);
 
-  if (!user?.roles.includes("ec")) return null;
+  if (!user.roles.includes("ec")) return null;
 
   return (
     <>

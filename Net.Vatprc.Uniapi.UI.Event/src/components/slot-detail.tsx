@@ -31,10 +31,10 @@ export const SlotDetail = ({ eventId, slotId }: { eventId: string; slotId: strin
       </Button>
       <Modal opened={opened} onClose={close} title="Slot Information" size="xl">
         <Stack>
-          {slot?.booking?.user_id === user?.id && (
+          {slot?.booking?.user_id === user.id && (
             <Alert variant="light" color="green" title="Slot is booked by you." icon={<IconCircleCheck />} />
           )}
-          {slot?.booking && slot?.booking?.user_id !== user?.id && (
+          {slot?.booking && slot?.booking?.user_id !== user.id && (
             <Alert variant="light" color="red" title="Slot is booked by someone else." icon={<IconCircleMinus />} />
           )}
           {!slot?.booking?.user_id && (

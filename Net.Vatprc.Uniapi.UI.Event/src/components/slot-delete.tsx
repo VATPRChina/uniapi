@@ -23,7 +23,7 @@ export const DeleteSlot = ({ eventId, slotId }: { eventId: string; slotId: strin
     enabled: !!eventId && opened,
   });
 
-  if (!user?.roles.includes("ec")) return null;
+  if (!user.roles.includes("ec")) return null;
 
   return (
     <Popover opened={opened} onClose={close}>

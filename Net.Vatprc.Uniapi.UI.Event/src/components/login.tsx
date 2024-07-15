@@ -1,4 +1,4 @@
-import { useUser } from "@/services/auth";
+import { ANONYMOUS_CID, useUser } from "@/services/auth";
 import { Button } from "@mantine/core";
 
 export const Login = () => {
@@ -9,7 +9,7 @@ export const Login = () => {
   url.searchParams.set("redirect_uri", import.meta.env.VITE_API_REDIRECT_URI);
   url.searchParams.set("response_type", "code");
 
-  if (user) return null;
+  if (user.cid !== ANONYMOUS_CID) return null;
   return (
     <Button variant="outline" component="a" href={url.toString()}>
       Login

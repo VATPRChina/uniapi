@@ -1,4 +1,4 @@
-import { devLogin, useUser } from "@/services/auth";
+import { ANONYMOUS_CID, devLogin, useUser } from "@/services/auth";
 import { promiseWithToast } from "@/utils";
 import { Button, Popover, TextInput, Title } from "@mantine/core";
 import { useForm } from "@tanstack/react-form";
@@ -14,7 +14,7 @@ export const DevLogin = () => {
   });
 
   if (import.meta.env.PROD) return null;
-  if (user) return null;
+  if (user.cid !== ANONYMOUS_CID) return null;
   return (
     <Popover>
       <Popover.Target>

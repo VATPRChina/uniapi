@@ -79,7 +79,7 @@ export const ImportSlot = ({ eventId }: { eventId: string }) => {
     mutate();
   };
 
-  if (!user?.roles.includes("ec")) return null;
+  if (!user.roles.includes("ec")) return null;
   return (
     <>
       <ActionIcon variant="subtle" aria-label="Settings" onClick={toggle}>

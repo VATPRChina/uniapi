@@ -20,7 +20,7 @@ export const ExportSlot = ({ eventId }: { eventId: string }) => {
     link.click();
   };
 
-  if (!user?.roles.includes("ec")) return null;
+  if (!user.roles.includes("ec")) return null;
   return (
     <>
       <ActionIcon variant="subtle" aria-label="Export slots" onClick={wrapPromiseWithToast(onClick)}>

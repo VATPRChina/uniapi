@@ -27,7 +27,7 @@ const EventComponent = () => {
   const user = useUser();
 
   const rows = slots?.map((slot) => (
-    <Table.Tr key={slot.id} bg={user?.id && slot?.booking?.user_id === user?.id ? "green.0" : undefined}>
+    <Table.Tr key={slot.id} bg={slot?.booking?.user_id === user.id ? "green.0" : undefined}>
       <Table.Td>{slot.airspace.name}</Table.Td>
       <Table.Td>
         <Stack gap="xs">

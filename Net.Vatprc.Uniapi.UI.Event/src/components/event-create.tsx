@@ -57,7 +57,7 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
 
   const [opened, { toggle, close }] = useDisclosure(false);
 
-  if (!user?.roles.includes("ec")) return null;
+  if (!user.roles.includes("ec")) return null;
 
   return (
     <>

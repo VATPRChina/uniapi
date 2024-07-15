@@ -2,7 +2,7 @@ import logo from "../assets/standard.svg";
 import { CreateEvent } from "@/components/event-create";
 import { Login } from "@/components/login";
 import { DevLogin } from "@/components/login-dev";
-import { logout, useUser } from "@/services/auth";
+import { ANONYMOUS_CID, logout, useUser } from "@/services/auth";
 import { promiseWithToast } from "@/utils";
 import { Button, Container, Group, Image, Stack } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
@@ -15,7 +15,7 @@ const Logout = () => {
     promiseWithToast(logout());
   };
 
-  if (!user) return null;
+  if (user.cid === ANONYMOUS_CID) return null;
   return (
     <>
       <Button variant="transparent">{user.cid}</Button>

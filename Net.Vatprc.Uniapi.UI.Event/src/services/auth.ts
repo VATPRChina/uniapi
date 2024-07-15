@@ -134,7 +134,17 @@ export const authMiddleware: Middleware = {
   },
 };
 
+export const ANONYMOUS_CID = "ANONYMOUS";
 export const useUser = () => {
   const { data } = useApi("/api/session", {});
-  return data?.user;
+  return (
+    data?.user ?? {
+      id: "01J2TPQ544MXT5RKBGYZW67ZER", // invalid
+      cid: ANONYMOUS_CID,
+      full_name: ANONYMOUS_CID,
+      created_at: "1970-01-01T00:00:00.000+00:00",
+      updated_at: "1970-01-01T00:00:00.000+00:00",
+      roles: [],
+    }
+  );
 };

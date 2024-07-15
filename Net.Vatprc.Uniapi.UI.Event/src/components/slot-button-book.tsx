@@ -31,16 +31,16 @@ export const SlotBookButton = ({
     if (!isPast(event.start_booking_at) || !isFuture(event.end_booking_at)) {
       disableMessage += "Event is not in booking period.";
     }
-    if (slot.booking && slot.booking.user_id !== user?.id) {
+    if (slot.booking && slot.booking.user_id !== user.id) {
       disableMessage += "Slot is booked by someone else.";
     }
-    if ((slots?.filter((slot) => slot.booking?.user_id === user?.id).length ?? 0) >= EVENT_BOOKING_LIMIT) {
+    if ((slots?.filter((slot) => slot.booking?.user_id === user.id).length ?? 0) >= EVENT_BOOKING_LIMIT) {
       disableMessage += "Cannot book twice on the same event.";
     }
   }
 
   // slot cannot be booked again
-  if (slot.booking && slot.booking.user_id === user?.id) return null;
+  if (slot.booking && slot.booking.user_id === user.id) return null;
 
   const button = (
     <Button variant="subtle" onClick={() => book({})} disabled={!!disableMessage} color="green">
