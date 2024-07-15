@@ -37,7 +37,7 @@ const EventComponent = () => {
           {slot.leave_at && (
             <Text>
               <Pill mr="xs">TTA</Pill>
-              <DateTime>{slot.enter_at}</DateTime>
+              <DateTime>{slot.leave_at}</DateTime>
             </Text>
           )}
         </Stack>
@@ -79,7 +79,7 @@ const EventComponent = () => {
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Area</Table.Th>
-              <Table.Th>Enter at</Table.Th>
+              <Table.Th>Time</Table.Th>
               <Table.Th></Table.Th>
             </Table.Tr>
           </Table.Thead>
