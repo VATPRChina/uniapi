@@ -43,6 +43,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
             EnterAt = slot.EnterAt;
             CreatedAt = slot.CreatedAt;
             UpdatedAt = slot.UpdatedAt;
+            LeaveAt = slot.LeaveAt;
             if (slot.Booking != null) Booking = new(slot.Booking);
         }
     }
