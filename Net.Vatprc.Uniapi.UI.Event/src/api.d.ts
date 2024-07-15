@@ -164,6 +164,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/notams": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["Notam_List"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/notams/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["Notam_Get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/session": {
     parameters: {
       query?: never;
@@ -261,6 +293,8 @@ export interface components {
       airspace_id: string;
       /** Format: date-time */
       enter_at: string;
+      /** Format: date-time */
+      leave_at?: string | null;
     };
     ErrorProdResponse: {
       error_code: string;
@@ -310,6 +344,8 @@ export interface components {
       /** Format: date-time */
       enter_at: string;
       /** Format: date-time */
+      leave_at?: string | null;
+      /** Format: date-time */
       created_at: string;
       /** Format: date-time */
       updated_at: string;
@@ -323,6 +359,19 @@ export interface components {
       scope: string;
       token_type: string;
       issued_token_type: string;
+    };
+    NotamDto: {
+      id: string;
+      title: string;
+      description: string;
+      /** Format: date-time */
+      effective_from: string;
+      /** Format: date-time */
+      expire_after: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
     };
     TokenDto: {
       user: components["schemas"]["UserDto"];
@@ -350,6 +399,8 @@ export interface components {
     UpdateEventSlotDto: {
       /** Format: date-time */
       enter_at: string;
+      /** Format: date-time */
+      leave_at?: string | null;
     };
     UserDto: {
       id: string;
@@ -1167,6 +1218,66 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ErrorProdResponse"];
+        };
+      };
+      /** @description INTERNAL_SERVER_ERROR */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorProdResponse"];
+        };
+      };
+    };
+  };
+  Notam_List: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotamDto"][];
+        };
+      };
+      /** @description INTERNAL_SERVER_ERROR */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorProdResponse"];
+        };
+      };
+    };
+  };
+  Notam_Get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotamDto"];
         };
       };
       /** @description INTERNAL_SERVER_ERROR */

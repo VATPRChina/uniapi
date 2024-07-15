@@ -11,6 +11,8 @@ public class EventSlot
 
     public DateTimeOffset EnterAt { get; set; }
 
+    public DateTimeOffset? LeaveAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }
