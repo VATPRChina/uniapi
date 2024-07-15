@@ -11,6 +11,7 @@ import { SlotReleaseButton } from "@/components/slot-button-release";
 import { CreateSlot } from "@/components/slot-create";
 import { DeleteSlot } from "@/components/slot-delete";
 import { SlotDetail } from "@/components/slot-detail";
+import { ExportSlot } from "@/components/slot-export";
 import { ImportSlot } from "@/components/slot-import";
 import { useUser } from "@/services/auth";
 import { ActionIcon, Alert, Card, Group, Image, LoadingOverlay, Pill, Stack, Table, Text, Title } from "@mantine/core";
@@ -72,6 +73,7 @@ const EventComponent = () => {
         Slots
         <CreateSlot ml={4} eventId={event_id} />
         <ImportSlot eventId={event_id} />
+        <ExportSlot eventId={event_id} />
       </Title>
       {slots?.length === 0 && <Alert title="No available slot now." />}
       {(slots?.length ?? 0) > 0 && (

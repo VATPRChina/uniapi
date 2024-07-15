@@ -61,6 +61,22 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
         return eventt.Airspaces.SelectMany(x => x.Slots).OrderBy(x => x.EnterAt).Select(x => new EventSlotDto(x)).ToArray();
     }
 
+    [HttpGet("bookings.csv")]
+    [Produces("text/csv")]
+    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    public async Task<IActionResult> Export(Ulid eid)
+    {
+        var slots = await DbContext.EventBooking
+            .Include(x => x.User)
+            .Include(x => x.EventSlot)
+                .ThenInclude(x => x.EventAirspace)
+            .Where(x => x.EventSlot.EventAirspace.EventId == eid)
+            .OrderBy(x => x.EventSlot.EnterAt)
+            .Select(x => $"{x.User.Cid},{x.EventSlot.EnterAt:HHmm}")
+            .ToArrayAsync();
+        return File(System.Text.Encoding.UTF8.GetBytes(string.Join("\n", slots)), "text/csv", "bookings.csv");
+    }
+
     [HttpGet("{sid}")]
     [AllowAnonymous]
     [ApiError.Has<ApiError.EventNotFound>]
