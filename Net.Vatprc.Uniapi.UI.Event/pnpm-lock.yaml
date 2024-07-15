@@ -14,6 +14,9 @@ importers:
       '@mantine/dates':
         specifier: ^7.11.0
         version: 7.11.0(@mantine/core@7.11.0(@mantine/hooks@7.11.0(react@18.2.0))(@types/react@18.2.63)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(@mantine/hooks@7.11.0(react@18.2.0))(dayjs@1.11.11)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@mantine/dropzone':
+        specifier: ^7.11.2
+        version: 7.11.2(@mantine/core@7.11.0(@mantine/hooks@7.11.0(react@18.2.0))(@types/react@18.2.63)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(@mantine/hooks@7.11.0(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@mantine/hooks':
         specifier: ^7.11.0
         version: 7.11.0(react@18.2.0)
@@ -47,6 +50,9 @@ importers:
       openapi-fetch:
         specifier: ^0.10.2
         version: 0.10.2
+      radash:
+        specifier: ^12.1.0
+        version: 12.1.0
       react:
         specifier: ^18.2.0
         version: 18.2.0
@@ -623,6 +629,14 @@ packages:
       '@mantine/core': 7.11.0
       '@mantine/hooks': 7.11.0
       dayjs: '>=1.0.0'
+      react: ^18.2.0
+      react-dom: ^18.2.0
+
+  '@mantine/dropzone@7.11.2':
+    resolution: {integrity: sha512-/X29ym1uM1ca7ZMLVSSxm9KBbDNIpXBwZbzNIpopH0hxjbo2bSpPTbNUVB3EjRAVWDx9RGlyNxQV2jkhCos7QQ==}
+    peerDependencies:
+      '@mantine/core': 7.11.2
+      '@mantine/hooks': 7.11.2
       react: ^18.2.0
       react-dom: ^18.2.0
 
@@ -1834,10 +1848,20 @@ packages:
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
 
+  radash@12.1.0:
+    resolution: {integrity: sha512-b0Zcf09AhqKS83btmUeYBS8tFK7XL2e3RvLmZcm0sTdF1/UUlHSsjXdCcWNxe7yfmAlPve5ym0DmKGtTzP6kVQ==}
+    engines: {node: '>=14.18.0'}
+
   react-dom@18.2.0:
     resolution: {integrity: sha512-6IMTriUmvsjHUjNtEDudZfuDQUoWXVxKHhlEGSk81n4YFS+r/Kl99wXiwlVXtPBtJenozv2P+hxDsw9eA7Xo6g==}
     peerDependencies:
       react: ^18.2.0
+
+  react-dropzone-esm@15.0.1:
+    resolution: {integrity: sha512-RdeGpqwHnoV/IlDFpQji7t7pTtlC2O1i/Br0LWkRZ9hYtLyce814S71h5NolnCZXsIN5wrZId6+8eQj2EBnEzg==}
+    engines: {node: '>= 10.13'}
+    peerDependencies:
+      react: '>= 16.8 || 18.0.0'
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -2838,6 +2862,14 @@ snapshots:
       dayjs: 1.11.11
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
+
+  '@mantine/dropzone@7.11.2(@mantine/core@7.11.0(@mantine/hooks@7.11.0(react@18.2.0))(@types/react@18.2.63)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(@mantine/hooks@7.11.0(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
+    dependencies:
+      '@mantine/core': 7.11.0(@mantine/hooks@7.11.0(react@18.2.0))(@types/react@18.2.63)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@mantine/hooks': 7.11.0(react@18.2.0)
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
+      react-dropzone-esm: 15.0.1(react@18.2.0)
 
   '@mantine/hooks@7.11.0(react@18.2.0)':
     dependencies:
@@ -4222,11 +4254,18 @@ snapshots:
 
   queue-microtask@1.2.3: {}
 
+  radash@12.1.0: {}
+
   react-dom@18.2.0(react@18.2.0):
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
       scheduler: 0.23.0
+
+  react-dropzone-esm@15.0.1(react@18.2.0):
+    dependencies:
+      prop-types: 15.8.1
+      react: 18.2.0
 
   react-is@16.13.1: {}
 

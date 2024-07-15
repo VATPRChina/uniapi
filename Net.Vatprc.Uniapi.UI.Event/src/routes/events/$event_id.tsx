@@ -11,21 +11,9 @@ import { SlotReleaseButton } from "@/components/slot-button-release";
 import { CreateSlot } from "@/components/slot-create";
 import { DeleteSlot } from "@/components/slot-delete";
 import { SlotDetail } from "@/components/slot-detail";
+import { ImportSlot } from "@/components/slot-import";
 import { useUser } from "@/services/auth";
-import {
-  ActionIcon,
-  Alert,
-  Card,
-  Group,
-  Image,
-  LoadingOverlay,
-  Pill,
-  Stack,
-  Table,
-  Text,
-  Title,
-  useMantineTheme,
-} from "@mantine/core";
+import { ActionIcon, Alert, Card, Group, Image, LoadingOverlay, Pill, Stack, Table, Text, Title } from "@mantine/core";
 import { createFileRoute } from "@tanstack/react-router";
 
 const EventComponent = () => {
@@ -35,11 +23,10 @@ const EventComponent = () => {
   const { data: airspaces, isLoading: isLoadingAirspaces } = useApi("/api/events/{eid}/airspaces", {
     path: { eid: event_id },
   });
-  const theme = useMantineTheme();
   const user = useUser();
 
   const rows = slots?.map((slot) => (
-    <Table.Tr key={slot.id} bg={slot?.booking?.user_id === user?.id ? theme.colors.green[0] : undefined}>
+    <Table.Tr key={slot.id} bg={slot?.booking?.user_id === user?.id ? "green.0" : undefined}>
       <Table.Td>{slot.airspace.name}</Table.Td>
       <Table.Td>
         <Stack gap="xs">
@@ -84,6 +71,7 @@ const EventComponent = () => {
       <Title order={2}>
         Slots
         <CreateSlot ml={4} eventId={event_id} />
+        <ImportSlot eventId={event_id} />
       </Title>
       {slots?.length === 0 && <Alert title="No available slot now." />}
       {(slots?.length ?? 0) > 0 && (
