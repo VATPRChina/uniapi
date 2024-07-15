@@ -18,6 +18,8 @@ public class Notam
 
     public DateTimeOffset UpdatedAt { get; set; }
 
+    public IEnumerable<NotamBinding> Bindings { get; set; } = [];
+
     public class NotamConfiguration : IEntityTypeConfiguration<Notam>
     {
         public void Configure(EntityTypeBuilder<Notam> builder)

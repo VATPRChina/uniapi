@@ -422,4 +422,15 @@ public abstract class ApiError : Exception
             ExtraData.Add("required_roles", required_roles);
         }
     }
+
+    [Error(HttpStatusCode.NotFound, "NOTAM_NOT_FOUND", "Notam {notam_id} not found.")]
+    [WithExtraData("event_id", typeof(string))]
+    public class NotamNotFound : ApiError
+    {
+        public NotamNotFound(Ulid id) : base(
+            $"NOTAM {id} not found.")
+        {
+            ExtraData.Add("notam_id", id);
+        }
+    }
 }
