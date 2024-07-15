@@ -378,14 +378,12 @@ public abstract class ApiError : Exception
         }
     }
 
-    [Error(HttpStatusCode.Conflict, "EVENT_BOOK_MAXIMUM_EXCEEDED", "Event {event_id}'s booking limit for current user has been exceeded.")]
-    [WithExtraData("event_id", typeof(string))]
-    public class EventBookMaximumExceeded : ApiError
+    [Error(HttpStatusCode.Conflict, "EVENT_BOOK_OVERLAP_TIME", "Current user have an overlapping booking with the slot.")]
+    public class EventBookOverlapTime : ApiError
     {
-        public EventBookMaximumExceeded(Ulid event_id) : base(
-            $"Event {event_id}'s booking limit for current user has been exceeded.")
+        public EventBookOverlapTime() : base(
+            $"Current user have an overlapping booking with the slot.")
         {
-            ExtraData.Add("event_id", event_id);
         }
     }
 

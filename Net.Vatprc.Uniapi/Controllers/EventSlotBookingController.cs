@@ -1,7 +1,8 @@
-using System.Security.Claims;
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
+using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -11,6 +12,12 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/events/{eid}/slots/{sid}/booking")]
 public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBase
 {
+    /// <summary>
+    /// User-level lock to ensure the booking request for a user is processed sequentially.
+    /// This is not distributed lock, so it only works in a single instance.
+    /// </summary>
+    protected static ConcurrentDictionary<Ulid, SemaphoreSlim> UserLevelLock = new();
+
     protected async Task<EventBooking?> LoadAsync(Ulid eid, Ulid sid)
     {
         var slot = await DbContext.EventSlot
@@ -50,44 +57,58 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
     [ApiError.Has<ApiError.EventNotFound>]
     public async Task<EventBookingDto> Put(Ulid eid, Ulid sid)
     {
-        var uid = Ulid.Parse(User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)?.Value);
-        var booking = await LoadAsync(eid, sid);
-        if (booking != null) throw new ApiError.EventSlotBooked(eid, sid);
-        var eventt = await DbContext.Event.FindAsync(eid) ??
-            throw new ApiError.EventNotFound(eid);
-        if (!eventt.IsInBookingPeriod)
+        var lockObject = UserLevelLock.GetOrAdd(this.GetUserId(), new SemaphoreSlim(1, 1));
+        await lockObject.WaitAsync();
+        try
         {
-            throw new ApiError.EventNotInBookingTime(eid);
+            var uid = this.GetUserId();
+            var booking = await LoadAsync(eid, sid);
+            if (booking != null) throw new ApiError.EventSlotBooked(eid, sid);
+            var eventt = await DbContext.Event.FindAsync(eid) ??
+                throw new ApiError.EventNotFound(eid);
+            if (!eventt.IsInBookingPeriod)
+            {
+                throw new ApiError.EventNotInBookingTime(eid);
+            }
+            // TODO: check if time overlaps
+            booking = new()
+            {
+                UserId = uid,
+                EventSlotId = sid,
+            };
+            DbContext.EventBooking.Add(booking);
+            await DbContext.SaveChangesAsync();
+            return new(booking);
         }
-        var bookCount = await DbContext.EventBooking.CountAsync(x => x.UserId == uid && x.EventSlot.EventAirspace.EventId == eid);
-        if (bookCount >= 1)
+        finally
         {
-            throw new ApiError.EventBookMaximumExceeded(eid);
+            lockObject.Release();
         }
-        booking = new()
-        {
-            UserId = uid,
-            EventSlotId = sid,
-        };
-        DbContext.EventBooking.Add(booking);
-        await DbContext.SaveChangesAsync();
-        return new(booking);
     }
 
     [HttpDelete]
     public async Task<EventBookingDto> Delete(Ulid eid, Ulid sid)
     {
-        var booking = await LoadAsync(eid, sid) ?? throw new ApiError.EventSlotNotBooked(eid, sid);
-        if (!booking.EventSlot.EventAirspace.Event.IsInBookingPeriod)
+        var lockObject = UserLevelLock.GetOrAdd(this.GetUserId(), new SemaphoreSlim(1, 1));
+        await lockObject.WaitAsync();
+        try
         {
-            throw new ApiError.EventNotInBookingTime(eid);
+            var booking = await LoadAsync(eid, sid) ?? throw new ApiError.EventSlotNotBooked(eid, sid);
+            if (!booking.EventSlot.EventAirspace.Event.IsInBookingPeriod)
+            {
+                throw new ApiError.EventNotInBookingTime(eid);
+            }
+            if (booking.UserId != this.GetUserId() && !User.IsInRole(Models.User.UserRoles.Admin))
+            {
+                throw new ApiError.EventSlotBookedByAnotherUser(eid, sid);
+            }
+            DbContext.EventBooking.Remove(booking);
+            await DbContext.SaveChangesAsync();
+            return new(booking);
         }
-        if (booking.UserId.ToString() != User.FindFirstValue(ClaimTypes.NameIdentifier) && !User.IsInRole(Models.User.UserRoles.Admin))
+        finally
         {
-            throw new ApiError.EventSlotBookedByAnotherUser(eid, sid);
+            lockObject.Release();
         }
-        DbContext.EventBooking.Remove(booking);
-        await DbContext.SaveChangesAsync();
-        return new(booking);
     }
 }
