@@ -46,7 +46,7 @@ public class DiscordWorker(
             }, message.Message);
             return Task.CompletedTask;
         };
-        await Interaction.AddModulesAsync(assembly: Assembly.GetEntryAssembly(), services: null);
+        await Interaction.AddModulesAsync(assembly: Assembly.GetEntryAssembly(), services: ServiceProvider);
 
         Client.InteractionCreated += async (x) =>
         {

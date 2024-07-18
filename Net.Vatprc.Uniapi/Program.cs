@@ -199,6 +199,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+RudiMetarService.ConfigureOn(builder);
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
