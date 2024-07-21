@@ -31,6 +31,7 @@
     "dompurify": "^3.1.6",
     "jotai": "^2.7.0",
     "marked": "^13.0.2",
+    "marked-directive": "^1.0.5",
     "openapi-fetch": "^0.10.2",
     "radash": "^12.1.0",
     "react": "^18.2.0",

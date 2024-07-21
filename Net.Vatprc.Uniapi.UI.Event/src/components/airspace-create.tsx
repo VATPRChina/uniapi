@@ -103,6 +103,7 @@ export const CreateAirspace = ({
               {(field) => (
                 <Textarea
                   label="Description"
+                  description="For flight plan, use `::fpl[DEP ROUTE ARR]`"
                   onChange={(e) => field.handleChange(e.target.value)}
                   value={field.state.value ?? ""}
                   onBlur={field.handleBlur}

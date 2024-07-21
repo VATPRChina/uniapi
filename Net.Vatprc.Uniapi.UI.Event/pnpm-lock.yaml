@@ -53,6 +53,9 @@ importers:
       marked:
         specifier: ^13.0.2
         version: 13.0.2
+      marked-directive:
+        specifier: ^1.0.5
+        version: 1.0.5(marked@13.0.2)
       openapi-fetch:
         specifier: ^0.10.2
         version: 0.10.2
@@ -1040,6 +1043,9 @@ packages:
   asynciterator.prototype@1.0.0:
     resolution: {integrity: sha512-wwHYEIS0Q80f5mosx3L/dfG5t5rjEa9Ft51GTaNt862EnpyGHpgz2RkZvLPp1oF5TnAiTohkEKVEu8pQPJI7Vg==}
 
+  attributes-parser@2.2.2:
+    resolution: {integrity: sha512-fIPf8Wo+1mHhsZVTwpI8Kk4znL5+r4jelbRrcYNJ/Q0j6BpCIw1i7IwviJ0zD75mnUEyigkRgAKvwMJ4jeHf6A==}
+
   available-typed-arrays@1.0.7:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
@@ -1633,6 +1639,9 @@ packages:
   json-buffer@3.0.1:
     resolution: {integrity: sha512-4bV5BfR2mqfQTJm+V5tPPdf+ZpuhiIvTuAB5g8kcrXOZpTT/QwwVRWBywX1ozr6lEuPdbHxwaJlm9G6mI2sfSQ==}
 
+  json-loose@1.2.3:
+    resolution: {integrity: sha512-gnx3y7j68efE7WOAFJq4lcivbUZXjW1Udx0VWh25kGDDhsM4stK6TejLahGvqJ8lraua6+6+BbBxy6ABR0ayWA==}
+
   json-schema-traverse@0.4.1:
     resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
 
@@ -1678,6 +1687,11 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  marked-directive@1.0.5:
+    resolution: {integrity: sha512-EWVw5IBj8e+2Tws2ULd8dKzbSjM/3WlOAsuguqJ5xDIX1O3NWymaCcuhHfNgbeXCvZMoP4gjeL+Yv0E96XhImw==}
+    peerDependencies:
+      marked: '>=7.0.0'
+
   marked@13.0.2:
     resolution: {integrity: sha512-J6CPjP8pS5sgrRqxVRvkCIkZ6MFdRIjDkwUwgJ9nL2fbmM6qGQeB2C16hi8Cc9BOzj6xXzy0jyi0iPIfnMHYzA==}
     engines: {node: '>= 18'}
@@ -1701,6 +1715,9 @@ packages:
   minimatch@9.0.5:
     resolution: {integrity: sha512-G6T0ZX48xgozx7587koeX9Ys2NYy6Gmv//P89sEte9V9whIapMNF4idKxnW2QtCcLiTWlb/wfCabAtAFWhhBow==}
     engines: {node: '>=16 || 14 >=14.17'}
+
+  moo@0.5.2:
+    resolution: {integrity: sha512-iSAJLHYKnX41mKcJKjqvnAN9sf0LMDTXDEvFv+ffuRR9a1MIuXLjMNL6EsnDHSkKLTWNqQQ5uo61P4EbU4NU+Q==}
 
   ms@2.1.2:
     resolution: {integrity: sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==}
@@ -3379,6 +3396,10 @@ snapshots:
     dependencies:
       has-symbols: 1.0.3
 
+  attributes-parser@2.2.2:
+    dependencies:
+      json-loose: 1.2.3
+
   available-typed-arrays@1.0.7:
     dependencies:
       possible-typed-array-names: 1.0.0
@@ -4078,6 +4099,10 @@ snapshots:
 
   json-buffer@3.0.1: {}
 
+  json-loose@1.2.3:
+    dependencies:
+      moo: 0.5.2
+
   json-schema-traverse@0.4.1: {}
 
   json-schema-traverse@1.0.0: {}
@@ -4120,6 +4145,11 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
+  marked-directive@1.0.5(marked@13.0.2):
+    dependencies:
+      attributes-parser: 2.2.2
+      marked: 13.0.2
+
   marked@13.0.2: {}
 
   merge2@1.4.1: {}
@@ -4140,6 +4170,8 @@ snapshots:
   minimatch@9.0.5:
     dependencies:
       brace-expansion: 2.0.1
+
+  moo@0.5.2: {}
 
   ms@2.1.2: {}
 
