@@ -1,13 +1,13 @@
 import { DateTime } from "./datetime";
+import { Markdown } from "./markdown";
 import { SlotBookButton } from "./slot-button-book";
 import { SlotReleaseButton } from "./slot-button-release";
 import { useApi } from "@/client";
 import { useUser } from "@/services/auth";
-import { Alert, Button, Grid, Group, Modal, Pill, Stack, Text, Title, useMantineTheme } from "@mantine/core";
+import { Alert, Button, Group, Modal, Pill, Stack, Text, Timeline, Title } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconCircleCheck, IconCircleDashed, IconCircleMinus } from "@tabler/icons-react";
 import { addMinutes } from "date-fns";
-import React from "react";
 
 const TIMES = [
   { name: "Request for Clearance Delivery", color: "red", span: 3, offset: 0, startMin: -30, endMin: -15 },
@@ -22,7 +22,10 @@ export const SlotDetail = ({ eventId, slotId }: { eventId: string; slotId: strin
     path: { eid: eventId, sid: slotId },
     enabled: opened,
   });
-  const theme = useMantineTheme();
+  const { data: event } = useApi("/api/events/{eid}", {
+    path: { eid: eventId },
+    enabled: opened,
+  });
 
   return (
     <>
@@ -54,36 +57,53 @@ export const SlotDetail = ({ eventId, slotId }: { eventId: string; slotId: strin
           </Text>
           <Group gap={0}>
             <Text component="span" fw={700} mr="xs">
-              Enter at:
+              Times:
             </Text>
-            <Pill mr="xs">CTOT</Pill>
-            <DateTime>{slot?.enter_at}</DateTime>
+            <Stack>
+              <Group>
+                <Pill>CTOT</Pill>
+                <DateTime>{slot?.enter_at}</DateTime>
+              </Group>
+              {slot?.leave_at && (
+                <Group>
+                  <Pill>TTA</Pill>
+                  <DateTime>{slot?.leave_at}</DateTime>
+                </Group>
+              )}
+            </Stack>
           </Group>
           <Title order={3}>Time detail</Title>
-          <Grid columns={8}>
+          <Timeline>
             {slot?.enter_at &&
               TIMES.map((time, i) => (
-                <React.Fragment key={i}>
-                  <Grid.Col span={time.span} offset={time.offset} bg={theme.colors[time.color][1]}>
-                    <Stack gap={4} align="center">
-                      <Text component="span" fw={700}>
-                        {time.name}
-                      </Text>
-                      <Text>
-                        <DateTime noDistance noDate position="bottom">
-                          {addMinutes(slot?.enter_at, time.startMin)}
-                        </DateTime>
-                        -
-                        <DateTime noDistance noDate position="bottom">
-                          {addMinutes(slot?.enter_at, time.endMin)}
-                        </DateTime>
-                      </Text>
-                    </Stack>
-                  </Grid.Col>
-                  <Grid.Col span={8 - (time.offset + time.span)}></Grid.Col>
-                </React.Fragment>
+                <Timeline.Item key={i}>
+                  <Group>
+                    <Text fw={700}>{time.name}</Text>
+                    <DateTime noDistance noDate position="bottom">
+                      {addMinutes(slot?.enter_at, time.startMin)}
+                    </DateTime>
+                    -
+                    <DateTime noDistance noDate position="bottom">
+                      {addMinutes(slot?.enter_at, time.endMin)}
+                    </DateTime>
+                  </Group>
+                </Timeline.Item>
               ))}
-          </Grid>
+            {slot?.leave_at && (
+              <Timeline.Item key={TIMES.length}>
+                <Group>
+                  <Text fw={700}>Expect arrival</Text>
+                  <DateTime noDistance noDate position="bottom">
+                    {slot.leave_at}
+                  </DateTime>
+                </Group>
+              </Timeline.Item>
+            )}
+          </Timeline>
+          <Title order={3}>Event briefing</Title>
+          <Markdown>{event?.description}</Markdown>
+          <Title order={3}>Area briefing</Title>
+          <Markdown>{slot?.airspace.description}</Markdown>
         </Stack>
       </Modal>
     </>

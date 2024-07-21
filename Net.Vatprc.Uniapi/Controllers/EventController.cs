@@ -22,6 +22,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         public DateTimeOffset StartBookingAt { get; init; }
         public DateTimeOffset EndBookingAt { get; init; }
         public string? ImageUrl { get; set; }
+        public string Description { get; set; }
 
         public EventDto(Event eventt)
         {
@@ -34,6 +35,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
             StartBookingAt = eventt.StartBookingAt;
             EndBookingAt = eventt.EndBookingAt;
             ImageUrl = eventt.ImageUrl;
+            Description = eventt.Description;
         }
     }
 
@@ -68,6 +70,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         public required DateTimeOffset StartBookingAt { get; init; }
         public required DateTimeOffset EndBookingAt { get; init; }
         public string? ImageUrl { get; init; }
+        public required string Description { get; set; }
     }
 
     [HttpPost]
@@ -82,6 +85,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
             StartBookingAt = dto.StartBookingAt.ToUniversalTime(),
             EndBookingAt = dto.EndBookingAt.ToUniversalTime(),
             ImageUrl = dto.ImageUrl,
+            Description = dto.Description,
         };
         DbContext.Event.Add(eventt);
         await DbContext.SaveChangesAsync();
@@ -96,6 +100,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         public required DateTimeOffset StartBookingAt { get; init; }
         public required DateTimeOffset EndBookingAt { get; init; }
         public string? ImageUrl { get; init; }
+        public required string Description { get; init; }
     }
 
     [HttpPost("{eid}")]
@@ -109,6 +114,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         eventt.StartBookingAt = dto.StartBookingAt.ToUniversalTime();
         eventt.EndBookingAt = dto.EndBookingAt.ToUniversalTime();
         eventt.ImageUrl = dto.ImageUrl;
+        eventt.Description = dto.Description;
         await DbContext.SaveChangesAsync();
         return new(eventt);
     }

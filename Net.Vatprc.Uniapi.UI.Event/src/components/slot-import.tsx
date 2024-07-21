@@ -53,7 +53,7 @@ export const ImportSlot = ({ eventId }: { eventId: string }) => {
         unique(slots, (s) => s.airspace).map((slot) =>
           client.POST("/api/events/{eid}/airspaces", {
             params: { path: { eid: eventId } },
-            body: { name: slot.airspace, icao_codes: slot.icao_codes },
+            body: { name: slot.airspace, icao_codes: slot.icao_codes, description: "" },
           }),
         ),
       );

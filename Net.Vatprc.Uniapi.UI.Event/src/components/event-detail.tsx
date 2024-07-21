@@ -1,4 +1,5 @@
 import { DateTime } from "./datetime";
+import { Markdown } from "./markdown";
 import { useApi } from "@/client";
 import { Group, Text } from "@mantine/core";
 import { IconArrowRight } from "@tabler/icons-react";
@@ -20,6 +21,7 @@ export const EventDetail = ({ eventId }: { eventId: string }) => {
         <IconArrowRight size={12} />
         <DateTime>{event?.end_booking_at}</DateTime>
       </Group>
+      <Markdown>{event?.description}</Markdown>
     </>
   );
 };

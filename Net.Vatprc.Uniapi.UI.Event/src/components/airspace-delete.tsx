@@ -6,10 +6,12 @@ import { IconTrash } from "@tabler/icons-react";
 import { useRouter } from "@tanstack/react-router";
 
 export const DeleteAirspace = ({ eventId, airspaceId }: { eventId: string; airspaceId: string }) => {
+  const [opened, { toggle, close }] = useDisclosure(false);
+
   const user = useUser();
   const { data: airspace, isLoading } = useApi(`/api/events/{eid}/airspaces/{aid}`, {
     path: { eid: eventId, aid: airspaceId },
-    enabled: !!eventId,
+    enabled: !!eventId && opened,
   });
   const { navigate } = useRouter();
   const { mutate, isPending } = useApiDelete(
@@ -21,7 +23,6 @@ export const DeleteAirspace = ({ eventId, airspaceId }: { eventId: string; airsp
       await navigate({ to: "/events/" + eventId });
     },
   );
-  const [opened, { toggle, close }] = useDisclosure(false);
 
   if (!user.roles.includes("ec")) return null;
 

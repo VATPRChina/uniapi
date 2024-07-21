@@ -14,6 +14,7 @@ import {
   StyleProp,
   Text,
   TextInput,
+  Textarea,
   Title,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
@@ -24,10 +25,12 @@ import { formatISO, setSeconds } from "date-fns";
 
 const NULL_ULID = "01J2N4V2BNSP3E5Q9MBA3AE8E3";
 export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; eventId?: string }) => {
+  const [opened, { toggle, close }] = useDisclosure(false);
+
   const user = useUser();
   const { data: event, isLoading } = useApi(`/api/events/{eid}`, {
     path: { eid: eventId ?? NULL_ULID },
-    enabled: !!eventId,
+    enabled: !!eventId && opened,
   });
   const { mutate: create, isPending: isCreatePending } = useApiPost("/api/events", {}, () => close());
   const { mutate: update, isPending: isUpdatePending } = useApiPost(
@@ -45,6 +48,7 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
       start_booking_at: event?.start_booking_at ?? formatISO(setSeconds(Date.now(), 0)),
       end_booking_at: event?.end_booking_at ?? formatISO(setSeconds(Date.now(), 0)),
       image_url: event?.image_url ?? null,
+      description: event?.description ?? "",
     },
     onSubmit: ({ value }) => {
       if (eventId) {
@@ -54,8 +58,6 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
       }
     },
   });
-
-  const [opened, { toggle, close }] = useDisclosure(false);
 
   if (!user.roles.includes("ec")) return null;
 
@@ -77,7 +79,9 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
           }}
         >
           <Stack>
-            <Title order={4}>Create Event</Title>
+            <Title order={4}>
+              {eventId ? "Edit" : "Create"} Event{eventId && ` ${eventId}`}
+            </Title>
             <form.Field
               name="title"
               children={(field) => (
@@ -181,6 +185,18 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
             <form.Subscribe selector={(state) => state.values.image_url}>
               {(image_url) => <Image src={image_url ?? NoEventImage} />}
             </form.Subscribe>
+            <form.Field name="description">
+              {(field) => (
+                <Textarea
+                  label="Description"
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  value={field.state.value ?? ""}
+                  onBlur={field.handleBlur}
+                  disabled={isLoading}
+                  autosize
+                />
+              )}
+            </form.Field>
             <Button variant="subtle" type="submit" loading={isCreatePending || isUpdatePending}>
               {eventId ? "Save" : "Create"}
             </Button>

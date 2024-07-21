@@ -292,6 +292,7 @@ export interface components {
     CreateEventAirspaceDto: {
       name: string;
       icao_codes: string[];
+      description: string;
     };
     CreateEventDto: {
       title: string;
@@ -304,6 +305,7 @@ export interface components {
       /** Format: date-time */
       end_booking_at: string;
       image_url?: string | null;
+      description: string;
     };
     CreateEventSlotDto: {
       airspace_id: string;
@@ -326,6 +328,7 @@ export interface components {
       /** Format: date-time */
       updated_at: string;
       icao_codes: string[];
+      description: string;
     };
     EventBookingDto: {
       id: string;
@@ -351,6 +354,7 @@ export interface components {
       /** Format: date-time */
       end_booking_at: string;
       image_url?: string | null;
+      description: string;
     };
     EventSlotDto: {
       id: string;
@@ -399,6 +403,7 @@ export interface components {
     UpdateEventAirspaceDto: {
       name: string;
       icao_codes: string[];
+      description: string;
     };
     UpdateEventDto: {
       title: string;
@@ -411,6 +416,7 @@ export interface components {
       /** Format: date-time */
       end_booking_at: string;
       image_url?: string | null;
+      description: string;
     };
     UpdateEventSlotDto: {
       /** Format: date-time */

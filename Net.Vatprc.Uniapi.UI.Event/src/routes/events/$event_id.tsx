@@ -6,6 +6,7 @@ import { DateTime } from "@/components/datetime";
 import { CreateEvent } from "@/components/event-create";
 import { DeleteEvent } from "@/components/event-delete";
 import { EventDetail } from "@/components/event-detail";
+import { Markdown } from "@/components/markdown";
 import { SlotBookButton } from "@/components/slot-button-book";
 import { SlotReleaseButton } from "@/components/slot-button-release";
 import { CreateSlot } from "@/components/slot-create";
@@ -99,6 +100,7 @@ const EventComponent = () => {
             <Stack>
               <Group>
                 <Text>{airspace.name}</Text>
+                <CreateAirspace eventId={event_id} airspaceId={airspace.id} />
                 <DeleteAirspace eventId={event_id} airspaceId={airspace.id} />
               </Group>
               {airspace.icao_codes.length > 0 && (
@@ -108,6 +110,7 @@ const EventComponent = () => {
                   ))}
                 </Group>
               )}
+              {airspace.description && <Markdown>{airspace.description}</Markdown>}
             </Stack>
           </Card>
         ))}

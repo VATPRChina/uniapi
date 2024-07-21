@@ -28,6 +28,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
         public DateTimeOffset CreatedAt { get; init; }
         public DateTimeOffset UpdatedAt { get; init; }
         public IEnumerable<string> IcaoCodes { get; init; }
+        public string Description { get; set; }
 
         public EventAirspaceDto(EventAirspace airspace)
         {
@@ -37,6 +38,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
             CreatedAt = airspace.CreatedAt;
             UpdatedAt = airspace.UpdatedAt;
             IcaoCodes = airspace.IcaoCodes;
+            Description = airspace.Description;
         }
     }
 
@@ -46,7 +48,11 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
     {
         var eventt = await DbContext.Event.SingleOrDefaultAsync(x => x.Id == eid)
             ?? throw new ApiError.EventNotFound(eid);
-        return await DbContext.Entry(eventt).Collection(x => x.Airspaces).Query().Select(x => new EventAirspaceDto(x)).ToListAsync();
+        return await DbContext.Entry(eventt)
+            .Collection(x => x.Airspaces)
+            .Query()
+            .OrderBy(x => x.Name)
+            .Select(x => new EventAirspaceDto(x)).ToListAsync();
     }
 
     [HttpGet("{aid}")]
@@ -62,6 +68,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
     {
         public required string Name { get; set; }
         public required IEnumerable<string> IcaoCodes { get; set; }
+        public required string Description { get; set; }
     }
 
     [HttpPost]
@@ -73,6 +80,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
             EventId = eid,
             Name = dto.Name,
             IcaoCodes = dto.IcaoCodes.ToList(),
+            Description = dto.Description,
         };
         DbContext.EventAirspace.Add(airspace);
         await DbContext.SaveChangesAsync();
@@ -83,6 +91,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
     {
         public required string Name { get; set; }
         public required IEnumerable<string> IcaoCodes { get; set; }
+        public required string Description { get; set; }
     }
 
     [HttpPut("{aid}")]
@@ -92,6 +101,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
         var airspace = await LoadAsync(eid, aid);
         airspace.Name = dto.Name;
         airspace.IcaoCodes = dto.IcaoCodes.ToList();
+        airspace.Description = dto.Description;
         await DbContext.SaveChangesAsync();
         return new(airspace);
     }

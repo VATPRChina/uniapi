@@ -1,32 +1,70 @@
-import { useApiPost } from "@/client";
+import { invalidatePath, useApi, useApiPost, useApiPut } from "@/client";
 import { useUser } from "@/services/auth";
 import { promiseWithToast } from "@/utils";
-import { ActionIcon, Button, MantineSpacing, Modal, Stack, StyleProp, TagsInput, TextInput } from "@mantine/core";
+import {
+  ActionIcon,
+  Button,
+  MantineSpacing,
+  Modal,
+  Stack,
+  StyleProp,
+  TagsInput,
+  TextInput,
+  Textarea,
+} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconPlus } from "@tabler/icons-react";
+import { IconEdit, IconPlus } from "@tabler/icons-react";
 import { useForm } from "@tanstack/react-form";
 
-export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; eventId: string }) => {
+const NULL_ULID = "01J2N4V2BNSP3E5Q9MBA3AE8E3";
+export const CreateAirspace = ({
+  ml,
+  eventId,
+  airspaceId,
+}: {
+  ml?: StyleProp<MantineSpacing>;
+  eventId: string;
+  airspaceId?: string;
+}) => {
+  const [opened, { toggle, close }] = useDisclosure(false);
+
   const user = useUser();
-  const { mutate } = useApiPost("/api/events/{eid}/airspaces", { path: { eid: eventId } }, () => close());
+  const { data: airspace, isLoading } = useApi(`/api/events/{eid}/airspaces/{aid}`, {
+    path: { eid: eventId, aid: airspaceId ?? NULL_ULID },
+    enabled: !!airspaceId && opened,
+  });
+  const onComplete = () => {
+    close();
+    return invalidatePath(`/api/events/{eid}/airspaces`, { eid: eventId });
+  };
+  const { mutate: create, isPending: isCreatePending } = useApiPost(
+    "/api/events/{eid}/airspaces",
+    { path: { eid: eventId } },
+    onComplete,
+  );
+  const { mutate: update, isPending: isUpdatePending } = useApiPut(
+    "/api/events/{eid}/airspaces/{aid}",
+    { path: { eid: eventId, aid: airspaceId ?? NULL_ULID } },
+    onComplete,
+  );
   const form = useForm({
     defaultValues: {
-      name: "",
-      icaoCodes: [] as string[],
+      name: airspace?.name ?? "",
+      icao_codes: airspace?.icao_codes ?? ([] as string[]),
+      description: airspace?.description ?? "",
     },
     onSubmit: ({ value }) => {
-      mutate({ name: value.name, icao_codes: value.icaoCodes });
+      if (airspaceId) return update(value);
+      else return create(value);
     },
   });
-
-  const [opened, { toggle, close }] = useDisclosure(false);
 
   if (!user.roles.includes("ec")) return null;
 
   return (
     <>
       <ActionIcon variant="subtle" aria-label="Settings" ml={ml} onClick={toggle}>
-        <IconPlus size={18} />
+        {airspaceId ? <IconEdit size={18} /> : <IconPlus size={18} />}
       </ActionIcon>
       <Modal opened={opened} onClose={close} title="Create slots">
         <form
@@ -45,22 +83,36 @@ export const CreateAirspace = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>
                   onChange={(e) => field.handleChange(e.target.value)}
                   value={field.state.value}
                   onBlur={field.handleBlur}
-                ></TextInput>
+                  disabled={isLoading}
+                />
               )}
             />
             <form.Field
-              name="icaoCodes"
+              name="icao_codes"
               children={(field) => (
                 <TagsInput
                   label="Related ICAO codes"
                   onChange={(e) => field.handleChange(e)}
                   value={field.state.value}
                   onBlur={field.handleBlur}
-                ></TagsInput>
+                  disabled={isLoading}
+                />
               )}
             />
-            <Button variant="subtle" type="submit">
-              Create
+            <form.Field name="description">
+              {(field) => (
+                <Textarea
+                  label="Description"
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  value={field.state.value ?? ""}
+                  onBlur={field.handleBlur}
+                  disabled={isLoading}
+                  autosize
+                />
+              )}
+            </form.Field>
+            <Button variant="subtle" type="submit" loading={isCreatePending || isUpdatePending}>
+              {airspaceId ? "Save" : "Create"}
             </Button>
           </Stack>
         </form>
