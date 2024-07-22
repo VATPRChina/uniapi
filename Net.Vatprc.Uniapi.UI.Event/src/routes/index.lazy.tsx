@@ -9,12 +9,7 @@ const Index = () => {
 
   return (
     <>
-      <Alert
-        title="VATPRC Events is under construction and is not available to public now. Contents are subject to changes."
-        color="yellow"
-      />
       {error?.message && <Alert title={error?.message} color="red" />}
-
       <Stack>
         {events?.length === 0 && !isLoading && <Alert title="No available event now." />}
         {events?.map((event) => (
