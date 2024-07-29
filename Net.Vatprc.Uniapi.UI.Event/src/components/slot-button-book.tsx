@@ -1,7 +1,8 @@
 import { paths } from "@/api";
 import { invalidatePath, useApi, useApiPut } from "@/client";
 import { useUser } from "@/services/auth";
-import { Button, Tooltip } from "@mantine/core";
+import { Button, Group, Popover, Stack, Text, Tooltip } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { isFuture, isPast } from "date-fns";
 
 const EVENT_BOOKING_LIMIT = 1;
@@ -15,13 +16,15 @@ export const SlotBookButton = ({
   slotId: string;
   slot: paths["/api/events/{eid}/slots/{sid}"]["get"]["responses"]["200"]["content"]["application/json"];
 }) => {
+  const [opened, { toggle, close }] = useDisclosure(false);
+
   const { data: event } = useApi("/api/events/{eid}", { path: { eid: eventId } });
-  const { mutate: book } = useApiPut(
+  const { mutate: book, isPending } = useApiPut(
     "/api/events/{eid}/slots/{sid}/booking",
     {
       path: { eid: eventId, sid: slotId },
     },
-    () => invalidatePath("/api/events/{eid}/slots", { eid: eventId }),
+    () => (close(), invalidatePath("/api/events/{eid}/slots", { eid: eventId })),
   );
   const { data: slots } = useApi("/api/events/{eid}/slots", { path: { eid: eventId } });
   const user = useUser();
@@ -43,9 +46,26 @@ export const SlotBookButton = ({
   if (slot.booking && slot.booking.user_id === user.id) return null;
 
   const button = (
-    <Button variant="subtle" onClick={() => book({})} disabled={!!disableMessage} color="green">
-      Book
-    </Button>
+    <Popover opened={opened} onClose={close} shadow="lg">
+      <Popover.Target>
+        <Button variant="subtle" color="green" onClick={toggle} disabled={!!disableMessage}>
+          Book
+        </Button>
+      </Popover.Target>
+      <Popover.Dropdown>
+        <Stack>
+          <Text>Do you want to book this slot?</Text>
+          <Group>
+            <Button variant="outline" onClick={toggle}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={() => book({})} disabled={!!disableMessage} loading={isPending}>
+              Yes
+            </Button>
+          </Group>
+        </Stack>
+      </Popover.Dropdown>
+    </Popover>
   );
 
   return disableMessage ? <Tooltip label={disableMessage}>{button}</Tooltip> : button;
