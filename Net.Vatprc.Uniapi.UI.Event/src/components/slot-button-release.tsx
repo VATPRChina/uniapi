@@ -46,7 +46,7 @@ export const SlotReleaseButton = ({
           variant="subtle"
           onClick={toggle}
           disabled={!!disableMessage}
-          color={user.roles.includes("ec") ? "red" : "yellow"}
+          color={user.roles.includes("ec") && user.id !== slot.booking?.user_id ? "red" : "yellow"}
         >
           Release
         </Button>
