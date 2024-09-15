@@ -17,6 +17,8 @@ interface Slot {
   icao_codes: string[];
   enter_at: Date;
   leave_at?: Date;
+  callsign?: string;
+  aircraft_type_icao?: string;
 }
 
 export const ImportSlot = ({ eventId }: { eventId: string }) => {
@@ -33,13 +35,15 @@ export const ImportSlot = ({ eventId }: { eventId: string }) => {
       data
         .split("\n")
         .map((line) => {
-          const [dep, dep_time, arr, arr_time] = line.split(",");
+          const [dep, dep_time, arr, arr_time, callsign, aircraft_type_icao] = line.split(",");
           if (!dep || !dep_time || !arr) return;
           return {
             airspace: `${dep} - ${arr}`,
             icao_codes: [dep, arr],
-            enter_at: fromZonedTime(parse(dep_time ?? "", "yyyy/MM/dd HH:mm:ss", Date.now()), "UTC"),
-            leave_at: arr_time ? fromZonedTime(parse(arr_time, "yyyy/MM/dd HH:mm:ss", Date.now()), "UTC") : undefined,
+            enter_at: fromZonedTime(parse(dep_time ?? "", "yyyy-MM-dd HH:mm", Date.now()), "UTC"),
+            leave_at: arr_time ? fromZonedTime(parse(arr_time, "yyyy-MM-dd HH:mm", Date.now()), "UTC") : undefined,
+            callsign: callsign,
+            aircraft_type_icao: aircraft_type_icao,
           };
         })
         .filter((x) => !!x),
@@ -65,6 +69,8 @@ export const ImportSlot = ({ eventId }: { eventId: string }) => {
               airspace_id: airspaces.find((a) => a.data?.name === slot.airspace)?.data?.id ?? "",
               enter_at: slot.enter_at.toISOString(),
               leave_at: slot.leave_at?.toISOString(),
+              callsign: slot.callsign,
+              aircraft_type_icao: slot.aircraft_type_icao,
             },
           }),
         ),
@@ -87,6 +93,10 @@ export const ImportSlot = ({ eventId }: { eventId: string }) => {
       </ActionIcon>
       <Modal opened={opened} onClose={close} title="Import slots" size="xl">
         <Stack>
+          <Text>
+            File format: CSV with dep, dep_time (yyyy-MM-dd HH:mm), arr, arr_time (yyyy-MM-dd HH:mm), callsign,
+            aircraft_type_icao
+          </Text>
           <Dropzone onDrop={(f) => wrapPromiseWithToast(onDrop(f))}>
             <Group justify="center" gap="xl" style={{ pointerEvents: "none" }}>
               <Dropzone.Accept>
@@ -112,6 +122,8 @@ export const ImportSlot = ({ eventId }: { eventId: string }) => {
               <Table.Tr>
                 <Table.Th>Area</Table.Th>
                 <Table.Th>Enter at</Table.Th>
+                <Table.Th>Callsign</Table.Th>
+                <Table.Th>Aircraft Type</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -122,14 +134,16 @@ export const ImportSlot = ({ eventId }: { eventId: string }) => {
                     <Stack>
                       <Text>
                         <Pill mr="xs">CTOT</Pill>
-                        <DateTime>{slot.enter_at}</DateTime>
+                        <DateTime noDate>{slot.enter_at}</DateTime>
                       </Text>
                       <Text>
                         <Pill mr="xs">TTA</Pill>
-                        <DateTime>{slot.enter_at}</DateTime>
+                        <DateTime noDate>{slot.enter_at}</DateTime>
                       </Text>
                     </Stack>
                   </Table.Td>
+                  <Table.Td>{slot.callsign}</Table.Td>
+                  <Table.Td>{slot.aircraft_type_icao}</Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>

@@ -33,6 +33,8 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         public EventSlotBookingController.EventBookingDto? Booking { get; set; }
+        public string? Callsign { get; set; }
+        public string? AircraftTypeIcao { get; set; }
 
         public EventSlotDto(EventSlot slot)
         {
@@ -45,6 +47,8 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
             UpdatedAt = slot.UpdatedAt;
             LeaveAt = slot.LeaveAt;
             if (slot.Booking != null) Booking = new(slot.Booking);
+            Callsign = slot.Callsign;
+            AircraftTypeIcao = slot.AircraftTypeIcao;
         }
     }
 
@@ -91,6 +95,8 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
         public required Ulid AirspaceId { get; set; }
         public required DateTimeOffset EnterAt { get; set; }
         public DateTimeOffset? LeaveAt { get; set; }
+        public string? Callsign { get; set; }
+        public string? AircraftTypeIcao { get; set; }
     }
 
     [HttpPost]
@@ -104,6 +110,8 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
             EventAirspace = airspace,
             EnterAt = dto.EnterAt.ToUniversalTime(),
             LeaveAt = dto.LeaveAt?.ToUniversalTime(),
+            Callsign = dto.Callsign,
+            AircraftTypeIcao = dto.AircraftTypeIcao,
         };
         DbContext.EventSlot.Add(slot);
         await DbContext.SaveChangesAsync();
@@ -114,6 +122,8 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
     {
         public required DateTimeOffset EnterAt { get; set; }
         public DateTimeOffset? LeaveAt { get; set; }
+        public string? Callsign { get; set; }
+        public string? AircraftTypeIcao { get; set; }
     }
 
     [HttpPut("{sid}")]
@@ -123,6 +133,8 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
         var slot = await LoadAsync(eid, sid);
         slot.EnterAt = dto.EnterAt;
         slot.LeaveAt = dto.LeaveAt;
+        slot.Callsign = dto.Callsign;
+        slot.AircraftTypeIcao = dto.AircraftTypeIcao;
         await DbContext.SaveChangesAsync();
         return new(slot);
     }

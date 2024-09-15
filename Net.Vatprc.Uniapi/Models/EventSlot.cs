@@ -19,6 +19,9 @@ public class EventSlot
 
     public EventBooking? Booking { get; set; }
 
+    public string? Callsign { get; set; }
+    public string? AircraftTypeIcao { get; set; }
+
     public class EventSlotConfiguration : IEntityTypeConfiguration<EventSlot>
     {
         public void Configure(EntityTypeBuilder<EventSlot> builder)

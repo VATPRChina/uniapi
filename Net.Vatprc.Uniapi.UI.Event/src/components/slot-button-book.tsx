@@ -1,3 +1,4 @@
+import { DateTime } from "./datetime";
 import { paths } from "@/api";
 import { invalidatePath, useApi, useApiPut } from "@/client";
 import { useUser } from "@/services/auth";
@@ -54,7 +55,13 @@ export const SlotBookButton = ({
       </Popover.Target>
       <Popover.Dropdown>
         <Stack>
-          <Text>Do you want to book this slot?</Text>
+          <Text>
+            Do you want to book the slot for {slot?.airspace?.name} at{" "}
+            <DateTime noDate noDistance>
+              {slot.enter_at}
+            </DateTime>
+            ?
+          </Text>
           <Group>
             <Button variant="outline" onClick={toggle}>
               Cancel

@@ -313,6 +313,8 @@ export interface components {
       enter_at: string;
       /** Format: date-time */
       leave_at?: string | null;
+      callsign?: string | null;
+      aircraft_type_icao?: string | null;
     };
     ErrorProdResponse: {
       error_code: string;
@@ -370,6 +372,8 @@ export interface components {
       /** Format: date-time */
       updated_at: string;
       booking?: components["schemas"]["EventBookingDto"];
+      callsign?: string | null;
+      aircraft_type_icao?: string | null;
     };
     LoginResDto: {
       access_token: string;
@@ -423,6 +427,8 @@ export interface components {
       enter_at: string;
       /** Format: date-time */
       leave_at?: string | null;
+      callsign?: string | null;
+      aircraft_type_icao?: string | null;
     };
     UserDto: {
       id: string;

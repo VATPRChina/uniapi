@@ -55,6 +55,22 @@ export const SlotDetail = ({ eventId, slotId }: { eventId: string; slotId: strin
             </Text>
             {slot?.airspace?.name}
           </Text>
+          {slot?.callsign && (
+            <Text>
+              <Text component="span" fw={700} mr="xs">
+                Callsign:
+              </Text>
+              {slot?.callsign}
+            </Text>
+          )}
+          {slot?.aircraft_type_icao && (
+            <Text>
+              <Text component="span" fw={700} mr="xs">
+                Aircraft Type:
+              </Text>
+              {slot?.aircraft_type_icao}
+            </Text>
+          )}
           <Group gap={0}>
             <Text component="span" fw={700} mr="xs">
               Times:
@@ -101,8 +117,10 @@ export const SlotDetail = ({ eventId, slotId }: { eventId: string; slotId: strin
             )}
           </Timeline>
           <Title order={3}>Event briefing</Title>
+          {!event?.description && <Text>No briefing available.</Text>}
           <Markdown>{event?.description}</Markdown>
           <Title order={3}>Area briefing</Title>
+          {!slot?.airspace.description && <Text>No briefing available.</Text>}
           <Markdown>{slot?.airspace.description}</Markdown>
         </Stack>
       </Modal>

@@ -19,7 +19,12 @@ export const DateTime = ({
   return (
     <>
       <Tooltip label={format(time, "yyyy-MM-dd HH:mm zzzz")} position={position}>
-        <Text component="span">{formatInTimeZone(time, "UTC", noDate ? "HH:mm" : "yyyy-MM-dd HH:mm")}Z</Text>
+        <Text component="span">
+          {formatInTimeZone(time, "UTC", noDate ? "HHmm" : "yyyy-MM-dd HH:mm")}
+          <Text component="span" c="gray" fz="sm">
+            Z
+          </Text>
+        </Text>
       </Tooltip>
       {!noDistance && (
         <Text component="span" ml={4}>

@@ -31,19 +31,31 @@ const EventComponent = () => {
     <Table.Tr key={slot.id} bg={slot?.booking?.user_id === user.id ? "green.0" : undefined}>
       <Table.Td>{slot.airspace.name}</Table.Td>
       <Table.Td>
-        <Stack gap="xs">
+        <Group gap="xs">
           <Text>
             <Pill mr="xs">CTOT</Pill>
-            <DateTime>{slot.enter_at}</DateTime>
+            <DateTime noDistance noDate>
+              {slot.enter_at}
+            </DateTime>
           </Text>
           {slot.leave_at && (
             <Text>
               <Pill mr="xs">TTA</Pill>
-              <DateTime>{slot.leave_at}</DateTime>
+              <DateTime noDistance noDate>
+                {slot.leave_at}
+              </DateTime>
             </Text>
           )}
-        </Stack>
+        </Group>
       </Table.Td>
+      {!!slot.callsign || !!slot.aircraft_type_icao ? (
+        <Table.Td>
+          {slot.callsign}
+          {slot.aircraft_type_icao && ` with ${slot.aircraft_type_icao}`}
+        </Table.Td>
+      ) : (
+        <Table.Td>Not designated</Table.Td>
+      )}
       <Table.Td>
         <Group>
           <SlotDetail eventId={event_id} slotId={slot.id} />
@@ -83,6 +95,7 @@ const EventComponent = () => {
             <Table.Tr>
               <Table.Th>Area</Table.Th>
               <Table.Th>Time</Table.Th>
+              <Table.Th>Callsign & Aircraft</Table.Th>
               <Table.Th></Table.Th>
             </Table.Tr>
           </Table.Thead>

@@ -1,3 +1,4 @@
+import { DateTime } from "./datetime";
 import { paths } from "@/api";
 import { invalidatePath, useApi, useApiDelete } from "@/client";
 import { useUser } from "@/services/auth";
@@ -53,7 +54,13 @@ export const SlotReleaseButton = ({
       </Popover.Target>
       <Popover.Dropdown>
         <Stack>
-          <Text>Do you want to release this slot?</Text>
+          <Text>
+            Do you want to release the slot for {slot?.airspace?.name} at{" "}
+            <DateTime noDate noDistance>
+              {slot.enter_at}
+            </DateTime>
+            ?
+          </Text>
           <Group>
             <Button variant="outline" onClick={toggle}>
               Cancel
