@@ -24,6 +24,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Npgsql;
 using Serilog;
+using Sentry.OpenTelemetry;
+using OpenTelemetry.Trace;
 
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
@@ -36,7 +38,7 @@ Log.Logger = new LoggerConfiguration()
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.UseSentry();
+builder.WebHost.UseSentry(opts => opts.UseOpenTelemetry());
 
 builder.Configuration.ReplaceJsonWithToml();
 builder.Configuration.AddTomlFile("appsettings.Local.toml", true);
@@ -48,6 +50,14 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .Enrich.WithClientIp()
     .Enrich.WithCorrelationId(addValueIfHeaderAbsence: true)
 );
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracerProviderBuilder =>
+        tracerProviderBuilder
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSentry()
+    );
 
 builder.Services.AddHttpContextAccessor();
 
@@ -222,10 +232,9 @@ else
 }
 app.UseForwardedHeaders();
 
-app.UseSentryTracing();
-app.UseSerilogRequestLogging();
-
 if (app.Environment.IsProduction()) app.UseHttpsRedirection();
+
+app.UseSerilogRequestLogging();
 
 app.UseRouting();
 

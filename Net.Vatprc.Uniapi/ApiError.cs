@@ -218,6 +218,7 @@ public abstract class ApiError : Exception
             if (context.Exception is Exception e and not ApiError)
             {
                 Logger.Error(e, "Internal error occurred.");
+                SentrySdk.CaptureException(e);
             }
 
             context.Result = NormalizeError(
