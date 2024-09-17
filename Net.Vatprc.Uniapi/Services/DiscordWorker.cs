@@ -54,6 +54,11 @@ public class DiscordWorker(
             await Interaction.ExecuteCommandAsync(ctx, ServiceProvider);
         };
 
+        if (string.IsNullOrEmpty(Options.CurrentValue.Token))
+        {
+            Logger.LogWarning("Discord token is not provided. Discord bot will not be started.");
+            return;
+        }
         Logger.LogInformation("Login to Discord");
         await Client.LoginAsync(TokenType.Bot, Options.CurrentValue.Token);
         Logger.LogInformation("Start processing messages");
