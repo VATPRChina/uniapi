@@ -2,8 +2,6 @@ using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PdfSharp.Pdf;
-using PdfSharp.Pdf.IO;
 using System.Collections.Immutable;
 
 namespace Net.Vatprc.Uniapi.Controllers;

@@ -27,9 +27,10 @@ using Serilog;
 
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
-    .Enrich.WithCorrelationId()
+    .Enrich.WithClientIp()
+    .Enrich.WithCorrelationId(addValueIfHeaderAbsence: true)
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message} (at {SourceContext}){NewLine}{Exception}"
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3} {CorrelationId}] {Message} (at {SourceContext}){NewLine}{Exception}"
     )
     .CreateBootstrapLogger();
 
@@ -44,7 +45,8 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
-    .Enrich.WithCorrelationId()
+    .Enrich.WithClientIp()
+    .Enrich.WithCorrelationId(addValueIfHeaderAbsence: true)
 );
 
 builder.Services.AddHttpContextAccessor();

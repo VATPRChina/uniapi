@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -80,7 +81,13 @@ public abstract class ApiError : Exception
 
     public void WithHttpContext(HttpContext context)
     {
+        // Gets or sets the current operation (Activity) for the current thread.
+        if (Activity.Current?.Id != null)
+            ExtraData.Add("trace_id", Activity.Current?.Id!);
+        if (Activity.Current?.ParentId != null)
+            ExtraData.Add("trace_parent_id", Activity.Current?.ParentId!);
         ExtraData.Add("connection_id", context.Connection.Id);
+        // Gets or sets a unique identifier to represent this request in trace logs.
         ExtraData.Add("request_id", context.TraceIdentifier);
     }
 
