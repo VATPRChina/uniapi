@@ -54,7 +54,9 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracerProviderBuilder =>
         tracerProviderBuilder
+            .AddSource($"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.*")
             .AddAspNetCoreInstrumentation()
+            .AddEntityFrameworkCoreInstrumentation()
             .AddHttpClientInstrumentation()
             .AddSentry()
     );

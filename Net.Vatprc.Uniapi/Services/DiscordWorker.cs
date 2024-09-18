@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using System.Reflection;
 using Discord;
 using Discord.Commands;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 
 namespace Net.Vatprc.Uniapi.Services;
 
@@ -16,6 +18,8 @@ public class DiscordWorker(
 ) : IHostedService
 {
     protected InteractionService Interaction { get; init; } = new(Client.Rest);
+    protected static ActivitySource ActivitySource =
+        new ActivitySource(typeof(DiscordWorker).FullName ?? throw new ArgumentNullException());
 
     public async Task StartAsync(CancellationToken ct)
     {
@@ -50,6 +54,7 @@ public class DiscordWorker(
 
         Client.InteractionCreated += async (x) =>
         {
+            using var activity = ActivitySource.StartActivity($"Discord {x.Type}", ActivityKind.Server);
             var ctx = new SocketInteractionContext(Client, x);
             await Interaction.ExecuteCommandAsync(ctx, ServiceProvider);
         };

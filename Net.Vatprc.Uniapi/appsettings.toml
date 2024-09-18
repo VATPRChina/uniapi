@@ -21,7 +21,7 @@ Microsoft = "Information"
 [Serilog.WriteTo.Console]
 Name = "Console"
 [Serilog.WriteTo.Console.Args]
-outputTemplate = "[{Timestamp:HH:mm:ss} {Level:u3}] {Message} (at {SourceContext}) {RequestId}{NewLine}{Exception}"
+outputTemplate = "[{Timestamp:HH:mm:ss} {Level:u3}] {Message} (at {SourceContext}) {TraceId}{NewLine}{Exception}"
 
 [Serilog.Properties]
 Application = "VATPRC-UniAPI"
