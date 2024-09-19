@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Flurl;
 using Flurl.Http;
 using Microsoft.Extensions.Options;
@@ -17,6 +18,7 @@ public class RudiMetarService(IOptions<RudiMetarService.Option> Options)
     {
         var response = await Options.Value.Endpoint
             .SetQueryParam("id", icao)
+            .WithHeader("User-Agent", UniapiUserAgent)
             .GetAsync();
         return await response.GetStringAsync();
     }

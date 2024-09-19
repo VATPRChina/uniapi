@@ -18,8 +18,8 @@ public class DiscordWorker(
 ) : IHostedService
 {
     protected InteractionService Interaction { get; init; } = new(Client.Rest);
-    protected static ActivitySource ActivitySource =
-        new ActivitySource(typeof(DiscordWorker).FullName ?? throw new ArgumentNullException());
+    protected readonly static ActivitySource ActivitySource =
+        new(typeof(DiscordWorker).FullName ?? throw new ArgumentNullException());
 
     public async Task StartAsync(CancellationToken ct)
     {

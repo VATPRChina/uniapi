@@ -11,6 +11,7 @@ global using f32 = float;
 global using f64 = double;
 global using Net.Vatprc.Uniapi;
 global using UniApi = Net.Vatprc.Uniapi;
+global using static Net.Vatprc.Uniapi.Utils.Utils;
 
 using System.CommandLine;
 using System.Text.Json.Serialization;
@@ -214,6 +215,7 @@ builder.Services.AddCors(options =>
 });
 
 RudiMetarService.ConfigureOn(builder);
+VatsimService.ConfigureOn(builder);
 
 var app = builder.Build();
 
