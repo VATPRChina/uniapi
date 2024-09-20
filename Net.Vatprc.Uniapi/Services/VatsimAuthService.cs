@@ -88,12 +88,30 @@ public class VatsimAuthService(IOptions<VatsimAuthService.Option> Options)
 
             [JsonPropertyName("oauth")]
             public required OauthObject Oauth { get; set; }
+
+            [JsonPropertyName("personal")]
+            public required PersonalObject Personal { get; set; }
         }
 
         public class OauthObject
         {
             [JsonPropertyName("token_valid")]
             public required string TokenValid { get; set; }
+        }
+
+        public class PersonalObject
+        {
+            [JsonPropertyName("name_first")]
+            public required string FirstName { get; set; }
+
+            [JsonPropertyName("name_last")]
+            public required string LastName { get; set; }
+
+            [JsonPropertyName("name_full")]
+            public required string FullName { get; set; }
+
+            [JsonPropertyName("email")]
+            public required string Email { get; set; }
         }
     }
 

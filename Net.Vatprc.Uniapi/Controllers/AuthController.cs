@@ -78,11 +78,12 @@ public class AuthController(
             user = new()
             {
                 Cid = vatsimUser.Data.Cid,
-                FullName = vatsimUser.Data.Cid
             };
             DbContext.User.Add(user);
-            await DbContext.SaveChangesAsync();
         }
+        user.FullName = vatsimUser.Data.Personal.FullName;
+        user.Email = vatsimUser.Data.Personal.Email;
+        await DbContext.SaveChangesAsync();
 
         if (Request.Cookies.TryGetValue("redirect", out var redirect)
             && !string.IsNullOrEmpty(redirect)

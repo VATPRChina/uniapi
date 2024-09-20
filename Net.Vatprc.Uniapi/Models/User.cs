@@ -14,6 +14,8 @@ public class User
 
     public string FullName { get; set; } = string.Empty;
 
+    public string Email { get; set; } = string.Empty;
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }
@@ -27,6 +29,12 @@ public class User
         public void Configure(EntityTypeBuilder<User> builder)
         {
             builder.HasIndex(x => x.Cid)
+                .IsUnique();
+
+            builder.Property(x => x.Email)
+                .IsRequired(false);
+
+            builder.HasIndex(x => x.Email)
                 .IsUnique();
 
             builder.Property(x => x.CreatedAt)
