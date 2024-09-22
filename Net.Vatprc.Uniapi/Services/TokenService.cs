@@ -140,6 +140,12 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         return session;
     }
 
+    public bool CheckClientExists(string clientId)
+    {
+        return Options.CurrentValue.Clients
+            .Any(x => x.ClientId == clientId);
+    }
+
     public bool CheckClientExists(string clientId, string redirectUri)
     {
         return Options.CurrentValue.Clients

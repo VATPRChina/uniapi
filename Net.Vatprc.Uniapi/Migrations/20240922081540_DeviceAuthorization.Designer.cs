@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Net.Vatprc.Uniapi.Migrations
 {
     [DbContext(typeof(VATPRCContext))]
-    [Migration("20240922065322_DeviceAuthorization")]
+    [Migration("20240922081540_DeviceAuthorization")]
     partial class DeviceAuthorization
     {
         /// <inheritdoc />
@@ -30,6 +30,11 @@ namespace Net.Vatprc.Uniapi.Migrations
                     b.Property<Guid>("DeviceCode")
                         .HasColumnType("uuid")
                         .HasColumnName("device_code");
+
+                    b.Property<string>("ClientId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("client_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()

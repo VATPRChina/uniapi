@@ -16,6 +16,8 @@ public class DeviceAuthorization
 
     public DateTimeOffset CreatedAt { get; set; }
 
+    public string ClientId { get; set; } = string.Empty;
+
     public Ulid? UserId { get; set; }
     public User? User { get; set; }
 

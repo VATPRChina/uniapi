@@ -19,6 +19,7 @@ namespace Net.Vatprc.Uniapi.Migrations
                     user_code = table.Column<string>(type: "text", nullable: false),
                     expires_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    client_id = table.Column<string>(type: "text", nullable: false),
                     user_id = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>

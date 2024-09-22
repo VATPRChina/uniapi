@@ -28,6 +28,11 @@ namespace Net.Vatprc.Uniapi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("device_code");
 
+                    b.Property<string>("ClientId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("client_id");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")

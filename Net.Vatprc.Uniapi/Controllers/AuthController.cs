@@ -65,6 +65,10 @@ public class AuthController(
         return RedirectToActionPreserveMethod(nameof(Login));
     }
 
+    /// <summary>
+    /// Device Authorization Response
+    /// </summary>
+    /// <see href="https://datatracker.ietf.org/doc/html/rfc8628#section-3.2"/>
     public record DeviceAuthorizationResponse
     {
         /// <summary>
@@ -104,10 +108,45 @@ public class AuthController(
 
     protected const string USER_CODE_ALPHBET = "BCDFGHJKLMNPQRSTVWXZ";
 
+    /// <summary>
+    /// Device Authorization Request
+    /// </summary>
+    /// <see href="https://datatracker.ietf.org/doc/html/rfc8628#section-3.2"/>
+    public record DeviceAuthzRequest
+    {
+        /// <summary>
+        /// REQUIRED if the client is not authenticating with the
+        /// authorization server as described in Section 3.2.1. of [RFC6749].
+        /// The client identifier as described in Section 2.2 of [RFC6749].
+        /// </summary>
+        public required string client_id { get; set; }
+        /// <summary>
+        /// OPTIONAL.  The scope of the access request as defined by
+        /// Section 3.3 of [RFC6749].
+        /// </summary>
+        public string? scope { get; set; }
+    }
+
+    /// <summary>
+    /// Device Authorization
+    /// </summary>
+    /// <param name="req"></param>
+    /// <returns></returns>
     [HttpPost("device_authorization")]
-    public async Task<IActionResult> DeviceAuthorization()
+    [Consumes("application/x-www-form-urlencoded")]
+    public async Task<IActionResult> DeviceAuthorization([FromForm] DeviceAuthzRequest req)
     {
         Logger.LogInformation("Device code flow");
+
+        if (!TokenService.CheckClientExists(req.client_id))
+        {
+            return Unauthorized(new TokenErrorDto
+            {
+                Error = "invalid_client",
+                ErrorDescription = "client_id not found",
+            });
+        }
+
         var random = new Random();
         var deviceAuthz = new DeviceAuthorization
         {
@@ -116,6 +155,7 @@ public class AuthController(
                 .Select(_ => USER_CODE_ALPHBET[random.Next(USER_CODE_ALPHBET.Length)])
                 .ToArray()),
             ExpiresAt = DateTimeOffset.UtcNow + TokenService.DeviceAuthzExpires,
+            ClientId = req.client_id,
         };
         DbContext.DeviceAuthorization.Add(deviceAuthz);
         await DbContext.SaveChangesAsync();
@@ -265,10 +305,15 @@ public class AuthController(
         });
     }
 
+    /// <summary>
+    /// Device Access Token Request
+    /// </summary>
+    /// <see href="https://datatracker.ietf.org/doc/html/rfc8628#section-3.5"/>
     public record TokenReqDto
     {
         public string grant_type { get; set; } = string.Empty;
         public string device_code { get; set; } = string.Empty;
+        public string client_id { get; set; } = string.Empty;
     }
 
     public record TokenResDto(
@@ -359,6 +404,17 @@ public class AuthController(
                     ErrorDescription = "User has not yet authorized this device",
                 });
             }
+            if (deviceAuthz.ClientId != req.client_id)
+            {
+                Logger.LogInformation("Client ID mismatch: req {client_id} != db {device_client_id}",
+                    req.client_id, deviceAuthz.ClientId);
+                return BadRequest(new TokenErrorDto
+                {
+                    Error = "invalid_client",
+                    ErrorDescription = "Client ID mismatch",
+                });
+            }
+
             var refresh = await TokenService.IssueFirstPartyRefreshToken(deviceAuthz.User, null);
             var (token, jwt) = TokenService.IssueFirstParty(deviceAuthz.User, refresh);
             var expires = jwt.Payload.Expiration ?? 0;
