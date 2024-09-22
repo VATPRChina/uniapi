@@ -3,6 +3,7 @@ using Net.Vatprc.Uniapi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Immutable;
+using System.Security.Claims;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -50,5 +51,14 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
     public async Task<UserDto> Get(Ulid id)
     {
         return new UserDto(await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id));
+    }
+
+    [HttpGet("me")]
+    public async Task<UserDto> Me()
+    {
+        var subject = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = Ulid.Parse(subject);
+        var user = await DbContext.User.FindAsync(userId);
+        return new UserDto(user ?? throw new ApiError.UserNotFound(userId));
     }
 }

@@ -38,4 +38,16 @@ public class VatsimService
         }) ?? throw new Exception("Unexpected null on fetch vatprc data");
         return result;
     }
+
+    public async Task<IEnumerable<VatsimData.Controller>> GetAtcList()
+    {
+        var result = await Cache.GetOrCreateAsync("controllers", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+            return await "https://atcapi.vatprc.net/v1/public/controllers"
+                .WithHeader("User-Agent", UniapiUserAgent)
+                .GetJsonAsync<IEnumerable<VatsimData.Controller>>();
+        }) ?? throw new Exception("Unexpected null on fetch vatprc data");
+        return result;
+    }
 }

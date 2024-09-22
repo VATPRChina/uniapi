@@ -6,7 +6,7 @@ using System.Globalization;
 
 namespace Net.Vatprc.Uniapi.Services.VatsimData;
 
-public partial class VatsimData
+public class VatsimData
 {
     [JsonPropertyName("general")]
     public General General { get; set; }
@@ -39,7 +39,7 @@ public partial class VatsimData
     public Rating[] MilitaryRatings { get; set; }
 }
 
-public partial class Atc
+public class Atc
 {
     [JsonPropertyName("cid")]
     public long Cid { get; set; }
@@ -78,7 +78,7 @@ public partial class Atc
     public DateTimeOffset LogonTime { get; set; }
 }
 
-public partial class Facility
+public class Facility
 {
     [JsonPropertyName("id")]
     public long Id { get; set; }
@@ -90,7 +90,7 @@ public partial class Facility
     public string Long { get; set; }
 }
 
-public partial class General
+public class General
 {
     [JsonPropertyName("version")]
     public long Version { get; set; }
@@ -111,7 +111,7 @@ public partial class General
     public long UniqueUsers { get; set; }
 }
 
-public partial class Rating
+public class Rating
 {
     [JsonPropertyName("id")]
     public long Id { get; set; }
@@ -123,7 +123,7 @@ public partial class Rating
     public string LongName { get; set; }
 }
 
-public partial class Pilot
+public class Pilot
 {
     [JsonPropertyName("cid")]
     public long Cid { get; set; }
@@ -177,7 +177,7 @@ public partial class Pilot
     public DateTimeOffset LastUpdated { get; set; }
 }
 
-public partial class FlightPlan
+public class FlightPlan
 {
     [JsonPropertyName("flight_rules")]
     public string FlightRules { get; set; }
@@ -228,7 +228,7 @@ public partial class FlightPlan
     public string AssignedTransponder { get; set; }
 }
 
-public partial class Prefile
+public class Prefile
 {
     [JsonPropertyName("cid")]
     public long Cid { get; set; }
@@ -246,7 +246,7 @@ public partial class Prefile
     public DateTimeOffset LastUpdated { get; set; }
 }
 
-public partial class ServerElement
+public class ServerElement
 {
     [JsonPropertyName("ident")]
     public string Ident { get; set; }
@@ -270,7 +270,7 @@ public partial class ServerElement
     public bool IsSweatbox { get; set; }
 }
 
-public partial class AtcSchedule
+public class AtcSchedule
 {
     [JsonPropertyName("callsign")]
     public string Callsign { get; set; }
@@ -294,7 +294,7 @@ public partial class AtcSchedule
     public User User { get; set; }
 }
 
-public partial class User
+public class User
 {
     [JsonPropertyName("id")]
     public long Id { get; set; }
@@ -304,4 +304,31 @@ public partial class User
 
     [JsonPropertyName("last_name")]
     public string LastName { get; set; }
+}
+
+public class Controller
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("first_name")]
+    public string FirstName { get; set; }
+
+    [JsonPropertyName("last_name")]
+    public string LastName { get; set; }
+
+    [JsonPropertyName("roles")]
+    public Role[] Roles { get; set; }
+}
+
+public class Role
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; }
+
+    [JsonPropertyName("expires")]
+    public DateTimeOffset? Expires { get; set; }
 }
