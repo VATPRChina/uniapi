@@ -25,6 +25,7 @@ public class SessionController(
         public string client_id { get; set; } = string.Empty;
         public string code { get; set; } = string.Empty;
         public string redirect_uri { get; set; } = string.Empty;
+        public string device_code { get; set; } = string.Empty;
     }
 
     public record LoginResDto(
@@ -167,10 +168,6 @@ public class SessionController(
     [ApiError.Has<ApiError.InvalidTokenNotFirstParty>]
     public async Task<TokenDto> Get()
     {
-        if (!TokenService.IsFirstParty(User))
-        {
-            throw new ApiError.InvalidTokenNotFirstParty();
-        }
         var expires = User.FindFirstValue(JwtRegisteredClaimNames.Exp);
         var issued = User.FindFirstValue(JwtRegisteredClaimNames.Iat);
         var subject = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -192,10 +189,6 @@ public class SessionController(
     [ApiError.Has<ApiError.InvalidTokenNotFirstParty>]
     public async Task<IActionResult> Logout()
     {
-        if (!TokenService.IsFirstParty(User))
-        {
-            throw new ApiError.InvalidTokenNotFirstParty();
-        }
         var refresh = User.FindFirstValue(JwtRegisteredClaimNames.Sid) ??
             throw new ApiError.InvalidToken("vatprc_sid_not_present", "no sid in token", null);
         var tokenId = Ulid.Parse(refresh);

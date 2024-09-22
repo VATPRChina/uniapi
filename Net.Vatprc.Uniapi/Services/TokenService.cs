@@ -10,6 +10,7 @@ namespace Net.Vatprc.Uniapi.Services;
 public class TokenService(IOptionsMonitor<TokenService.Option> Options, IServiceScopeFactory Services)
 {
     public TimeSpan FirstPartyExpires => Options.CurrentValue.FirstPartyExpires;
+    public TimeSpan DeviceAuthzExpires => TimeSpan.FromSeconds(Options.CurrentValue.DeviceAuthzExpires);
 
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
     {
@@ -36,7 +37,7 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
             new (JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new (JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
             new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new (JwtClaimNames.Scope, EncodeScopes([JwtScopes.OAuth])),
+            new (JwtClaimNames.Scope, EncodeScopes([])),
             new (JwtClaimNames.UpdatedAt, user.UpdatedAt.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
             new (JwtRegisteredClaimNames.Sid, refresh.Token.ToString()),
             new (JwtClaimNames.ClientId, BuiltInClientId),
@@ -49,14 +50,6 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
             claims: claims,
             signingCredentials: Options.CurrentValue.Credentials);
         return (new JwtSecurityTokenHandler().WriteToken(token), token);
-    }
-
-    public bool IsFirstParty(ClaimsPrincipal user)
-    {
-        return user.FindAll(JwtClaimNames.Scope)
-                .Any(x => x.Value == JwtScopes.OAuth) &&
-            user.FindAll(JwtRegisteredClaimNames.Aud)
-                .Any(x => x.Value == Options.CurrentValue.AudienceFirstParty);
     }
 
     public async Task<Session> IssueFirstPartyRefreshToken(User user, Session? oldToken = null, bool createCode = false)
@@ -177,11 +170,6 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         public const string AuthCode = "authorization_code";
     }
 
-    public struct JwtScopes
-    {
-        public const string OAuth = "1p_oauth";
-    }
-
     public const string BuiltInClientId = "vatprc";
 
     public class Option
@@ -199,6 +187,11 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         public TimeSpan FirstPartyExpires { get; set; }
 
         public uint RefreshExpiresDays { get; set; }
+
+        /// <summary>
+        /// Expiration of device authorization in seconds.
+        /// </summary>
+        public uint DeviceAuthzExpires { get; set; }
 
         public SecurityKey SecurityKey { get; set; } = null!;
 

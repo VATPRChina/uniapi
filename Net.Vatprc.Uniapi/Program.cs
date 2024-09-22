@@ -27,6 +27,7 @@ using Npgsql;
 using Serilog;
 using Sentry.OpenTelemetry;
 using OpenTelemetry.Trace;
+using Microsoft.AspNetCore.HttpOverrides;
 
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
@@ -44,12 +45,23 @@ builder.WebHost.UseSentry(opts => opts.UseOpenTelemetry());
 builder.Configuration.ReplaceJsonWithToml();
 builder.Configuration.AddTomlFile("appsettings.Local.toml", true);
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    foreach (var knownNetwork in builder.Configuration
+        .GetSection("ForwardedHeadersOptions:KnownNetworks").GetChildren())
+    {
+        options.KnownNetworks.Add(IPNetwork.Parse(knownNetwork.Value));
+    }
+});
+
 builder.Host.UseSerilog((context, services, configuration) => configuration
-    .ReadFrom.Configuration(context.Configuration)
-    .ReadFrom.Services(services)
     .Enrich.FromLogContext()
     .Enrich.WithClientIp()
     .Enrich.WithCorrelationId(addValueIfHeaderAbsence: true)
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
 );
 
 builder.Services.AddOpenTelemetry()
@@ -135,10 +147,6 @@ builder.Services.AddSwaggerGen(opts =>
         {
             Password = new OpenApiOAuthFlow
             {
-                Scopes = new Dictionary<string, string>
-                {
-                    { TokenService.JwtScopes.OAuth, "Generate other OAuth tokens." },
-                },
                 TokenUrl = new Uri("{{baseUrl}}/api/session", UriKind.Relative),
             }
         },

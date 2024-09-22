@@ -315,6 +315,17 @@ public abstract class ApiError : Exception
         }
     }
 
+    [Error(HttpStatusCode.Forbidden, "INVALID_DEVICE_CODE", "Device code is not valid for {code}.")]
+    [WithExtraData("code", typeof(string))]
+    public class InvalidDeviceCode : ApiError
+    {
+        public InvalidDeviceCode(string code) : base(
+            $"Device code is not valid for {code}.")
+        {
+            ExtraData.Add("code", code);
+        }
+    }
+
     [Error(HttpStatusCode.Forbidden, "INVALID_AUTHORIZATION_CODE", "Authorization code is not valid.")]
     public class InvalidAuthorizationCode : ApiError
     {

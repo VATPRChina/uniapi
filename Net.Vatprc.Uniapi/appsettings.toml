@@ -48,6 +48,7 @@ Issuer = "https://uniapi.vatprc.net"
 AudienceFirstParty = "https://uniapi.vatprc.net"
 FirstPartyExpires = 01:00:00
 RefreshExpiresDays = 7
+DeviceAuthzExpires = 3600
 
 [Authentication.Vatsim]
 Endpoint = "https://auth.vatsim.net"
