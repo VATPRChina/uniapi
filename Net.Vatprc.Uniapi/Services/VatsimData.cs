@@ -330,5 +330,5 @@ public class Role
     public string Name { get; set; }
 
     [JsonPropertyName("expires")]
-    public DateTimeOffset? Expires { get; set; }
+    public string? Expires { get; set; }
 }
