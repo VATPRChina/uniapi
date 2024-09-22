@@ -49,6 +49,8 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
         ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit =
+        builder.Configuration.GetSection("ForwardedHeadersOptions").GetValue("ForwardLimit", 1);
     foreach (var knownNetwork in builder.Configuration
         .GetSection("ForwardedHeadersOptions:KnownNetworks").GetChildren())
     {
