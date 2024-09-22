@@ -5,7 +5,7 @@ Using = [
   "Serilog.Sinks.Console",
   "Net.Vatprc.Uniapi",
   "Sentry.Serilog",
-  "Serilog.Sinks.Grafana.Loki",
+  "Serilog.Sinks.OpenTelemetry",
 ]
 
 [Serilog.MinimumLevel]
