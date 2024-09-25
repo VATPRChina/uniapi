@@ -629,7 +629,7 @@ public class AuthController(
         {
             AccessToken = token,
             ExpiresIn = (uint)(expires - now),
-            RefreshToken = refresh.Token.ToString(),
+            RefreshToken = newRefresh.Token.ToString(),
             Scope = scopes
         });
     }
