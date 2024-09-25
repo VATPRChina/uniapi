@@ -29,6 +29,13 @@ public class SectorController(
     {
         var user = await DbContext.User.FindAsync(this.GetUserId()) ??
             throw new ApiError.UserNotFound(this.GetUserId());
+
+        // FIXME: This is a temporary solution to allow the user to access the sector
+        if (user.Cid == "1638882")
+        {
+            return new SectorPermissionResponse(true);
+        }
+
         var controllers = await VatsimService.GetAtcList();
         var atc = controllers.FirstOrDefault(c => c.Id.ToString() == user.Cid);
         if (atc == null)
