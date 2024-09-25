@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.OpenApi.Models;
+using Net.Vatprc.Uniapi.Controllers;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Net.Vatprc.Uniapi;
@@ -149,6 +150,11 @@ public abstract class ApiError : Exception
 
         public void Apply(OpenApiOperation operation, OperationFilterContext context)
         {
+            if (context.MethodInfo.DeclaringType == typeof(AuthController))
+            {
+                return;
+            }
+
             var exceptions = context.MethodInfo
                 .GetCustomAttributes(typeof(HasAttribute<>), true)
                 .Select(x => ((IHasAttribute)x).ExceptionType)

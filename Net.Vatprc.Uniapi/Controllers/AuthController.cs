@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -28,7 +29,16 @@ public class AuthController(
         Response.Cookies.Delete("code_verifier");
     }
 
+    /// <summary>
+    /// Authorization request
+    /// </summary>
+    /// <param name="response_type">REQUIRED.  Value MUST be set to "code".</param>
+    /// <param name="client_id">REQUIRED.  The client identifier as described in Section 2.2.</param>
+    /// <param name="redirect_uri">OPTIONAL.  As described in Section 3.1.2.</param>
+    /// <returns></returns>
+    /// <see href="https://datatracker.ietf.org/doc/html/rfc6749#autoid-36" />
     [HttpGet("authorize")]
+    [ProducesResponseType(StatusCodes.Status307TemporaryRedirect)]
     public IActionResult Authorize(
         [FromQuery] string response_type,
         [FromQuery] string client_id,
@@ -128,12 +138,15 @@ public class AuthController(
     }
 
     /// <summary>
-    /// Device Authorization
+    /// Device authorization
     /// </summary>
     /// <param name="req"></param>
     /// <returns></returns>
+    /// <see href="https://datatracker.ietf.org/doc/html/rfc8628" />
     [HttpPost("device_authorization")]
     [Consumes("application/x-www-form-urlencoded")]
+    [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(TokenErrorDto), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> DeviceAuthorization([FromForm] DeviceAuthzRequest req)
     {
         Logger.LogInformation("Device code flow");
@@ -178,6 +191,7 @@ public class AuthController(
     }
 
     [HttpGet("device")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     public async Task<IActionResult> Device([FromQuery] string user_code)
     {
         ClearCookies();
@@ -210,6 +224,7 @@ public class AuthController(
     }
 
     [HttpGet("login")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     public IActionResult Login()
     {
         var (challenge, verifier) = VatsimAuthService.GeneratePkce();
@@ -232,8 +247,14 @@ public class AuthController(
     }
 
     [HttpGet("callback/vatsim")]
-    public async Task<IActionResult> VatsimCallback(string code, string? state)
+    [ApiExplorerSettings(IgnoreApi = true)]
+    public async Task<IActionResult> VatsimCallback(string? code, string? state, string? error)
     {
+        if (string.IsNullOrEmpty(code))
+        {
+            return BadRequest("Missing code");
+        }
+
         Logger.LogInformation("Recevied VATSIM authn callback");
 
         Request.Cookies.TryGetValue("code_verifier", out var verifier);
@@ -306,24 +327,100 @@ public class AuthController(
     }
 
     /// <summary>
-    /// Device Access Token Request
+    /// Access Token Request
     /// </summary>
-    /// <see href="https://datatracker.ietf.org/doc/html/rfc8628#section-3.5"/>
-    public record TokenReqDto
+    [SwaggerDiscriminator("GrantType")]
+    [SwaggerSubType(typeof(DeviceAccessTokenRequest), DiscriminatorValue = "urn:ietf:params:oauth:grant-type:device_code")]
+    [SwaggerSubType(typeof(RefreshAccessTokenRequest), DiscriminatorValue = "refresh_token")]
+    public record AccessTokenRequest
     {
-        public string grant_type { get; set; } = string.Empty;
-        public string device_code { get; set; } = string.Empty;
-        public string client_id { get; set; } = string.Empty;
+        /// <summary>
+        /// REQUIRED. Identifier of the grant type the client uses
+        /// with the particular token request. This specification defines the
+        /// values authorization_code, refresh_token, and client_credentials.
+        /// The grant type determines the further parameters required or
+        /// supported by the token request.
+        /// </summary>
+        /// <see href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-11#section-3.2.2" />
+        [ModelBinder(Name = "grant_type")]
+        public string GrantType { get; set; } = string.Empty;
+
+        /// <summary>
+        /// REQUIRED, if the client is not authenticating with the
+        /// authorization server as described in Section 3.2.1.
+        /// </summary>
+        /// <see href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-11#section-3.2.2" />
+        // FIXME: This is not working
+        [ModelBinder(Name = "client_id")]
+        public string ClientId { get; set; } = string.Empty;
     }
 
-    public record TokenResDto(
-        string AccessToken,
-        uint ExpiresIn,
-        string RefreshToken,
-        string Scope,
-        string TokenType = "Bearer",
-        string IssuedTokenType = "urn:ietf:params:oauth:token-type:access_token"
-    );
+    public record DeviceAccessTokenRequest
+    {
+        /// <summary>
+        /// REQUIRED.  The device verification code, "device_code" from the
+        /// device authorization response, defined in Section 3.2.
+        /// </summary>
+        /// <see href="https://datatracker.ietf.org/doc/html/rfc8628#section-3.5"/>
+        [ModelBinder(Name = "device_code")]
+        public string DeviceCode { get; set; } = string.Empty;
+    }
+
+    public record RefreshAccessTokenRequest
+    {
+        /// <summary>
+        /// REQUIRED. The refresh token issued to the client.
+        /// </summary>
+        /// <see href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-11#section-4.3.1"/>
+        [ModelBinder(Name = "refresh_token")]
+        public string RefreshToken { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Token response, compliant with RFC 8693
+    /// </summary>
+    /// <see href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-11#section-3.2.3"/>
+    /// <example>
+    /// {
+    ///     "access_token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUoyOEJWWjlaVkpWQjBWUTEwMTQwSEU1OSIsImlhdCI6MTcyNzE1OTc5MywianRpIjoiODkxODEyMjYtN2M5ZS00NmMzLWJmNTMtZWY3MTMzNTkyMTRlIiwic2NvcGUiOiIiLCJ1cGRhdGVkX2F0IjoxNzIwNDE1Mjg4LCJzaWQiOiIwMUo4SEJYWEVYUUU3UzUyMEJURUdDR1FCTSIsImNsaWVudF9pZCI6InZhdHByYyIsIm5iZiI6MTcyNzE1OTc5MywiZXhwIjoxNzI3MTYzMzkzLCJpc3MiOiJodHRwczovL3VuaWFwaS52YXRwcmMubmV0IiwiYXVkIjoiaHR0cHM6Ly91bmlhcGkudmF0cHJjLm5ldCJ9.mtYoT9kbOyTF-Xk-h2mNBWYPyiOFwmH_v4U1qz16tt-beJ0RxTGFa4x6yr117r4w0Wy0AQLHWo1_5icG3IgigQ",
+    ///     "token_type": "Bearer",
+    ///     "expires_in": 3600,
+    ///     "refresh_token": "01J8HBXXEXQE7S520BTEGCGQBM",
+    ///     "scope": ""
+    /// }
+    /// </example>
+    public record TokenResponse
+    {
+        /// <summary>
+        /// REQUIRED.  The access token issued by the authorization server.
+        /// </summary>
+        public required string AccessToken { get; set; }
+        /// <summary>
+        /// REQUIRED.  The type of the token issued as described in
+        /// Section 7.1.  Value is case insensitive.
+        /// </summary>
+        public string TokenType { get; set; } = "Bearer";
+        /// <summary>
+        /// RECOMMENDED.  The lifetime in seconds of the access token.  For
+        /// example, the value "3600" denotes that the access token will
+        /// expire in one hour from the time the response was generated.
+        /// If omitted, the authorization server SHOULD provide the
+        /// expiration time via other means or document the default value.
+        /// </summary>
+        public required uint ExpiresIn { get; set; }
+        /// <summary>
+        /// OPTIONAL.  The refresh token, which can be used to obtain new
+        /// access tokens using the same authorization grant as described
+        /// in Section 6.
+        /// </summary>
+        public required string RefreshToken { get; set; }
+        /// <summary>
+        /// OPTIONAL, if identical to the scope requested by the client;
+        /// otherwise, REQUIRED.  The scope of the access token as
+        /// described by Section 3.3.
+        /// </summary>
+        public required string Scope { get; set; }
+    };
 
     public record TokenErrorDto
     {
@@ -356,82 +453,29 @@ public class AuthController(
         public string? State { get; set; }
     }
 
-    /// <summary>Get token</summary>
-    /// <remarks><![CDATA[
-    /// ]]></remarks>
+    /// <summary>
+    /// Get token
+    /// </summary>
     /// <param name="req"></param>
+    /// <param name="deviceReq"></param>
+    /// <param name="refreshReq"></param>
     /// <returns></returns>
     [HttpPost("token")]
     [Consumes("application/x-www-form-urlencoded")]
-    public async Task<IActionResult> Token([FromForm] TokenReqDto req)
+    [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(TokenErrorDto), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Token(
+        [FromForm] AccessTokenRequest req,
+        [FromForm] DeviceAccessTokenRequest deviceReq,
+        [FromForm] RefreshAccessTokenRequest refreshReq)
     {
-        if (req.grant_type == "urn:ietf:params:oauth:grant-type:device_code")
+        if (req.GrantType == "urn:ietf:params:oauth:grant-type:device_code")
         {
-            if (!Ulid.TryParse(req.device_code, out var deviceCode))
-            {
-                return BadRequest(new TokenErrorDto
-                {
-                    Error = "invalid_grant",
-                    ErrorDescription = "Device code not found",
-                });
-            }
-            var deviceAuthz = await DbContext.DeviceAuthorization
-                .Include(x => x.User)
-                .FirstOrDefaultAsync(x => x.DeviceCode == deviceCode);
-            if (deviceAuthz == null)
-            {
-                return BadRequest(new TokenErrorDto
-                {
-                    Error = "invalid_grant",
-                    ErrorDescription = "Device code not found",
-                });
-            }
-            if (deviceAuthz.IsExpired)
-            {
-                DbContext.DeviceAuthorization.Remove(deviceAuthz);
-                await DbContext.SaveChangesAsync();
-                return BadRequest(new TokenErrorDto
-                {
-                    Error = "expired_token",
-                    ErrorDescription = "Device code expired",
-                });
-            }
-            if (deviceAuthz.User == null)
-            {
-                return BadRequest(new TokenErrorDto
-                {
-                    Error = "authorization_pending",
-                    ErrorDescription = "User has not yet authorized this device",
-                });
-            }
-            if (deviceAuthz.ClientId != req.client_id)
-            {
-                Logger.LogInformation("Client ID mismatch: req {client_id} != db {device_client_id}",
-                    req.client_id, deviceAuthz.ClientId);
-                return BadRequest(new TokenErrorDto
-                {
-                    Error = "invalid_client",
-                    ErrorDescription = "Client ID mismatch",
-                });
-            }
-
-            var refresh = await TokenService.IssueFirstPartyRefreshToken(deviceAuthz.User, null);
-            var (token, jwt) = TokenService.IssueFirstParty(deviceAuthz.User, refresh);
-            var expires = jwt.Payload.Expiration ?? 0;
-            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
-            Logger.LogInformation("Issued token for user: {user_id}, expires: {expires}, scopes: {scopes}",
-                deviceAuthz.User.Id, expires, scopes);
-
-            Logger.LogInformation("Remove device authorization {deviceCode}", deviceCode);
-            DbContext.DeviceAuthorization.Remove(deviceAuthz);
-            await DbContext.SaveChangesAsync();
-
-            return Ok(new TokenResDto(
-                AccessToken: token,
-                ExpiresIn: (uint)(expires - now),
-                RefreshToken: refresh.Token.ToString(),
-                Scope: scopes));
+            return await DeviceCodeGrant(req, deviceReq);
+        }
+        if (req.GrantType == "refresh_token")
+        {
+            return await RefreshTokenGrant(refreshReq);
         }
         else
         {
@@ -441,5 +485,152 @@ public class AuthController(
                 ErrorDescription = "The authorization grant type is not supported by the authorization server.",
             });
         }
+    }
+
+    protected async Task<IActionResult> DeviceCodeGrant(AccessTokenRequest tokenReq, DeviceAccessTokenRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.DeviceCode))
+        {
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_request",
+                ErrorDescription = "Missing device code",
+            });
+        }
+
+        if (!Ulid.TryParse(req.DeviceCode, out var deviceCode))
+        {
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_grant",
+                ErrorDescription = "Device code not found",
+            });
+        }
+        var deviceAuthz = await DbContext.DeviceAuthorization
+            .Include(x => x.User)
+            .FirstOrDefaultAsync(x => x.DeviceCode == deviceCode);
+        if (deviceAuthz == null)
+        {
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_grant",
+                ErrorDescription = "Device code not found",
+            });
+        }
+        if (deviceAuthz.IsExpired)
+        {
+            DbContext.DeviceAuthorization.Remove(deviceAuthz);
+            await DbContext.SaveChangesAsync();
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "expired_token",
+                ErrorDescription = "Device code expired",
+            });
+        }
+        if (deviceAuthz.User == null)
+        {
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "authorization_pending",
+                ErrorDescription = "User has not yet authorized this device",
+            });
+        }
+        if (deviceAuthz.ClientId != tokenReq.ClientId)
+        {
+            Logger.LogInformation("Client ID mismatch: req {client_id} != db {device_client_id}",
+                tokenReq.ClientId, deviceAuthz.ClientId);
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_client",
+                ErrorDescription = "Client ID mismatch",
+            });
+        }
+
+        var refresh = await TokenService.IssueFirstPartyRefreshToken(deviceAuthz.User, null);
+        var (token, jwt) = TokenService.IssueFirstParty(deviceAuthz.User, refresh);
+        var expires = jwt.Payload.Expiration ?? 0;
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
+        Logger.LogInformation("Issued token for user: {user_id}, expires: {expires}, scopes: {scopes}",
+            deviceAuthz.User.Id, expires, scopes);
+
+        Logger.LogInformation("Remove device authorization {deviceCode}", deviceCode);
+        DbContext.DeviceAuthorization.Remove(deviceAuthz);
+        await DbContext.SaveChangesAsync();
+
+        return Ok(new TokenResponse
+        {
+            AccessToken = token,
+            ExpiresIn = (uint)(expires - now),
+            RefreshToken = refresh.Token.ToString(),
+            Scope = scopes
+        });
+    }
+
+    protected async Task<IActionResult> RefreshTokenGrant(RefreshAccessTokenRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.RefreshToken))
+        {
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_request",
+                ErrorDescription = "Missing refresh token",
+            });
+        }
+
+        if (!Ulid.TryParse(req.RefreshToken, out var tokenId))
+        {
+            Logger.LogInformation("Refresh token is not ULID");
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_grant",
+                ErrorDescription = "Refresh token not found",
+            });
+        }
+
+        var refresh = await DbContext.Session
+            .Include(x => x.User)
+            .FirstOrDefaultAsync(x => x.Token == tokenId);
+        if (refresh == null)
+        {
+            Logger.LogInformation("Refresh token not found");
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_grant",
+                ErrorDescription = "Refresh token not found",
+            });
+        }
+
+        if (refresh.UserUpdatedAt != refresh.User.UpdatedAt)
+        {
+            Logger.LogInformation("User updated, revoke refresh token");
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_grant",
+                ErrorDescription = "Refresh token has been revoked",
+            });
+        }
+        if (refresh.ExpiresIn < DateTimeOffset.Now)
+        {
+            Logger.LogInformation("Refresh token expired");
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_grant",
+                ErrorDescription = "Refresh token expired",
+            });
+        }
+        var newRefresh = await TokenService.IssueFirstPartyRefreshToken(refresh.User, refresh);
+        var (token, jwt) = TokenService.IssueFirstParty(refresh.User, newRefresh);
+        var expires = jwt.Payload.Expiration ?? 0;
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
+
+        return Ok(new TokenResponse
+        {
+            AccessToken = token,
+            ExpiresIn = (uint)(expires - now),
+            RefreshToken = refresh.Token.ToString(),
+            Scope = scopes
+        });
     }
 }
