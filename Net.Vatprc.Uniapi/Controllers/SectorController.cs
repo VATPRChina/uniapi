@@ -24,6 +24,17 @@ public class SectorController(
         }
     }
 
+    static readonly IEnumerable<string> AllowedRoles =
+    [
+        "Online Permission",
+        "ATC Student",
+        "S3 Controller",
+        "S2 Controller",
+        "S1 Controller",
+        "C1 Controller",
+        "C3 Controller",
+    ];
+
     [HttpGet("current/permission")]
     public async Task<SectorPermissionResponse> GetPermission()
     {
@@ -42,7 +53,7 @@ public class SectorController(
         {
             return new SectorPermissionResponse(false);
         }
-        var hasPermission = atc.Roles.Any(r => r.Name == "Online Permission" || r.Name == "ATC Student");
+        var hasPermission = atc.Roles.Any(r => AllowedRoles.Contains(r.Name));
         return new SectorPermissionResponse(hasPermission);
     }
 }
