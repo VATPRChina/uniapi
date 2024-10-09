@@ -226,6 +226,7 @@ builder.Services.AddCors(options =>
 
 RudiMetarService.ConfigureOn(builder);
 VatsimService.ConfigureOn(builder);
+VatprcAtcService.ConfigureOn(builder);
 
 var app = builder.Build();
 

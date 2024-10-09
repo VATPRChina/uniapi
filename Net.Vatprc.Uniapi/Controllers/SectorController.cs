@@ -2,6 +2,7 @@ using Net.Vatprc.Uniapi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Utils;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -11,7 +12,8 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/sectors")]
 public class SectorController(
     VATPRCContext DbContext,
-    VatsimService VatsimService) : ControllerBase
+    ILogger<SectorController> Logger,
+    VatprcAtcService VatprcAtcService) : ControllerBase
 {
     public record SectorPermissionResponse
     {
@@ -28,32 +30,26 @@ public class SectorController(
     [
         "Online Permission",
         "ATC Student",
-        "S3 Controller",
-        "S2 Controller",
-        "S1 Controller",
-        "C1 Controller",
-        "C3 Controller",
     ];
 
+    protected IEnumerable<VatprcAtcService.Role> FlattenRoles(IEnumerable<VatprcAtcService.Role> Roles)
+    {
+        return Roles.SelectMany(r => FlattenRoles(r.AllSuperroles)).Concat(Roles);
+    }
+
     [HttpGet("current/permission")]
+    [AllowAnonymous]
     public async Task<SectorPermissionResponse> GetPermission()
     {
         var user = await DbContext.User.FindAsync(this.GetUserId()) ??
             throw new ApiError.UserNotFound(this.GetUserId());
 
-        // FIXME: This is a temporary solution to allow the user to access the sector
-        if (user.Cid == "1638882")
-        {
-            return new SectorPermissionResponse(true);
-        }
+        var roles = await VatprcAtcService.GetUserRole(user.Cid);
+        var flattenRoles = FlattenRoles(roles);
+        Logger.LogInformation("User {Cid} has roles {Roles}", user.Cid,
+            string.Join(", ", flattenRoles.Select(r => r.Name)));
+        var hasPermission = flattenRoles.Any(r => AllowedRoles.Contains(r.Name));
 
-        var controllers = await VatsimService.GetAtcList();
-        var atc = controllers.FirstOrDefault(c => c.Id.ToString() == user.Cid);
-        if (atc == null)
-        {
-            return new SectorPermissionResponse(false);
-        }
-        var hasPermission = atc.Roles.Any(r => AllowedRoles.Contains(r.Name));
         return new SectorPermissionResponse(hasPermission);
     }
 }
