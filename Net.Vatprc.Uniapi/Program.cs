@@ -233,7 +233,6 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage();
     app.UseSwagger(c => c.RouteTemplate = "/api/swagger/{documentName}/swagger.json");
     app.UseReDoc(c =>
     {
@@ -257,6 +256,8 @@ app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseFileServer();
 
 app.MapControllers().RequireAuthorization(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 

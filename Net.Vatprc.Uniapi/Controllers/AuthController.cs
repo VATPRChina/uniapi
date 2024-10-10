@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 using Flurl;
+using Flurl.Http;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder.Extensions;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -18,7 +20,7 @@ public class AuthController(
     TokenService TokenService,
     VatsimAuthService AuthService,
     VATPRCContext DbContext,
-    ILogger<AuthController> Logger) : ControllerBase
+    ILogger<AuthController> Logger) : Controller
 {
     protected void ClearCookies()
     {
@@ -178,7 +180,7 @@ public class AuthController(
         var userCode = deviceAuthz.UserCode[..4] + "-" + deviceAuthz.UserCode[4..];
         var url = new Uri(Request.GetEncodedUrl())
             .GetLeftPart(UriPartial.Authority)
-            .AppendPathSegment(Url.Action(nameof(Device)));
+            .AppendPathSegment(Url.Action(nameof(DeviceConfirm)));
         return Ok(new DeviceAuthorizationResponse
         {
             DeviceCode = deviceAuthz.DeviceCode.ToString(),
@@ -190,28 +192,87 @@ public class AuthController(
         });
     }
 
+    protected string NormalizeUserCode(string? user_code)
+    {
+        return string.Concat((user_code ?? "").ToUpper().Where(USER_CODE_ALPHBET.Contains));
+    }
+
+    protected IActionResult RenderDeviceCodeUI(string? user_code)
+    {
+        var code = NormalizeUserCode(user_code);
+        if (code.Length != 8)
+        {
+            return Content($"""
+                <!doctype html>
+                <html>
+                <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link href="/style.css" rel="stylesheet">
+                </head>
+                <body class="grid h-screen place-items-center bg-slate-100">
+                <form class="container max-w-2xl bg-white shadow-2xl rounded-xl p-6 flex flex-col gap-y-2" method="get">
+                    <h1 class="text-4xl font-bold">Device Code Login</h1>
+                    {(user_code != null ? $"""<h2 class="text-xl text-red-700">The provided code <span class="font-mono">{user_code.ToUpper()}</span> is invalid.</h2>""" : "")}
+                    <h2 class="text-2xl">Please type your code as on your device.</h2>
+                    <input class="my-4 border-2 rounded-md text-3xl font-bold text-center uppercase" type="text" name="user_code" required placeholder="BCDF-GHJK" >
+                    <button type="submit" class="font-bold bg-sky-700 text-white px-2 py-1 rounded-md shadow-md hover:bg-sky-500">Proceed</button>
+                </form>
+                </body>
+                </html>
+                """, "text/html");
+        }
+        return Content($"""
+            <!doctype html>
+            <html>
+            <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="/style.css" rel="stylesheet">
+            </head>
+            <body class="grid h-screen place-items-center bg-slate-100">
+            <form class="container max-w-2xl bg-white shadow-2xl rounded-xl p-6 flex flex-col gap-y-2" method="post">
+                <h1 class="text-4xl font-bold">Device Code Login</h1>
+                <h2 class="text-2xl">Please check if the following code matches your device.</h2>
+                <div><div class="text-3xl font-bold w-fit mx-auto my-4">{code[..4]}-{code[4..]}</div></div>
+                <input type="hidden" name="user_code" value="{user_code}">
+                <button type="submit" class="font-bold bg-sky-700 text-white px-2 py-1 rounded-md shadow-md hover:bg-sky-500">Proceed</button>
+            </form>
+            </body>
+            </html>
+            """, "text/html");
+    }
+
     [HttpGet("device")]
     [ApiExplorerSettings(IgnoreApi = true)]
-    public async Task<IActionResult> Device([FromQuery] string user_code)
+    public IActionResult DeviceConfirm([FromQuery] string? user_code)
     {
         ClearCookies();
+        return RenderDeviceCodeUI(user_code);
+    }
+
+
+    [HttpPost("device")]
+    [ApiExplorerSettings(IgnoreApi = true)]
+    public async Task<IActionResult> DeviceStart([FromForm(Name = "user_code")] string user_code)
+    {
         var deviceAuthz = await DbContext.DeviceAuthorization
             .FirstOrDefaultAsync(x => x.UserCode == user_code);
         if (deviceAuthz == null)
         {
-            return NotFound();
+            return RenderCallbackUI("Error", "Invalid code", "The code provided is not found in our records.", Url.Action(nameof(DeviceConfirm)));
         }
         if (deviceAuthz.UserId != null)
         {
             DbContext.Remove(deviceAuthz);
             await DbContext.SaveChangesAsync();
-            return BadRequest("Already used.");
+            return RenderCallbackUI("Error", "Invalid code", "The code provided has already been used.", Url.Action(nameof(DeviceConfirm)));
         }
         if (deviceAuthz.IsExpired)
         {
             DbContext.Remove(deviceAuthz);
             await DbContext.SaveChangesAsync();
-            return BadRequest("Device code expired");
+            return RenderCallbackUI("Error", "Invalid code", "The code provided is expired.", Url.Action(nameof(DeviceConfirm)));
         }
         Response.Cookies.Append("user_code", user_code, new CookieOptions
         {
@@ -246,13 +307,47 @@ public class AuthController(
         return RedirectPreserveMethod(url.ToString());
     }
 
+    protected IActionResult RenderCallbackUI(string title, string message, string description, string? redirect = null)
+    {
+        return Content($"""
+            <!doctype html>
+            <html>
+            <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="/style.css" rel="stylesheet">
+            </head>
+            <body class="grid h-screen place-items-center bg-slate-100">
+            <div class="container max-w-2xl bg-white shadow-2xl rounded-xl p-6 space-y-2">
+                <h1 class="text-4xl font-bold">{title}</h1>
+                <h2 class="text-2xl">{message}</h2>
+                <p>{description}</p>
+                <div>{(redirect != null ? $"""<a href="{redirect}" class="font-bold bg-sky-700 text-white px-2 py-1 rounded-md shadow-md hover:bg-sky-500">Retry</a>""" : "")}</div>
+            </div>
+            </body>
+            </html>
+            """, "text/html");
+    }
+
     [HttpGet("callback/vatsim")]
     [ApiExplorerSettings(IgnoreApi = true)]
     public async Task<IActionResult> VatsimCallback(string? code, string? state, string? error)
     {
         if (string.IsNullOrEmpty(code))
         {
-            return BadRequest("Missing code");
+            if (string.IsNullOrEmpty(error))
+            {
+                return RenderCallbackUI("Error", "Missing code", "Are you coming from VATSIM Connect?");
+            }
+            else if (error == "access_denied")
+            {
+                return RenderCallbackUI("Error", "Access denied", "You have denied the request.", Url.Action(nameof(Login)));
+            }
+            else
+            {
+                Logger.LogError("VATSIM authn error: {error}", error);
+                return RenderCallbackUI("Error", "Internal error", "Please try again later.", Url.Action(nameof(Login)));
+            }
         }
 
         Logger.LogInformation("Recevied VATSIM authn callback");
@@ -261,8 +356,19 @@ public class AuthController(
         Response.Cookies.Delete("code_verifier");
         Logger.LogInformation("Delete code_verifier cookie");
 
-        var token = await AuthService.GetTokenAsync(code, verifier ?? string.Empty);
-        var vatsimUser = await AuthService.GetUserAsync(token.AccessToken);
+        VatsimAuthService.TokenResponse token;
+        VatsimAuthService.UserResponse vatsimUser;
+        try
+        {
+            token = await AuthService.GetTokenAsync(code, verifier ?? string.Empty);
+            vatsimUser = await AuthService.GetUserAsync(token.AccessToken);
+        }
+        catch (FlurlHttpException e)
+        {
+            Logger.LogError(e, "Failed to get token or user info since {Response}", await e.GetResponseStringAsync());
+            SentrySdk.CaptureException(e);
+            return RenderCallbackUI("Error", "Internal error", "Please try again later.", Url.Action(nameof(Login)));
+        }
 
         var user = await DbContext.User.FirstOrDefaultAsync(x => x.Cid == vatsimUser.Data.Cid);
         if (user == null)
@@ -313,17 +419,10 @@ public class AuthController(
             Response.Cookies.Delete("user_code");
             Logger.LogInformation("Delete user_code cookie");
 
-            return Ok("Login successful, please return to your device.");
+            return RenderCallbackUI("Welcome", $"Hello {user.Cid}", "Login successful, please return to your device.");
         }
 
-        return Ok(new
-        {
-            VatsimUser = vatsimUser,
-            User = user,
-            Code = code,
-            Token = token,
-            State = state,
-        });
+        return RenderCallbackUI("Welcome", $"Hello {user.Cid}", "You have been successfully registered in VATPRC's database. You may close this page.");
     }
 
     /// <summary>
