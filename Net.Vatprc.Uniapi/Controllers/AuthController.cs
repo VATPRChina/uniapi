@@ -211,7 +211,7 @@ public class AuthController(
                 <link href="/style.css" rel="stylesheet">
                 </head>
                 <body class="grid h-screen place-items-center bg-slate-100">
-                <form class="container max-w-2xl bg-white shadow-2xl rounded-xl p-6 flex flex-col gap-y-2" method="get">
+                <form class="container max-w-2xl bg-white shadow-2xl rounded-xl p-6 flex flex-col gap-y-2">
                     <h1 class="text-4xl font-bold">Device Code Login</h1>
                     {(user_code != null ? $"""<h2 class="text-xl text-red-700">The provided code <span class="font-mono">{user_code.ToUpper()}</span> is invalid.</h2>""" : "")}
                     <h2 class="text-2xl">Please type your code as on your device.</h2>
@@ -231,11 +231,12 @@ public class AuthController(
             <link href="/style.css" rel="stylesheet">
             </head>
             <body class="grid h-screen place-items-center bg-slate-100">
-            <form class="container max-w-2xl bg-white shadow-2xl rounded-xl p-6 flex flex-col gap-y-2" method="post">
+            <form class="container max-w-2xl bg-white shadow-2xl rounded-xl p-6 flex flex-col gap-y-2">
                 <h1 class="text-4xl font-bold">Device Code Login</h1>
                 <h2 class="text-2xl">Please check if the following code matches your device.</h2>
                 <div><div class="text-3xl font-bold w-fit mx-auto my-4">{code[..4]}-{code[4..]}</div></div>
                 <input type="hidden" name="user_code" value="{user_code}">
+                <input type="hidden" name="confirm" value="true">
                 <button type="submit" class="font-bold bg-sky-700 text-white px-2 py-1 rounded-md shadow-md hover:bg-sky-500">Proceed</button>
             </form>
             </body>
@@ -245,19 +246,17 @@ public class AuthController(
 
     [HttpGet("device")]
     [ApiExplorerSettings(IgnoreApi = true)]
-    public IActionResult DeviceConfirm([FromQuery] string? user_code)
+    public async Task<IActionResult> DeviceConfirm([FromQuery] string? user_code, [FromQuery] bool confirm)
     {
         ClearCookies();
-        return RenderDeviceCodeUI(user_code);
-    }
+        if (!confirm)
+        {
+            return RenderDeviceCodeUI(user_code);
+        }
 
-
-    [HttpPost("device")]
-    [ApiExplorerSettings(IgnoreApi = true)]
-    public async Task<IActionResult> DeviceStart([FromForm(Name = "user_code")] string user_code)
-    {
+        var code = NormalizeUserCode(user_code);
         var deviceAuthz = await DbContext.DeviceAuthorization
-            .FirstOrDefaultAsync(x => x.UserCode == user_code);
+            .FirstOrDefaultAsync(x => x.UserCode == code);
         if (deviceAuthz == null)
         {
             return RenderCallbackUI("Error", "Invalid code", "The code provided is not found in our records.", Url.Action(nameof(DeviceConfirm)));
@@ -274,7 +273,7 @@ public class AuthController(
             await DbContext.SaveChangesAsync();
             return RenderCallbackUI("Error", "Invalid code", "The code provided is expired.", Url.Action(nameof(DeviceConfirm)));
         }
-        Response.Cookies.Append("user_code", user_code, new CookieOptions
+        Response.Cookies.Append("user_code", code, new CookieOptions
         {
             HttpOnly = true,
             Secure = true,
