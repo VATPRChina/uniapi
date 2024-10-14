@@ -2,7 +2,6 @@ using Net.Vatprc.Uniapi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Utils;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.AspNetCore.Authorization;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -38,7 +37,6 @@ public class SectorController(
     }
 
     [HttpGet("current/permission")]
-    [AllowAnonymous]
     public async Task<SectorPermissionResponse> GetPermission()
     {
         var user = await DbContext.User.FindAsync(this.GetUserId()) ??

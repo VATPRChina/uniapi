@@ -87,8 +87,11 @@ public class VatprcAtcService(IOptions<VatprcAtcService.Option> Options,
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Format: yyyy-MM-dd HH:mm:ss (UTC)
+        /// </summary>
         [JsonPropertyName("expiration_time")]
-        public DateTimeOffset? ExpirationTime { get; set; }
+        public string? ExpirationTime { get; set; }
 
         [JsonPropertyName("all_superroles")]
         public Role[] AllSuperroles { get; set; } = [];
