@@ -6,9 +6,12 @@ using Microsoft.AspNetCore.Builder.Extensions;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi.Any;
+using Microsoft.OpenApi.Models;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
 using Swashbuckle.AspNetCore.Annotations;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -20,7 +23,7 @@ public class AuthController(
     TokenService TokenService,
     VatsimAuthService AuthService,
     VATPRCContext DbContext,
-    ILogger<AuthController> Logger) : Controller
+    ILogger<AuthController> Logger) : ControllerBase
 {
     protected void ClearCookies()
     {
@@ -147,7 +150,7 @@ public class AuthController(
     /// <see href="https://datatracker.ietf.org/doc/html/rfc8628" />
     [HttpPost("device_authorization")]
     [Consumes("application/x-www-form-urlencoded")]
-    [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(DeviceAuthorizationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(TokenErrorDto), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> DeviceAuthorization([FromForm] DeviceAuthzRequest req)
     {
@@ -427,10 +430,11 @@ public class AuthController(
     /// <summary>
     /// Access Token Request
     /// </summary>
-    [SwaggerDiscriminator("GrantType")]
+    [SwaggerDiscriminator("grant_type")]
     [SwaggerSubType(typeof(DeviceAccessTokenRequest), DiscriminatorValue = "urn:ietf:params:oauth:grant-type:device_code")]
     [SwaggerSubType(typeof(RefreshAccessTokenRequest), DiscriminatorValue = "refresh_token")]
-    public record AccessTokenRequest
+    [SwaggerSubType(typeof(CodeAccessTokenRequest), DiscriminatorValue = "authorization_code")]
+    public abstract record AccessTokenRequest
     {
         /// <summary>
         /// REQUIRED. Identifier of the grant type the client uses
@@ -448,12 +452,11 @@ public class AuthController(
         /// authorization server as described in Section 3.2.1.
         /// </summary>
         /// <see href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-11#section-3.2.2" />
-        // FIXME: This is not working
         [ModelBinder(Name = "client_id")]
         public string ClientId { get; set; } = string.Empty;
     }
 
-    public record DeviceAccessTokenRequest
+    public record DeviceAccessTokenRequest : AccessTokenRequest
     {
         /// <summary>
         /// REQUIRED.  The device verification code, "device_code" from the
@@ -464,7 +467,7 @@ public class AuthController(
         public string DeviceCode { get; set; } = string.Empty;
     }
 
-    public record RefreshAccessTokenRequest
+    public record RefreshAccessTokenRequest : AccessTokenRequest
     {
         /// <summary>
         /// REQUIRED. The refresh token issued to the client.
@@ -474,19 +477,28 @@ public class AuthController(
         public string RefreshToken { get; set; } = string.Empty;
     }
 
+    public record CodeAccessTokenRequest : AccessTokenRequest
+    {
+        /// <summary>
+        /// REQUIRED. The authorization code received from the authorization
+        /// server.
+        /// </summary>
+        [ModelBinder(Name = "code")]
+        public string Code { get; set; } = string.Empty;
+
+        /// <summary>
+        /// REQUIRED, if the code_challenge parameter was included in the
+        /// authorization request. MUST NOT be used otherwise. The original
+        /// code verifier string.
+        /// </summary>
+        [ModelBinder(Name = "code_verifier")]
+        public string CodeVerifier { get; set; } = string.Empty;
+    }
+
     /// <summary>
     /// Token response, compliant with RFC 8693
     /// </summary>
     /// <see href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-11#section-3.2.3"/>
-    /// <example>
-    /// {
-    ///     "access_token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUoyOEJWWjlaVkpWQjBWUTEwMTQwSEU1OSIsImlhdCI6MTcyNzE1OTc5MywianRpIjoiODkxODEyMjYtN2M5ZS00NmMzLWJmNTMtZWY3MTMzNTkyMTRlIiwic2NvcGUiOiIiLCJ1cGRhdGVkX2F0IjoxNzIwNDE1Mjg4LCJzaWQiOiIwMUo4SEJYWEVYUUU3UzUyMEJURUdDR1FCTSIsImNsaWVudF9pZCI6InZhdHByYyIsIm5iZiI6MTcyNzE1OTc5MywiZXhwIjoxNzI3MTYzMzkzLCJpc3MiOiJodHRwczovL3VuaWFwaS52YXRwcmMubmV0IiwiYXVkIjoiaHR0cHM6Ly91bmlhcGkudmF0cHJjLm5ldCJ9.mtYoT9kbOyTF-Xk-h2mNBWYPyiOFwmH_v4U1qz16tt-beJ0RxTGFa4x6yr117r4w0Wy0AQLHWo1_5icG3IgigQ",
-    ///     "token_type": "Bearer",
-    ///     "expires_in": 3600,
-    ///     "refresh_token": "01J8HBXXEXQE7S520BTEGCGQBM",
-    ///     "scope": ""
-    /// }
-    /// </example>
     public record TokenResponse
     {
         /// <summary>
@@ -497,6 +509,7 @@ public class AuthController(
         /// REQUIRED.  The type of the token issued as described in
         /// Section 7.1.  Value is case insensitive.
         /// </summary>
+        /// <example>Bearer</example>
         public string TokenType { get; set; } = "Bearer";
         /// <summary>
         /// RECOMMENDED.  The lifetime in seconds of the access token.  For
@@ -551,29 +564,81 @@ public class AuthController(
         public string? State { get; set; }
     }
 
+    public class TokenOperationFilter : IOperationFilter
+    {
+        public void Apply(OpenApiOperation operation, OperationFilterContext context)
+        {
+            if (context.MethodInfo != typeof(AuthController).GetMethod(nameof(Token)))
+            {
+                return;
+            }
+
+            operation.RequestBody.Content["application/x-www-form-urlencoded"].Schema = new OpenApiSchema
+            {
+                Type = "object",
+                Properties = new Dictionary<string, OpenApiSchema>
+                {
+                    ["grant_type"] = new OpenApiSchema
+                    {
+                        Type = "string",
+                        // Enum = new List<IOpenApiAny>
+                        // {
+                        //     new OpenApiString("urn:ietf:params:oauth:grant-type:device_code"),
+                        //     new OpenApiString("refresh_token"),
+                        //     new OpenApiString("authorization_code"),
+                        // },
+                    },
+                    ["client_id"] = new OpenApiSchema
+                    {
+                        Type = "string",
+                    },
+                },
+                Discriminator = new OpenApiDiscriminator
+                {
+                    PropertyName = "grant_type",
+                    Mapping = new Dictionary<string, string>
+                    {
+                        ["urn:ietf:params:oauth:grant-type:device_code"] = context.SchemaGenerator.GenerateSchema(typeof(DeviceAccessTokenRequest), context.SchemaRepository).Reference.ReferenceV3,
+                        ["refresh_token"] = context.SchemaGenerator.GenerateSchema(typeof(RefreshAccessTokenRequest), context.SchemaRepository).Reference.ReferenceV3,
+                        ["authorization_code"] = context.SchemaGenerator.GenerateSchema(typeof(CodeAccessTokenRequest), context.SchemaRepository).Reference.ReferenceV3,
+                    },
+                },
+                OneOf = new List<OpenApiSchema>
+                {
+                    context.SchemaGenerator.GenerateSchema(typeof(DeviceAccessTokenRequest), context.SchemaRepository),
+                    context.SchemaGenerator.GenerateSchema(typeof(RefreshAccessTokenRequest), context.SchemaRepository),
+                    context.SchemaGenerator.GenerateSchema(typeof(CodeAccessTokenRequest), context.SchemaRepository),
+                },
+            };
+        }
+    }
+
     /// <summary>
     /// Get token
     /// </summary>
     /// <param name="req"></param>
-    /// <param name="deviceReq"></param>
-    /// <param name="refreshReq"></param>
     /// <returns></returns>
     [HttpPost("token")]
     [Consumes("application/x-www-form-urlencoded")]
     [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(TokenErrorDto), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Token(
-        [FromForm] AccessTokenRequest req,
-        [FromForm] DeviceAccessTokenRequest deviceReq,
-        [FromForm] RefreshAccessTokenRequest refreshReq)
+    public async Task<IActionResult> Token([FromForm] AccessTokenRequest req)
     {
         if (req.GrantType == "urn:ietf:params:oauth:grant-type:device_code")
         {
-            return await DeviceCodeGrant(req, deviceReq);
+            Request.Form.TryGetValue("device_code", out var deviceCode);
+            return await DeviceCodeGrant(req, deviceCode);
         }
-        if (req.GrantType == "refresh_token")
+        else if (req.GrantType == "refresh_token")
         {
-            return await RefreshTokenGrant(refreshReq);
+            Request.Form.TryGetValue("refresh_token", out var refreshToken);
+            return await RefreshTokenGrant(req, refreshToken);
+        }
+        else if (req.GrantType == "authorization_code")
+        {
+            Request.Form.TryGetValue("code", out var code);
+            Request.Form.TryGetValue("code_verifier", out var codeVerifier);
+            throw new NotImplementedException();
         }
         else
         {
@@ -585,9 +650,9 @@ public class AuthController(
         }
     }
 
-    protected async Task<IActionResult> DeviceCodeGrant(AccessTokenRequest tokenReq, DeviceAccessTokenRequest req)
+    protected async Task<IActionResult> DeviceCodeGrant(AccessTokenRequest req, string? deviceCodeRaw)
     {
-        if (string.IsNullOrWhiteSpace(req.DeviceCode))
+        if (string.IsNullOrWhiteSpace(deviceCodeRaw))
         {
             return BadRequest(new TokenErrorDto
             {
@@ -596,7 +661,7 @@ public class AuthController(
             });
         }
 
-        if (!Ulid.TryParse(req.DeviceCode, out var deviceCode))
+        if (!Ulid.TryParse(deviceCodeRaw, out var deviceCode))
         {
             return BadRequest(new TokenErrorDto
             {
@@ -633,10 +698,10 @@ public class AuthController(
                 ErrorDescription = "User has not yet authorized this device",
             });
         }
-        if (deviceAuthz.ClientId != tokenReq.ClientId)
+        if (deviceAuthz.ClientId != req.ClientId)
         {
             Logger.LogInformation("Client ID mismatch: req {client_id} != db {device_client_id}",
-                tokenReq.ClientId, deviceAuthz.ClientId);
+                req.ClientId, deviceAuthz.ClientId);
             return BadRequest(new TokenErrorDto
             {
                 Error = "invalid_client",
@@ -665,9 +730,9 @@ public class AuthController(
         });
     }
 
-    protected async Task<IActionResult> RefreshTokenGrant(RefreshAccessTokenRequest req)
+    protected async Task<IActionResult> RefreshTokenGrant(AccessTokenRequest req, string? refreshToken)
     {
-        if (string.IsNullOrWhiteSpace(req.RefreshToken))
+        if (string.IsNullOrWhiteSpace(refreshToken))
         {
             return BadRequest(new TokenErrorDto
             {
@@ -676,7 +741,7 @@ public class AuthController(
             });
         }
 
-        if (!Ulid.TryParse(req.RefreshToken, out var tokenId))
+        if (!Ulid.TryParse(refreshToken, out var tokenId))
         {
             Logger.LogInformation("Refresh token is not ULID");
             return BadRequest(new TokenErrorDto
