@@ -40,7 +40,7 @@ const EventComponent = () => {
           </Text>
           {slot.leave_at && (
             <Text>
-              <Pill mr="xs">TTA</Pill>
+              <Pill mr="xs">ELDT</Pill>
               <DateTime noDistance noDate>
                 {slot.leave_at}
               </DateTime>

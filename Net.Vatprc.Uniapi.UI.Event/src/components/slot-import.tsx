@@ -137,7 +137,7 @@ export const ImportSlot = ({ eventId }: { eventId: string }) => {
                         <DateTime noDate>{slot.enter_at}</DateTime>
                       </Text>
                       <Text>
-                        <Pill mr="xs">TTA</Pill>
+                        <Pill mr="xs">ELDT</Pill>
                         <DateTime noDate>{slot.enter_at}</DateTime>
                       </Text>
                     </Stack>

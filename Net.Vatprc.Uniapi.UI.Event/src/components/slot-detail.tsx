@@ -82,7 +82,7 @@ export const SlotDetail = ({ eventId, slotId }: { eventId: string; slotId: strin
               </Group>
               {slot?.leave_at && (
                 <Group>
-                  <Pill>TTA</Pill>
+                  <Pill>ELDT</Pill>
                   <DateTime>{slot?.leave_at}</DateTime>
                 </Group>
               )}
