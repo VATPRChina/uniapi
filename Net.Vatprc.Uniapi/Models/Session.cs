@@ -17,6 +17,11 @@ public class Session
 
     public Ulid? Code { get; set; }
 
+    public string ClientId { get; set; } = string.Empty;
+
+    // TODO: public Ulid? GroupId { get; set; }
+    // Group id is used for detecting refresh token mis-reuse.
+
     public class SessionConfiguration : IEntityTypeConfiguration<Session>
     {
         public void Configure(EntityTypeBuilder<Session> builder)

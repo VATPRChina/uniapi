@@ -110,7 +110,7 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         public InvalidClientIdOrRedirectUriException() : base("invalid client_id or redirect_uri") { }
     }
 
-    public async Task<Session?> GetRefreshTokenByCode(string code, string clientId, string redirectUri)
+    public async Task<Session?> GetRefreshTokenByCode(string code, string clientId, string? redirectUri = null)
     {
         var claims = new JwtSecurityTokenHandler().ValidateToken(code, new TokenValidationParameters
         {
@@ -123,7 +123,7 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
             ValidateIssuerSigningKey = true,
         }, out var token);
         if (claims.FindFirstValue(JwtClaimNames.ClientId) != clientId ||
-            claims.FindFirstValue(JwtClaimNames.RedirectUri) != redirectUri)
+            (!string.IsNullOrEmpty(redirectUri) && claims.FindFirstValue(JwtClaimNames.RedirectUri) != redirectUri))
         {
             throw new InvalidClientIdOrRedirectUriException();
         }

@@ -362,8 +362,9 @@ public class AuthController(
         }
         catch (FlurlHttpException e)
         {
-            Logger.LogError(e, "Failed to get token or user info since {Response}", await e.GetResponseStringAsync());
-            SentrySdk.CaptureException(e);
+            var response = await e.GetResponseStringAsync();
+            Logger.LogError(e, "Failed to get token or user info since {Response}", response);
+            SentrySdk.CaptureException(new Exception($"Failed to get token or user info: {response}", e));
             return RenderCallbackUI("Error", "Internal error", "Please try again later.", Url.Action(nameof(Login)));
         }
 
@@ -429,10 +430,9 @@ public class AuthController(
     {
         /// <summary>
         /// REQUIRED. Identifier of the grant type the client uses
-        /// with the particular token request. This specification defines the
-        /// values authorization_code, refresh_token, and client_credentials.
-        /// The grant type determines the further parameters required or
-        /// supported by the token request.
+        /// with the particular token request. This endpoint supports
+        /// `authorization_code` (authz code), `refresh_token` (refresh token)
+        /// and `urn:ietf:params:oauth:grant-type:device_code` (device code).
         /// </summary>
         /// <see href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-11#section-3.2.2" />
         [ModelBinder(Name = "grant_type")]
@@ -447,31 +447,33 @@ public class AuthController(
         public string ClientId { get; set; } = string.Empty;
 
         /// <summary>
-        /// REQUIRED.  The device verification code, "device_code" from the
-        /// device authorization response, defined in Section 3.2.
+        /// REQUIRED for device code grant. The device verification code,
+        /// "device_code" from the device authorization response, defined in
+        /// Section 3.2.
         /// </summary>
         /// <see href="https://datatracker.ietf.org/doc/html/rfc8628#section-3.5"/>
         [ModelBinder(Name = "device_code")]
         public string DeviceCode { get; set; } = string.Empty;
 
         /// <summary>
-        /// REQUIRED. The refresh token issued to the client.
+        /// REQUIRED for refresh token grant. The refresh token issued to the
+        /// client.
         /// </summary>
         /// <see href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-11#section-4.3.1"/>
         [ModelBinder(Name = "refresh_token")]
         public string RefreshToken { get; set; } = string.Empty;
 
         /// <summary>
-        /// REQUIRED. The authorization code received from the authorization
-        /// server.
+        /// REQUIRED for authz code grant. The authorization code received from
+        /// the authorization server.
         /// </summary>
         [ModelBinder(Name = "code")]
         public string Code { get; set; } = string.Empty;
 
         /// <summary>
-        /// REQUIRED, if the code_challenge parameter was included in the
-        /// authorization request. MUST NOT be used otherwise. The original
-        /// code verifier string.
+        /// REQUIRED for authz code grant, if the code_challenge parameter was
+        /// included in the authorization request. MUST NOT be used otherwise.
+        /// The original code verifier string.
         /// </summary>
         [ModelBinder(Name = "code_verifier")]
         public string CodeVerifier { get; set; } = string.Empty;
@@ -549,6 +551,11 @@ public class AuthController(
     /// <summary>
     /// Get token
     /// </summary>
+    /// <remarks><![CDATA[
+    /// Obtain an access token by exchanging an authorization code, a refresh
+    /// token, or a device code. Please be aware that this endpoint only accepts
+    /// `application/x-www-form-urlencoded` content type.
+    /// ]]></remarks>
     /// <param name="req"></param>
     /// <returns></returns>
     [HttpPost("token")]
@@ -562,9 +569,13 @@ public class AuthController(
         {
             return await DeviceCodeGrant(req);
         }
-        if (req.GrantType == "refresh_token")
+        else if (req.GrantType == "refresh_token")
         {
             return await RefreshTokenGrant(req);
+        }
+        else if (req.GrantType == "authorization_code")
+        {
+            return await AuthzCodeGrant(req);
         }
         else
         {
@@ -721,5 +732,38 @@ public class AuthController(
             RefreshToken = newRefresh.Token.ToString(),
             Scope = scopes
         });
+    }
+
+    protected async Task<IActionResult> AuthzCodeGrant(AccessTokenRequest req)
+    {
+        if (string.IsNullOrEmpty(req.ClientId) || string.IsNullOrEmpty(req.Code))
+        {
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_grant",
+                ErrorDescription = "Missing client_id or code",
+            });
+        }
+        // TODO: validate code_verifier
+        try
+        {
+            var session = await TokenService.GetRefreshTokenByCode(req.Code, req.ClientId) ??
+                throw new ApiError.InvalidAuthorizationCode();
+            var (token, jwt) = TokenService.IssueFirstParty(session.User, session);
+            var expires = jwt.Payload.Expiration ?? 0;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
+            return Ok(new TokenResponse
+            {
+                AccessToken = token,
+                ExpiresIn = (uint)(expires - now),
+                RefreshToken = session.Token.ToString(),
+                Scope = scopes
+            });
+        }
+        catch (TokenService.InvalidClientIdOrRedirectUriException)
+        {
+            throw new ApiError.InvalidAuthorizationCode();
+        }
     }
 }
