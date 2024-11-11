@@ -11,7 +11,6 @@ public class VATPRCContext(DbContextOptions<VATPRCContext> options) : DbContext(
     public DbSet<EventSlot> EventSlot { get; set; } = null!;
     public DbSet<EventAirspace> EventAirspace { get; set; } = null!;
     public DbSet<EventBooking> EventBooking { get; set; } = null!;
-    public DbSet<Notam> Notam { get; set; } = null!;
     public DbSet<DeviceAuthorization> DeviceAuthorization { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
