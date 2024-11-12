@@ -55,3 +55,6 @@ Endpoint = "https://auth.vatsim.net"
 ClientId = ""
 ClientSecret = ""
 RedirectUri = "https://example.com/auth/callback/vatsim"
+
+[Discourse]
+Endpoint = "https://community.vatprc.net"
