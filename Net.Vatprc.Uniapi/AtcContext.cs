@@ -1,59 +1,52 @@
-namespace Net.Vatprc.Uniapi.Models.Atc;
+using Net.Vatprc.Uniapi.Models.Atc;
+
+namespace Net.Vatprc.Uniapi;
 
 public class AtcContext : DbContext
 {
-    public AtcContext()
-    {
-    }
+    public virtual DbSet<Application> Applications { get; set; } = null!;
 
-    public AtcContext(DbContextOptions<AtcContext> options)
-        : base(options)
-    {
-    }
+    public virtual DbSet<ApplicationsInterview> ApplicationsInterviews { get; set; } = null!;
 
-    public virtual DbSet<Application> Applications { get; set; }
+    public virtual DbSet<ApplicationsMeta> ApplicationsMetas { get; set; } = null!;
 
-    public virtual DbSet<ApplicationsInterview> ApplicationsInterviews { get; set; }
+    public virtual DbSet<Event> Events { get; set; } = null!;
 
-    public virtual DbSet<ApplicationsMeta> ApplicationsMetas { get; set; }
+    public virtual DbSet<EventsPosition> EventsPositions { get; set; } = null!;
 
-    public virtual DbSet<Event> Events { get; set; }
+    public virtual DbSet<EventsPositionsBooking> EventsPositionsBookings { get; set; } = null!;
 
-    public virtual DbSet<EventsPosition> EventsPositions { get; set; }
+    public virtual DbSet<FailedJob> FailedJobs { get; set; } = null!;
 
-    public virtual DbSet<EventsPositionsBooking> EventsPositionsBookings { get; set; }
+    public virtual DbSet<Job> Jobs { get; set; } = null!;
 
-    public virtual DbSet<FailedJob> FailedJobs { get; set; }
+    public virtual DbSet<Migration> Migrations { get; set; } = null!;
 
-    public virtual DbSet<Job> Jobs { get; set; }
+    public virtual DbSet<Permission> Permissions { get; set; } = null!;
 
-    public virtual DbSet<Migration> Migrations { get; set; }
+    public virtual DbSet<Role> Roles { get; set; } = null!;
 
-    public virtual DbSet<Permission> Permissions { get; set; }
+    public virtual DbSet<RolesInheritance> RolesInheritances { get; set; } = null!;
 
-    public virtual DbSet<Role> Roles { get; set; }
+    public virtual DbSet<RolesPermission> RolesPermissions { get; set; } = null!;
 
-    public virtual DbSet<RolesInheritance> RolesInheritances { get; set; }
+    public virtual DbSet<Schedule> Schedules { get; set; } = null!;
 
-    public virtual DbSet<RolesPermission> RolesPermissions { get; set; }
+    public virtual DbSet<Train> Trains { get; set; } = null!;
 
-    public virtual DbSet<Schedule> Schedules { get; set; }
+    public virtual DbSet<TrainComment> TrainComments { get; set; } = null!;
 
-    public virtual DbSet<Train> Trains { get; set; }
+    public virtual DbSet<TrainRequest> TrainRequests { get; set; } = null!;
 
-    public virtual DbSet<TrainComment> TrainComments { get; set; }
+    public virtual DbSet<TrainRequestsPeriod> TrainRequestsPeriods { get; set; } = null!;
 
-    public virtual DbSet<TrainRequest> TrainRequests { get; set; }
+    public virtual DbSet<TrainsBooking> TrainsBookings { get; set; } = null!;
 
-    public virtual DbSet<TrainRequestsPeriod> TrainRequestsPeriods { get; set; }
+    public virtual DbSet<User> Users { get; set; } = null!;
 
-    public virtual DbSet<TrainsBooking> TrainsBookings { get; set; }
+    public virtual DbSet<UsersRole> UsersRoles { get; set; } = null!;
 
-    public virtual DbSet<User> Users { get; set; }
-
-    public virtual DbSet<UsersRole> UsersRoles { get; set; }
-
-    public virtual DbSet<UsersToken> UsersTokens { get; set; }
+    public virtual DbSet<UsersToken> UsersTokens { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

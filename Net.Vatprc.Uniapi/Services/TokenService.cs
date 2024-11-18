@@ -30,7 +30,7 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         return scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries);
     }
 
-    public (string, JwtSecurityToken) IssueFirstParty(User user, Session refresh)
+    public (string, JwtSecurityToken) IssueFirstParty(User user, RefreshToken refresh)
     {
         var claims = new List<Claim>
         {
@@ -52,17 +52,17 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         return (new JwtSecurityTokenHandler().WriteToken(token), token);
     }
 
-    public async Task<Session> IssueFirstPartyRefreshToken(User user, Session? oldToken = null, bool createCode = false)
+    public async Task<RefreshToken> IssueFirstPartyRefreshToken(User user, RefreshToken? oldToken = null, bool createCode = false)
     {
         var now = DateTimeOffset.UtcNow;
         var expireTime = DateTimeOffset.UtcNow.Add(TimeSpan.FromDays(Options.CurrentValue.RefreshExpiresDays));
-        var token = new Session
+        var token = new RefreshToken
         {
             UserId = user.Id,
             UserUpdatedAt = user.UpdatedAt,
             Token = Ulid.NewUlid(),
             ExpiresIn = expireTime,
-            Code = createCode ? Ulid.NewUlid() : null,
+            AuthzCode = createCode ? Ulid.NewUlid() : null,
         };
         using var services = Services.CreateScope();
         using var db = services.ServiceProvider.GetRequiredService<VATPRCContext>();
@@ -84,9 +84,9 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         return token;
     }
 
-    public string GenerateAuthCode(Session session, string clientId, string redirectUri)
+    public string GenerateAuthCode(RefreshToken session, string clientId, string redirectUri)
     {
-        var code = session.Code.ToString() ?? throw new ArgumentException("Session code is empty");
+        var code = session.AuthzCode.ToString() ?? throw new ArgumentException("Session code is empty");
         var claims = new List<Claim>
         {
             new (JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
@@ -110,7 +110,7 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         public InvalidClientIdOrRedirectUriException() : base("invalid client_id or redirect_uri") { }
     }
 
-    public async Task<Session?> GetRefreshTokenByCode(string code, string clientId, string? redirectUri = null)
+    public async Task<RefreshToken?> GetRefreshTokenByCode(string code, string clientId, string? redirectUri = null)
     {
         var claims = new JwtSecurityTokenHandler().ValidateToken(code, new TokenValidationParameters
         {
@@ -131,10 +131,10 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         using var db = services.ServiceProvider.GetRequiredService<VATPRCContext>();
         var session = await db.Session
             .Include(x => x.User)
-            .FirstOrDefaultAsync(x => x.Code == Ulid.Parse(token.Id));
+            .FirstOrDefaultAsync(x => x.AuthzCode == Ulid.Parse(token.Id));
         if (session != null)
         {
-            session.Code = null;
+            session.AuthzCode = null;
             await db.SaveChangesAsync();
         }
         return session;

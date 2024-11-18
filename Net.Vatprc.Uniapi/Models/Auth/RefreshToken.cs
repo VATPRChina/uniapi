@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Net.Vatprc.Uniapi.Models;
 
-public class Session
+public class RefreshToken
 {
     public Ulid Token { get; set; } = Ulid.NewUlid();
 
@@ -15,17 +15,19 @@ public class Session
 
     public DateTimeOffset CreatedAt { get; set; }
 
-    public Ulid? Code { get; set; }
+    public Ulid? AuthzCode { get; set; }
 
     public string ClientId { get; set; } = string.Empty;
 
     // TODO: public Ulid? GroupId { get; set; }
     // Group id is used for detecting refresh token mis-reuse.
 
-    public class SessionConfiguration : IEntityTypeConfiguration<Session>
+    public class SessionConfiguration : IEntityTypeConfiguration<RefreshToken>
     {
-        public void Configure(EntityTypeBuilder<Session> builder)
+        public void Configure(EntityTypeBuilder<RefreshToken> builder)
         {
+            builder.ToTable("session");
+
             builder.HasKey(x => x.Token);
 
             builder.Property(x => x.CreatedAt)
@@ -33,6 +35,9 @@ public class Session
 
             builder.HasOne(x => x.User)
                 .WithMany(x => x.Sessions);
+
+            builder.Property(x => x.AuthzCode)
+                .HasColumnName("code");
         }
     }
 }

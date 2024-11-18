@@ -22,7 +22,7 @@ public class User
 
     public IList<string> Roles { get; set; } = new List<string>();
 
-    public IEnumerable<Session> Sessions { get; set; } = null!;
+    public IEnumerable<RefreshToken> Sessions { get; set; } = null!;
 
     public class UserConfiguration : IEntityTypeConfiguration<User>
     {

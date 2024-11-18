@@ -6,7 +6,7 @@ namespace Net.Vatprc.Uniapi;
 public class VATPRCContext(DbContextOptions<VATPRCContext> options) : DbContext(options)
 {
     public DbSet<User> User { get; set; } = null!;
-    public DbSet<Session> Session { get; set; } = null!;
+    public DbSet<RefreshToken> Session { get; set; } = null!;
     public DbSet<Event> Event { get; set; } = null!;
     public DbSet<EventSlot> EventSlot { get; set; } = null!;
     public DbSet<EventAirspace> EventAirspace { get; set; } = null!;

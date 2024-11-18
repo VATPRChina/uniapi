@@ -1,18 +1,15 @@
 using Net.Vatprc.Uniapi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Net.Vatprc.Uniapi.Models;
-using System.Collections;
-using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
 /// <summary>
-/// Operate users.
+/// Compatibility with existing services.
 /// </summary>
-[ApiController, Route("api/util")]
-public partial class UtilController(VatsimService VatsimService) : ControllerBase
+[ApiController, Route("api/compat")]
+public partial class CompatController(VatsimService VatsimService) : ControllerBase
 {
     public class ControllerDto
     {
