@@ -9,7 +9,7 @@ namespace Net.Vatprc.Uniapi.Services;
 
 public class TokenService(IOptionsMonitor<TokenService.Option> Options, IServiceScopeFactory Services)
 {
-    public TimeSpan FirstPartyExpires => Options.CurrentValue.FirstPartyExpires;
+    public TimeSpan AccessTokenExpires => Options.CurrentValue.FirstPartyExpires;
     public TimeSpan DeviceAuthzExpires => TimeSpan.FromSeconds(Options.CurrentValue.DeviceAuthzExpires);
 
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
@@ -30,7 +30,7 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         return scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries);
     }
 
-    public (string, JwtSecurityToken) IssueFirstParty(User user, RefreshToken refresh)
+    public (string, JwtSecurityToken) IssueAccessToken(User user, RefreshToken refresh)
     {
         var claims = new List<Claim>
         {
@@ -52,7 +52,7 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         return (new JwtSecurityTokenHandler().WriteToken(token), token);
     }
 
-    public async Task<RefreshToken> IssueFirstPartyRefreshToken(User user, RefreshToken? oldToken = null, bool createCode = false)
+    public async Task<RefreshToken> IssueRefreshToken(User user, RefreshToken? oldToken = null, bool createCode = false)
     {
         var now = DateTimeOffset.UtcNow;
         var expireTime = DateTimeOffset.UtcNow.Add(TimeSpan.FromDays(Options.CurrentValue.RefreshExpiresDays));

@@ -84,8 +84,8 @@ public class SessionController(
                 DbContext.User.Add(user);
                 await DbContext.SaveChangesAsync();
             }
-            var refresh = await TokenService.IssueFirstPartyRefreshToken(user, null);
-            var (token, jwt) = TokenService.IssueFirstParty(user, refresh);
+            var refresh = await TokenService.IssueRefreshToken(user, null);
+            var (token, jwt) = TokenService.IssueAccessToken(user, refresh);
             var expires = jwt.Payload.Expiration ?? 0;
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
@@ -113,8 +113,8 @@ public class SessionController(
             {
                 throw new ApiError.InvalidRefreshToken("token_expired");
             }
-            var newRefresh = await TokenService.IssueFirstPartyRefreshToken(refresh.User, refresh);
-            var (token, jwt) = TokenService.IssueFirstParty(refresh.User, newRefresh);
+            var newRefresh = await TokenService.IssueRefreshToken(refresh.User, refresh);
+            var (token, jwt) = TokenService.IssueAccessToken(refresh.User, newRefresh);
             var expires = jwt.Payload.Expiration ?? 0;
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
@@ -134,7 +134,7 @@ public class SessionController(
             {
                 var session = await TokenService.GetRefreshTokenByCode(req.code, req.client_id, req.redirect_uri) ??
                     throw new ApiError.InvalidAuthorizationCode();
-                var (token, jwt) = TokenService.IssueFirstParty(session.User, session);
+                var (token, jwt) = TokenService.IssueAccessToken(session.User, session);
                 var expires = jwt.Payload.Expiration ?? 0;
                 var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";

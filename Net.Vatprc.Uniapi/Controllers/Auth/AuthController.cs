@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Flurl;
 using Flurl.Http;
@@ -20,13 +21,19 @@ public class AuthController(
     VATPRCContext DbContext,
     ILogger<AuthController> Logger) : Controller
 {
-    protected void ClearCookies()
+    public readonly TimeSpan AuthnStateExpires = TimeSpan.FromMinutes(10);
+    public record AuthenticationState
     {
-        Logger.LogInformation("Clear cookies: client_id, redirect, user_code, code_verifier");
-        Response.Cookies.Delete("client_id");
-        Response.Cookies.Delete("redirect");
-        Response.Cookies.Delete("user_code");
-        Response.Cookies.Delete("code_verifier");
+        public AuthnType Type { get; set; }
+        public string? ClientId { get; set; }
+        public string? RedirectUri { get; set; }
+        public string? UserCode { get; set; }
+
+        public enum AuthnType
+        {
+            CODE,
+            DEVICE,
+        }
     }
 
     /// <summary>
@@ -44,7 +51,6 @@ public class AuthController(
         [FromQuery] string client_id,
         [FromQuery] string redirect_uri)
     {
-        ClearCookies();
         Logger.LogInformation("Authorize code flow: {response_type}, {client_id}, {redirect_uri}",
             response_type, client_id, redirect_uri);
         if (response_type != "code")
@@ -55,24 +61,25 @@ public class AuthController(
         {
             return Unauthorized("client is invalid");
         }
-        Logger.LogInformation("Add cookie client_id: {client_id}, redirect: {redirect_uri}",
-            client_id, redirect_uri);
-        Response.Cookies.Append("client_id", client_id, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Lax,
-            Expires = DateTimeOffset.UtcNow + TimeSpan.FromHours(1),
-        });
-        Response.Cookies.Append("redirect", redirect_uri, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Lax,
-            Expires = DateTimeOffset.UtcNow + TimeSpan.FromHours(1),
-        });
+
+        var state = Ulid.NewUlid();
+        Logger.LogInformation("Write cookie: {id}", state);
+        Response.Cookies.Append($"auth-{state}",
+            JsonSerializer.Serialize(new AuthenticationState
+            {
+                Type = AuthenticationState.AuthnType.CODE,
+                ClientId = client_id,
+                RedirectUri = redirect_uri,
+            }),
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTimeOffset.UtcNow + AuthnStateExpires,
+            });
         Logger.LogInformation("Redirect to login");
-        return RedirectToActionPreserveMethod(nameof(Login));
+        return RedirectPreserveMethod(Url.Action(nameof(Login), new { state })!);
     }
 
     /// <summary>
@@ -246,7 +253,6 @@ public class AuthController(
     [ApiExplorerSettings(IgnoreApi = true)]
     public async Task<IActionResult> DeviceConfirm([FromQuery] string? user_code, [FromQuery] bool confirm)
     {
-        ClearCookies();
         if (!confirm)
         {
             return RenderDeviceCodeUI(user_code);
@@ -271,19 +277,29 @@ public class AuthController(
             await DbContext.SaveChangesAsync();
             return RenderCallbackUI("Error", "Invalid code", "The code provided is expired.", Url.Action(nameof(DeviceConfirm)));
         }
-        Response.Cookies.Append("user_code", code, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Lax,
-            Expires = deviceAuthz.ExpiresAt,
-        });
-        return RedirectToActionPreserveMethod(nameof(Login));
+
+        var state = Ulid.NewUlid();
+        Logger.LogInformation("Write cookie: {id}", state);
+        Response.Cookies.Append($"auth-{state}",
+            JsonSerializer.Serialize(new AuthenticationState
+            {
+                Type = AuthenticationState.AuthnType.DEVICE,
+                UserCode = code,
+            }),
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTimeOffset.UtcNow + AuthnStateExpires,
+            });
+        Logger.LogInformation("Redirect to login");
+        return RedirectPreserveMethod(Url.Action(nameof(Login), new { state })!);
     }
 
     [HttpGet("login")]
     [ApiExplorerSettings(IgnoreApi = true)]
-    public IActionResult Login()
+    public IActionResult Login([FromQuery] string state)
     {
         var (challenge, verifier) = VatsimAuthService.GeneratePkce();
         var url = new Url(Options.Value.Endpoint)
@@ -291,15 +307,18 @@ public class AuthController(
             .SetQueryParam("response_type", "code")
             .SetQueryParam("client_id", Options.Value.ClientId)
             .SetQueryParam("redirect_uri", Options.Value.RedirectUri)
+            .SetQueryParam("state", state)
             .SetQueryParam("code_challenge", challenge)
             .SetQueryParam("code_challenge_method", "S256")
             .SetQueryParam("scope", "full_name email");
-        Response.Cookies.Append("code_verifier", verifier, new CookieOptions
+
+        Logger.LogInformation("Write cookie: code_verifier for VATSIM");
+        Response.Cookies.Append($"auth-{state}-code_verifier", verifier, new CookieOptions
         {
             HttpOnly = true,
             Secure = true,
             SameSite = SameSiteMode.Lax,
-            Expires = DateTimeOffset.UtcNow + TimeSpan.FromHours(1),
+            Expires = DateTimeOffset.UtcNow + AuthnStateExpires,
         });
         return RedirectPreserveMethod(url.ToString());
     }
@@ -349,8 +368,8 @@ public class AuthController(
 
         Logger.LogInformation("Recevied VATSIM authn callback");
 
-        Request.Cookies.TryGetValue("code_verifier", out var verifier);
-        Response.Cookies.Delete("code_verifier");
+        Request.Cookies.TryGetValue($"auth-{state}-code_verifier", out var verifier);
+        Response.Cookies.Delete($"auth-{state}-code_verifier");
         Logger.LogInformation("Delete code_verifier cookie");
 
         VatsimAuthService.TokenResponse token;
@@ -378,33 +397,48 @@ public class AuthController(
             DbContext.User.Add(user);
             Logger.LogInformation("Create new user: cid={cid}", user.Cid);
         }
+        Logger.LogInformation("Updated {cid}'s full name and email", user.Cid);
         user.FullName = vatsimUser.Data.Personal.FullName;
         user.Email = vatsimUser.Data.Personal.Email;
         await DbContext.SaveChangesAsync();
 
-        if (Request.Cookies.TryGetValue("redirect", out var redirect)
-            && !string.IsNullOrEmpty(redirect)
-            && Request.Cookies.TryGetValue("client_id", out var clientId)
-            && !string.IsNullOrEmpty(clientId)
-            && Uri.TryCreate(redirect, UriKind.Absolute, out var redirectUri))
+        if (!Request.Cookies.TryGetValue($"auth-{state}", out var authStateStr) || string.IsNullOrEmpty(authStateStr))
         {
-            Logger.LogInformation("Found cookie, redirect to client: {client_id}, {redirect_uri}",
-                clientId, redirect);
-            Response.Cookies.Delete("client_id");
-            Response.Cookies.Delete("redirect");
-            var refresh = await TokenService.IssueFirstPartyRefreshToken(user, createCode: true);
-            var authCode = TokenService.GenerateAuthCode(refresh, clientId, redirect.ToString());
-            var redirectTarget = redirectUri
+            RenderCallbackUI("Invalid state",
+                $"Hello {user.Cid}", "Authentication state not found. " +
+                "Please check if cookie is enabled for your browser and try again.");
+        }
+        AuthenticationState authState;
+        try
+        {
+            authState = JsonSerializer.Deserialize<AuthenticationState>(authStateStr!) ??
+                throw new ArgumentNullException(nameof(authStateStr));
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Failed to deserialize auth state: {authStateStr}", authStateStr);
+            return RenderCallbackUI("Error", "Internal error", "Please try again later.", Url.Action(nameof(Login)));
+        }
+        Response.Cookies.Delete($"auth-{state}");
+
+        if (authState.Type == AuthenticationState.AuthnType.CODE)
+        {
+            if (string.IsNullOrEmpty(authState.ClientId) || string.IsNullOrEmpty(authState.RedirectUri))
+            {
+                return RenderCallbackUI("Error", "Internal error", "Please try again later.", Url.Action(nameof(Login)));
+            }
+
+            var refresh = await TokenService.IssueRefreshToken(user, createCode: true);
+            var authCode = TokenService.GenerateAuthCode(refresh, authState.ClientId, authState.RedirectUri);
+            var redirectTarget = authState.RedirectUri
                 .SetQueryParam("code", authCode)
                 .ToString();
             return RedirectPreserveMethod(redirectTarget);
         }
-        else if (Request.Cookies.TryGetValue("user_code", out var user_code)
-            && !string.IsNullOrEmpty(user_code))
+        else if (authState.Type == AuthenticationState.AuthnType.DEVICE)
         {
-            Logger.LogInformation("Found cookie, user_code={user_code}", user_code);
             var deviceAuthz = await DbContext.DeviceAuthorization
-                .FirstOrDefaultAsync(x => x.UserCode == user_code);
+                .FirstOrDefaultAsync(x => x.UserCode == authState.UserCode);
             if (deviceAuthz == null)
             {
                 return Unauthorized("Device authorization not found");
@@ -413,9 +447,6 @@ public class AuthController(
             Logger.LogInformation("Associated user: {user_id} to device: {device_code}",
                 user.Id, deviceAuthz.DeviceCode);
             await DbContext.SaveChangesAsync();
-
-            Response.Cookies.Delete("user_code");
-            Logger.LogInformation("Delete user_code cookie");
 
             return RenderCallbackUI("Welcome", $"Hello {user.Cid}", "Login successful, please return to your device.");
         }
@@ -646,8 +677,8 @@ public class AuthController(
             });
         }
 
-        var refresh = await TokenService.IssueFirstPartyRefreshToken(deviceAuthz.User, null);
-        var (token, jwt) = TokenService.IssueFirstParty(deviceAuthz.User, refresh);
+        var refresh = await TokenService.IssueRefreshToken(deviceAuthz.User, null);
+        var (token, jwt) = TokenService.IssueAccessToken(deviceAuthz.User, refresh);
         var expires = jwt.Payload.Expiration ?? 0;
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
@@ -719,8 +750,8 @@ public class AuthController(
                 ErrorDescription = "Refresh token expired",
             });
         }
-        var newRefresh = await TokenService.IssueFirstPartyRefreshToken(refresh.User, refresh);
-        var (token, jwt) = TokenService.IssueFirstParty(refresh.User, newRefresh);
+        var newRefresh = await TokenService.IssueRefreshToken(refresh.User, refresh);
+        var (token, jwt) = TokenService.IssueAccessToken(refresh.User, newRefresh);
         var expires = jwt.Payload.Expiration ?? 0;
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
@@ -749,7 +780,7 @@ public class AuthController(
         {
             var session = await TokenService.GetRefreshTokenByCode(req.Code, req.ClientId) ??
                 throw new ApiError.InvalidAuthorizationCode();
-            var (token, jwt) = TokenService.IssueFirstParty(session.User, session);
+            var (token, jwt) = TokenService.IssueAccessToken(session.User, session);
             var expires = jwt.Payload.Expiration ?? 0;
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
