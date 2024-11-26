@@ -1,8 +1,6 @@
 #pragma warning disable CS8618
 
-using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Globalization;
 
 namespace Net.Vatprc.Uniapi.Services.VatsimData;
 

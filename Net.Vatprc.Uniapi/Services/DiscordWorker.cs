@@ -1,11 +1,9 @@
 using System.Diagnostics;
 using System.Reflection;
 using Discord;
-using Discord.Commands;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Options;
-using OpenTelemetry.Trace;
 
 namespace Net.Vatprc.Uniapi.Services;
 

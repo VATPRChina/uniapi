@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Flurl;
 using Flurl.Http;
 using Microsoft.Extensions.Options;

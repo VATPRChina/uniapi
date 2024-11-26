@@ -58,7 +58,7 @@ public class User
         /// <summary>
         /// Event coordinator
         /// </summary>
-        public const string EventCoordinator = "ec";
+        public const string EventCoordinator = "event_coordinator";
         /// <summary>
         /// Controller
         /// </summary>
