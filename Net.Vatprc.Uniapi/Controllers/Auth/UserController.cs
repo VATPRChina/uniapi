@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Immutable;
 using System.Security.Claims;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -15,13 +16,14 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
 {
     public record UserDto
     {
-        public Ulid Id { get; init; }
-        public string Cid { get; init; }
-        public string FullName { get; init; }
-        public DateTimeOffset CreatedAt { get; init; }
-        public DateTimeOffset UpdatedAt { get; init; }
-        public ISet<string> Roles { get; init; }
+        public required Ulid Id { get; init; }
+        public required string Cid { get; init; }
+        public required string FullName { get; init; }
+        public required DateTimeOffset CreatedAt { get; init; }
+        public required DateTimeOffset UpdatedAt { get; init; }
+        public required ISet<string> Roles { get; init; }
 
+        [SetsRequiredMembers]
         public UserDto(User user)
         {
             Id = user.Id;

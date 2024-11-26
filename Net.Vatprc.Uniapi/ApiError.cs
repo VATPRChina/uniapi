@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.OpenApi.Models;
 using Net.Vatprc.Uniapi.Controllers;
-using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Net.Vatprc.Uniapi;
 
@@ -141,56 +140,6 @@ public abstract class ApiError : Exception
     protected interface IHasAttribute
     {
         public Type ExceptionType { get; }
-    }
-
-    public class ErrorResponsesOperationFilter : IOperationFilter
-    {
-        private ErrorAttribute GetErrorAttribute(Type type) =>
-            (ErrorAttribute)type.GetCustomAttributes(typeof(ErrorAttribute), true).FirstOrDefault()!;
-
-        public void Apply(OpenApiOperation operation, OperationFilterContext context)
-        {
-            if (context.MethodInfo.DeclaringType == typeof(AuthController))
-            {
-                return;
-            }
-
-            var exceptions = context.MethodInfo
-                .GetCustomAttributes(typeof(HasAttribute<>), true)
-                .Select(x => ((IHasAttribute)x).ExceptionType)
-                .Select(GetErrorAttribute)
-                .Concat((IEnumerable<ErrorAttribute>)new[]
-                {
-                    GetErrorAttribute(typeof(InternalServerError)),
-                    // if the security is empty, the operation uses the global policy (aka. required auth)
-                    operation.Security.Count == 0 ? GetErrorAttribute(typeof(InvalidToken)) : null,
-                }.Where(x => x != null))
-                .GroupBy(x => x.StatusCode)
-                .ToDictionary(x => x.Key, x => x.AsEnumerable());
-            foreach (var exception in exceptions)
-            {
-                operation.Responses.Add(((int)exception.Key).ToString(), new OpenApiResponse
-                {
-                    Description = string.Join(", ", exception.Value.Select(x => x.ErrorCode)),
-                    Content = new Dictionary<string, OpenApiMediaType>()
-                    {
-                        ["application/json"] = new OpenApiMediaType
-                        {
-                            Schema = context.SchemaGenerator.GenerateSchema(
-                                typeof(ErrorProdResponse), context.SchemaRepository),
-                            Examples = exception.Value.ToDictionary(x => x.ErrorCode, x => new OpenApiExample
-                            {
-                                Value = OpenApiAnyFactory.CreateFromJson(JsonSerializer.Serialize(new
-                                {
-                                    error_code = x.ErrorCode,
-                                    message = x.MessageExample,
-                                })),
-                            })
-                        },
-                    }
-                });
-            }
-        }
     }
 
     public class ErrorExceptionFilter(IHostEnvironment HostEnvironment, Serilog.ILogger Logger) : IExceptionFilter

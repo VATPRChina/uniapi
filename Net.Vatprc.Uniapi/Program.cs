@@ -22,12 +22,15 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
 using Npgsql;
 using Serilog;
 using Sentry.OpenTelemetry;
 using OpenTelemetry.Trace;
 using Microsoft.AspNetCore.HttpOverrides;
+using Scalar.AspNetCore;
+using Microsoft.OpenApi.Models;
+using System.Text.Json;
+using Microsoft.AspNetCore.Http.Json;
 
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
@@ -78,6 +81,12 @@ builder.Services.AddOpenTelemetry()
 
 builder.Services.AddHttpContextAccessor();
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.SnakeCaseLower;
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services
     .AddControllers(opts =>
     {
@@ -95,8 +104,8 @@ builder.Services
     })
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.DictionaryKeyPolicy = new JsonSnakeCaseNamingPolicy();
-        options.JsonSerializerOptions.PropertyNamingPolicy = new JsonSnakeCaseNamingPolicy();
+        options.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.SnakeCaseLower;
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     })
     .ConfigureApiBehaviorOptions(options =>
@@ -116,13 +125,13 @@ builder.Services.AddDbContext<VATPRCContext>(opt =>
     opt.UseSnakeCaseNamingConvention();
 });
 
-builder.Services.AddSwaggerGen(opts =>
+builder.Services.AddOpenApi(opts =>
 {
-    opts.SwaggerDoc("v1", new OpenApiInfo
+    opts.AddDocumentTransformer((document, context, cancellationToken) =>
     {
-        Version = "v1",
-        Title = "VATPRC UniAPI",
-        Description = """
+        document.Info.Title = "VATPRC UniAPI";
+        document.Info.Version = "v1";
+        document.Info.Description = """
         # Error Handling
 
         VATPRC UniAPI returns normalized error responses. The response body is a JSON object with the following fields:
@@ -138,39 +147,51 @@ builder.Services.AddSwaggerGen(opts =>
 
         For details, see the examples on each API endpoint. The additional fields is denoted like `{field}` in the
         error message example.
-        """,
-    });
-    opts.AddServer(new OpenApiServer { Url = "https://uniapi.vatprc.net", Description = "Public server" });
-    opts.AddServer(new OpenApiServer { Url = "https://localhost:5001", Description = "Local development server" });
-    opts.AddSecurityDefinition("oauth2_1p", new OpenApiSecurityScheme
-    {
-        Type = SecuritySchemeType.OAuth2,
-        Flows = new OpenApiOAuthFlows
+        """;
+        document.Servers.Add(new OpenApiServer
         {
-            Password = new OpenApiOAuthFlow
-            {
-                TokenUrl = new Uri("{{baseUrl}}/api/session", UriKind.Relative),
-            }
-        },
-    });
-    opts.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
+            Url = "https://uniapi.vatprc.net",
+            Description = "Production server"
+        });
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes.Add("oauth2", new OpenApiSecurityScheme
         {
-            new OpenApiSecurityScheme
+            Type = SecuritySchemeType.OAuth2,
+            Flows = new OpenApiOAuthFlows
             {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "oauth2_1p" }
+                Password = new OpenApiOAuthFlow
+                {
+                    TokenUrl = new Uri("{{baseUrl}}/api/session", UriKind.Relative),
+                },
+                AuthorizationCode = new OpenApiOAuthFlow
+                {
+                    AuthorizationUrl = new Uri("{{baseUrl}}/auth/authorize", UriKind.Relative),
+                    TokenUrl = new Uri("{{baseUrl}}/auth/token", UriKind.Relative),
+                    RefreshUrl = new Uri("{{baseUrl}}/auth/token", UriKind.Relative),
+                },
             },
-            Array.Empty<string>()
-        }
+        });
+        document.SecurityRequirements.Add(new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference { Id = "oauth2", Type = ReferenceType.SecurityScheme },
+                },
+                []
+            }
+        });
+        return Task.CompletedTask;
     });
-    opts.IncludeXmlComments(Path.Combine(
-        AppContext.BaseDirectory,
-        $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml"));
-    opts.SupportNonNullableReferenceTypes();
-    opts.SchemaFilter<RequiredNotNullableSchemaFilter>();
-    opts.OperationFilter<SecurityRequirementsOperationFilter>();
-    opts.OperationFilter<ApiError.ErrorResponsesOperationFilter>();
-    opts.MapType<Ulid>(() => new OpenApiSchema { Type = "string" });
+    opts.AddSchemaTransformer((schema, context, cancellationToken) =>
+    {
+        if (context.JsonTypeInfo.Type == typeof(Ulid))
+        {
+            schema.Type = "string";
+            schema.Description = "ULID";
+        }
+        return Task.CompletedTask;
+    });
 });
 
 TokenService.ConfigureOn(builder);
@@ -234,12 +255,8 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger(c => c.RouteTemplate = "/api/swagger/{documentName}/swagger.json");
-    app.UseReDoc(c =>
-    {
-        c.RoutePrefix = "api/swagger";
-        c.SpecUrl = "/api/swagger/v1/swagger.json";
-    });
+    app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 else
 {
