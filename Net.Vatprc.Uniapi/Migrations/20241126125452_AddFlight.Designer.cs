@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Net.Vatprc.Uniapi;
 using Net.Vatprc.Uniapi.Models.Acdm;
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Net.Vatprc.Uniapi.Migrations
 {
     [DbContext(typeof(VATPRCContext))]
-    partial class VATPRCContextModelSnapshot : ModelSnapshot
+    [Migration("20241126125452_AddFlight")]
+    partial class AddFlight
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
