@@ -1,14 +1,4 @@
 global using Microsoft.EntityFrameworkCore;
-global using i32 = int;
-global using u32 = uint;
-global using i64 = long;
-global using u64 = ulong;
-global using i8 = char;
-global using u8 = byte;
-global using i16 = short;
-global using u16 = ushort;
-global using f32 = float;
-global using f64 = double;
 global using Net.Vatprc.Uniapi;
 global using UniApi = Net.Vatprc.Uniapi;
 global using static Net.Vatprc.Uniapi.Utils.Utils;
@@ -28,9 +18,7 @@ using Sentry.OpenTelemetry;
 using OpenTelemetry.Trace;
 using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
-using Microsoft.OpenApi.Models;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http.Json;
 
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
@@ -121,77 +109,20 @@ var dataSource = new NpgsqlDataSourceBuilder(connectionString)
     .Build();
 builder.Services.AddDbContext<VATPRCContext>(opt =>
 {
-    opt.UseNpgsql(dataSource);
+    opt.UseNpgsql(dataSource, pgOpts =>
+    {
+        pgOpts.MapEnum<UniApi.Models.Acdm.Flight.FlightState>();
+    });
     opt.UseSnakeCaseNamingConvention();
 });
 
 builder.Services.AddOpenApi(opts =>
 {
-    opts.AddDocumentTransformer((document, context, cancellationToken) =>
-    {
-        document.Info.Title = "VATPRC UniAPI";
-        document.Info.Version = "v1";
-        document.Info.Description = """
-        # Error Handling
-
-        VATPRC UniAPI returns normalized error responses. The response body is a JSON object with the following fields:
-
-        | Field           | Type     | Description     |
-        | --------------- | -------- | --------------- |
-        | `error_code`    | `string` | Error code.     |
-        | `message`       | `string` | Error message.  |
-        | `connection_id` | `string` | Connection ID.     |
-        | `request_id`    | `string` | Request ID. |
-
-        It may contain additional fields depending on the error code.
-
-        For details, see the examples on each API endpoint. The additional fields is denoted like `{field}` in the
-        error message example.
-        """;
-        document.Servers.Add(new OpenApiServer
-        {
-            Url = "https://uniapi.vatprc.net",
-            Description = "Production server"
-        });
-        document.Components ??= new OpenApiComponents();
-        document.Components.SecuritySchemes.Add("oauth2", new OpenApiSecurityScheme
-        {
-            Type = SecuritySchemeType.OAuth2,
-            Flows = new OpenApiOAuthFlows
-            {
-                Password = new OpenApiOAuthFlow
-                {
-                    TokenUrl = new Uri("{{baseUrl}}/api/session", UriKind.Relative),
-                },
-                AuthorizationCode = new OpenApiOAuthFlow
-                {
-                    AuthorizationUrl = new Uri("{{baseUrl}}/auth/authorize", UriKind.Relative),
-                    TokenUrl = new Uri("{{baseUrl}}/auth/token", UriKind.Relative),
-                    RefreshUrl = new Uri("{{baseUrl}}/auth/token", UriKind.Relative),
-                },
-            },
-        });
-        document.SecurityRequirements.Add(new OpenApiSecurityRequirement
-        {
-            {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference { Id = "oauth2", Type = ReferenceType.SecurityScheme },
-                },
-                []
-            }
-        });
-        return Task.CompletedTask;
-    });
-    opts.AddSchemaTransformer((schema, context, cancellationToken) =>
-    {
-        if (context.JsonTypeInfo.Type == typeof(Ulid))
-        {
-            schema.Type = "string";
-            schema.Description = "ULID";
-        }
-        return Task.CompletedTask;
-    });
+    opts.AddDocumentTransformer(OpenApiTransformers.TransformDocument);
+    opts.AddSchemaTransformer(OpenApiTransformers.AddUlid);
+    opts.AddSchemaTransformer(OpenApiTransformers.EnforceNotNull);
+    opts.AddOperationTransformer(OpenApiTransformers.AllowAnonymous);
+    opts.AddOperationTransformer(OpenApiTransformers.AddErrorResponse);
 });
 
 TokenService.ConfigureOn(builder);
@@ -238,7 +169,7 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowedToAllowWildcardSubdomains();
         if (builder.Environment.IsDevelopment())
         {
-            policy.WithOrigins("http://localhost:3000");
+            policy.AllowAnyOrigin();
         }
         policy.AllowAnyMethod()
             .WithHeaders("authorization", "content-type");
@@ -286,6 +217,10 @@ app.MapFallbackToController("/api/{**path}",
 var rootCommand = new RootCommand("Start VATPRC UniAPI");
 rootCommand.SetHandler(async () =>
 {
+    if (app.Environment.IsDevelopment())
+    {
+        app.Services.GetRequiredService<ILogger<Program>>().LogInformation("See API document on: https://localhost:5001/scalar/v1");
+    }
     await app.RunAsync();
 });
 rootCommand.TreatUnmatchedTokensAsErrors = false;

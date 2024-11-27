@@ -14,24 +14,17 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/users")]
 public class UserController(VATPRCContext DbContext) : ControllerBase
 {
-    public record UserDto
+    public record UserDto(
+        Ulid Id,
+        string Cid,
+        string FullName,
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt,
+        ISet<string> Roles
+    )
     {
-        public required Ulid Id { get; init; }
-        public required string Cid { get; init; }
-        public required string FullName { get; init; }
-        public required DateTimeOffset CreatedAt { get; init; }
-        public required DateTimeOffset UpdatedAt { get; init; }
-        public required ISet<string> Roles { get; init; }
-
-        [SetsRequiredMembers]
-        public UserDto(User user)
+        public UserDto(User user) : this(user.Id, user.Cid, user.FullName, user.CreatedAt, user.UpdatedAt, user.Roles.ToHashSet())
         {
-            Id = user.Id;
-            Cid = user.Cid;
-            FullName = user.FullName;
-            CreatedAt = user.CreatedAt;
-            UpdatedAt = user.UpdatedAt;
-            Roles = user.Roles.ToHashSet();
             if (user.Roles.Contains(Models.User.UserRoles.Admin))
             {
                 Roles.Add(Models.User.UserRoles.EventCoordinator);

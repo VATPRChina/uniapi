@@ -11,7 +11,28 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get: operations["Auth_Authorize"];
+    get: {
+      parameters: {
+        query?: {
+          response_type?: string;
+          client_id?: string;
+          redirect_uri?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Temporary Redirect */
+        307: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
     put?: never;
     post?: never;
     delete?: never;
@@ -20,192 +41,106 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/auth/login": {
+  "/auth/device_authorization": {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get: operations["Auth_Login"];
+    get?: never;
     put?: never;
-    post?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/x-www-form-urlencoded": {
+            client_id?: string;
+            scope?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["DeviceAuthorizationResponse"];
+          };
+        };
+        /** @description Bad Request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["TokenErrorDto"];
+          };
+        };
+      };
+    };
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/auth/callback/vatsim": {
+  "/auth/token": {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get: operations["Auth_VatsimCallback"];
+    get?: never;
     put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/events": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/x-www-form-urlencoded": {
+            grant_type?: string;
+            client_id?: string;
+            device_code?: string;
+            refresh_token?: string;
+            code?: string;
+            code_verifier?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["TokenResponse"];
+          };
+        };
+        /** @description Bad Request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["TokenErrorDto"];
+          };
+        };
+      };
     };
-    get: operations["Event_List"];
-    put?: never;
-    post: operations["Event_Create"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/events/{eid}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["Event_Get"];
-    put?: never;
-    post: operations["Event_Update"];
-    delete: operations["Event_Delete"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/events/{eid}/airspaces": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["EventAirspace_List"];
-    put?: never;
-    post: operations["EventAirspace_Create"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/events/{eid}/airspaces/{aid}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["EventAirspace_Get"];
-    put: operations["EventAirspace_Update"];
-    post?: never;
-    delete: operations["EventAirspace_Delete"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/events/{eid}/slots": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["EventSlot_List"];
-    put?: never;
-    post: operations["EventSlot_Create"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/events/{eid}/slots/bookings.csv": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["EventSlot_Export"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/events/{eid}/slots/{sid}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["EventSlot_Get"];
-    put: operations["EventSlot_Update"];
-    post?: never;
-    delete: operations["EventSlot_Delete"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/events/{eid}/slots/{sid}/booking": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["EventSlotBooking_Get"];
-    put: operations["EventSlotBooking_Put"];
-    post?: never;
-    delete: operations["EventSlotBooking_Delete"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/notams": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["Notam_List"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/notams/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["Notam_Get"];
-    put?: never;
-    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -219,35 +154,270 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Get Current */
-    get: operations["Session_Get"];
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["TokenDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INVALID_TOKEN_NOT_FIRST_PARTY */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN_NOT_FIRST_PARTY
+               * @example INVALID_TOKEN_NOT_FIRST_PARTY
+               */
+              error_code: string;
+              /**
+               * @description Token is not issued to first-party application.
+               * @example Token is not issued to first-party application.
+               */
+              message: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
     put?: never;
-    /**
-     * Login
-     * @description Login with username and password. This API does not comply with OAuth 2.1,
-     *     and only supports first-party applications (the built-in web frontend).
-     *     It is based on `grant_type` `password` (which has been drooped in OAuth 2.1)
-     *     or `refresh_token`. It requires additional parameters for security control.
-     *
-     *     **Request with password**
-     *
-     *     It requires `username`, `password`, `captcha`.
-     *
-     *     ```text
-     *     username=alice&password=foobar&captcha=foobar&grant_type=password
-     *     ```
-     *
-     *     **Request with refresh token**
-     *
-     *     It requires `refresh_token`.
-     *
-     *     ```text
-     *     grant_type=refresh_token&refresh_token=507f0155-577e-448d-870b-5abe98a41d3f
-     *     ```
-     */
-    post: operations["Session_Login"];
-    /** Logout */
-    delete: operations["Session_Logout"];
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/x-www-form-urlencoded": {
+            username?: string;
+            password?: string;
+            grant_type?: string;
+            refresh_token?: string;
+            client_id?: string;
+            code?: string;
+            redirect_uri?: string;
+            device_code?: string;
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["LoginResDto"];
+          };
+        };
+        /** @description INVALID_GRANT_TYPE */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_GRANT_TYPE
+               * @example INVALID_GRANT_TYPE
+               */
+              error_code: string;
+              /**
+               * @description Invalid grant type {grant_type}.
+               * @example Invalid grant type {grant_type}.
+               */
+              message: string;
+              /** @description string */
+              grant_type: string;
+            };
+          };
+        };
+        /** @description INVALID_REFRESH_TOKEN */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_REFRESH_TOKEN
+               * @example INVALID_REFRESH_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Refresh token is not valid for {code}.
+               * @example Refresh token is not valid for {code}.
+               */
+              message: string;
+              /** @description string */
+              code: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INVALID_TOKEN_NOT_FIRST_PARTY */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN_NOT_FIRST_PARTY
+               * @example INVALID_TOKEN_NOT_FIRST_PARTY
+               */
+              error_code: string;
+              /**
+               * @description Token is not issued to first-party application.
+               * @example Token is not issued to first-party application.
+               */
+              message: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
     options?: never;
     head?: never;
     patch?: never;
@@ -260,7 +430,70 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get: operations["User_List"];
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["UserDto"][];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
     put?: never;
     post?: never;
     delete?: never;
@@ -276,7 +509,1715 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get: operations["User_Get"];
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["UserDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description USER_NOT_FOUND */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description USER_NOT_FOUND
+               * @example USER_NOT_FOUND
+               */
+              error_code: string;
+              /**
+               * @description User {user_id} not found.
+               * @example User {user_id} not found.
+               */
+              message: string;
+              /** @description string */
+              user_id: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/users/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["UserDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/compat/online-status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["VatprcStatusDto"];
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/events/{eid}/airspaces": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventAirspaceDto"][];
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateEventAirspaceDto"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventAirspaceDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/events/{eid}/airspaces/{aid}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+          aid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventAirspaceDto"];
+          };
+        };
+        /** @description EVENT_NOT_FOUND, EVENT_AIRSPACE_NOT_FOUND */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  /**
+                   * @description EVENT_NOT_FOUND
+                   * @example EVENT_NOT_FOUND
+                   */
+                  error_code: string;
+                  /**
+                   * @description Event {event_id} not found.
+                   * @example Event {event_id} not found.
+                   */
+                  message: string;
+                  /** @description string */
+                  event_id: string;
+                }
+              | {
+                  /**
+                   * @description EVENT_AIRSPACE_NOT_FOUND
+                   * @example EVENT_AIRSPACE_NOT_FOUND
+                   */
+                  error_code: string;
+                  /**
+                   * @description Event {event_id}'s airspace {airspace_id} not found.
+                   * @example Event {event_id}'s airspace {airspace_id} not found.
+                   */
+                  message: string;
+                  /** @description string */
+                  event_id: string;
+                  /** @description string */
+                  airspace_id: string;
+                };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+          aid: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateEventAirspaceDto"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventAirspaceDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+          aid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventAirspaceDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventDto"][];
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateEventDto"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/events/{eid}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventDto"];
+          };
+        };
+        /** @description EVENT_NOT_FOUND */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description EVENT_NOT_FOUND
+               * @example EVENT_NOT_FOUND
+               */
+              error_code: string;
+              /**
+               * @description Event {event_id} not found.
+               * @example Event {event_id} not found.
+               */
+              message: string;
+              /** @description string */
+              event_id: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateEventDto"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/events/{eid}/slots/{sid}/booking": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+          sid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventBookingDto"];
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+          sid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventBookingDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description EVENT_NOT_FOUND */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description EVENT_NOT_FOUND
+               * @example EVENT_NOT_FOUND
+               */
+              error_code: string;
+              /**
+               * @description Event {event_id} not found.
+               * @example Event {event_id} not found.
+               */
+              message: string;
+              /** @description string */
+              event_id: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+          sid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventBookingDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/events/{eid}/slots": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventSlotDto"][];
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateEventSlotDto"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventSlotDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description EVENT_AIRSPACE_NOT_FOUND */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description EVENT_AIRSPACE_NOT_FOUND
+               * @example EVENT_AIRSPACE_NOT_FOUND
+               */
+              error_code: string;
+              /**
+               * @description Event {event_id}'s airspace {airspace_id} not found.
+               * @example Event {event_id}'s airspace {airspace_id} not found.
+               */
+              message: string;
+              /** @description string */
+              event_id: string;
+              /** @description string */
+              airspace_id: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/events/{eid}/slots/bookings.csv": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "text/csv": unknown;
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/events/{eid}/slots/{sid}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+          sid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventSlotDto"];
+          };
+        };
+        /** @description EVENT_NOT_FOUND */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description EVENT_NOT_FOUND
+               * @example EVENT_NOT_FOUND
+               */
+              error_code: string;
+              /**
+               * @description Event {event_id} not found.
+               * @example Event {event_id} not found.
+               */
+              message: string;
+              /** @description string */
+              event_id: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+          sid: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateEventSlotDto"];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventSlotDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    post?: never;
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          eid: string;
+          sid: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["EventSlotDto"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/notams": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["Notam"][];
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/sectors/current/permission": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SectorPermissionResponse"];
+          };
+        };
+        /** @description INVALID_TOKEN */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INVALID_TOKEN
+               * @example INVALID_TOKEN
+               */
+              error_code: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              message: string;
+              /** @description string */
+              oauth_code: string;
+              /** @description string */
+              oauth_desc: string;
+            };
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+            };
+          };
+        };
+      };
+    };
     put?: never;
     post?: never;
     delete?: never;
@@ -289,6 +2230,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    ControllerDto: {
+      /** Format: int32 */
+      cid: number;
+      name: string;
+      callsign: string;
+      frequency: string;
+    };
     CreateEventAirspaceDto: {
       name: string;
       icao_codes: string[];
@@ -308,7 +2256,7 @@ export interface components {
       description: string;
     };
     CreateEventSlotDto: {
-      airspace_id: string;
+      airspace_id: components["schemas"]["Ulid"];
       /** Format: date-time */
       enter_at: string;
       /** Format: date-time */
@@ -316,14 +2264,19 @@ export interface components {
       callsign?: string | null;
       aircraft_type_icao?: string | null;
     };
-    ErrorProdResponse: {
-      error_code: string;
-      message: string;
-      [key: string]: unknown;
+    DeviceAuthorizationResponse: {
+      device_code: string;
+      user_code: string;
+      verification_uri: string;
+      verification_uri_complete?: string | null;
+      /** Format: uint32 */
+      expires_in: number;
+      /** Format: uint32 */
+      interval?: number | null;
     };
     EventAirspaceDto: {
-      id: string;
-      event_id: string;
+      id: components["schemas"]["Ulid"];
+      event_id: components["schemas"]["Ulid"];
       name: string;
       /** Format: date-time */
       created_at: string;
@@ -333,15 +2286,23 @@ export interface components {
       description: string;
     };
     EventBookingDto: {
-      id: string;
-      user_id: string;
+      id: components["schemas"]["Ulid"];
+      user_id: components["schemas"]["Ulid"];
       /** Format: date-time */
       created_at: string;
       /** Format: date-time */
       updated_at: string;
     };
+    EventBookingDto2: {
+      id: components["schemas"]["Ulid"];
+      user_id: components["schemas"]["Ulid"];
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+    } | null;
     EventDto: {
-      id: string;
+      id: components["schemas"]["Ulid"];
       /** Format: date-time */
       created_at: string;
       /** Format: date-time */
@@ -359,9 +2320,9 @@ export interface components {
       description: string;
     };
     EventSlotDto: {
-      id: string;
-      event_id: string;
-      airspace_id: string;
+      id: components["schemas"]["Ulid"];
+      event_id: components["schemas"]["Ulid"];
+      airspace_id: components["schemas"]["Ulid"];
       airspace: components["schemas"]["EventAirspaceDto"];
       /** Format: date-time */
       enter_at: string;
@@ -371,31 +2332,43 @@ export interface components {
       created_at: string;
       /** Format: date-time */
       updated_at: string;
-      booking?: components["schemas"]["EventBookingDto"];
+      booking?: components["schemas"]["EventBookingDto2"];
       callsign?: string | null;
       aircraft_type_icao?: string | null;
     };
+    FutureControllerDto: {
+      callsign: string;
+      name: string;
+      start: string;
+      end: string;
+    };
     LoginResDto: {
       access_token: string;
-      /** Format: int32 */
+      /** Format: uint32 */
       expires_in: number;
       refresh_token: string;
       scope: string;
+      /** @default Bearer */
       token_type: string;
+      /** @default urn:ietf:params:oauth:token-type:access_token */
       issued_token_type: string;
     };
-    NotamDto: {
-      id: string;
+    Notam: {
       title: string;
-      description: string;
-      /** Format: date-time */
-      effective_from: string;
-      /** Format: date-time */
-      expire_after: string;
-      /** Format: date-time */
-      created_at: string;
-      /** Format: date-time */
-      updated_at: string;
+      language_code: string;
+      link: string;
+    };
+    PilotDto: {
+      /** Format: int32 */
+      cid: number;
+      name: string;
+      callsign: string;
+      departure: string | null;
+      arrival: string | null;
+      aircraft: string | null;
+    };
+    SectorPermissionResponse: {
+      has_permission: boolean;
     };
     TokenDto: {
       user: components["schemas"]["UserDto"];
@@ -404,6 +2377,22 @@ export interface components {
       /** Format: date-time */
       expires_at: string;
     };
+    TokenErrorDto: {
+      error: string;
+      error_description?: string | null;
+      error_uri?: string | null;
+      state?: string | null;
+    };
+    TokenResponse: {
+      access_token: string;
+      token_type: string;
+      /** Format: uint32 */
+      expires_in: number;
+      refresh_token: string;
+      scope: string;
+    };
+    /** @description ULID */
+    Ulid: string;
     UpdateEventAirspaceDto: {
       name: string;
       icao_codes: string[];
@@ -431,7 +2420,7 @@ export interface components {
       aircraft_type_icao?: string | null;
     };
     UserDto: {
-      id: string;
+      id: components["schemas"]["Ulid"];
       cid: string;
       full_name: string;
       /** Format: date-time */
@@ -439,6 +2428,13 @@ export interface components {
       /** Format: date-time */
       updated_at: string;
       roles: string[];
+    };
+    VatprcStatusDto: {
+      /** Format: date-time */
+      last_updated: string;
+      pilots: components["schemas"]["PilotDto"][];
+      controllers: components["schemas"]["ControllerDto"][];
+      future_controllers: components["schemas"]["FutureControllerDto"][];
     };
   };
   responses: never;
@@ -448,1151 +2444,4 @@ export interface components {
   pathItems: never;
 }
 export type $defs = Record<string, never>;
-export interface operations {
-  Auth_Authorize: {
-    parameters: {
-      query?: {
-        response_type?: string;
-        client_id?: string;
-        redirect_uri?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Auth_Login: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Auth_VatsimCallback: {
-    parameters: {
-      query?: {
-        code?: string;
-        state?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Event_List: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventDto"][];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Event_Create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["CreateEventDto"];
-      };
-    };
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Event_Get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventDto"];
-        };
-      };
-      /** @description EVENT_NOT_FOUND */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Event_Update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["UpdateEventDto"];
-      };
-    };
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Event_Delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventAirspace_List: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventAirspaceDto"][];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventAirspace_Create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["CreateEventAirspaceDto"];
-      };
-    };
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventAirspaceDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventAirspace_Get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-        aid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventAirspaceDto"];
-        };
-      };
-      /** @description EVENT_NOT_FOUND */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventAirspace_Update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-        aid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["UpdateEventAirspaceDto"];
-      };
-    };
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventAirspaceDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventAirspace_Delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-        aid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventAirspaceDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventSlot_List: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventSlotDto"][];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventSlot_Create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["CreateEventSlotDto"];
-      };
-    };
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventSlotDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventSlot_Export: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventSlot_Get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-        sid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventSlotDto"];
-        };
-      };
-      /** @description EVENT_NOT_FOUND */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventSlot_Update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-        sid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["UpdateEventSlotDto"];
-      };
-    };
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventSlotDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventSlot_Delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-        sid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventSlotDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventSlotBooking_Get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-        sid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventBookingDto"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventSlotBooking_Put: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-        sid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventBookingDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description EVENT_NOT_FOUND */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  EventSlotBooking_Delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        eid: string;
-        sid: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventBookingDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Notam_List: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["NotamDto"][];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Notam_Get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["NotamDto"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Session_Get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TokenDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INVALID_TOKEN_NOT_FIRST_PARTY */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Session_Login: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/x-www-form-urlencoded": {
-          username?: string;
-          password?: string;
-          grant_type?: string;
-          refresh_token?: string;
-          client_id?: string;
-          code?: string;
-          redirect_uri?: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["LoginResDto"];
-        };
-      };
-      /** @description INVALID_GRANT_TYPE */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INVALID_REFRESH_TOKEN */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  Session_Logout: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description No Content */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INVALID_TOKEN_NOT_FIRST_PARTY */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  User_List: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["UserDto"][];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-  User_Get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Success */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["UserDto"];
-        };
-      };
-      /** @description INVALID_TOKEN */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description USER_NOT_FOUND */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-      /** @description INTERNAL_SERVER_ERROR */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorProdResponse"];
-        };
-      };
-    };
-  };
-}
+export type operations = Record<string, never>;

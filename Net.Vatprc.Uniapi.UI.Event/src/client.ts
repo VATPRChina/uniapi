@@ -1,4 +1,4 @@
-import { components, paths } from "./api";
+import { paths } from "./api";
 import { authMiddleware } from "./services/auth";
 import { errorToast } from "./utils";
 import { QueryClient, UseMutationResult, UseQueryResult, useMutation, useQuery } from "@tanstack/react-query";
@@ -18,7 +18,7 @@ export class ApiError extends Error {
 const throwMiddleware: Middleware = {
   async onResponse({ response }) {
     if (!response.ok) {
-      const body = (await response.clone().json()) as components["schemas"]["ErrorProdResponse"];
+      const body = (await response.clone().json()) as { message: string; error_code: string };
       const err = new ApiError(body.message, response.status, body.error_code);
       if (err.errorCode !== "INVALID_TOKEN") throw err;
     }
@@ -101,12 +101,18 @@ export const createHooks = <Paths>() => {
 };
 export const { useApi, useApiPost, useApiPut, useApiDelete, useApiPatch } = createHooks<paths>();
 
-export const formatPath = <Path extends keyof paths>(url: Path, path: paths[Path]["get"]["parameters"]["path"]) => {
+export const formatPath = <Path extends keyof paths>(
+  url: Path,
+  path: paths[Path] extends { get: { parameters: { path: infer G } } } ? G : never,
+) => {
   return defaultPathSerializer(url, path ?? {})
     .split("/")
     .filter((s) => !!s);
 };
 
-export const invalidatePath = <Path extends keyof paths>(url: Path, path: paths[Path]["get"]["parameters"]["path"]) => {
+export const invalidatePath = <Path extends keyof paths>(
+  url: Path,
+  path: paths[Path] extends { get: { parameters: { path: infer G } } } ? G : never,
+) => {
   return queryClient.invalidateQueries({ queryKey: formatPath(url, path) });
 };

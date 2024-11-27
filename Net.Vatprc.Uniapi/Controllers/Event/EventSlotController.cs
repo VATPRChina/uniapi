@@ -101,6 +101,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [ApiError.Has<ApiError.EventAirspaceNotFound>]
     public async Task<EventSlotDto> Create(Ulid eid, CreateEventSlotDto dto)
     {
         var airspace = await DbContext.EventAirspace.FindAsync(dto.AirspaceId)

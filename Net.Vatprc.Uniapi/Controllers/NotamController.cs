@@ -27,7 +27,7 @@ public class NotamController(DiscourseService DiscourseService) : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<Notam>), 200)]
+    [ProducesResponseType<IEnumerable<Notam>>(200)]
     public async Task<IActionResult> GetPermission()
     {
         return Ok((await DiscourseService.GetNotamTopics()).TopicList.Topics.Select(x => new Notam

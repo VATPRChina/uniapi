@@ -58,6 +58,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
     [HttpGet("{aid}")]
     [AllowAnonymous]
     [ApiError.Has<ApiError.EventNotFound>]
+    [ApiError.Has<ApiError.EventAirspaceNotFound>]
     public async Task<EventAirspaceDto> Get(Ulid eid, Ulid aid)
     {
         var airspace = await LoadAsync(eid, aid);

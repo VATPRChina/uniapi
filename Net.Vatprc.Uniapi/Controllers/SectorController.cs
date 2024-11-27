@@ -37,6 +37,8 @@ public class SectorController(
     }
 
     [HttpGet("current/permission")]
+    // [ProducesResponseType<SectorPermissionResponse>(200)]
+    [Produces<SectorPermissionResponse>]
     public async Task<SectorPermissionResponse> GetPermission()
     {
         var user = await DbContext.User.FindAsync(this.GetUserId()) ??

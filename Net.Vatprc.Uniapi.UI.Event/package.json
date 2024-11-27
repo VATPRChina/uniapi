@@ -13,7 +13,7 @@
     "lint:tsc": "tsc --noEmit --pretty",
     "lint": "concurrently 'pnpm:lint:*' --group",
     "format": "prettier --ignore-unknown --write 'src/**/*'",
-    "build-api": "openapi-typescript http://localhost:5000/api/swagger/v1/swagger.json -o src/api.d.ts && prettier --write src/api.d.ts"
+    "build-api": "openapi-typescript http://localhost:5000/openapi/v1.json -o src/api.d.ts && prettier --write src/api.d.ts"
   },
   "dependencies": {
     "@mantine/core": "^7.11.2",

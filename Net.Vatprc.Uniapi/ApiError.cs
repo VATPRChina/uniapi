@@ -3,6 +3,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.OpenApi.Models;
@@ -65,7 +66,7 @@ public abstract class ApiError : Exception
     }
 
     [AttributeUsage(AttributeTargets.Class)]
-    protected class ErrorAttribute(HttpStatusCode statusCode, string errorCode, string messageExample = "") : Attribute
+    internal class ErrorAttribute(HttpStatusCode statusCode, string errorCode, string messageExample = "") : Attribute
     {
         public HttpStatusCode StatusCode { get; set; } = statusCode;
         public string ErrorCode { get; set; } = errorCode;
@@ -73,7 +74,7 @@ public abstract class ApiError : Exception
     }
 
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-    protected class WithExtraData(string fieldName, Type fieldType) : Attribute
+    internal class WithExtraData(string fieldName, Type fieldType) : Attribute
     {
         public string FieldName { get; set; } = fieldName;
         public Type FieldType { get; set; } = fieldType;
@@ -137,14 +138,14 @@ public abstract class ApiError : Exception
             ExceptionType = typeof(T);
     }
 
-    protected interface IHasAttribute
+    internal interface IHasAttribute
     {
         public Type ExceptionType { get; }
     }
 
     public class ErrorExceptionFilter(IHostEnvironment HostEnvironment, Serilog.ILogger Logger) : IExceptionFilter
     {
-        private static IActionResult NormalizeError(Exception exception, ExceptionContext context, bool isProduction)
+        private static ObjectResult NormalizeError(Exception exception, ExceptionContext context, bool isProduction)
         {
             var error = exception switch
             {
