@@ -131,11 +131,8 @@ public static class OpenApiTransformers
             return Task.CompletedTask;
         }
 
-        static (ErrorAttribute Error, IEnumerable<WithExtraData> Extra) GetErrorAttribute(Type type) =>
-            (
-                (ErrorAttribute)type.GetCustomAttributes(typeof(ErrorAttribute), true).FirstOrDefault()!,
-                (WithExtraData[])type.GetCustomAttributes(typeof(WithExtraData), true)
-            );
+        static ErrorAttribute GetErrorAttribute(Type type) =>
+            (ErrorAttribute)type.GetCustomAttributes(typeof(ErrorAttribute), true).First();
 
         var exceptions = descriptor.MethodInfo
             .GetCustomAttributes(typeof(HasAttribute<>), true)
@@ -147,13 +144,13 @@ public static class OpenApiTransformers
                 operation.Security.Count == 0 ? typeof(InvalidToken) : null!,
             }.Where(x => x != null))
             .Select(GetErrorAttribute)
-            .GroupBy(x => x.Error.StatusCode)
+            .GroupBy(x => x.StatusCode)
             .ToDictionary(x => x.Key, x => x.AsEnumerable());
         foreach (var exception in exceptions)
         {
             operation.Responses.Add(((int)exception.Key).ToString(), new OpenApiResponse
             {
-                Description = string.Join(", ", exception.Value.Select(x => x.Error.ErrorCode)),
+                Description = string.Join(", ", exception.Value.Select(x => x.ErrorCode)),
                 Content = new Dictionary<string, OpenApiMediaType>()
                 {
                     ["application/json"] = new OpenApiMediaType
@@ -167,29 +164,40 @@ public static class OpenApiTransformers
                                     ["error_code"] = new OpenApiSchema
                                     {
                                         Type = "string",
-                                        Example = new OpenApiString(x.Error.ErrorCode),
-                                        Description = x.Error.ErrorCode
+                                        Example = new OpenApiString(x.ErrorCode),
+                                        Description = x.ErrorCode
                                     },
                                     ["message"] = new OpenApiSchema
                                     {
                                         Type = "string",
-                                        Example = new OpenApiString(x.Error.MessageExample),
-                                        Description = x.Error.MessageExample
+                                        Example = new OpenApiString(x.MessageExample),
+                                        Description = x.MessageExample
                                     },
-                                };
-                                foreach (var extra in x.Extra)
-                                {
-                                    properties[extra.FieldName] = new OpenApiSchema
+                                    ["type"] = new OpenApiSchema
                                     {
                                         Type = "string",
-                                        Description = extra.FieldType == typeof(string) ? "string" : "object",
-                                    };
-                                }
+                                        Example = new OpenApiString($"urn:vatprc-uniapi-error:{x.ErrorCode.ToLowerInvariant().Replace('_', '-')}"),
+                                        Description = x.ErrorCode
+                                    },
+                                    ["title"] = new OpenApiSchema
+                                    {
+                                        Type = "string",
+                                        Example = new OpenApiString(x.MessageExample),
+                                        Description = x.MessageExample
+                                    },
+                                    ["detail"] = new OpenApiSchema
+                                    {
+                                        Type = "string",
+                                        Example = new OpenApiString(x.MessageExample),
+                                        Description = x.MessageExample
+                                    },
+                                };
                                 return new OpenApiSchema
                                 {
                                     Type = "object",
                                     Properties = properties,
                                     Required = properties.Keys.ToFrozenSet(),
+                                    Description = "Error object compliant with RFC 7807",
                                 };
                             }).ToList(),
                         },

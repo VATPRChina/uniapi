@@ -1,7 +1,10 @@
 using System.Diagnostics;
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -17,52 +20,50 @@ public abstract class ApiError : Exception
 
     public string ErrorCode { get; set; }
 
-    public IDictionary<string, object> ExtraData { get; set; }
-
     public ApiError(
         HttpStatusCode statusCode,
         string errorCode,
         string message,
-        Exception? innerException = null) : this(
-            statusCode,
-            errorCode,
-            message,
-            new Dictionary<string, object>(),
-            innerException)
-    {
-    }
-
-    public ApiError(
-        HttpStatusCode statusCode,
-        string errorCode,
-        string message,
-        IDictionary<string, object> extraData,
         Exception? innerException = null) : base(message, innerException)
     {
         StatusCode = statusCode;
         ErrorCode = errorCode;
-        ExtraData = extraData;
     }
 
     protected ApiError(
         string message,
-        Exception? innerException = null) : this(
-            message,
-            new Dictionary<string, object>(),
-            innerException)
-    {
-    }
-
-    protected ApiError(
-        string message,
-            IDictionary<string, object> extraData,
         Exception? innerException = null) : base(message, innerException)
     {
         var type = GetType().GetCustomAttributes(typeof(ErrorAttribute), true).FirstOrDefault() as ErrorAttribute ??
             throw new Exception("ErrorAttribute not found, cannot use this constructor.");
         StatusCode = type.StatusCode;
         ErrorCode = type.ErrorCode;
-        ExtraData = extraData;
+    }
+
+    public ProblemDetails ToProblem(HttpContext context)
+    {
+        var problem = new ProblemDetails
+        {
+            Type = $"urn:vatprc-uniapi-error:{ErrorCode.ToLowerInvariant().Replace('_', '-')}",
+            Title = Message,
+            Status = (int)StatusCode,
+            Detail = Message
+        };
+
+        // Gets or sets the current operation (Activity) for the current thread.
+        if (Activity.Current?.Id != null)
+            problem.Extensions.Add("trace_id", Activity.Current?.Id!);
+        if (Activity.Current?.ParentId != null)
+            problem.Extensions.Add("trace_parent_id", Activity.Current?.ParentId!);
+        problem.Extensions.Add("connection_id", context.Connection.Id);
+        // Gets or sets a unique identifier to represent this request in trace logs.
+        problem.Extensions.Add("request_id", context.TraceIdentifier);
+
+        // For backward compat
+        problem.Extensions.Add("error_code", ErrorCode);
+        problem.Extensions.Add("message", Message);
+
+        return problem;
     }
 
     [AttributeUsage(AttributeTargets.Class)]
@@ -72,63 +73,6 @@ public abstract class ApiError : Exception
         public string ErrorCode { get; set; } = errorCode;
         public string MessageExample { get; set; } = messageExample;
     }
-
-    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-    internal class WithExtraData(string fieldName, Type fieldType) : Attribute
-    {
-        public string FieldName { get; set; } = fieldName;
-        public Type FieldType { get; set; } = fieldType;
-    }
-
-    public void WithHttpContext(HttpContext context)
-    {
-        // Gets or sets the current operation (Activity) for the current thread.
-        if (Activity.Current?.Id != null)
-            ExtraData.Add("trace_id", Activity.Current?.Id!);
-        if (Activity.Current?.ParentId != null)
-            ExtraData.Add("trace_parent_id", Activity.Current?.ParentId!);
-        ExtraData.Add("connection_id", context.Connection.Id);
-        // Gets or sets a unique identifier to represent this request in trace logs.
-        ExtraData.Add("request_id", context.TraceIdentifier);
-    }
-
-    public record ErrorProdResponse(
-        [property:JsonPropertyName("error_code")]
-        string ErrorCode,
-        [property:JsonPropertyName("message")]
-        string Message,
-        [property:JsonExtensionData]
-        IDictionary<string, object> ExtraData
-    )
-    {
-        public ErrorProdResponse(ApiError e) : this(
-            e.ErrorCode,
-            e.Message,
-            e.ExtraData)
-        {
-        }
-
-    };
-
-    public record ErrorDevResponse(
-        [property:JsonPropertyName("error_code")]
-        string ErrorCode,
-        [property:JsonPropertyName("message")]
-        string Message,
-        [property:JsonPropertyName("stack_trace")]
-        string StackTrace,
-        [property:JsonExtensionData]
-        IDictionary<string, object> ExtraData
-    )
-    {
-        public ErrorDevResponse(ApiError e) : this(
-              e.ErrorCode,
-              e.Message,
-              e.StackTrace ?? e.InnerException?.StackTrace ?? "No stacktrace provided.",
-              e.ExtraData)
-        {
-        }
-    };
 
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
     public class HasAttribute<T> : Attribute, IHasAttribute where T : ApiError
@@ -143,10 +87,22 @@ public abstract class ApiError : Exception
         public Type ExceptionType { get; }
     }
 
-    public class ErrorExceptionFilter(IHostEnvironment HostEnvironment, Serilog.ILogger Logger) : IExceptionFilter
+    public class ErrorExceptionFilter(
+        IHostEnvironment HostEnvironment,
+        Serilog.ILogger Logger) : IExceptionFilter
     {
-        private static ObjectResult NormalizeError(Exception exception, ExceptionContext context, bool isProduction)
+        public void OnException(ExceptionContext context)
         {
+            var exception = context.Exception;
+            if (exception is not ApiError)
+            {
+                Logger.Error(exception, "Internal error occurred.");
+                SentrySdk.CaptureException(exception, scope =>
+                {
+                    scope.SetTag("handled", "no");
+                });
+            }
+
             var error = exception switch
             {
                 ApiError e => e,
@@ -154,45 +110,81 @@ public abstract class ApiError : Exception
                 null => new InternalServerError(new Exception("Null exception thrown.")),
             };
 
-            error.WithHttpContext(context.HttpContext);
-            error.ExtraData.Add("action_id", context.ActionDescriptor.Id);
+            var problem = error.ToProblem(context.HttpContext);
+            if (HostEnvironment.IsDevelopment())
+            {
+                problem.Extensions.Add("stack_trace", error.StackTrace);
+            }
 
-            if (isProduction)
+            context.Result = new JsonResult(problem)
             {
-                return new ObjectResult(new ErrorProdResponse(error))
-                { StatusCode = (int)error.StatusCode };
-            }
-            else
-            {
-                return new ObjectResult(new ErrorDevResponse(error))
-                { StatusCode = (int)error.StatusCode };
-            }
+                StatusCode = problem.Status,
+                ContentType = "application/problem+json",
+            };
         }
+    }
 
-        public void OnException(ExceptionContext context)
+    // FIXME: This is not usable until https://github.com/dotnet/aspnetcore/pull/59074.
+    public class ErrorExceptionHandler(IHostEnvironment HostEnvironment, Serilog.ILogger Logger) : IExceptionHandler
+    {
+        public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
         {
-            if (context.Exception is Exception e and not ApiError)
+            if (exception is not ApiError)
             {
-                Logger.Error(e, "Internal error occurred.");
-                SentrySdk.CaptureException(e, scope =>
+                Logger.Error(exception, "Internal error occurred.");
+                SentrySdk.CaptureException(exception, scope =>
                 {
                     scope.SetTag("handled", "no");
                 });
             }
 
-            context.Result = NormalizeError(
-                context.Exception,
-                context,
-                HostEnvironment.IsProduction());
+            var error = exception switch
+            {
+                ApiError e => e,
+                Exception e => new InternalServerError(e),
+                null => new InternalServerError(new Exception("Null exception thrown.")),
+            };
+
+            var problem = new ProblemDetails
+            {
+                Type = $"urn:vatprc-uniapi-error:{error.ErrorCode.ToLowerInvariant().Replace('_', '-')}",
+                Title = error.Message,
+                Status = (int)error.StatusCode,
+                Detail = error.Message
+            };
+
+            // Gets or sets the current operation (Activity) for the current thread.
+            if (Activity.Current?.Id != null)
+                problem.Extensions.Add("trace_id", Activity.Current?.Id!);
+            if (Activity.Current?.ParentId != null)
+                problem.Extensions.Add("trace_parent_id", Activity.Current?.ParentId!);
+            problem.Extensions.Add("connection_id", httpContext.Connection.Id);
+            // Gets or sets a unique identifier to represent this request in trace logs.
+            problem.Extensions.Add("request_id", httpContext.TraceIdentifier);
+
+            foreach (var field in error.GetType().GetFields())
+            {
+                problem.Extensions.Add(field.Name, field.GetValue(exception));
+            }
+
+            // For backward compat
+            problem.Extensions.Add("error_code", error.ErrorCode);
+            problem.Extensions.Add("message", error.Message);
+
+            if (HostEnvironment.IsDevelopment())
+            {
+                problem.Extensions.Add("stack_trace", error.StackTrace);
+            }
+
+            await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
+
+            return true;
         }
     }
 
     [Error(HttpStatusCode.InternalServerError, "INTERNAL_SERVER_ERROR", "An internal server error occurred.")]
-    public class InternalServerError(Exception innerException) : ApiError(
-        $"An internal server error occurred: {innerException.Message}",
-        innerException)
-    {
-    }
+    public class InternalServerError(Exception innerException) :
+        ApiError($"An internal server error occurred: {innerException.Message}", innerException);
 
     [Error(HttpStatusCode.NotFound, "ENDPOINT_NOT_FOUND", "API endpoint not found.")]
     public class EndpointNotFound : ApiError
@@ -201,15 +193,16 @@ public abstract class ApiError : Exception
     }
 
     [Error(HttpStatusCode.BadRequest, "BAD_REQUEST", "Request body is invalid.")]
-    [WithExtraData("errors", typeof(IDictionary<string, IEnumerable<string>>))]
     public class BadRequest : ApiError
     {
+        IDictionary<string, IEnumerable<string>>? Errors { get; set; } = null;
+
         public BadRequest(ModelStateDictionary state) : base(
             "Request body is invalid.")
         {
-            ExtraData.Add("errors", state
-                .Select(e => new { e.Key, Value = e.Value?.Errors.Select(e => e.ErrorMessage) })
-                .ToDictionary(e => e.Key, e => e.Value));
+            Errors = state
+                .Select(e => new { e.Key, Value = e.Value?.Errors.Select(e => e.ErrorMessage) ?? [] })
+                .ToDictionary(e => e.Key, e => e.Value);
         }
 
         public BadRequest(string message) : base(
@@ -219,196 +212,66 @@ public abstract class ApiError : Exception
     }
 
     [Error(HttpStatusCode.NotFound, "USER_NOT_FOUND", "User {user_id} not found.")]
-    [WithExtraData("user_id", typeof(string))]
-    public class UserNotFound : ApiError
-    {
-        public UserNotFound(Ulid id) : base(
-            $"User {id} not found.")
-        {
-            ExtraData.Add("user_id", id);
-        }
-    }
+    public class UserNotFound(Ulid user_id) :
+        ApiError($"User {user_id} not found.");
 
     [Error(HttpStatusCode.BadRequest, "INVALID_GRANT_TYPE", "Invalid grant type {grant_type}.")]
-    [WithExtraData("grant_type", typeof(string))]
-    public class InvalidGrantType : ApiError
-    {
-        public InvalidGrantType(string grantType) : base(
-            $"Invalid grant type {grantType}.")
-        {
-            ExtraData.Add("grant_type", grantType);
-        }
-    }
+    public class InvalidGrantType(string grant_type) :
+        ApiError($"Invalid grant type {grant_type}.");
 
     [Error(HttpStatusCode.Unauthorized, "INVALID_TOKEN", "Invalid token {oauth_code}: {oauth_desc}.")]
-    [WithExtraData("oauth_code", typeof(string))]
-    [WithExtraData("oauth_desc", typeof(string))]
-    public class InvalidToken : ApiError
-    {
-        public InvalidToken(string? code, string? description, Exception? ex) : base(
-            $"Invalid token {code}: {description}.",
-            ex)
-        {
-            ExtraData.Add("oauth_code", code ?? string.Empty);
-            ExtraData.Add("oauth_desc", description ?? string.Empty);
-        }
-    }
+    public class InvalidToken(string? oauth_code, string? oauth_desc, Exception? ex) :
+        ApiError($"Invalid token {oauth_code}: {oauth_desc}.", ex);
 
     [Error(HttpStatusCode.Forbidden, "INVALID_TOKEN_NOT_FIRST_PARTY", "Token is not issued to first-party application.")]
-    public class InvalidTokenNotFirstParty : ApiError
-    {
-        public InvalidTokenNotFirstParty() : base(
-            $"Token is not issued to first-party application.")
-        {
-        }
-    }
+    public class InvalidTokenNotFirstParty() :
+        ApiError($"Token is not issued to first-party application.");
 
     [Error(HttpStatusCode.Forbidden, "INVALID_REFRESH_TOKEN", "Refresh token is not valid for {code}.")]
-    [WithExtraData("code", typeof(string))]
-    public class InvalidRefreshToken : ApiError
-    {
-        public InvalidRefreshToken(string code) : base(
-            $"Refresh token is not valid for {code}.")
-        {
-            ExtraData.Add("code", code);
-        }
-    }
+    public class InvalidRefreshToken(string code) :
+        ApiError($"Refresh token is not valid for {code}.");
 
     [Error(HttpStatusCode.Forbidden, "INVALID_DEVICE_CODE", "Device code is not valid for {code}.")]
-    [WithExtraData("code", typeof(string))]
-    public class InvalidDeviceCode : ApiError
-    {
-        public InvalidDeviceCode(string code) : base(
-            $"Device code is not valid for {code}.")
-        {
-            ExtraData.Add("code", code);
-        }
-    }
+    public class InvalidDeviceCode(string code) :
+        ApiError($"Device code is not valid for {code}.");
 
     [Error(HttpStatusCode.Forbidden, "INVALID_AUTHORIZATION_CODE", "Authorization code is not valid.")]
-    public class InvalidAuthorizationCode : ApiError
-    {
-        public InvalidAuthorizationCode() : base($"Refresh token is not valid.")
-        {
-        }
-    }
+    public class InvalidAuthorizationCode() :
+        ApiError($"Refresh token is not valid.");
 
     [Error(HttpStatusCode.NotFound, "EVENT_NOT_FOUND", "Event {event_id} not found.")]
-    [WithExtraData("event_id", typeof(string))]
-    public class EventNotFound : ApiError
-    {
-        public EventNotFound(Ulid id) : base(
-            $"Event {id} not found.")
-        {
-            ExtraData.Add("event_id", id);
-        }
-    }
+    public class EventNotFound(Ulid event_id) :
+        ApiError($"Event {event_id} not found.");
 
     [Error(HttpStatusCode.NotFound, "EVENT_AIRSPACE_NOT_FOUND", "Event {event_id}'s airspace {airspace_id} not found.")]
-    [WithExtraData("event_id", typeof(string))]
-    [WithExtraData("airspace_id", typeof(string))]
-    public class EventAirspaceNotFound : ApiError
-    {
-        public EventAirspaceNotFound(Ulid event_id, Ulid airspace_id) : base(
-            $"Event {event_id}'s airspace {airspace_id} not found.")
-        {
-            ExtraData.Add("event_id", event_id);
-            ExtraData.Add("airspace_id", airspace_id);
-        }
-    }
+    public class EventAirspaceNotFound(Ulid event_id, Ulid airspace_id) :
+        ApiError($"Event {event_id}'s airspace {airspace_id} not found.");
 
     [Error(HttpStatusCode.NotFound, "EVENT_SLOT_NOT_FOUND", "Event {event_id}'s slot {slot_id} not found.")]
-    [WithExtraData("event_id", typeof(string))]
-    [WithExtraData("slot_id", typeof(string))]
-    public class EventSlotNotFound : ApiError
-    {
-        public EventSlotNotFound(Ulid event_id, Ulid slot_id) : base(
-            $"Event {event_id}'s slot {slot_id} not found.")
-        {
-            ExtraData.Add("event_id", event_id);
-            ExtraData.Add("slot_id", slot_id);
-        }
-    }
+    public class EventSlotNotFound(Ulid event_id, Ulid slot_id) :
+        ApiError($"Event {event_id}'s slot {slot_id} not found.");
 
     [Error(HttpStatusCode.NotFound, "EVENT_SLOT_NOT_BOOKED", "Event {event_id}'s slot {slot_id} has not been booked.")]
-    [WithExtraData("event_id", typeof(string))]
-    [WithExtraData("slot_id", typeof(string))]
-    public class EventSlotNotBooked : ApiError
-    {
-        public EventSlotNotBooked(Ulid event_id, Ulid slot_id) : base(
-            $"Event {event_id}'s slot {slot_id} has not been booked.")
-        {
-            ExtraData.Add("event_id", event_id);
-            ExtraData.Add("slot_id", slot_id);
-        }
-    }
+    public class EventSlotNotBooked(Ulid event_id, Ulid slot_id) :
+        ApiError($"Event {event_id}'s slot {slot_id} has not been booked.");
 
     [Error(HttpStatusCode.Conflict, "EVENT_SLOT_BOOKED", "Event {event_id}'s slot {slot_id} has been booked.")]
-    [WithExtraData("event_id", typeof(string))]
-    [WithExtraData("slot_id", typeof(string))]
-    public class EventSlotBooked : ApiError
-    {
-        public EventSlotBooked(Ulid event_id, Ulid slot_id) : base(
-            $"Event {event_id}'s slot {slot_id} has been booked.")
-        {
-            ExtraData.Add("event_id", event_id);
-            ExtraData.Add("slot_id", slot_id);
-        }
-    }
+    public class EventSlotBooked(Ulid event_id, Ulid slot_id) :
+        ApiError($"Event {event_id}'s slot {slot_id} has been booked.");
 
     [Error(HttpStatusCode.Conflict, "EVENT_BOOK_OVERLAP_TIME", "Current user have an overlapping booking with the slot.")]
-    public class EventBookOverlapTime : ApiError
-    {
-        public EventBookOverlapTime() : base(
-            $"Current user have an overlapping booking with the slot.")
-        {
-        }
-    }
+    public class EventBookOverlapTime() :
+        ApiError($"Current user have an overlapping booking with the slot.");
 
     [Error(HttpStatusCode.Forbidden, "EVENT_SLOT_BOOKED_BY_ANOTHER_USER", "Event {event_id}'s slot {slot_id} has been booked by another user.")]
-    [WithExtraData("event_id", typeof(string))]
-    [WithExtraData("slot_id", typeof(string))]
-    public class EventSlotBookedByAnotherUser : ApiError
-    {
-        public EventSlotBookedByAnotherUser(Ulid event_id, Ulid slot_id) : base(
-            $"Event {event_id}'s slot {slot_id} has been booked by another user.")
-        {
-            ExtraData.Add("event_id", event_id);
-            ExtraData.Add("slot_id", slot_id);
-        }
-    }
+    public class EventSlotBookedByAnotherUser(Ulid event_id, Ulid slot_id) :
+        ApiError($"Event {event_id}'s slot {slot_id} has been booked by another user.");
 
     [Error(HttpStatusCode.Forbidden, "EVENT_NOT_IN_BOOKING_TIME", "Event {event_id} is not in booking time.")]
-    [WithExtraData("event_id", typeof(string))]
-    [WithExtraData("slot_id", typeof(string))]
-    public class EventNotInBookingTime : ApiError
-    {
-        public EventNotInBookingTime(Ulid event_id) : base(
-            $"Event {event_id} is not in booking time.")
-        {
-            ExtraData.Add("event_id", event_id);
-        }
-    }
+    public class EventNotInBookingTime(Ulid event_id) :
+        ApiError($"Event {event_id} is not in booking time.");
 
     [Error(HttpStatusCode.Forbidden, "FORBIDDEN", "Permission is not sufficient, lacks {roles}.")]
-    [WithExtraData("required_roles", typeof(IEnumerable<string>))]
-    public class Forbidden : ApiError
-    {
-        public Forbidden(IEnumerable<string> required_roles) : base(
-            $"Permission is not sufficient, lacks {string.Join(",", required_roles)}.")
-        {
-            ExtraData.Add("required_roles", required_roles);
-        }
-    }
-
-    [Error(HttpStatusCode.NotFound, "NOTAM_NOT_FOUND", "Notam {notam_id} not found.")]
-    [WithExtraData("event_id", typeof(string))]
-    public class NotamNotFound : ApiError
-    {
-        public NotamNotFound(Ulid id) : base(
-            $"NOTAM {id} not found.")
-        {
-            ExtraData.Add("notam_id", id);
-        }
-    }
+    public class Forbidden(IEnumerable<string> required_roles) :
+        ApiError($"Permission is not sufficient, lacks {string.Join(",", required_roles)}.");
 }

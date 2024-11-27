@@ -21,7 +21,6 @@ public class AuthenticationEventHandler(VATPRCContext DbContext) : JwtBearerEven
                 context.AuthenticateFailure
             ),
         };
-        err.WithHttpContext(context.HttpContext);
 
         // From: https://github.com/dotnet/aspnetcore/blob/9402bfac90a695bb732dff17ba624801076df77f/src/Security/Authentication/JwtBearer/src/JwtBearerHandler.cs#L296-L345
         #region original logic
@@ -78,14 +77,7 @@ public class AuthenticationEventHandler(VATPRCContext DbContext) : JwtBearerEven
         #endregion
 
         // Customized logic for JSON response
-        if (context.HttpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment())
-        {
-            await context.HttpContext.Response.WriteAsJsonAsync(new ApiError.ErrorDevResponse(err));
-        }
-        else
-        {
-            await context.HttpContext.Response.WriteAsJsonAsync(new ApiError.ErrorProdResponse(err));
-        }
+        await context.HttpContext.Response.WriteAsJsonAsync(err.ToProblem(context.HttpContext));
     }
 
     protected Task Validate(TokenValidatedContext context)

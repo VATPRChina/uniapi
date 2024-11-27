@@ -101,6 +101,7 @@ builder.Services
         options.InvalidModelStateResponseFactory = context =>
             throw new ApiError.BadRequest(context.ModelState);
     });
+builder.Services.AddProblemDetails();
 
 var connectionString = builder.Configuration.GetConnectionString(nameof(VATPRCContext)) ??
     throw new Exception("Connection string for VATPRCContext cannot be null");
@@ -182,6 +183,8 @@ VatprcAtcService.ConfigureOn(builder);
 DiscourseService.ConfigureOn(builder);
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

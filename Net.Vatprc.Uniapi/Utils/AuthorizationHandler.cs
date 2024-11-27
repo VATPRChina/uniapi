@@ -8,7 +8,7 @@ public class AuthorizationHandler : IAuthorizationMiddlewareResultHandler
 {
     protected readonly AuthorizationMiddlewareResultHandler DefaultHandler = new();
 
-    public async Task HandleAsync(
+    public Task HandleAsync(
         RequestDelegate next,
         HttpContext context,
         AuthorizationPolicy policy,
@@ -21,17 +21,10 @@ public class AuthorizationHandler : IAuthorizationMiddlewareResultHandler
                 .SelectMany(x => x.AllowedRoles) ?? [];
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             var err = new ApiError.Forbidden(allowedRoles);
-            if (context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment())
-            {
-                await context.Response.WriteAsJsonAsync(new ApiError.ErrorDevResponse(err));
-            }
-            else
-            {
-                await context.Response.WriteAsJsonAsync(new ApiError.ErrorProdResponse(err));
-            }
-            return;
+
+            return context.Response.WriteAsJsonAsync(err.ToProblem(context));
         }
 
-        await DefaultHandler.HandleAsync(next, context, policy, authorizeResult);
+        return DefaultHandler.HandleAsync(next, context, policy, authorizeResult);
     }
 }
