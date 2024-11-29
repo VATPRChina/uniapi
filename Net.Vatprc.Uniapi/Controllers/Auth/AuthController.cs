@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Flurl;
@@ -46,8 +47,9 @@ public class AuthController(
     /// <see href="https://datatracker.ietf.org/doc/html/rfc6749#autoid-36" />
     [HttpGet("authorize")]
     [ProducesResponseType(StatusCodes.Status307TemporaryRedirect)]
+    [EndpointSummary("Authorization request")]
     public IActionResult Authorize(
-        [FromQuery] string response_type,
+        [FromQuery][Description("Value MUST be set to \"code\".")] string response_type,
         [FromQuery] string client_id,
         [FromQuery] string redirect_uri)
     {
@@ -383,6 +385,7 @@ public class AuthController(
         {
             var response = await e.GetResponseStringAsync();
             Logger.LogError(e, "Failed to get token or user info since {Response}", response);
+            e.SetSentryMechanism(nameof(AuthController), handled: true);
             SentrySdk.CaptureException(new Exception($"Failed to get token or user info: {response}", e));
             return RenderCallbackUI("Error", "Internal error", "Please try again later.", Url.Action(nameof(Login)));
         }

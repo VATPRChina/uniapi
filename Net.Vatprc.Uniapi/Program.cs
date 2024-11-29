@@ -106,15 +106,16 @@ builder.Services.AddProblemDetails();
 var connectionString = builder.Configuration.GetConnectionString(nameof(VATPRCContext)) ??
     throw new Exception("Connection string for VATPRCContext cannot be null");
 var dataSource = new NpgsqlDataSourceBuilder(connectionString)
+    .MapEnum<UniApi.Models.Acdm.Flight.FlightState>()
     .EnableDynamicJson()
     .Build();
 builder.Services.AddDbContext<VATPRCContext>(opt =>
 {
+    opt.UseSnakeCaseNamingConvention();
     opt.UseNpgsql(dataSource, pgOpts =>
     {
         pgOpts.MapEnum<UniApi.Models.Acdm.Flight.FlightState>();
     });
-    opt.UseSnakeCaseNamingConvention();
 });
 
 builder.Services.AddOpenApi(opts =>
@@ -181,6 +182,7 @@ RudiMetarService.ConfigureOn(builder);
 VatsimService.ConfigureOn(builder);
 VatprcAtcService.ConfigureOn(builder);
 DiscourseService.ConfigureOn(builder);
+FlightWorker.ConfigureOn(builder);
 
 var app = builder.Build();
 

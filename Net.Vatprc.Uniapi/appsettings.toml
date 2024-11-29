@@ -56,5 +56,24 @@ ClientId = ""
 ClientSecret = ""
 RedirectUri = "https://example.com/auth/callback/vatsim"
 
+[Authentication.Internal.VatprcAtcService]
+Endpoint = "https://atcapi.vatprc.net"
+TokenAudience = "https://atcapi.vatprc.net"
+# Generate ECC key with https://dinochiesa.github.io/jwt/
+PrivateKey = """
+-----BEGIN PRIVATE KEY-----
+......
+-----END PRIVATE KEY-----
+"""
+PublicKey = """
+-----BEGIN PUBLIC KEY-----
+......
+-----END PUBLIC KEY-----
+"""
+
 [Discourse]
 Endpoint = "https://community.vatprc.net"
+
+[Worker.Flight]
+PeriodInSeconds = 15
+TimeoutInMinutes = 5

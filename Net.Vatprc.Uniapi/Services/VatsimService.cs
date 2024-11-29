@@ -15,38 +15,38 @@ public class VatsimService
         return builder;
     }
 
-    public async Task<VatsimData.VatsimData> GetOnlineData()
+    public async Task<VatsimData.VatsimData> GetOnlineData(CancellationToken ct = default)
     {
         var result = await Cache.GetOrCreateAsync("vatsim-data", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
             return await "https://data.vatsim.net/v3/vatsim-data.json"
                 .WithHeader("User-Agent", UniapiUserAgent)
-                .GetJsonAsync<VatsimData.VatsimData>();
+                .GetJsonAsync<VatsimData.VatsimData>(cancellationToken: ct);
         }) ?? throw new Exception("Unexpected null on fetch vatsim data");
         return result;
     }
 
-    public async Task<IEnumerable<VatsimData.AtcSchedule>> GetAtcSchedule()
+    public async Task<IEnumerable<VatsimData.AtcSchedule>> GetAtcSchedule(CancellationToken ct = default)
     {
         var result = await Cache.GetOrCreateAsync("schedule", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
             return await "https://atcapi.vatprc.net/v1/public/schedules"
                 .WithHeader("User-Agent", UniapiUserAgent)
-                .GetJsonAsync<IEnumerable<VatsimData.AtcSchedule>>();
+                .GetJsonAsync<IEnumerable<VatsimData.AtcSchedule>>(cancellationToken: ct);
         }) ?? throw new Exception("Unexpected null on fetch vatprc data");
         return result;
     }
 
-    public async Task<IEnumerable<VatsimData.Controller>> GetAtcList()
+    public async Task<IEnumerable<VatsimData.Controller>> GetAtcList(CancellationToken ct = default)
     {
         var result = await Cache.GetOrCreateAsync("controllers", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
             return await "https://atcapi.vatprc.net/v1/public/controllers"
                 .WithHeader("User-Agent", UniapiUserAgent)
-                .GetJsonAsync<IEnumerable<VatsimData.Controller>>();
+                .GetJsonAsync<IEnumerable<VatsimData.Controller>>(cancellationToken: ct);
         }) ?? throw new Exception("Unexpected null on fetch vatprc data");
         return result;
     }
