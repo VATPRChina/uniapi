@@ -97,10 +97,8 @@ public abstract class ApiError : Exception
             if (exception is not ApiError)
             {
                 Logger.Error(exception, "Internal error occurred.");
-                SentrySdk.CaptureException(exception, scope =>
-                {
-                    scope.SetTag("handled", "no");
-                });
+                exception.SetSentryMechanism(nameof(ErrorExceptionFilter), handled: false);
+                SentrySdk.CaptureException(exception);
             }
 
             var error = exception switch
@@ -125,62 +123,60 @@ public abstract class ApiError : Exception
     }
 
     // FIXME: This is not usable until https://github.com/dotnet/aspnetcore/pull/59074.
-    public class ErrorExceptionHandler(IHostEnvironment HostEnvironment, Serilog.ILogger Logger) : IExceptionHandler
-    {
-        public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
-        {
-            if (exception is not ApiError)
-            {
-                Logger.Error(exception, "Internal error occurred.");
-                SentrySdk.CaptureException(exception, scope =>
-                {
-                    scope.SetTag("handled", "no");
-                });
-            }
-
-            var error = exception switch
-            {
-                ApiError e => e,
-                Exception e => new InternalServerError(e),
-                null => new InternalServerError(new Exception("Null exception thrown.")),
-            };
-
-            var problem = new ProblemDetails
-            {
-                Type = $"urn:vatprc-uniapi-error:{error.ErrorCode.ToLowerInvariant().Replace('_', '-')}",
-                Title = error.Message,
-                Status = (int)error.StatusCode,
-                Detail = error.Message
-            };
-
-            // Gets or sets the current operation (Activity) for the current thread.
-            if (Activity.Current?.Id != null)
-                problem.Extensions.Add("trace_id", Activity.Current?.Id!);
-            if (Activity.Current?.ParentId != null)
-                problem.Extensions.Add("trace_parent_id", Activity.Current?.ParentId!);
-            problem.Extensions.Add("connection_id", httpContext.Connection.Id);
-            // Gets or sets a unique identifier to represent this request in trace logs.
-            problem.Extensions.Add("request_id", httpContext.TraceIdentifier);
-
-            foreach (var field in error.GetType().GetFields())
-            {
-                problem.Extensions.Add(field.Name, field.GetValue(exception));
-            }
-
-            // For backward compat
-            problem.Extensions.Add("error_code", error.ErrorCode);
-            problem.Extensions.Add("message", error.Message);
-
-            if (HostEnvironment.IsDevelopment())
-            {
-                problem.Extensions.Add("stack_trace", error.StackTrace);
-            }
-
-            await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
-
-            return true;
-        }
-    }
+    // public class ErrorExceptionHandler(IHostEnvironment HostEnvironment, Serilog.ILogger Logger) : IExceptionHandler
+    // {
+    //     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
+    //     {
+    //         if (exception is not ApiError)
+    //         {
+    //             Logger.Error(exception, "Internal error occurred.");
+    //             exception.SetSentryMechanism(nameof(ErrorExceptionHandler), "Description", handled: false);
+    //             SentrySdk.CaptureException(exception);
+    //         }
+    // 
+    //         var error = exception switch
+    //         {
+    //             ApiError e => e,
+    //             Exception e => new InternalServerError(e),
+    //             null => new InternalServerError(new Exception("Null exception thrown.")),
+    //         };
+    // 
+    //         var problem = new ProblemDetails
+    //         {
+    //             Type = $"urn:vatprc-uniapi-error:{error.ErrorCode.ToLowerInvariant().Replace('_', '-')}",
+    //             Title = error.Message,
+    //             Status = (int)error.StatusCode,
+    //             Detail = error.Message
+    //         };
+    // 
+    //         // Gets or sets the current operation (Activity) for the current thread.
+    //         if (Activity.Current?.Id != null)
+    //             problem.Extensions.Add("trace_id", Activity.Current?.Id!);
+    //         if (Activity.Current?.ParentId != null)
+    //             problem.Extensions.Add("trace_parent_id", Activity.Current?.ParentId!);
+    //         problem.Extensions.Add("connection_id", httpContext.Connection.Id);
+    //         // Gets or sets a unique identifier to represent this request in trace logs.
+    //         problem.Extensions.Add("request_id", httpContext.TraceIdentifier);
+    // 
+    //         foreach (var field in error.GetType().GetFields())
+    //         {
+    //             problem.Extensions.Add(field.Name, field.GetValue(exception));
+    //         }
+    // 
+    //         // For backward compat
+    //         problem.Extensions.Add("error_code", error.ErrorCode);
+    //         problem.Extensions.Add("message", error.Message);
+    // 
+    //         if (HostEnvironment.IsDevelopment())
+    //         {
+    //             problem.Extensions.Add("stack_trace", error.StackTrace);
+    //         }
+    // 
+    //         await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
+    // 
+    //         return true;
+    //     }
+    // }
 
     [Error(HttpStatusCode.InternalServerError, "INTERNAL_SERVER_ERROR", "An internal server error occurred.")]
     public class InternalServerError(Exception innerException) :
