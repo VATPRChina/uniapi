@@ -106,16 +106,12 @@ builder.Services.AddProblemDetails();
 var connectionString = builder.Configuration.GetConnectionString(nameof(VATPRCContext)) ??
     throw new Exception("Connection string for VATPRCContext cannot be null");
 var dataSource = new NpgsqlDataSourceBuilder(connectionString)
-    .MapEnum<UniApi.Models.Acdm.Flight.FlightState>()
     .EnableDynamicJson()
     .Build();
 builder.Services.AddDbContext<VATPRCContext>(opt =>
 {
     opt.UseSnakeCaseNamingConvention();
-    opt.UseNpgsql(dataSource, pgOpts =>
-    {
-        pgOpts.MapEnum<UniApi.Models.Acdm.Flight.FlightState>();
-    });
+    opt.UseNpgsql(dataSource);
 });
 
 builder.Services.AddOpenApi(opts =>

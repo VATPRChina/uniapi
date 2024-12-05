@@ -18,7 +18,11 @@ public class Flight
 
     public string Departure { get; set; } = string.Empty;
 
+    public string? DepartureGate { get; set; }
+
     public string Arrival { get; set; } = string.Empty;
+
+    public string? ArrivalGate { get; set; }
 
     public uint CruiseTas { get; set; }
 
@@ -28,17 +32,13 @@ public class Flight
 
     public enum FlightState
     {
+        SCHEDULED,
         PRE_DEPARTURE,
-        PUSHBACK,
-        TAXI,
-        TAKEOFF,
-        CLIMB,
+        DEPARTURE_TAXI,
         CRUISE,
-        DESCENT,
-        APPROACH,
-        LANDING,
-        TAXI_ARRIVAL,
-        SHUTDOWN,
+        ARRIVAL_TAXI,
+        FINALIZATION,
+        UNKNOWN,
     }
 
     public class Configuration : IEntityTypeConfiguration<Flight>
@@ -49,6 +49,15 @@ public class Flight
 
             builder.HasIndex(x => x.Cid)
                 .IsUnique();
+
+            builder.Property(x => x.DepartureGate)
+                .IsRequired(false);
+
+            builder.Property(x => x.ArrivalGate)
+                .IsRequired(false);
+
+            builder.Property(x => x.State)
+                .HasConversion<string>();
         }
     }
 }
