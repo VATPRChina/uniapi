@@ -125,8 +125,6 @@ public partial class FlightWorker(
             // update existing state
             switch (flight.State)
             {
-                default: // TODO;
-                    break;
             }
         }
 

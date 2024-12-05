@@ -7,7 +7,7 @@ public class AirportPhysicalRunway
     public Ulid Id { get; set; } = Ulid.NewUlid();
 
     public Ulid AirportId { get; set; }
-    public Airport Airport { get; set; } = null!;
+    public Airport? Airport { get; set; }
 
     public Ulid Runway1Id { get; set; }
     public Runway? Runway1 { get; set; }
