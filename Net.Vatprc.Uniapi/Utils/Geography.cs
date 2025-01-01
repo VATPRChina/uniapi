@@ -48,4 +48,9 @@ public static class Geography
         var d = R * c; // Distance in km
         return d * 0.539957; // Distance in nautical miles
     }
+
+    public static double NauticalMileToMeter(double nm)
+    {
+        return nm * 1852;
+    }
 }

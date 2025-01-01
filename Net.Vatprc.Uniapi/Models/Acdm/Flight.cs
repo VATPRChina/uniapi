@@ -20,9 +20,13 @@ public class Flight
 
     public string? DepartureGate { get; set; }
 
+    public string? DepartureRunway { get; set; }
+
     public string Arrival { get; set; } = string.Empty;
 
     public string? ArrivalGate { get; set; }
+
+    public string? ArrivalRunway { get; set; }
 
     public uint CruiseTas { get; set; }
 

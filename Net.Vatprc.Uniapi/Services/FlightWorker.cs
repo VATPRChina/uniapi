@@ -6,6 +6,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Options;
 using Net.Vatprc.Uniapi.Models.Acdm;
+using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Services;
 
@@ -98,13 +99,18 @@ public partial class FlightWorker(
         }
         Logger.LogDebug("Discovered flight: {Callsign}", pilot.Callsign);
 
-        var flight = await db.Flight.FindAsync(pilot.Callsign);
-        bool isNewFlight = flight == null;
+        var flight = await db.Flight.FirstOrDefaultAsync(f => f.Callsign == pilot.Callsign, cancellationToken: ct);
+
+        bool isNewFlight = flight == null
+            || flight.Departure != pilot.FlightPlan.Departure
+            || flight.Arrival != pilot.FlightPlan.Arrival;
+
         if (flight == null)
         {
             flight = new Flight();
             db.Flight.Add(flight);
         }
+
         flight.Cid = pilot.Cid.ToString();
         flight.Callsign = pilot.Callsign;
         flight.LastObservedAt = pilot.LastUpdated.ToUniversalTime();
@@ -118,14 +124,48 @@ public partial class FlightWorker(
 
         if (isNewFlight)
         {
-            // handle new flight
+            flight.State = Flight.FlightState.UNKNOWN;
         }
-        else
+
+        switch (flight.State)
         {
-            // update existing state
-            switch (flight.State)
-            {
-            }
+            case Flight.FlightState.UNKNOWN:
+                var dep = await db.Airport.FirstOrDefaultAsync(a => a.Identifier == pilot.FlightPlan.Departure, ct);
+                var arr = await db.Airport.FirstOrDefaultAsync(a => a.Identifier == pilot.FlightPlan.Arrival, ct);
+
+                if (dep == null || arr == null)
+                {
+                    Logger.LogWarning("Unknown departure airport {Departure} or arrival airport {Arrival} for {Callsign}.",
+                        pilot.FlightPlan.Departure, pilot.FlightPlan.Arrival, pilot.Callsign);
+                    return;
+                }
+
+                // All flights with (1) a submitted flight plan,
+                if (// (2) is within 20nm of the planned departure airport
+                    Geography.DistanceBetweenPoints(flight.Latitude, flight.Longitude, dep.Latitude, dep.Longitude) < 20 &&
+                    // (3) is within 250ft AGL of the planned departure airport
+                    flight.Altitude < 250 + dep.Elevation)
+                {
+                    flight.State = Flight.FlightState.SCHEDULED;
+
+                    var gate = await db.AirportGate.FirstOrDefaultAsync(g =>
+                        g.Airport == dep &&
+                        Geography.DistanceBetweenPoints(g.Latitude, g.Longitude, flight.Latitude, flight.Longitude) < 0.1, ct);
+                    if (gate != null)
+                    {
+                        flight.DepartureGate = gate.Identifier;
+                    }
+                }
+                else if (
+                    Geography.DistanceBetweenPoints(flight.Latitude, flight.Longitude, arr.Latitude, arr.Longitude) < 20 &&
+                    flight.Altitude < 250 + arr.Elevation
+                )
+                {
+                    flight.State = Flight.FlightState.DEPARTURE_TAXI;
+                }
+
+                // TODO: if the flight has a runway assignment, it should be moved to Pre-departure.
+                break;
         }
 
         await db.SaveChangesAsync(ct);
