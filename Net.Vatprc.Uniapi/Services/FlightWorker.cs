@@ -21,6 +21,11 @@ public partial class FlightWorker(
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
+        if (!Options.CurrentValue.Enabled)
+        {
+            Logger.LogInformation("FlightWorker is disabled.");
+            return;
+        }
         Logger.LogInformation("FlightWorker is starting at interval {Interval}s.", Timer.Period.TotalSeconds);
         do
         {
@@ -175,6 +180,8 @@ public partial class FlightWorker(
     public class Option
     {
         public const string LOCATION = "Worker:Flight";
+
+        public required bool Enabled { get; set; }
 
         public required uint PeriodInSeconds { get; set; }
 

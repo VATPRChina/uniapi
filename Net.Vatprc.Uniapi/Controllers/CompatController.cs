@@ -9,7 +9,8 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Compatibility with existing services.
 /// </summary>
 [ApiController, Route("api/compat")]
-public partial class CompatController(VatsimService VatsimService) : ControllerBase
+[AllowAnonymous]
+public partial class CompatController(VatsimService VatsimService, RudiMetarService MetarService) : ControllerBase
 {
     public class ControllerDto
     {
@@ -52,7 +53,6 @@ public partial class CompatController(VatsimService VatsimService) : ControllerB
     protected static partial Regex vatprcAirportRegexp();
 
     [HttpGet("online-status")]
-    [AllowAnonymous]
     public async Task<VatprcStatusDto> Status()
     {
         var vatsimData = await VatsimService.GetOnlineData();
@@ -90,5 +90,28 @@ public partial class CompatController(VatsimService VatsimService) : ControllerB
                 End = x.Finish.ToUniversalTime().ToString("dd HH:mm"),
             }),
         };
+    }
+
+    public async Task<IActionResult> GetMetar(string icao)
+    {
+        var normalizedIcao = icao.ToUpperInvariant();
+        var metar = await MetarService.GetMetar(normalizedIcao);
+        if (string.IsNullOrEmpty(metar))
+        {
+            metar = "No METAR found";
+        }
+        return Content(metar, "text/plain", System.Text.Encoding.UTF8);
+    }
+
+    [HttpGet("euroscope/metar/{icao}")]
+    public async Task<IActionResult> GetMetarText(string icao)
+    {
+        return await GetMetar(icao);
+    }
+
+    [HttpGet("euroscope/metar/metar.php")]
+    public async Task<IActionResult> GetMetarText2([FromQuery] string id)
+    {
+        return await GetMetar(id);
     }
 }

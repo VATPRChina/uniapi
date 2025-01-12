@@ -270,4 +270,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.Forbidden, "FORBIDDEN", "Permission is not sufficient, lacks {roles}.")]
     public class Forbidden(IEnumerable<string> required_roles) :
         ApiError($"Permission is not sufficient, lacks {string.Join(",", required_roles)}.");
+
+    [Error(HttpStatusCode.BadRequest, "INVALID_AIRPORT_ICAO", "Airport ICAO code {code} is invalid.")]
+    public class InvalidAirportIcao(string code) :
+        ApiError($"Airport ICAO code {code} is invalid.");
 }

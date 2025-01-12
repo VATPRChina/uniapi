@@ -75,5 +75,6 @@ PublicKey = """
 Endpoint = "https://community.vatprc.net"
 
 [Worker.Flight]
+Enabled = false
 PeriodInSeconds = 15
 TimeoutInMinutes = 5
