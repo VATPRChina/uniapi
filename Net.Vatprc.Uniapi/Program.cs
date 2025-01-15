@@ -180,6 +180,7 @@ VatsimService.ConfigureOn(builder);
 VatprcAtcService.ConfigureOn(builder);
 DiscourseService.ConfigureOn(builder);
 FlightWorker.ConfigureOn(builder);
+QQWorker.ConfigureOn(builder);
 
 var app = builder.Build();
 

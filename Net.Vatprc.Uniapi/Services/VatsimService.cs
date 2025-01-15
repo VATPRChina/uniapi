@@ -27,6 +27,20 @@ public class VatsimService
         return result;
     }
 
+
+    public async Task<VatsimData.UserInfo> GetUserInfo(string cid, CancellationToken ct = default)
+    {
+        var result = await Cache.GetOrCreateAsync("vatsim-data", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+            return await "https://api.vatsim.net/v2/members/"
+                .AppendPathSegment(cid)
+                .WithHeader("User-Agent", UniapiUserAgent)
+                .GetJsonAsync<VatsimData.UserInfo>(cancellationToken: ct);
+        }) ?? throw new Exception("Unexpected null on fetch vatsim data");
+        return result;
+    }
+
     public async Task<IEnumerable<VatsimData.AtcSchedule>> GetAtcSchedule(CancellationToken ct = default)
     {
         var result = await Cache.GetOrCreateAsync("schedule", async entry =>

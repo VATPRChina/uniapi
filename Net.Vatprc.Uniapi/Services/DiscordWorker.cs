@@ -45,7 +45,7 @@ public class DiscordWorker(
                 LogSeverity.Verbose => LogLevel.Trace,
                 LogSeverity.Debug => LogLevel.Debug,
                 _ => LogLevel.Information,
-            }, message.Message);
+            }, "{Message}", message.Message);
             return Task.CompletedTask;
         };
         await Interaction.AddModulesAsync(assembly: Assembly.GetEntryAssembly(), services: ServiceProvider);

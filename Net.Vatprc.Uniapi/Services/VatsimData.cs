@@ -330,3 +330,36 @@ public class Role
     [JsonPropertyName("expires")]
     public string? Expires { get; set; }
 }
+
+public class UserInfo
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("rating")]
+    public long Rating { get; set; }
+
+    [JsonPropertyName("pilotrating")]
+    public long Pilotrating { get; set; }
+
+    [JsonPropertyName("militaryrating")]
+    public long Militaryrating { get; set; }
+
+    [JsonPropertyName("susp_date")]
+    public DateTimeOffset? SuspDate { get; set; }
+
+    [JsonPropertyName("reg_date")]
+    public DateTimeOffset RegDate { get; set; }
+
+    [JsonPropertyName("region_id")]
+    public string RegionId { get; set; }
+
+    [JsonPropertyName("division_id")]
+    public string DivisionId { get; set; }
+
+    [JsonPropertyName("subdivision_id")]
+    public string? SubdivisionId { get; set; }
+
+    [JsonPropertyName("lastratingchange")]
+    public DateTimeOffset? Lastratingchange { get; set; }
+}
