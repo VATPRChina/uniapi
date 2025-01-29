@@ -4,6 +4,10 @@ namespace Net.Vatprc.Uniapi.Models.Acdm;
 
 public class Flight
 {
+    public Ulid Id { get; set; }
+
+    public DateTimeOffset? FinalizedAt { get; set; }
+
     public string Cid { get; set; } = string.Empty;
 
     public string Callsign { get; set; } = string.Empty;
@@ -49,10 +53,13 @@ public class Flight
     {
         public void Configure(EntityTypeBuilder<Flight> builder)
         {
-            builder.HasKey(x => x.Callsign);
+            builder.Property(x => x.FinalizedAt)
+                .IsRequired(false)
+                .HasDefaultValue(null);
 
-            builder.HasIndex(x => x.Cid)
-                .IsUnique();
+            builder.HasIndex(x => x.Callsign);
+
+            builder.HasIndex(x => x.Cid);
 
             builder.Property(x => x.DepartureGate)
                 .IsRequired(false);
