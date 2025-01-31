@@ -211,6 +211,9 @@ app.UseAuthorization();
 
 app.UseFileServer();
 
+app.MapGet("/debug/routes", (IEnumerable<EndpointDataSource> endpointSources) =>
+    string.Join("\n", endpointSources.SelectMany(source => source.Endpoints.Select(e => $"{e.DisplayName}"))));
+
 app.MapControllers().RequireAuthorization(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 app.MapFallbackToController("/api/{**path}",

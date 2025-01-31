@@ -14,6 +14,14 @@ public class Flight
 
     public DateTimeOffset LastObservedAt { get; set; }
 
+    public string Aircraft { get; set; } = string.Empty;
+
+    public string Equipment { get; set; } = string.Empty;
+
+    public string Transponder { get; set; } = string.Empty;
+
+    public string NavigationPerformance { get; set; } = string.Empty;
+
     public double Latitude { get; set; }
 
     public double Longitude { get; set; }

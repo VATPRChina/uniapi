@@ -92,7 +92,7 @@ public partial class CompatController(VatsimService VatsimService, RudiMetarServ
         };
     }
 
-    public async Task<IActionResult> GetMetar(string icao)
+    protected async Task<IActionResult> GetMetar(string icao)
     {
         var normalizedIcao = icao.ToUpperInvariant();
         var metar = await MetarService.GetMetar(normalizedIcao);

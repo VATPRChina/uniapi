@@ -130,6 +130,11 @@ public partial class FlightWorker(
         flight.Arrival = pilot.FlightPlan.Arrival;
         flight.CruiseTas = uint.Parse(pilot.FlightPlan.CruiseTas);
         flight.RawRoute = pilot.FlightPlan.Route;
+        var aircraft = FlightPlan.ParseIcaoAircraftCode(pilot.FlightPlan.Aircraft, pilot.FlightPlan.Remarks);
+        flight.Aircraft = aircraft.AircraftCode;
+        flight.Equipment = aircraft.Equipment;
+        flight.Transponder = aircraft.Transponder;
+        flight.NavigationPerformance = aircraft.NavigationPerformance;
 
         await db.SaveChangesAsync(ct);
         Logger.LogDebug("Saved flight to database: {Callsign}", pilot.Callsign);

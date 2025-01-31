@@ -274,4 +274,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.BadRequest, "INVALID_AIRPORT_ICAO", "Airport ICAO code {code} is invalid.")]
     public class InvalidAirportIcao(string code) :
         ApiError($"Airport ICAO code {code} is invalid.");
+
+    [Error(HttpStatusCode.NotFound, "CALLSIGN_NOT_FOUND", "Callsign {callsign} is not found.")]
+    public class CallsignNotFound(string callsign) :
+        ApiError($"Callsign {callsign} is not found.");
 }

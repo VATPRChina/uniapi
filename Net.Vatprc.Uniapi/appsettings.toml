@@ -9,7 +9,7 @@ Using = [
 ]
 
 [Serilog.MinimumLevel]
-Default = "Information"
+Default = "Debug"
 [Serilog.MinimumLevel.Override]
 "Net.Vatprc.Uniapi" = "Debug"
 Microsoft = "Information"
