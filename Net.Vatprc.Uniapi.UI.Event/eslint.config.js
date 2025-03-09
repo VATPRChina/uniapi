@@ -1,5 +1,6 @@
 // @ts-check
 import eslint from "@eslint/js";
+import pluginRouter from "@tanstack/eslint-plugin-router";
 import prettier from "eslint-config-prettier";
 import react from "eslint-plugin-react";
 import reacthooks from "eslint-plugin-react-hooks";
@@ -15,6 +16,7 @@ export default tseslint.config(
     plugins: { "react-hooks": reacthooks },
     rules: { "react-hooks/rules-of-hooks": "error", "react-hooks/exhaustive-deps": "warn" },
   },
+  ...pluginRouter.configs["flat/recommended"],
   // @ts-ignore
   prettier,
   {

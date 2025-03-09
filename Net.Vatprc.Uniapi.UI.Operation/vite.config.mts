@@ -7,7 +7,7 @@ const env = loadEnv("development", process.cwd(), "");
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [TanStackRouterVite(), react(), splitVendorChunkPlugin()],
+  plugins: [TanStackRouterVite({ target: "react", autoCodeSplitting: true }), react(), splitVendorChunkPlugin()],
   server: {
     proxy: {
       "/api": {

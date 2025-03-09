@@ -14,7 +14,6 @@ import { createRoot } from "react-dom/client";
 const router = createRouter({ routeTree });
 
 const container = document.getElementById("root");
-// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 const root = createRoot(container!);
 root.render(
   <React.StrictMode>
@@ -25,3 +24,9 @@ root.render(
     </MantineProvider>
   </React.StrictMode>,
 );
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}

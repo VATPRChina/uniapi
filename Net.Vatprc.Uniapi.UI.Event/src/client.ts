@@ -32,7 +32,7 @@ client.use(throwMiddleware);
 export default client;
 export const queryClient = new QueryClient();
 
-type MethodOn<Path, Method extends string> = Path extends { [M in Method]: unknown } ? Path[Method] : never;
+type MethodOn<Path, Method extends string> = Path extends Record<Method, unknown> ? Path[Method] : never;
 type ParameterOf<Operation> = Operation extends { parameters: infer P } ? P : never;
 type ResponsesOf<Operation> = Operation extends { responses: infer P } ? P : never;
 type SuccessResponseOf<Responses> = Responses extends { [200]: infer P } ? P : never;

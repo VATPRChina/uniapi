@@ -43,7 +43,7 @@ dompurify.addHook("afterSanitizeAttributes", (node) => {
 export const Markdown = ({ children }: { children?: string }) => {
   if (!children) return null;
 
-  const html = dompurify.sanitize(parser.parse(children, { async: false, gfm: true, breaks: true }) as string, {});
+  const html = dompurify.sanitize(parser.parse(children, { async: false, gfm: true, breaks: true }), {});
 
   return (
     <TypographyStylesProvider>

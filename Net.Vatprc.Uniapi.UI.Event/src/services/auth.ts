@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/only-throw-error */
 import { components, paths } from "../api";
 import client, { queryClient, useApi } from "@/client";
 import { atom, getDefaultStore } from "jotai";
