@@ -17,6 +17,7 @@ public class VATPRCContext(DbContextOptions<VATPRCContext> options) : DbContext(
     public DbSet<DeviceAuthorization> DeviceAuthorization { get; set; } = null!;
 
     public DbSet<Flight> Flight { get; set; } = null!;
+    public DbSet<PreferredRoute> PreferredRoute { get; set; } = null!;
 
     public DbSet<Airport> Airport { get; set; } = null!;
     public DbSet<AirportGate> AirportGate { get; set; } = null!;

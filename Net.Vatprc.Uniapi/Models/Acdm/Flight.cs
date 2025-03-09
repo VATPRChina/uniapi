@@ -57,6 +57,12 @@ public class Flight
         UNKNOWN,
     }
 
+    public bool SupportRvsm => Equipment.Contains('W');
+    public bool SupportRnav1 => Equipment.Contains('R') && (NavigationPerformance.Contains("D1") || NavigationPerformance.Contains("D2"));
+    public bool SupportRnpArWithRf => NavigationPerformance.Contains("T1");
+    public bool SupportRnpArWithoutRf => NavigationPerformance.Contains("T2");
+    public bool HasTransponder => !string.IsNullOrEmpty(Transponder);
+
     public class Configuration : IEntityTypeConfiguration<Flight>
     {
         public void Configure(EntityTypeBuilder<Flight> builder)
