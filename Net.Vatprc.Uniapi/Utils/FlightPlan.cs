@@ -1,4 +1,6 @@
+using System.Text;
 using System.Text.RegularExpressions;
+using Discord.Commands;
 
 namespace Net.Vatprc.Uniapi.Utils;
 
@@ -11,30 +13,30 @@ public static partial class FlightPlan
         string NavigationPerformance
     );
 
-    [GeneratedRegex(@"^(?<code>[A-Z0-9]+)(\/(?<tail>[A-Z])-(?<equip>[A-Z0-9]+)\/(?<trans>[A-Z0-9]+))?$")]
-    private static partial Regex AircraftCodeRegex();
+    public static string GetPbn(string remarks)
+    {
+        var iPbn = remarks.IndexOf("PBN/");
+        if (iPbn < 0) return string.Empty;
+        iPbn += "PBN/".Length;
 
-    [GeneratedRegex(@"PBN\/(?<pbn>[A-Z0-9]+)( |$)")]
-    private static partial Regex PbnCodeRegex();
+        var iEnd = remarks.IndexOf(' ', iPbn);
+        if (iEnd == -1) iEnd = remarks.Length - 1;
+
+        return remarks[iPbn..iEnd];
+    }
 
     public static Aircraft ParseIcaoAircraftCode(string aircraft, string remarks)
     {
         var aircraftNorm = aircraft.ToUpperInvariant();
-        var match = AircraftCodeRegex().Match(aircraftNorm);
+        var segments = aircraftNorm.Split('/');
 
-        match.Groups.TryGetValue("code", out var aircraftCodeGroup);
-        match.Groups.TryGetValue("tail", out var tailCodeGroup);
-        match.Groups.TryGetValue("equip", out var equipmentGroup);
-        match.Groups.TryGetValue("trans", out var transponderGroup);
+        var code = segments[0];
+        var tail = segments.Length > 1 ? segments[1].Split('-')[0] : string.Empty;
+        var equipment = segments.Length > 1 ? segments[1].Split('-')[1] : string.Empty;
+        var transponder = segments.Length > 2 ? segments[2] : string.Empty;
 
-        var aircraftCode = aircraftCodeGroup?.Value ?? string.Empty;
-        var tailCode = tailCodeGroup?.Value ?? string.Empty;
-        var equipment = equipmentGroup?.Value ?? string.Empty;
-        var transponder = transponderGroup?.Value ?? string.Empty;
+        var pbn = GetPbn(remarks);
 
-        var pbnMatch = PbnCodeRegex().Match(remarks);
-        pbnMatch.Groups.TryGetValue("pbn", out var pbnGroup);
-        var pbn = pbnGroup?.Value ?? string.Empty;
-        return new Aircraft(aircraftCode, equipment, transponder, pbn);
+        return new Aircraft(code, equipment, transponder, pbn);
     }
 }
