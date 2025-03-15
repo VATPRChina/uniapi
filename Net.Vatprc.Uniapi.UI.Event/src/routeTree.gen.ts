@@ -13,12 +13,14 @@ import { createFileRoute } from '@tanstack/react-router'
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as FlightsCallsignImport } from './routes/flights/$callsign'
 import { Route as EventsEventidImport } from './routes/events/$event_id'
 import { Route as AuthCallbackImport } from './routes/auth/callback'
 
 // Create Virtual Routes
 
 const IndexLazyImport = createFileRoute('/')()
+const FlightsIndexLazyImport = createFileRoute('/flights/')()
 
 // Create/Update Routes
 
@@ -27,6 +29,18 @@ const IndexLazyRoute = IndexLazyImport.update({
   path: '/',
   getParentRoute: () => rootRoute,
 } as any).lazy(() => import('./routes/index.lazy').then((d) => d.Route))
+
+const FlightsIndexLazyRoute = FlightsIndexLazyImport.update({
+  id: '/flights/',
+  path: '/flights/',
+  getParentRoute: () => rootRoute,
+} as any).lazy(() => import('./routes/flights/index.lazy').then((d) => d.Route))
+
+const FlightsCallsignRoute = FlightsCallsignImport.update({
+  id: '/flights/$callsign',
+  path: '/flights/$callsign',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const EventsEventidRoute = EventsEventidImport.update({
   id: '/events/$event_id',
@@ -65,6 +79,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventidImport
       parentRoute: typeof rootRoute
     }
+    '/flights/$callsign': {
+      id: '/flights/$callsign'
+      path: '/flights/$callsign'
+      fullPath: '/flights/$callsign'
+      preLoaderRoute: typeof FlightsCallsignImport
+      parentRoute: typeof rootRoute
+    }
+    '/flights/': {
+      id: '/flights/'
+      path: '/flights'
+      fullPath: '/flights'
+      preLoaderRoute: typeof FlightsIndexLazyImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -74,12 +102,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexLazyRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/events/$event_id': typeof EventsEventidRoute
+  '/flights/$callsign': typeof FlightsCallsignRoute
+  '/flights': typeof FlightsIndexLazyRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexLazyRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/events/$event_id': typeof EventsEventidRoute
+  '/flights/$callsign': typeof FlightsCallsignRoute
+  '/flights': typeof FlightsIndexLazyRoute
 }
 
 export interface FileRoutesById {
@@ -87,14 +119,32 @@ export interface FileRoutesById {
   '/': typeof IndexLazyRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/events/$event_id': typeof EventsEventidRoute
+  '/flights/$callsign': typeof FlightsCallsignRoute
+  '/flights/': typeof FlightsIndexLazyRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth/callback' | '/events/$event_id'
+  fullPaths:
+    | '/'
+    | '/auth/callback'
+    | '/events/$event_id'
+    | '/flights/$callsign'
+    | '/flights'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth/callback' | '/events/$event_id'
-  id: '__root__' | '/' | '/auth/callback' | '/events/$event_id'
+  to:
+    | '/'
+    | '/auth/callback'
+    | '/events/$event_id'
+    | '/flights/$callsign'
+    | '/flights'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth/callback'
+    | '/events/$event_id'
+    | '/flights/$callsign'
+    | '/flights/'
   fileRoutesById: FileRoutesById
 }
 
@@ -102,12 +152,16 @@ export interface RootRouteChildren {
   IndexLazyRoute: typeof IndexLazyRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   EventsEventidRoute: typeof EventsEventidRoute
+  FlightsCallsignRoute: typeof FlightsCallsignRoute
+  FlightsIndexLazyRoute: typeof FlightsIndexLazyRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexLazyRoute: IndexLazyRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   EventsEventidRoute: EventsEventidRoute,
+  FlightsCallsignRoute: FlightsCallsignRoute,
+  FlightsIndexLazyRoute: FlightsIndexLazyRoute,
 }
 
 export const routeTree = rootRoute
@@ -122,7 +176,9 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/auth/callback",
-        "/events/$event_id"
+        "/events/$event_id",
+        "/flights/$callsign",
+        "/flights/"
       ]
     },
     "/": {
@@ -133,6 +189,12 @@ export const routeTree = rootRoute
     },
     "/events/$event_id": {
       "filePath": "events/$event_id.tsx"
+    },
+    "/flights/$callsign": {
+      "filePath": "flights/$callsign.tsx"
+    },
+    "/flights/": {
+      "filePath": "flights/index.lazy.tsx"
     }
   }
 }

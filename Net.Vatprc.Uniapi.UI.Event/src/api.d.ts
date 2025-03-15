@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  "/auth/authorize": {
+  "/debug/routes": {
     parameters: {
       query?: never;
       header?: never;
@@ -13,7 +13,44 @@ export interface paths {
     };
     get: {
       parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "text/plain": string;
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/authorize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Authorization request */
+    get: {
+      parameters: {
         query?: {
+          /** @description Value MUST be set to "code". */
           response_type?: string;
           client_id?: string;
           redirect_uri?: string;
@@ -189,10 +226,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -213,6 +261,21 @@ export interface paths {
                * @example Token is not issued to first-party application.
                */
               message: string;
+              /**
+               * @description INVALID_TOKEN_NOT_FIRST_PARTY
+               * @example urn:vatprc-uniapi-error:invalid-token-not-first-party
+               */
+              type: string;
+              /**
+               * @description Token is not issued to first-party application.
+               * @example Token is not issued to first-party application.
+               */
+              title: string;
+              /**
+               * @description Token is not issued to first-party application.
+               * @example Token is not issued to first-party application.
+               */
+              detail: string;
             };
           };
         };
@@ -233,6 +296,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -287,8 +365,21 @@ export interface paths {
                * @example Invalid grant type {grant_type}.
                */
               message: string;
-              /** @description string */
-              grant_type: string;
+              /**
+               * @description INVALID_GRANT_TYPE
+               * @example urn:vatprc-uniapi-error:invalid-grant-type
+               */
+              type: string;
+              /**
+               * @description Invalid grant type {grant_type}.
+               * @example Invalid grant type {grant_type}.
+               */
+              title: string;
+              /**
+               * @description Invalid grant type {grant_type}.
+               * @example Invalid grant type {grant_type}.
+               */
+              detail: string;
             };
           };
         };
@@ -309,8 +400,21 @@ export interface paths {
                * @example Refresh token is not valid for {code}.
                */
               message: string;
-              /** @description string */
-              code: string;
+              /**
+               * @description INVALID_REFRESH_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-refresh-token
+               */
+              type: string;
+              /**
+               * @description Refresh token is not valid for {code}.
+               * @example Refresh token is not valid for {code}.
+               */
+              title: string;
+              /**
+               * @description Refresh token is not valid for {code}.
+               * @example Refresh token is not valid for {code}.
+               */
+              detail: string;
             };
           };
         };
@@ -331,6 +435,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -369,10 +488,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -393,6 +523,21 @@ export interface paths {
                * @example Token is not issued to first-party application.
                */
               message: string;
+              /**
+               * @description INVALID_TOKEN_NOT_FIRST_PARTY
+               * @example urn:vatprc-uniapi-error:invalid-token-not-first-party
+               */
+              type: string;
+              /**
+               * @description Token is not issued to first-party application.
+               * @example Token is not issued to first-party application.
+               */
+              title: string;
+              /**
+               * @description Token is not issued to first-party application.
+               * @example Token is not issued to first-party application.
+               */
+              detail: string;
             };
           };
         };
@@ -413,6 +558,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -465,10 +625,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -489,6 +660,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -546,10 +732,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -570,8 +767,21 @@ export interface paths {
                * @example User {user_id} not found.
                */
               message: string;
-              /** @description string */
-              user_id: string;
+              /**
+               * @description USER_NOT_FOUND
+               * @example urn:vatprc-uniapi-error:user-not-found
+               */
+              type: string;
+              /**
+               * @description User {user_id} not found.
+               * @example User {user_id} not found.
+               */
+              title: string;
+              /**
+               * @description User {user_id} not found.
+               * @example User {user_id} not found.
+               */
+              detail: string;
             };
           };
         };
@@ -592,6 +802,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -647,10 +872,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -671,6 +907,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -726,6 +977,161 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/compat/euroscope/metar/{icao}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          icao: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/compat/euroscope/metar/metar.php": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: {
+          id?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -783,6 +1189,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -830,10 +1251,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -854,6 +1286,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -911,8 +1358,21 @@ export interface paths {
                    * @example Event {event_id} not found.
                    */
                   message: string;
-                  /** @description string */
-                  event_id: string;
+                  /**
+                   * @description EVENT_NOT_FOUND
+                   * @example urn:vatprc-uniapi-error:event-not-found
+                   */
+                  type: string;
+                  /**
+                   * @description Event {event_id} not found.
+                   * @example Event {event_id} not found.
+                   */
+                  title: string;
+                  /**
+                   * @description Event {event_id} not found.
+                   * @example Event {event_id} not found.
+                   */
+                  detail: string;
                 }
               | {
                   /**
@@ -925,10 +1385,21 @@ export interface paths {
                    * @example Event {event_id}'s airspace {airspace_id} not found.
                    */
                   message: string;
-                  /** @description string */
-                  event_id: string;
-                  /** @description string */
-                  airspace_id: string;
+                  /**
+                   * @description EVENT_AIRSPACE_NOT_FOUND
+                   * @example urn:vatprc-uniapi-error:event-airspace-not-found
+                   */
+                  type: string;
+                  /**
+                   * @description Event {event_id}'s airspace {airspace_id} not found.
+                   * @example Event {event_id}'s airspace {airspace_id} not found.
+                   */
+                  title: string;
+                  /**
+                   * @description Event {event_id}'s airspace {airspace_id} not found.
+                   * @example Event {event_id}'s airspace {airspace_id} not found.
+                   */
+                  detail: string;
                 };
           };
         };
@@ -949,6 +1420,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -996,10 +1482,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -1020,6 +1517,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1064,10 +1576,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -1088,6 +1611,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1140,6 +1678,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1185,10 +1738,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -1209,6 +1773,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1264,8 +1843,21 @@ export interface paths {
                * @example Event {event_id} not found.
                */
               message: string;
-              /** @description string */
-              event_id: string;
+              /**
+               * @description EVENT_NOT_FOUND
+               * @example urn:vatprc-uniapi-error:event-not-found
+               */
+              type: string;
+              /**
+               * @description Event {event_id} not found.
+               * @example Event {event_id} not found.
+               */
+              title: string;
+              /**
+               * @description Event {event_id} not found.
+               * @example Event {event_id} not found.
+               */
+              detail: string;
             };
           };
         };
@@ -1286,6 +1878,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1333,10 +1940,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -1357,6 +1975,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1399,10 +2032,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -1423,6 +2067,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1478,6 +2137,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1521,10 +2195,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -1545,8 +2230,21 @@ export interface paths {
                * @example Event {event_id} not found.
                */
               message: string;
-              /** @description string */
-              event_id: string;
+              /**
+               * @description EVENT_NOT_FOUND
+               * @example urn:vatprc-uniapi-error:event-not-found
+               */
+              type: string;
+              /**
+               * @description Event {event_id} not found.
+               * @example Event {event_id} not found.
+               */
+              title: string;
+              /**
+               * @description Event {event_id} not found.
+               * @example Event {event_id} not found.
+               */
+              detail: string;
             };
           };
         };
@@ -1567,6 +2265,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1611,10 +2324,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -1635,6 +2359,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1689,6 +2428,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1736,10 +2490,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -1760,10 +2525,21 @@ export interface paths {
                * @example Event {event_id}'s airspace {airspace_id} not found.
                */
               message: string;
-              /** @description string */
-              event_id: string;
-              /** @description string */
-              airspace_id: string;
+              /**
+               * @description EVENT_AIRSPACE_NOT_FOUND
+               * @example urn:vatprc-uniapi-error:event-airspace-not-found
+               */
+              type: string;
+              /**
+               * @description Event {event_id}'s airspace {airspace_id} not found.
+               * @example Event {event_id}'s airspace {airspace_id} not found.
+               */
+              title: string;
+              /**
+               * @description Event {event_id}'s airspace {airspace_id} not found.
+               * @example Event {event_id}'s airspace {airspace_id} not found.
+               */
+              detail: string;
             };
           };
         };
@@ -1784,6 +2560,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1839,10 +2630,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -1863,6 +2665,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1921,8 +2738,21 @@ export interface paths {
                * @example Event {event_id} not found.
                */
               message: string;
-              /** @description string */
-              event_id: string;
+              /**
+               * @description EVENT_NOT_FOUND
+               * @example urn:vatprc-uniapi-error:event-not-found
+               */
+              type: string;
+              /**
+               * @description Event {event_id} not found.
+               * @example Event {event_id} not found.
+               */
+              title: string;
+              /**
+               * @description Event {event_id} not found.
+               * @example Event {event_id} not found.
+               */
+              detail: string;
             };
           };
         };
@@ -1943,6 +2773,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -1990,10 +2835,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -2014,6 +2870,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -2058,10 +2929,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -2082,11 +2964,250 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
       };
     };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/flights/active": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["FlightDto"][];
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/flights/by-callsign/{callsign}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          callsign: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["FlightDto"];
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/flights/by-callsign/{callsign}/warnings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description List of warnings:
+     *
+     *     - `no_rvsm`: The aircraft does not support RVSM.
+     *     - `no_rnav1`: The aircraft does not support RNAV1.
+     *     - `rnp_ar`: The aircraft supports RNP AR with RF.
+     *     - `rnp_ar_without_rf`: The aircraft supports RNP AR without RF.
+     *     - `no_transponder`: The aircraft does not have a transponder.
+     *     - `no_preferred_route`: There is no preferred route designated by CAAC.
+     *     - `not_preferred_route`: The flight does not follow the preferred route designated by CAAC.
+     *        The parameter is the preferred route. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          callsign: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["WarningMessage"][];
+          };
+        };
+        /** @description INTERNAL_SERVER_ERROR */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example INTERNAL_SERVER_ERROR
+               */
+              error_code: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -2134,6 +3255,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -2189,10 +3325,21 @@ export interface paths {
                * @example Invalid token {oauth_code}: {oauth_desc}.
                */
               message: string;
-              /** @description string */
-              oauth_code: string;
-              /** @description string */
-              oauth_desc: string;
+              /**
+               * @description INVALID_TOKEN
+               * @example urn:vatprc-uniapi-error:invalid-token
+               */
+              type: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              title: string;
+              /**
+               * @description Invalid token {oauth_code}: {oauth_desc}.
+               * @example Invalid token {oauth_code}: {oauth_desc}.
+               */
+              detail: string;
             };
           };
         };
@@ -2213,6 +3360,21 @@ export interface paths {
                * @example An internal server error occurred.
                */
               message: string;
+              /**
+               * @description INTERNAL_SERVER_ERROR
+               * @example urn:vatprc-uniapi-error:internal-server-error
+               */
+              type: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              title: string;
+              /**
+               * @description An internal server error occurred.
+               * @example An internal server error occurred.
+               */
+              detail: string;
             };
           };
         };
@@ -2336,6 +3498,21 @@ export interface components {
       callsign?: string | null;
       aircraft_type_icao?: string | null;
     };
+    FlightDto: {
+      id: components["schemas"]["Ulid"];
+      cid: string;
+      callsign: string;
+      /** Format: date-time */
+      last_observed_at: string;
+      departure: string;
+      arrival: string;
+      equipment: string;
+      navigation_performance: string;
+      transponder: string;
+      raw_route: string;
+      __simplified_route: string;
+      aircraft: string;
+    };
     FutureControllerDto: {
       callsign: string;
       name: string;
@@ -2435,6 +3612,10 @@ export interface components {
       pilots: components["schemas"]["PilotDto"][];
       controllers: components["schemas"]["ControllerDto"][];
       future_controllers: components["schemas"]["FutureControllerDto"][];
+    };
+    WarningMessage: {
+      message_code: string;
+      parameter?: string | null;
     };
   };
   responses: never;
