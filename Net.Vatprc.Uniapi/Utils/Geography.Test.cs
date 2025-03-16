@@ -28,4 +28,13 @@ public class GeographyTest
             39.500833333333, 116.39888888889
         ).Should().BeApproximately(35.53, 0.05);
     }
+
+    [Test]
+    public void TestParseArincCoordinate()
+    {
+        Geography.ParseArincCoordinate("N53444070").Should().BeApproximately(53.74463889, PRECISION);
+        Geography.ParseArincCoordinate("E091230790").Should().BeApproximately(91.38552778, PRECISION);
+        Geography.ParseArincCoordinate("S21102280").Should().BeApproximately(-21.173, PRECISION);
+        Geography.ParseArincCoordinate("E149111400").Should().BeApproximately(149.18722222, PRECISION);
+    }
 }

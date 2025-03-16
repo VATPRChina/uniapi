@@ -53,4 +53,39 @@ public static class Geography
     {
         return nm * 1852;
     }
+
+    /// <summary>
+    /// Parse coordinate from ARINC format. (Section 5.36, 5.37)
+    ///
+    /// For latitude, `XDDMMSSss`; for longitude, `XDDDMMSSss`.
+    /// </summary>
+    /// <param name="coordinate"></param>
+    /// <returns></returns>
+    public static double ParseArincCoordinate(string coordinate)
+    {
+        if (string.IsNullOrEmpty(coordinate))
+        {
+            return 0;
+        }
+
+        if (coordinate.StartsWith('N') || coordinate.StartsWith('S'))
+        {
+            var sign = coordinate.StartsWith('S') ? -1 : 1;
+            var degrees = (double)int.Parse(coordinate[1..3]);
+            var minutes = (double)int.Parse(coordinate[3..5]);
+            var secondHundredths = (double)int.Parse(coordinate[5..]);
+            return sign * (degrees + minutes / 60 + secondHundredths / (3600 * 100));
+        }
+
+        if (coordinate.StartsWith('E') || coordinate.StartsWith('W'))
+        {
+            var sign = coordinate.StartsWith('W') ? -1 : 1;
+            var degrees = (double)int.Parse(coordinate[1..4]);
+            var minutes = (double)int.Parse(coordinate[4..6]);
+            var secondHundredths = (double)int.Parse(coordinate[6..]);
+            return sign * (degrees + minutes / 60 + secondHundredths / (3600 * 100));
+        }
+
+        throw new ArgumentException($"Invalid coordinate format: {coordinate}");
+    }
 }

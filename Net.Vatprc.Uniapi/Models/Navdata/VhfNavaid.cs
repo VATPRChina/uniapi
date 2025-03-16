@@ -30,12 +30,12 @@ public class VhfNavaid
     /// <summary>
     /// VOR's latitude. (Section 5.36)
     /// </summary>
-    public double VorLatitude { get; set; }
+    public double? VorLatitude { get; set; }
 
     /// <summary>
     /// VOR's longitude. (Section 5.37)
     /// </summary>
-    public double VorLongitude { get; set; }
+    public double? VorLongitude { get; set; }
 
     /// <summary>
     /// The identification of a DME facility, a TACAN facility or the DME (or TACAN)

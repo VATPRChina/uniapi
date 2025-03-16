@@ -31,7 +31,6 @@ public class Airport
     public int Elevation { get; set; }
 
     public IList<AirportGate> Gates { get; set; } = [];
-    public IList<AirportPhysicalRunway> PhysicalRunways { get; set; } = [];
     public IList<Runway> Runways { get; set; } = [];
     public IList<Procedure> Procedures { get; set; } = [];
 

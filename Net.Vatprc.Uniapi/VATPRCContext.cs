@@ -17,12 +17,17 @@ public class VATPRCContext(DbContextOptions<VATPRCContext> options) : DbContext(
     public DbSet<DeviceAuthorization> DeviceAuthorization { get; set; } = null!;
 
     public DbSet<Flight> Flight { get; set; } = null!;
-    public DbSet<PreferredRoute> PreferredRoute { get; set; } = null!;
 
     public DbSet<Airport> Airport { get; set; } = null!;
     public DbSet<AirportGate> AirportGate { get; set; } = null!;
-    public DbSet<AirportPhysicalRunway> AirportPhysicalRunway { get; set; } = null!;
+    public DbSet<Airway> Airway { get; set; } = null!;
+    public DbSet<AirwayFix> AirwayFix { get; set; } = null!;
+    public DbSet<NdbNavaid> NdbNavaid { get; set; } = null!;
+    public DbSet<PreferredRoute> PreferredRoute { get; set; } = null!;
+    public DbSet<Procedure> Procedure { get; set; } = null!;
     public DbSet<Runway> Runway { get; set; } = null!;
+    public DbSet<VhfNavaid> VhfNavaid { get; set; } = null!;
+    public DbSet<Waypoint> Waypoint { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
