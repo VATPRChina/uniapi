@@ -33,6 +33,7 @@ public class Airport
     public IList<AirportGate> Gates { get; set; } = [];
     public IList<AirportPhysicalRunway> PhysicalRunways { get; set; } = [];
     public IList<Runway> Runways { get; set; } = [];
+    public IList<Procedure> Procedures { get; set; } = [];
 
     public class Configuration : IEntityTypeConfiguration<Airport>
     {

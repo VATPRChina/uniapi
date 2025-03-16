@@ -1,7 +1,3 @@
-using System.Text;
-using System.Text.RegularExpressions;
-using Discord.Commands;
-
 namespace Net.Vatprc.Uniapi.Utils;
 
 public static partial class FlightPlan

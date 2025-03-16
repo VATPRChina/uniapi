@@ -2,6 +2,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Net.Vatprc.Uniapi.Models.Navdata;
 
+/// <summary>
+/// This class do not adhere to ARINC 424 specification.
+/// </summary>
 public class PreferredRoute
 {
     public Ulid Id { get; set; } = Ulid.NewUlid();
