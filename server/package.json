@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "ava"
   },
   "keywords": [],
   "author": "",
@@ -19,9 +19,20 @@
     "pino": "^9.6.0"
   },
   "devDependencies": {
+    "@ava/typescript": "^5.0.0",
     "@types/pg": "^8.11.11",
+    "ava": "^6.2.0",
     "drizzle-kit": "^0.30.5",
     "pino-pretty": "^13.0.0",
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  },
+  "ava": {
+    "typescript": {
+      "rewritePaths": {
+        "src/": "dist/"
+      },
+      "compile": "tsc"
+    }
   }
 }

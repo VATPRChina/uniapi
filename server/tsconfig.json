@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "incremental": true,
+    "target": "es2022",
+    "rootDir": "src",
+    "outDir": "dist",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "removeComments": true,
+    "inlineSources": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "skipLibCheck": true,
+    "typeRoots": [
+      "src/typings",
+      "node_modules/@types"
+    ]
+  },
+  "include": [
+    "src/**/*"
+  ]
+}
