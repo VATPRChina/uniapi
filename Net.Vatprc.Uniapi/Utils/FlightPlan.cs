@@ -1,6 +1,6 @@
 namespace Net.Vatprc.Uniapi.Utils;
 
-public static partial class FlightPlan
+public static class FlightPlan
 {
     public record Aircraft(
         string AircraftCode,

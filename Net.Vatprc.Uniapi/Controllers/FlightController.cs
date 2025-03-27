@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models.Acdm;
@@ -25,8 +26,9 @@ public class FlightController(VATPRCContext DbContext) : ControllerBase
         public string RawRoute { get; init; }
         public string __SimplifiedRoute { get; init; }
         public string Aircraft { get; init; }
+        public string? __NormalizedRoute { get; init; }
 
-        public FlightDto(Flight flight)
+        public FlightDto(Flight flight, string? normalizedRoute = null)
         {
             Id = flight.Id;
             Cid = flight.Cid;
@@ -40,6 +42,7 @@ public class FlightController(VATPRCContext DbContext) : ControllerBase
             RawRoute = flight.RawRoute;
             __SimplifiedRoute = FlightRoute.SimplifyRoute(flight.RawRoute);
             Aircraft = flight.Aircraft;
+            __NormalizedRoute = normalizedRoute;
         }
     }
 
@@ -50,7 +53,7 @@ public class FlightController(VATPRCContext DbContext) : ControllerBase
         return await DbContext.Flight
             .Where(f => f.FinalizedAt == null)
             .OrderBy(f => f.Callsign)
-            .Select(f => new FlightDto(f))
+            .Select(f => new FlightDto(f, null))
             .ToListAsync();
     }
 
@@ -60,7 +63,7 @@ public class FlightController(VATPRCContext DbContext) : ControllerBase
     {
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
             ?? throw new ApiError.CallsignNotFound(callsign);
-        return new FlightDto(flight);
+        return new FlightDto(flight, await FlightRoute.TryNormalizeRoute(DbContext, flight.Departure, flight.Arrival, flight.RawRoute));
     }
 
     public record WarningMessage
