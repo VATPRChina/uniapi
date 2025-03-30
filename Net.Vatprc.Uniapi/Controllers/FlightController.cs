@@ -10,7 +10,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Flight information.
 /// </summary>
 [ApiController, Route("api/flights")]
-public class FlightController(VATPRCContext DbContext) : ControllerBase
+public class FlightController(VATPRCContext DbContext, ILogger<FlightController> Logger) : ControllerBase
 {
     public record FlightDto
     {
@@ -111,19 +111,33 @@ public class FlightController(VATPRCContext DbContext) : ControllerBase
         {
             result.Add(new WarningMessage { MessageCode = "no_transponder" });
         }
+        var simplifiedRoute = FlightRoute.SimplifyRoute(flight.RawRoute);
+
+        string normalizedRoute;
+        try { normalizedRoute = await FlightRoute.NormalizeRoute(DbContext, flight.Departure, flight.Arrival, flight.RawRoute); }
+        catch (Exception e)
+        {
+            normalizedRoute = simplifiedRoute;
+            result.Add(new WarningMessage { MessageCode = "parse_route_failed", Parameter = e.Message });
+        }
+
         var preferredRoutes = await DbContext.PreferredRoute
-            .Where(pr => pr.Departure == flight.Departure && pr.Arrival == flight.Arrival)
+            .Where(pr => (pr.Departure == flight.Departure && pr.Arrival == flight.Arrival)
+                || (pr.Departure == flight.Departure && normalizedRoute.Contains(pr.Arrival) && pr.Arrival.Length > 4)
+                || (pr.Arrival == flight.Arrival && normalizedRoute.Contains(pr.Departure) && pr.Departure.Length > 4))
             .ToListAsync();
         if (preferredRoutes.Count == 0)
         {
             result.Add(new WarningMessage { MessageCode = "no_preferred_route" });
         }
-        var simplifiedRoute = FlightRoute.SimplifyRoute(flight.RawRoute);
+        foreach (var pr in preferredRoutes)
+        {
+            Logger.LogDebug("Found route from {Departure} to {Arrival} via {Route}", pr.Departure, pr.Arrival, pr.RawRoute);
+        }
         if (preferredRoutes.Count > 0 && !preferredRoutes.Any(preferred => simplifiedRoute.Contains(preferred.RawRoute)))
         {
             result.Add(new WarningMessage { MessageCode = "not_preferred_route", Parameter = string.Join(";", preferredRoutes.Select(p => p.RawRoute)) });
         }
-        // TODO: check flight passing P.R. China airspace border
         return result;
     }
 }

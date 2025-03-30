@@ -28,6 +28,8 @@ const descriptions: Record<
     `The route in flight plan "${flight.__simplified_route}" does not match the preferred route "${(
       message.parameter?.split(";") ?? []
     ).join('" or "')}".`,
+  parse_route_failed: (flight, message) =>
+    `Failed to parse the flight route "${flight.raw_route}" due to: ${message.parameter}`,
 };
 
 export const FlightWarnings = ({ callsign }: { callsign: string }) => {

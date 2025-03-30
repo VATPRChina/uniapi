@@ -40,6 +40,14 @@ const Flight = () => {
               {flight?.transponder}
             </Text>
           </Group>
+          <Group c="gray" gap="xs">
+            <Text fw={300} component="span">
+              Route
+            </Text>
+            <Text component="span" ff="monospace">
+              {flight?.__simplified_route}
+            </Text>
+          </Group>
           <FlightWarnings callsign={callsign} />
         </Stack>
       )}

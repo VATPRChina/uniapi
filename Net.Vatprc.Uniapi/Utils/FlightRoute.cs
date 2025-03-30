@@ -54,7 +54,7 @@ public static partial class FlightRoute
         {
             return new RouteToken(RouteToken.Kinds.Waypoint, ident, ndb.Id, ndb.IcaoCode);
         }
-        return null;
+        return new RouteToken(RouteToken.Kinds.Waypoint, ident, Ulid.Empty);
     }
 
     public static async Task<string> NormalizeRoute(VATPRCContext db, string departure, string arrival, string route)

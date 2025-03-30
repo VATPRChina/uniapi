@@ -1,10 +1,4 @@
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Reflection;
 using System.Text.RegularExpressions;
-using Discord;
-using Discord.Interactions;
-using Discord.WebSocket;
 using Microsoft.Extensions.Options;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Utils;
@@ -137,20 +131,20 @@ public partial class FlightWorker(
         flight.Transponder = aircraft.Transponder;
         flight.NavigationPerformance = aircraft.NavigationPerformance;
 
-        try { await FlightRoute.NormalizeRoute(db, flight.Departure, flight.Arrival, flight.RawRoute); }
-        catch (Exception e)
-        {
-            Logger.LogError(e, "Cannot parse flight route {Departure}-{Arrival} via {RawRoute}", flight.Departure, flight.Arrival, flight.RawRoute);
-            SentrySdk.CaptureException(e, scope =>
-            {
-                scope.AddBreadcrumb(new Breadcrumb("Process aircraft", nameof(FlightWorker), new Dictionary<string, string>()
-                {
-                    ["departure"] = flight.Departure,
-                    ["arrival"] = flight.Arrival,
-                    ["route"] = flight.RawRoute,
-                }));
-            });
-        }
+        // try { await FlightRoute.NormalizeRoute(db, flight.Departure, flight.Arrival, flight.RawRoute); }
+        // catch (Exception e)
+        // {
+        //     // Logger.LogError(e, "Cannot parse flight route {Departure}-{Arrival} via {RawRoute}", flight.Departure, flight.Arrival, flight.RawRoute);
+        //     SentrySdk.CaptureException(e, scope =>
+        //     {
+        //         scope.AddBreadcrumb(new Breadcrumb("Process aircraft", nameof(FlightWorker), new Dictionary<string, string>()
+        //         {
+        //             ["departure"] = flight.Departure,
+        //             ["arrival"] = flight.Arrival,
+        //             ["route"] = flight.RawRoute,
+        //         }));
+        //     });
+        // }
 
         await db.SaveChangesAsync(ct);
         Logger.LogDebug("Saved flight to database: {Callsign}", pilot.Callsign);
