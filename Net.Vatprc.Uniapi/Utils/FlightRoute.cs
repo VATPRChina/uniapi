@@ -12,12 +12,12 @@ public static partial class FlightRoute
             var normalizedSegment = segment.ToUpperInvariant();
             if (segment.Contains('/')) normalizedSegment = segment.Split('/')[0];
 
-            if (segments.Count >= 3 && segments[^3] == segments[^1])
+            if (segments.Count >= 3 && segments[^3] == segments[^1] && segments[^1] != "DCT")
             {
                 segments[^2] = normalizedSegment;
                 segments.RemoveAt(segments.Count - 1);
             }
-            else segments.Add(segment);
+            else segments.Add(normalizedSegment);
         }
         return string.Join(' ', segments);
     }
