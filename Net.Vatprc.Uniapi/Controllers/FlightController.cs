@@ -83,6 +83,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         - `no_preferred_route`: There is no preferred route designated by CAAC.
         - `not_preferred_route`: The flight does not follow the preferred route designated by CAAC.
            The parameter is the preferred route.
+        - `parse_route_failed`: The route cannot be parsed with the navdata on the server.
         """)]
     [HttpGet("by-callsign/{callsign}/warnings")]
     [AllowAnonymous]
@@ -124,7 +125,11 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         var preferredRoutes = await DbContext.PreferredRoute
             .Where(pr => (pr.Departure == flight.Departure && pr.Arrival == flight.Arrival)
                 || (pr.Departure == flight.Departure && normalizedRoute.Contains(pr.Arrival) && pr.Arrival.Length > 4)
-                || (pr.Arrival == flight.Arrival && normalizedRoute.Contains(pr.Departure) && pr.Departure.Length > 4))
+                || (pr.Arrival == flight.Arrival && normalizedRoute.Contains(pr.Departure) && pr.Departure.Length > 4)
+                || (pr.Arrival.Length > 4
+                    && pr.Departure.Length > 4
+                    && normalizedRoute.Contains(pr.Departure)
+                    && normalizedRoute.Contains(pr.Arrival)))
             .ToListAsync();
         if (preferredRoutes.Count == 0)
         {

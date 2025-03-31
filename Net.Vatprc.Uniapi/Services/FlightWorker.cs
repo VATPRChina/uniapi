@@ -5,7 +5,7 @@ using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Services;
 
-public partial class FlightWorker(
+public class FlightWorker(
     ILogger<FlightWorker> Logger,
     IOptionsMonitor<FlightWorker.Option> Options,
     VatsimService VatsimService,
@@ -43,8 +43,21 @@ public partial class FlightWorker(
         Logger.LogInformation("FlightWorker is stopping.");
     }
 
-    [GeneratedRegex("Z[BMSPGJYWLH][A-Z]{2}")]
-    protected static partial Regex vatprcAirportRegexp();
+    protected bool IsChinaAirport(string ident)
+    {
+        return ident.Length == 4 && ident[0] == 'Z' && (
+            ident[1] == 'B' ||
+            ident[1] == 'M' ||
+            ident[1] == 'S' ||
+            ident[1] == 'P' ||
+            ident[1] == 'G' ||
+            ident[1] == 'J' ||
+            ident[1] == 'Y' ||
+            ident[1] == 'W' ||
+            ident[1] == 'L' ||
+            ident[1] == 'H'
+        );
+    }
 
     protected async ValueTask RunAsync(CancellationToken ct)
     {
@@ -84,12 +97,30 @@ public partial class FlightWorker(
             Logger.LogDebug("Ignore {Callsign} with no flight plan.", pilot.Callsign);
             return;
         }
-        if (!vatprcAirportRegexp().IsMatch(pilot.FlightPlan.Departure) &&
-            !vatprcAirportRegexp().IsMatch(pilot.FlightPlan.Arrival))
+        bool isOverflyChina = false;
+        if (!IsChinaAirport(pilot.FlightPlan.Departure) && !IsChinaAirport(pilot.FlightPlan.Arrival))
         {
-            Logger.LogDebug("Ignore {Callsign} ({Departure}-{Arrival}) with no VATPRC airport.",
-                pilot.Callsign, pilot.FlightPlan.Departure, pilot.FlightPlan.Arrival);
-            return;
+            // try
+            // {
+            //     var normalizedRoute = await FlightRoute.NormalizeRoute(
+            //         db,
+            //         pilot.FlightPlan.Departure,
+            //         pilot.FlightPlan.Arrival,
+            //         pilot.FlightPlan.Route);
+            //     isOverflyChina = await db.PreferredRoute
+            //         .Where(r => r.Arrival.Length > 4
+            //             && r.Departure.Length > 4
+            //             && normalizedRoute.Contains(r.Departure)
+            //             && normalizedRoute.Contains(r.Arrival))
+            //         .AnyAsync(ct);
+            // }
+            // catch (Exception) { }
+            if (!isOverflyChina)
+            {
+                Logger.LogDebug("Ignore {Callsign} ({Departure}-{Arrival}) with no VATPRC airport.",
+                    pilot.Callsign, pilot.FlightPlan.Departure, pilot.FlightPlan.Arrival);
+                return;
+            }
         }
         Logger.LogDebug("Discovered flight: {Callsign}", pilot.Callsign);
 
@@ -130,21 +161,6 @@ public partial class FlightWorker(
         flight.Equipment = aircraft.Equipment;
         flight.Transponder = aircraft.Transponder;
         flight.NavigationPerformance = aircraft.NavigationPerformance;
-
-        // try { await FlightRoute.NormalizeRoute(db, flight.Departure, flight.Arrival, flight.RawRoute); }
-        // catch (Exception e)
-        // {
-        //     // Logger.LogError(e, "Cannot parse flight route {Departure}-{Arrival} via {RawRoute}", flight.Departure, flight.Arrival, flight.RawRoute);
-        //     SentrySdk.CaptureException(e, scope =>
-        //     {
-        //         scope.AddBreadcrumb(new Breadcrumb("Process aircraft", nameof(FlightWorker), new Dictionary<string, string>()
-        //         {
-        //             ["departure"] = flight.Departure,
-        //             ["arrival"] = flight.Arrival,
-        //             ["route"] = flight.RawRoute,
-        //         }));
-        //     });
-        // }
 
         await db.SaveChangesAsync(ct);
         Logger.LogDebug("Saved flight to database: {Callsign}", pilot.Callsign);

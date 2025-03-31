@@ -54,7 +54,8 @@ public static partial class FlightRoute
         {
             return new RouteToken(RouteToken.Kinds.Waypoint, ident, ndb.Id, ndb.IcaoCode);
         }
-        return new RouteToken(RouteToken.Kinds.Waypoint, ident, Ulid.Empty);
+        // return new RouteToken(RouteToken.Kinds.Waypoint, ident, Ulid.Empty);
+        return null;
     }
 
     public static async Task<string> NormalizeRoute(VATPRCContext db, string departure, string arrival, string route)
@@ -76,6 +77,11 @@ public static partial class FlightRoute
                     sb.Add(new RouteToken(RouteToken.Kinds.Sid, segment, sid.Id));
                     continue;
                 }
+                else if (segment.Length > 5)
+                {
+                    sb.Add(new RouteToken(RouteToken.Kinds.Sid, segment, Ulid.Empty));
+                    continue;
+                }
                 else
                 {
                     sb.Add(new RouteToken(RouteToken.Kinds.Sid, "SID", Ulid.Empty));
@@ -90,37 +96,51 @@ public static partial class FlightRoute
                     sb.Add(new RouteToken(RouteToken.Kinds.Star, segment, star.Id));
                     continue;
                 }
+                else if (segment.Length > 5)
+                {
+                    sb.Add(new RouteToken(RouteToken.Kinds.Star, segment, Ulid.Empty));
+                    continue;
+                }
                 // else, pass to waypoint handling
             }
 
             if (sb.Count >= 2 && sb[^2].Kind == RouteToken.Kinds.Waypoint && sb[^1].Kind == RouteToken.Kinds.Airway)
             {
-                var airwayId = sb[^1].Id;
-                var airwayIdent = sb[^1].Ident;
-                var airwayFixes = await db.AirwayFix.OrderBy(f => f.SequenceNumber).Where(f => f.AirwayId == airwayId).ToListAsync();
-                var from = airwayFixes.FirstOrDefault(f => f.FixIdentifier == sb[^2].Ident)
-                    ?? throw new InvalidOperationException($"From fix {segment} is not on airway {airwayIdent}.");
-                var to = airwayFixes.FirstOrDefault(f => f.FixIdentifier == segment)
-                    ?? throw new InvalidRouteException($"To fix {segment} is not on airway {airwayIdent}.");
-                var fromIndex = airwayFixes.IndexOf(from);
-                var toIndex = airwayFixes.IndexOf(to);
-                if (fromIndex <= toIndex)
+                if (sb[^1].Ident == "DCT")
                 {
-                    for (var j = fromIndex + 1; j < toIndex; j++)
-                    {
-                        sb.Add(new RouteToken(RouteToken.Kinds.Waypoint, airwayFixes[j].FixIdentifier, Ulid.Empty, airwayFixes[j].FixIcaoCode));
-                        sb.Add(new RouteToken(RouteToken.Kinds.Airway, airwayIdent, airwayId));
-                    }
+                    var token = await FindWaypoint(db, lat, lon, segment) ??
+                        throw new InvalidRouteException($"Waypoint {segment} not found.");
+                    sb.Add(token);
                 }
                 else
                 {
-                    for (var j = fromIndex - 1; j > toIndex; j--)
+                    var airwayId = sb[^1].Id;
+                    var airwayIdent = sb[^1].Ident;
+                    var airwayFixes = await db.AirwayFix.OrderBy(f => f.SequenceNumber).Where(f => f.AirwayId == airwayId).ToListAsync();
+                    var from = airwayFixes.FirstOrDefault(f => f.FixIdentifier == sb[^2].Ident)
+                        ?? throw new InvalidOperationException($"From fix {segment} is not on airway {airwayIdent}.");
+                    var to = airwayFixes.FirstOrDefault(f => f.FixIdentifier == segment)
+                        ?? throw new InvalidRouteException($"To fix {segment} is not on airway {airwayIdent}.");
+                    var fromIndex = airwayFixes.IndexOf(from);
+                    var toIndex = airwayFixes.IndexOf(to);
+                    if (fromIndex <= toIndex)
                     {
-                        sb.Add(new RouteToken(RouteToken.Kinds.Waypoint, airwayFixes[j].FixIdentifier, Ulid.Empty, airwayFixes[j].FixIcaoCode));
-                        sb.Add(new RouteToken(RouteToken.Kinds.Airway, airwayIdent, airwayId));
+                        for (var j = fromIndex + 1; j < toIndex; j++)
+                        {
+                            sb.Add(new RouteToken(RouteToken.Kinds.Waypoint, airwayFixes[j].FixIdentifier, Ulid.Empty, airwayFixes[j].FixIcaoCode));
+                            sb.Add(new RouteToken(RouteToken.Kinds.Airway, airwayIdent, airwayId));
+                        }
                     }
+                    else
+                    {
+                        for (var j = fromIndex - 1; j > toIndex; j--)
+                        {
+                            sb.Add(new RouteToken(RouteToken.Kinds.Waypoint, airwayFixes[j].FixIdentifier, Ulid.Empty, airwayFixes[j].FixIcaoCode));
+                            sb.Add(new RouteToken(RouteToken.Kinds.Airway, airwayIdent, airwayId));
+                        }
+                    }
+                    sb.Add(new RouteToken(RouteToken.Kinds.Waypoint, segment, Ulid.Empty, to.FixIcaoCode));
                 }
-                sb.Add(new RouteToken(RouteToken.Kinds.Waypoint, segment, Ulid.Empty, to.FixIcaoCode));
             }
             else if (sb.Count >= 1 && sb[^1].Kind == RouteToken.Kinds.Waypoint)
             {
@@ -129,6 +149,10 @@ public static partial class FlightRoute
                 if (fromFix != null)
                 {
                     sb.Add(new RouteToken(RouteToken.Kinds.Airway, segment, fromFix.AirwayId));
+                }
+                else if (segment == "DCT")
+                {
+                    sb.Add(new RouteToken(RouteToken.Kinds.Airway, segment, Ulid.Empty));
                 }
                 else
                 {
