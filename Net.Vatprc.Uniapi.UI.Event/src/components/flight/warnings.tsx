@@ -10,6 +10,7 @@ const messages: Record<string, string> = {
   no_transponder: "The aircraft does not specify transponder capability.",
   no_preferred_route: "There is no CAAC preferred route for the aircraft.",
   not_preferred_route: "The aircraft does not follow the CAAC preferred route.",
+  parse_route_failed: "The server failed to parse planned route.",
 };
 
 const descriptions: Record<
@@ -50,7 +51,11 @@ export const FlightWarnings = ({ callsign }: { callsign: string }) => {
           <Alert
             key={warning.message_code}
             title={messages[warning.message_code] ?? warning.message_code}
-            color={warning.message_code === "no_preferred_route" ? "green" : "yellow"}
+            color={
+              ["no_preferred_route", "parse_route_failed", "rnp_ar", "rnp_ar_without_rf"].includes(warning.message_code)
+                ? "blue"
+                : "yellow"
+            }
           >
             {flight && descriptions[warning.message_code]?.(flight, warning)}
           </Alert>
