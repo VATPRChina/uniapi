@@ -2,7 +2,7 @@ name: Container
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
 jobs:
   container:
     runs-on: ubuntu-latest
@@ -27,10 +27,7 @@ jobs:
           images: |
             ghcr.io/${{ github.repository }}
           tags: |
-            latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=ref,event=branch
-            type=semver,pattern={{raw}}
-            type=sha,enable=true,priority=100,prefix=commit-,suffix=,format=short
+            type=raw,value=1.0.${{ github.run_number }}
 
       - name: Publish images
         uses: docker/build-push-action@v5
@@ -42,28 +39,3 @@ jobs:
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    if: github.ref_type == 'tag'
-    runs-on: ubuntu-latest
-    needs: [container]
-    env:
-      RELEASE_VERSION: ${{ github.ref_name }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: "xfoxfu/infra"
-          token: ${{ secrets.GH_TOKEN_INFRA }}
-      - name: Install jq and moreutils (sponge)
-        run: |
-          sudo apt-get update
-          sudo apt-get install jq moreutils
-      - run: |
-          jq '.["uniapi"]="${{ github.ref_name }}"' release.json | sponge release.json
-      - name: Push update
-        run: |
-          git config --global user.email gitops@vatprc.net
-          git config --global user.name 'VATPRC GitOps'
-          git add .
-          git commit --message 'feat: upgrade uniapi to ${{ github.ref_name }}'
-          git push -u origin HEAD:main
