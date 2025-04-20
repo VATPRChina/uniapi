@@ -1,7 +1,7 @@
-using Net.Vatprc.Uniapi.Services;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -95,6 +95,11 @@ public partial class CompatController(VatsimService VatsimService, RudiMetarServ
     protected async Task<IActionResult> GetMetar(string icao)
     {
         var normalizedIcao = icao.ToUpperInvariant();
+        if (normalizedIcao == "ALL")
+        {
+            var allMetars = await MetarService.GetMetarDatabaseAsync();
+            return Content(allMetars, "text/plain", System.Text.Encoding.UTF8);
+        }
         var metar = await MetarService.GetMetar(normalizedIcao);
         if (string.IsNullOrEmpty(metar))
         {

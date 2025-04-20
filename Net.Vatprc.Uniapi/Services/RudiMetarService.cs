@@ -15,7 +15,7 @@ public class RudiMetarService(IOptions<RudiMetarService.Option> Options)
         return builder;
     }
 
-    protected async Task<string> GetMetarDatabaseAsync(CancellationToken ct = default)
+    public async Task<string> GetMetarDatabaseAsync(CancellationToken ct = default)
     {
         return await Cache.GetOrCreateAsync("rudi-metar", async entry =>
         {
