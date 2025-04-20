@@ -1,4 +1,3 @@
-using Flurl;
 using Flurl.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
