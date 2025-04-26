@@ -6,7 +6,8 @@ namespace Net.Vatprc.Uniapi.Services;
 
 public class RudiMetarService(IOptions<RudiMetarService.Option> Options)
 {
-    MemoryCache Cache { get; init; } = new(new MemoryCacheOptions());
+    protected MemoryCache Cache { get; init; } = new(new MemoryCacheOptions());
+    protected string LastData { get; set; } = string.Empty;
 
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
     {
@@ -17,23 +18,24 @@ public class RudiMetarService(IOptions<RudiMetarService.Option> Options)
 
     public async Task<string> GetMetarDatabaseAsync(CancellationToken ct = default)
     {
-        return await Cache.GetOrCreateAsync("rudi-metar", async entry =>
+        try
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
-            try
+            var data = await Cache.GetOrCreateAsync("rudi-metar", async entry =>
             {
-                var result = await Options.Value.Endpoint
-                    .WithHeader("User-Agent", UniapiUserAgent)
-                    .GetStringAsync(cancellationToken: ct);
-                return result;
-            }
-            catch (FlurlHttpException e)
-            {
-                e.SetSentryMechanism(nameof(RudiMetarService), handled: false);
-                SentrySdk.CaptureException(e);
-                return entry.Value as string ?? string.Empty;
-            }
-        }) ?? string.Empty;
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+                return await Options.Value.Endpoint
+                        .WithHeader("User-Agent", UniapiUserAgent)
+                        .GetStringAsync(cancellationToken: ct);
+            });
+            LastData = data ?? string.Empty;
+            return LastData;
+        }
+        catch (FlurlHttpException e)
+        {
+            e.SetSentryMechanism(nameof(RudiMetarService), handled: false);
+            SentrySdk.CaptureException(e);
+            return LastData;
+        }
     }
 
     public async Task<string> GetMetar(string icao, CancellationToken ct = default)
