@@ -25,6 +25,7 @@ public class RudiMetarService(IOptions<RudiMetarService.Option> Options)
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
                 return await Options.Value.Endpoint
                         .WithHeader("User-Agent", UniapiUserAgent)
+                        .WithTimeout(15)
                         .GetStringAsync(cancellationToken: ct);
             });
             LastData = data ?? string.Empty;
@@ -44,7 +45,16 @@ public class RudiMetarService(IOptions<RudiMetarService.Option> Options)
         var metars = result
             .Split('\n')
             .Where(x => x.StartsWith(icao, StringComparison.OrdinalIgnoreCase));
-        return string.Join('\n', metars);
+        var metar = string.Join('\n', metars);
+        if (string.IsNullOrEmpty(metar))
+        {
+            metar = await "https://metar.vatsim.net/"
+                .WithHeader("User-Agent", UniapiUserAgent)
+                .AppendPathSegment(icao)
+                .WithTimeout(15)
+                .GetStringAsync(cancellationToken: ct);
+        }
+        return metar;
     }
 
     public class Option

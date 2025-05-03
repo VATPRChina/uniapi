@@ -60,6 +60,8 @@ public static partial class FlightRoute
 
     public static async Task<string> NormalizeRoute(VATPRCContext db, string departure, string arrival, string route)
     {
+        // FIXME: LAMEN A593 DUMET
+        // FIXME: BERBA (B591 BOLEX) B591 BAKER
         var airport = await db.Airport.FirstOrDefaultAsync(a => a.Identifier == departure)
             ?? throw new InvalidRouteException($"Airport {departure} not found.");
         var (lat, lon) = (airport.Latitude, airport.Longitude);
