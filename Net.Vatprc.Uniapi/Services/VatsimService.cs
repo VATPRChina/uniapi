@@ -60,4 +60,16 @@ public class VatsimService
         }) ?? throw new Exception("Unexpected null on fetch vatprc data");
         return result;
     }
+
+    public async Task<string> GetDivisionEventsAsString(CancellationToken ct = default)
+    {
+        var result = await Cache.GetOrCreateAsync("controllers", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+            return await "https://my.vatsim.net/api/v2/events/view/division/PRC"
+                .WithHeader("User-Agent", UniapiUserAgent)
+                .GetStringAsync(cancellationToken: ct);
+        }) ?? throw new Exception("Unexpected null on fetch vatprc data");
+        return result;
+    }
 }

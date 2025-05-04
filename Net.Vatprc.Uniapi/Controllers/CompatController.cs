@@ -119,4 +119,11 @@ public partial class CompatController(VatsimService VatsimService, RudiMetarServ
     {
         return await GetMetar(id);
     }
+
+    [HttpGet("homepage/events/vatsim")]
+    public async Task<IActionResult> GetVatsimEvents()
+    {
+        var events = await VatsimService.GetDivisionEventsAsString();
+        return Content(events, "application/json", System.Text.Encoding.UTF8);
+    }
 }
