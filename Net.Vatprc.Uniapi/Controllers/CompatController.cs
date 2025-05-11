@@ -103,7 +103,7 @@ public partial class CompatController(VatsimService VatsimService, RudiMetarServ
         var metar = await MetarService.GetMetar(normalizedIcao);
         if (string.IsNullOrEmpty(metar))
         {
-            metar = "No METAR found";
+            return NotFound(Content("NO METAR FOUND", "text/plain", System.Text.Encoding.UTF8));
         }
         return Content(metar, "text/plain", System.Text.Encoding.UTF8);
     }
