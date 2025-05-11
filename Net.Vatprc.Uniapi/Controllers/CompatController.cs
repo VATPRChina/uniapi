@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -103,7 +104,9 @@ public partial class CompatController(VatsimService VatsimService, RudiMetarServ
         var metar = await MetarService.GetMetar(normalizedIcao);
         if (string.IsNullOrEmpty(metar))
         {
-            return NotFound(Content("NO METAR FOUND", "text/plain", System.Text.Encoding.UTF8));
+            var content = Content("NO METAR FOUND", "text/plain", System.Text.Encoding.UTF8);
+            content.StatusCode = (int)HttpStatusCode.NotFound;
+            return content;
         }
         return Content(metar, "text/plain", System.Text.Encoding.UTF8);
     }
