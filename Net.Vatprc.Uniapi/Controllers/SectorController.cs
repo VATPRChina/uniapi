@@ -17,11 +17,13 @@ public class SectorController(
     public record SectorPermissionResponse
     {
         public required bool HasPermission { get; set; }
+        public required string SectorType { get; set; }
 
         [SetsRequiredMembers]
-        public SectorPermissionResponse(bool hasPermission)
+        public SectorPermissionResponse(bool hasPermission, string sectorType)
         {
             HasPermission = hasPermission;
+            SectorType = sectorType;
         }
     }
 
@@ -50,6 +52,6 @@ public class SectorController(
         var hasPermission = flattenRoles.Any(r => AllowedRoles.Contains(r.Name)) ||
             user.Cid == "1676022";
 
-        return new SectorPermissionResponse(hasPermission);
+        return new SectorPermissionResponse(hasPermission, flattenRoles.Any(r => r.Name == "Visiting Controller") ? "visiting_controller" : "controller");
     }
 }
