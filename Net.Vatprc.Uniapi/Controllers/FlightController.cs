@@ -122,27 +122,27 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
             result.Add(new WarningMessage { MessageCode = "parse_route_failed", Parameter = e.Message });
         }
 
-        var preferredRoutes = await DbContext.PreferredRoute
-            .Where(pr => (pr.Departure == flight.Departure && pr.Arrival == flight.Arrival)
-                || (pr.Departure == flight.Departure && normalizedRoute.Contains(pr.Arrival) && pr.Arrival.Length > 4)
-                || (pr.Arrival == flight.Arrival && normalizedRoute.Contains(pr.Departure) && pr.Departure.Length > 4)
-                || (pr.Arrival.Length > 4
-                    && pr.Departure.Length > 4
-                    && normalizedRoute.Contains(pr.Departure)
-                    && normalizedRoute.Contains(pr.Arrival)))
-            .ToListAsync();
-        if (preferredRoutes.Count == 0)
-        {
-            result.Add(new WarningMessage { MessageCode = "no_preferred_route" });
-        }
-        foreach (var pr in preferredRoutes)
-        {
-            Logger.LogDebug("Found route from {Departure} to {Arrival} via {Route}", pr.Departure, pr.Arrival, pr.RawRoute);
-        }
-        if (preferredRoutes.Count > 0 && !preferredRoutes.Any(preferred => simplifiedRoute.Contains(preferred.RawRoute)))
-        {
-            result.Add(new WarningMessage { MessageCode = "not_preferred_route", Parameter = string.Join(";", preferredRoutes.Select(p => p.RawRoute)) });
-        }
+        // var preferredRoutes = await DbContext.PreferredRoute
+        //     .Where(pr => (pr.Departure == flight.Departure && pr.Arrival == flight.Arrival)
+        //         || (pr.Departure == flight.Departure && normalizedRoute.Contains(pr.Arrival) && pr.Arrival.Length > 4)
+        //         || (pr.Arrival == flight.Arrival && normalizedRoute.Contains(pr.Departure) && pr.Departure.Length > 4)
+        //         || (pr.Arrival.Length > 4
+        //             && pr.Departure.Length > 4
+        //             && normalizedRoute.Contains(pr.Departure)
+        //             && normalizedRoute.Contains(pr.Arrival)))
+        //     .ToListAsync();
+        // if (preferredRoutes.Count == 0)
+        // {
+        //     result.Add(new WarningMessage { MessageCode = "no_preferred_route" });
+        // }
+        // foreach (var pr in preferredRoutes)
+        // {
+        //     Logger.LogDebug("Found route from {Departure} to {Arrival} via {Route}", pr.Departure, pr.Arrival, pr.RawRoute);
+        // }
+        // if (preferredRoutes.Count > 0 && !preferredRoutes.Any(preferred => simplifiedRoute.Contains(preferred.RawRoute)))
+        // {
+        //     result.Add(new WarningMessage { MessageCode = "not_preferred_route", Parameter = string.Join(";", preferredRoutes.Select(p => p.RawRoute)) });
+        // }
         return result;
     }
 }
