@@ -77,6 +77,8 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 
         - `no_rvsm`: The aircraft does not support RVSM.
         - `no_rnav1`: The aircraft does not support RNAV1.
+        - `no_rnav1_equipment`: The aircraft does not support RNAV1.
+        - `no_rnav1_pbn`: The aircraft does not support RNAV1.
         - `rnp_ar`: The aircraft supports RNP AR with RF.
         - `rnp_ar_without_rf`: The aircraft supports RNP AR without RF.
         - `no_transponder`: The aircraft does not have a transponder.
@@ -99,6 +101,14 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         if (!flight.SupportRnav1)
         {
             result.Add(new WarningMessage { MessageCode = "no_rnav1" });
+        }
+        if (!flight.SupportRnav1Equipment)
+        {
+            result.Add(new WarningMessage { MessageCode = "no_rnav1_equipment" });
+        }
+        if (!flight.SupportRnav1Pbn)
+        {
+            result.Add(new WarningMessage { MessageCode = "no_rnav1_pbn" });
         }
         if (flight.SupportRnpArWithRf)
         {

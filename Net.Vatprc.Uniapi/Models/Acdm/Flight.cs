@@ -58,7 +58,9 @@ public class Flight
     }
 
     public bool SupportRvsm => Equipment.Contains('W');
-    public bool SupportRnav1 => Equipment.Contains('R') && (NavigationPerformance.Contains("D1") || NavigationPerformance.Contains("D2"));
+    public bool SupportRnav1 => SupportRnav1Equipment && SupportRnav1Pbn;
+    public bool SupportRnav1Equipment => Equipment.Contains('R');
+    public bool SupportRnav1Pbn => NavigationPerformance.Contains("D1") || NavigationPerformance.Contains("D2");
     public bool SupportRnpArWithRf => NavigationPerformance.Contains("T1");
     public bool SupportRnpArWithoutRf => NavigationPerformance.Contains("T2");
     public bool HasTransponder => !string.IsNullOrEmpty(Transponder);
