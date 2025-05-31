@@ -600,8 +600,8 @@
       },
       "Scalar.AspNetCore": {
         "type": "Transitive",
-        "resolved": "1.2.47",
-        "contentHash": "Fu5S/11bjLe4qZnPbH363GItpqK8+moxkg9dB1WOq4jl7RjZygfj1UOVd54Ue9atxXDi/lx/nXM2zQXgiC3xJg=="
+        "resolved": "2.4.7",
+        "contentHash": "x3KJtTNunXjX62qdhQGE7bGqDkoQTuufMOu1z5h5EqDsK3uja9P5oshCSVFmE/kr9Y5m/jCSV7tmVlSv6pewrQ=="
       },
       "Sentry": {
         "type": "Transitive",
@@ -907,7 +907,7 @@
           "OpenTelemetry.Instrumentation.AspNetCore": "[1.9.0, )",
           "OpenTelemetry.Instrumentation.EntityFrameworkCore": "[1.0.0-beta.12, )",
           "OpenTelemetry.Instrumentation.Http": "[1.10.0, )",
-          "Scalar.AspNetCore": "[1.2.47, )",
+          "Scalar.AspNetCore": "[2.4.7, )",
           "Sentry.AspNetCore": "[4.13.0, )",
           "Sentry.OpenTelemetry": "[4.13.0, )",
           "Sentry.Serilog": "[4.13.0, )",

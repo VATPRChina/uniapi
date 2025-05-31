@@ -1,25 +1,24 @@
 global using Microsoft.EntityFrameworkCore;
 global using Net.Vatprc.Uniapi;
-global using UniApi = Net.Vatprc.Uniapi;
 global using static Net.Vatprc.Uniapi.Utils.Utils;
-
+global using UniApi = Net.Vatprc.Uniapi;
 using System.CommandLine;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.IdentityModel.Tokens;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
 using Net.Vatprc.Uniapi.Utils.Toml;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Formatters;
-using Microsoft.IdentityModel.Tokens;
-using Npgsql;
-using Serilog;
-using Sentry.OpenTelemetry;
-using OpenTelemetry.Trace;
-using Microsoft.AspNetCore.HttpOverrides;
-using Scalar.AspNetCore;
-using System.Text.Json;
 using nietras.SeparatedValues;
+using Npgsql;
+using OpenTelemetry.Trace;
+using Scalar.AspNetCore;
+using Sentry.OpenTelemetry;
+using Serilog;
 
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
@@ -210,9 +209,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseFileServer();
-
-app.MapGet("/debug/routes", (IEnumerable<EndpointDataSource> endpointSources) =>
-    string.Join("\n", endpointSources.SelectMany(source => source.Endpoints.Select(e => $"{e.DisplayName}"))));
 
 app.MapControllers().RequireAuthorization(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 

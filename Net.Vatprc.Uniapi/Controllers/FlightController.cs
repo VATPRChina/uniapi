@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -66,27 +67,45 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         return new FlightDto(flight, await FlightRoute.TryNormalizeRoute(DbContext, flight.Departure, flight.Arrival, flight.RawRoute));
     }
 
+    public enum WarningMessageCode
+    {
+        [Description("The aircraft does not support RVSM.")]
+        no_rvsm,
+
+        [Description("The aircraft does not support RNAV1.")]
+        no_rnav1,
+
+        [Description("The aircraft does not support RNAV1.")]
+        no_rnav1_equipment,
+
+        [Description("The aircraft does not support RNAV1.")]
+        no_rnav1_pbn,
+
+        [Description("The aircraft supports RNP AR with RF.")]
+        rnp_ar,
+
+        [Description("The aircraft supports RNP AR without RF.")]
+        rnp_ar_without_rf,
+
+        [Description("The aircraft does not have a transponder.")]
+        no_transponder,
+
+        [Description("There is no preferred route designated by CAAC.")]
+        no_preferred_route,
+
+        [Description("The flight does not follow the preferred route designated by CAAC. The parameter is the preferred route.")]
+        not_preferred_route,
+
+        [Description("The route cannot be parsed with the navdata on the server.")]
+        parse_route_failed,
+    }
+
     public record WarningMessage
     {
-        public required string MessageCode { get; init; }
+        public required WarningMessageCode MessageCode { get; init; }
         public string? Parameter { get; init; } = null;
     }
 
-    [EndpointDescription("""
-        List of warnings:
-
-        - `no_rvsm`: The aircraft does not support RVSM.
-        - `no_rnav1`: The aircraft does not support RNAV1.
-        - `no_rnav1_equipment`: The aircraft does not support RNAV1.
-        - `no_rnav1_pbn`: The aircraft does not support RNAV1.
-        - `rnp_ar`: The aircraft supports RNP AR with RF.
-        - `rnp_ar_without_rf`: The aircraft supports RNP AR without RF.
-        - `no_transponder`: The aircraft does not have a transponder.
-        - `no_preferred_route`: There is no preferred route designated by CAAC.
-        - `not_preferred_route`: The flight does not follow the preferred route designated by CAAC.
-           The parameter is the preferred route.
-        - `parse_route_failed`: The route cannot be parsed with the navdata on the server.
-        """)]
     [HttpGet("by-callsign/{callsign}/warnings")]
     [AllowAnonymous]
     public async Task<IEnumerable<WarningMessage>> GetWarningByCallsign(string callsign)
@@ -96,31 +115,31 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         var result = new List<WarningMessage>();
         if (!flight.SupportRvsm)
         {
-            result.Add(new WarningMessage { MessageCode = "no_rvsm" });
+            result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_rvsm });
         }
         if (!flight.SupportRnav1)
         {
-            result.Add(new WarningMessage { MessageCode = "no_rnav1" });
+            result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_rnav1 });
         }
         if (!flight.SupportRnav1Equipment)
         {
-            result.Add(new WarningMessage { MessageCode = "no_rnav1_equipment" });
+            result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_rnav1_equipment });
         }
         if (!flight.SupportRnav1Pbn)
         {
-            result.Add(new WarningMessage { MessageCode = "no_rnav1_pbn" });
+            result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_rnav1_pbn });
         }
         if (flight.SupportRnpArWithRf)
         {
-            result.Add(new WarningMessage { MessageCode = "rnp_ar" });
+            result.Add(new WarningMessage { MessageCode = WarningMessageCode.rnp_ar });
         }
         if (flight.SupportRnpArWithoutRf && !flight.SupportRnpArWithRf)
         {
-            result.Add(new WarningMessage { MessageCode = "rnp_ar_without_rf" });
+            result.Add(new WarningMessage { MessageCode = WarningMessageCode.rnp_ar_without_rf });
         }
         if (!flight.HasTransponder)
         {
-            result.Add(new WarningMessage { MessageCode = "no_transponder" });
+            result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_transponder });
         }
         var simplifiedRoute = FlightRoute.SimplifyRoute(flight.RawRoute);
 
@@ -129,7 +148,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         catch (Exception e)
         {
             normalizedRoute = simplifiedRoute;
-            result.Add(new WarningMessage { MessageCode = "parse_route_failed", Parameter = e.Message });
+            result.Add(new WarningMessage { MessageCode = WarningMessageCode.parse_route_failed, Parameter = e.Message });
         }
 
         // var preferredRoutes = await DbContext.PreferredRoute
