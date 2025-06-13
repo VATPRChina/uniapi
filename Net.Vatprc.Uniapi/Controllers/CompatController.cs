@@ -26,7 +26,9 @@ public partial class CompatController(VatsimService VatsimService, RudiMetarServ
         public required string Callsign { get; set; }
         public required string Name { get; set; }
         public required string Start { get; set; }
+        public required DateTimeOffset StartUtc { get; set; }
         public required string End { get; set; }
+        public required DateTimeOffset EndUtc { get; set; }
     }
 
     public class PilotDto
@@ -88,7 +90,9 @@ public partial class CompatController(VatsimService VatsimService, RudiMetarServ
                 Name = $"{x.User.FirstName} {x.User.LastName}",
                 Callsign = x.Callsign,
                 Start = x.Start.ToUniversalTime().ToString("dd HH:mm"),
+                StartUtc = x.Start.ToUniversalTime(),
                 End = x.Finish.ToUniversalTime().ToString("dd HH:mm"),
+                EndUtc = x.Finish.ToUniversalTime(),
             }),
         };
     }
