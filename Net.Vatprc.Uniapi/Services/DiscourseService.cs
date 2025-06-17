@@ -29,10 +29,10 @@ public class DiscourseService(IOptions<DiscourseService.Option> Options)
             .AppendPathSegments("c/69-category/notam/79.json")
             .WithHeader("User-Agent", UniapiUserAgent)
             .GetJsonAsync<CategoryResult>() ??
-            throw new Exception("Unexpected null on fetch vatprc atcapi data");
+            throw new Exception("Unexpected null");
     }
 
-
+    #region "NOTAM Models"
     public class CategoryResult
     {
         [JsonPropertyName("topic_list")]
@@ -54,4 +54,61 @@ public class DiscourseService(IOptions<DiscourseService.Option> Options)
         [JsonPropertyName("tags")]
         public required IEnumerable<string> Tags { get; set; }
     }
+    #endregion
+
+    public async Task<CalendarEvents> GetCalendarEvents()
+    {
+        return await Options.Value.Endpoint
+            .AppendPathSegments("discourse-post-event/events.json?category_id=66&include_subcategories=true&include_expired=true")
+            .WithHeader("User-Agent", UniapiUserAgent)
+            .GetJsonAsync<CalendarEvents>() ??
+            throw new Exception("Unexpected null");
+    }
+
+    #region "Calendar Events Models"
+    public class CalendarEvents
+    {
+        [JsonPropertyName("events")]
+        public required Event[] Events { get; set; }
+    }
+
+    public class Event
+    {
+        [JsonPropertyName("id")]
+        public required long Id { get; set; }
+
+        [JsonPropertyName("starts_at")]
+        public required DateTimeOffset StartsAt { get; set; }
+
+        [JsonPropertyName("ends_at")]
+        public required DateTimeOffset EndsAt { get; set; }
+
+        [JsonPropertyName("timezone")]
+        public required string Timezone { get; set; }
+
+        [JsonPropertyName("post")]
+        public required Post Post { get; set; }
+
+        [JsonPropertyName("name")]
+        public required string Name { get; set; }
+
+        [JsonPropertyName("category_id")]
+        public required long CategoryId { get; set; }
+    }
+
+    public class Post
+    {
+        [JsonPropertyName("id")]
+        public required long Id { get; set; }
+
+        [JsonPropertyName("post_number")]
+        public required long PostNumber { get; set; }
+
+        [JsonPropertyName("url")]
+        public required string Url { get; set; }
+
+        [JsonPropertyName("topic")]
+        public required Topic Topic { get; set; }
+    }
+    #endregion  
 }
