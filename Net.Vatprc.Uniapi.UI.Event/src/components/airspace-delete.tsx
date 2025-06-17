@@ -24,7 +24,7 @@ export const DeleteAirspace = ({ eventId, airspaceId }: { eventId: string; airsp
     },
   );
 
-  if (!user.roles.includes("ec")) return null;
+  if (!user.roles.includes("event_coordinator")) return null;
 
   return (
     <>

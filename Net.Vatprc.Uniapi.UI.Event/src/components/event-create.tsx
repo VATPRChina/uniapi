@@ -59,7 +59,7 @@ export const CreateEvent = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; e
     },
   });
 
-  if (!user.roles.includes("ec")) return null;
+  if (!user.roles.includes("event_coordinator")) return null;
 
   return (
     <>

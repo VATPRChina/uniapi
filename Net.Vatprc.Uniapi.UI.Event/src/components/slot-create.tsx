@@ -68,7 +68,7 @@ export const CreateSlot = ({ ml, eventId }: { ml?: StyleProp<MantineSpacing>; ev
 
   const [opened, { toggle, close }] = useDisclosure(false);
 
-  if (!user.roles.includes("ec")) return null;
+  if (!user.roles.includes("event_coordinator")) return null;
   return (
     <>
       <ActionIcon variant="subtle" aria-label="Settings" ml={ml} onClick={toggle}>

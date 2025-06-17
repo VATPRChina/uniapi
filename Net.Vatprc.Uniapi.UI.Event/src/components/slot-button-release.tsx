@@ -32,7 +32,7 @@ export const SlotReleaseButton = ({
     if (!isPast(event.start_booking_at) || !isFuture(event.end_booking_at)) {
       disableMessage += "Event is not in booking period.";
     }
-    if (slot.booking && slot.booking.user_id !== user.id && !user.roles.includes("ec")) {
+    if (slot.booking && slot.booking.user_id !== user.id && !user.roles.includes("event_coordinator")) {
       disableMessage += "Slot is booked by someone else.";
     }
   }
@@ -47,7 +47,7 @@ export const SlotReleaseButton = ({
           variant="subtle"
           onClick={toggle}
           disabled={!!disableMessage}
-          color={user.roles.includes("ec") && user.id !== slot.booking?.user_id ? "red" : "yellow"}
+          color={user.roles.includes("event_coordinator") && user.id !== slot.booking?.user_id ? "red" : "yellow"}
         >
           Release
         </Button>

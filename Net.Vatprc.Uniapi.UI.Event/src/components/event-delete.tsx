@@ -18,7 +18,7 @@ export const DeleteEvent = ({ eventId }: { eventId: string }) => {
   });
   const [opened, { toggle, close }] = useDisclosure(false);
 
-  if (!user.roles.includes("ec")) return null;
+  if (!user.roles.includes("event_coordinator")) return null;
 
   return (
     <>
