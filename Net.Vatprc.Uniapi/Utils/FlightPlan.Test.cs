@@ -22,5 +22,12 @@ public class FlightPlanTest
             Transponder: string.Empty,
             NavigationPerformance: string.Empty
         ));
+        FlightPlan.ParseIcaoAircraftCode("A21N/M-VGDW/C", "PBN/A1B1C1D1L1O2S2 ").Should().Be(new FlightPlan.Aircraft
+        (
+            AircraftCode: "A21N",
+            Equipment: "VGDW",
+            Transponder: "C",
+            NavigationPerformance: "A1B1C1D1L1O2S2"
+        ));
     }
 }
