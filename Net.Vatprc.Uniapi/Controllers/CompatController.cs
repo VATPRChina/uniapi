@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.External;
 using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Controllers;
@@ -11,7 +12,10 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// </summary>
 [ApiController, Route("api/compat")]
 [AllowAnonymous]
-public partial class CompatController(VatsimService VatsimService, RudiMetarService MetarService) : ControllerBase
+public partial class CompatController(
+    VatsimService VatsimService,
+    RudiMetarService MetarService,
+    TrackAudioService TrackAudioService) : ControllerBase
 {
     public class ControllerDto
     {
@@ -132,5 +136,12 @@ public partial class CompatController(VatsimService VatsimService, RudiMetarServ
     {
         var events = await VatsimService.GetDivisionEventsAsString();
         return Content(events, "application/json", System.Text.Encoding.UTF8);
+    }
+
+    [HttpGet("trackaudio/mandatory_version")]
+    public async Task<IActionResult> GetTrackAudioVersion()
+    {
+        var lastVersion = await TrackAudioService.GetLastVersionAsync();
+        return Content(lastVersion, "text/plain", System.Text.Encoding.UTF8);
     }
 }

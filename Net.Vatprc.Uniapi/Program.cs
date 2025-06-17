@@ -10,10 +10,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.IdentityModel.Tokens;
+using Net.Vatprc.Uniapi.External;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
 using Net.Vatprc.Uniapi.Utils.Toml;
-using nietras.SeparatedValues;
 using Npgsql;
 using OpenTelemetry.Trace;
 using Scalar.AspNetCore;
@@ -180,6 +180,7 @@ VatprcAtcService.ConfigureOn(builder);
 DiscourseService.ConfigureOn(builder);
 FlightWorker.ConfigureOn(builder);
 QQWorker.ConfigureOn(builder);
+builder.Services.AddSingleton<TrackAudioService>();
 
 var app = builder.Build();
 

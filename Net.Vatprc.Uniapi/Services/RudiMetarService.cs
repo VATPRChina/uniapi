@@ -60,6 +60,11 @@ public class RudiMetarService(
                 .AppendPathSegment(icao)
                 .WithTimeout(15)
                 .GetStringAsync(cancellationToken: ct);
+            if (string.IsNullOrEmpty(metar))
+            {
+                Logger.LogError("No METAR found for {Icao} on neither Rudi nor VATSIM.", icao);
+                SentrySdk.CaptureMessage($"No METAR found for {icao}.", SentryLevel.Error);
+            }
         }
         return metar;
     }
