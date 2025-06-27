@@ -53,11 +53,13 @@ public class RudiMetarService(
             .Split('\n')
             .Where(x => x.StartsWith(icao, StringComparison.OrdinalIgnoreCase))
             .FirstOrDefault() ?? string.Empty;
+        Logger.LogInformation("Fetched METAR for {Icao} from Rudi's database: {Metar}", icao, rudiMetar);
         var vatsimMetar = await "https://metar.vatsim.net/"
             .WithHeader("User-Agent", UniapiUserAgent)
             .AppendPathSegment(icao)
             .WithTimeout(15)
             .GetStringAsync(cancellationToken: ct);
+        Logger.LogInformation("Fetched METAR for {Icao} from VATSIM: {Metar}", icao, vatsimMetar);
         var rudiMetarTime = MetarParser.TryGetMetarTime(rudiMetar);
         var vatprcMetarTime = MetarParser.TryGetMetarTime(vatsimMetar);
         if (rudiMetarTime == null)
