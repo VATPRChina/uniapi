@@ -1,6 +1,7 @@
 using Flurl.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using Net.Vatprc.Uniapi.External;
 using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Services;
@@ -48,25 +49,37 @@ public class RudiMetarService(
     public async Task<string> GetMetar(string icao, CancellationToken ct = default)
     {
         var result = await GetMetarDatabaseAsync(ct);
-        var metars = result
+        var rudiMetar = result
             .Split('\n')
-            .Where(x => x.StartsWith(icao, StringComparison.OrdinalIgnoreCase));
-        var metar = string.Join('\n', metars);
-        if (string.IsNullOrEmpty(metar))
+            .Where(x => x.StartsWith(icao, StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault() ?? string.Empty;
+        var vatsimMetar = await "https://metar.vatsim.net/"
+            .WithHeader("User-Agent", UniapiUserAgent)
+            .AppendPathSegment(icao)
+            .WithTimeout(15)
+            .GetStringAsync(cancellationToken: ct);
+        var rudiMetarTime = MetarParser.TryGetMetarTime(rudiMetar);
+        var vatprcMetarTime = MetarParser.TryGetMetarTime(vatsimMetar);
+        if (rudiMetarTime == null)
         {
-            Logger.LogWarning("No METAR found for {Icao}. Fallback to VATSIM.", icao);
-            metar = await "https://metar.vatsim.net/"
-                .WithHeader("User-Agent", UniapiUserAgent)
-                .AppendPathSegment(icao)
-                .WithTimeout(15)
-                .GetStringAsync(cancellationToken: ct);
-            if (string.IsNullOrEmpty(metar))
-            {
-                Logger.LogError("No METAR found for {Icao} on neither Rudi nor VATSIM.", icao);
-                SentrySdk.CaptureMessage($"No METAR found for {icao}.", SentryLevel.Error);
-            }
+            Logger.LogWarning("Failed to parse METAR time from Rudi's METAR data for {Icao}. Using VATSIM METAR instead.", icao);
+            return vatsimMetar;
         }
-        return metar;
+        else if (vatprcMetarTime == null)
+        {
+            Logger.LogWarning("Failed to parse METAR time from VATSIM METAR data for {Icao}. Using Rudi's METAR instead.", icao);
+            return rudiMetar;
+        }
+        else if (rudiMetarTime > vatprcMetarTime)
+        {
+            Logger.LogInformation("Using Rudi's METAR for {Icao} as it is more recent than VATSIM's.", icao);
+            return rudiMetar;
+        }
+        else
+        {
+            Logger.LogInformation("Using VATSIM's METAR for {Icao} as it is more recent than Rudi's.", icao);
+            return vatsimMetar;
+        }
     }
 
     public class Option
