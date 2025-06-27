@@ -9,9 +9,8 @@ Using = [
 ]
 
 [Serilog.MinimumLevel]
-Default = "Debug"
+Default = "Information"
 [Serilog.MinimumLevel.Override]
-"Net.Vatprc.Uniapi" = "Debug"
 Microsoft = "Information"
 "Microsoft.AspNetCore" = "Warning"
 "Microsoft.EntityFrameworkCore.Database.Command" = "Warning"
