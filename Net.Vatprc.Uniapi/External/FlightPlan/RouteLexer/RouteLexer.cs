@@ -1,7 +1,7 @@
-using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser.TokenHandlers;
+using Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer.TokenHandlers;
 using Serilog;
 
-namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
+namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer;
 
 public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerContext
 {

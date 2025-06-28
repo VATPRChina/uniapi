@@ -1,4 +1,4 @@
-namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser.TokenHandlers;
+namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer.TokenHandlers;
 
 public class AirportTokenHandler : ITokenHandler
 {

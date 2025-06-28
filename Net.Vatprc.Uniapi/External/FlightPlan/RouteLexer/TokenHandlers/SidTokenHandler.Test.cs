@@ -1,6 +1,6 @@
 using Moq;
 
-namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser.TokenHandlers;
+namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer.TokenHandlers;
 
 [TestFixture]
 public class SidTokenHandlerTest

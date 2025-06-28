@@ -1,7 +1,7 @@
 using Moq;
 using Net.Vatprc.Uniapi.Models.Navdata;
 
-namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser.TokenHandlers;
+namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer.TokenHandlers;
 
 [TestFixture]
 public class WaypointTokenHandlerTest

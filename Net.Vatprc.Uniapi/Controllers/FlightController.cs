@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
+using Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;

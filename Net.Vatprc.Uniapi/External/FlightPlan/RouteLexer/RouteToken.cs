@@ -1,4 +1,4 @@
-namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
+namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer;
 
 public record class RouteToken
 {
