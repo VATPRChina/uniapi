@@ -182,8 +182,8 @@ DiscourseService.ConfigureOn(builder);
 FlightWorker.ConfigureOn(builder);
 QQWorker.ConfigureOn(builder);
 builder.Services.AddSingleton<TrackAudioService>();
-builder.Services.AddSingleton<DbNavdataAdapter>();
-builder.Services.AddSingleton<RouteParseService>();
+builder.Services.AddScoped<DbNavdataAdapter>();
+builder.Services.AddScoped<RouteParseService>();
 
 var app = builder.Build();
 
