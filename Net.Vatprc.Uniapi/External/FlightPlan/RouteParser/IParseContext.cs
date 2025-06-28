@@ -6,7 +6,7 @@ public interface IParseContext
 
     public int SegmentCount { get; }
 
-    public RouteToken CurrentSegment { get; set; }
+    public RouteToken CurrentSegment { get; }
 
     public RouteToken? LastSegment { get; }
 

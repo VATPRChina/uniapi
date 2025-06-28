@@ -1,8 +1,19 @@
+using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser.TokenHandlers;
+
 namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 
-public class RouteParser(VATPRCContext db, string rawRoute) : IParseContext
+public class RouteParser(string rawRoute, INavdataProvider navdata) : IParseContext
 {
-    public VATPRCContext Db = db;
+    protected readonly IList<ITokenHandler> TokenHandlers =
+    [
+        new AirportTokenHandler(),
+        new SidTokenHandler(),
+        new StarTokenHandler(),
+        new AirwayTokenHandler(),
+        new WaypointTokenHandler(),
+    ];
+
+    public INavdataProvider NavdataProvider => navdata;
 
     public IList<RouteToken> Tokens =
         rawRoute
@@ -33,13 +44,58 @@ public class RouteParser(VATPRCContext db, string rawRoute) : IParseContext
         ? Tokens[CurrentSegmentIndex + 1]
         : null;
 
-    RouteToken IParseContext.CurrentSegment { get => CurrentSegment; set => throw new NotImplementedException(); }
+    RouteToken IParseContext.CurrentSegment => CurrentSegment;
 
     public void MoveToNextSegment()
     {
         if (CurrentSegmentIndex + 1 < SegmentCount)
         {
             CurrentSegmentIndex++;
+        }
+    }
+
+    public void MoveToPreviousSegment()
+    {
+        if (CurrentSegmentIndex > 0)
+        {
+            CurrentSegmentIndex--;
+        }
+    }
+
+    public async Task ParseSegment(bool advance = true)
+    {
+        foreach (var handler in TokenHandlers)
+        {
+            if (handler.IsAllowed(this, NavdataProvider))
+            {
+                if (handler.NeedParseNextSegment)
+                {
+                    await TryParseNextSegment();
+                }
+                await handler.Resolve(this, NavdataProvider);
+                break;
+            }
+        }
+        if (advance)
+        {
+            MoveToNextSegment();
+        }
+    }
+
+    public async Task TryParseNextSegment()
+    {
+        if (NextSegment == null) return;
+
+        MoveToNextSegment();
+        await ParseSegment(advance: false);
+        MoveToPreviousSegment();
+    }
+
+    public async Task ParseAllSegments()
+    {
+        while (CurrentSegmentIndex < SegmentCount)
+        {
+            await ParseSegment();
         }
     }
 }

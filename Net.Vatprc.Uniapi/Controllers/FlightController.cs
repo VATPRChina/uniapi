@@ -1,8 +1,9 @@
 using System.ComponentModel;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 using Net.Vatprc.Uniapi.Models.Acdm;
+using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;
@@ -11,7 +12,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Flight information.
 /// </summary>
 [ApiController, Route("api/flights")]
-public class FlightController(VATPRCContext DbContext, ILogger<FlightController> Logger) : ControllerBase
+public class FlightController(VATPRCContext DbContext, ILogger<FlightController> Logger, RouteParseService RouteParse) : ControllerBase
 {
     public record FlightDto
     {
@@ -28,6 +29,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         public string __SimplifiedRoute { get; init; }
         public string Aircraft { get; init; }
         public string? __NormalizedRoute { get; init; }
+        public IList<RouteToken> __ParsedRouteTokens { get; set; } = [];
 
         public FlightDto(Flight flight, string? normalizedRoute = null)
         {
@@ -64,7 +66,24 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
     {
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
             ?? throw new ApiError.CallsignNotFound(callsign);
-        return new FlightDto(flight, await FlightRoute.TryNormalizeRoute(DbContext, flight.Departure, flight.Arrival, flight.RawRoute));
+        var result = new FlightDto(flight, await FlightRoute.TryNormalizeRoute(DbContext, flight.Departure, flight.Arrival, flight.RawRoute));
+
+        try
+        {
+            var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute);
+            result.__ParsedRouteTokens = parsedRoute;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Failed to parse route for flight {Callsign}", flight.Callsign);
+            SentrySdk.CaptureException(e, scope =>
+            {
+                scope.SetExtra("Callsign", flight.Callsign);
+                scope.SetExtra("RawRoute", flight.RawRoute);
+            });
+        }
+
+        return result;
     }
 
     public enum WarningMessageCode
@@ -150,28 +169,6 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
             normalizedRoute = simplifiedRoute;
             result.Add(new WarningMessage { MessageCode = WarningMessageCode.parse_route_failed, Parameter = e.Message });
         }
-
-        // var preferredRoutes = await DbContext.PreferredRoute
-        //     .Where(pr => (pr.Departure == flight.Departure && pr.Arrival == flight.Arrival)
-        //         || (pr.Departure == flight.Departure && normalizedRoute.Contains(pr.Arrival) && pr.Arrival.Length > 4)
-        //         || (pr.Arrival == flight.Arrival && normalizedRoute.Contains(pr.Departure) && pr.Departure.Length > 4)
-        //         || (pr.Arrival.Length > 4
-        //             && pr.Departure.Length > 4
-        //             && normalizedRoute.Contains(pr.Departure)
-        //             && normalizedRoute.Contains(pr.Arrival)))
-        //     .ToListAsync();
-        // if (preferredRoutes.Count == 0)
-        // {
-        //     result.Add(new WarningMessage { MessageCode = "no_preferred_route" });
-        // }
-        // foreach (var pr in preferredRoutes)
-        // {
-        //     Logger.LogDebug("Found route from {Departure} to {Arrival} via {Route}", pr.Departure, pr.Arrival, pr.RawRoute);
-        // }
-        // if (preferredRoutes.Count > 0 && !preferredRoutes.Any(preferred => simplifiedRoute.Contains(preferred.RawRoute)))
-        // {
-        //     result.Add(new WarningMessage { MessageCode = "not_preferred_route", Parameter = string.Join(";", preferredRoutes.Select(p => p.RawRoute)) });
-        // }
         return result;
     }
 }

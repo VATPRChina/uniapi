@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.IdentityModel.Tokens;
 using Net.Vatprc.Uniapi.External;
+using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
 using Net.Vatprc.Uniapi.Utils.Toml;
@@ -181,6 +182,8 @@ DiscourseService.ConfigureOn(builder);
 FlightWorker.ConfigureOn(builder);
 QQWorker.ConfigureOn(builder);
 builder.Services.AddSingleton<TrackAudioService>();
+builder.Services.AddSingleton<DbNavdataAdapter>();
+builder.Services.AddSingleton<RouteParseService>();
 
 var app = builder.Build();
 
