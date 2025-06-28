@@ -6,9 +6,9 @@ public class RouteParseService(DbNavdataAdapter navdata)
 {
     protected DbNavdataAdapter Navdata => navdata;
 
-    public async Task<IList<RouteToken>> ParseRouteAsync(string route)
+    public async Task<IList<RouteToken>> ParseRouteAsync(string route, string dep, string arr)
     {
-        var parser = new RouteParser(route, Navdata);
+        var parser = new RouteLexer($"{dep} {route} {arr}", Navdata);
         await parser.ParseAllSegments();
         return parser.Tokens;
     }

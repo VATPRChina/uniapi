@@ -11,7 +11,7 @@ public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
     {
         var fix = await DbContext.AirwayFix
             .Include(f => f.Airway)
-            .Where(f => f.FixIdentifier == fixIdent && f.AirwayIdentifier == ident)
+            .Where(f => f.FixIdentifier == fixIdent && f.Airway!.Identifier == ident)
             .FirstOrDefaultAsync();
         return fix != null;
     }
@@ -25,7 +25,8 @@ public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
     public async Task<Procedure?> FindSid(string ident, string airportIdent)
     {
         var procedure = await DbContext.Procedure
-            .Where(p => p.Identifier == ident && p.AirportIdentifier == airportIdent && p.SubsectionCode == 'D')
+            .Include(p => p.Airport)
+            .Where(p => p.Identifier == ident && p.Airport!.Identifier == airportIdent && p.SubsectionCode == 'D')
             .FirstOrDefaultAsync();
         return procedure;
     }
@@ -33,7 +34,8 @@ public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
     public async Task<Procedure?> FindStar(string ident, string airportIdent)
     {
         var procedure = await DbContext.Procedure
-            .Where(p => p.Identifier == ident && p.AirportIdentifier == airportIdent && p.SubsectionCode == 'E')
+            .Include(p => p.Airport)
+            .Where(p => p.Identifier == ident && p.Airport!.Identifier == airportIdent && p.SubsectionCode == 'E')
             .FirstOrDefaultAsync();
         return procedure;
     }

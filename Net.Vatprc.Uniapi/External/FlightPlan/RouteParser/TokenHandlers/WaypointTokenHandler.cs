@@ -2,12 +2,12 @@ namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser.TokenHandlers;
 
 public class WaypointTokenHandler : ITokenHandler
 {
-    public bool IsAllowed(IParseContext context, INavdataProvider navdataProvider)
+    public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
         return true;
     }
 
-    public async Task Resolve(IParseContext context, INavdataProvider navdataProvider)
+    public async Task Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
         var vhf = await navdataProvider.FindVhfNavaid(context.CurrentSegment.Value, context.CurrentLat, context.CurrentLon);
         if (vhf != null)

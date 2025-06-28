@@ -153,4 +153,27 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         }
         return result;
     }
+
+    [HttpGet("by-callsign/{callsign}/__route")]
+    [AllowAnonymous]
+    public async Task<IList<RouteToken>> GetRouteByCallsign(string callsign)
+    {
+        var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
+            ?? throw new ApiError.CallsignNotFound(callsign);
+        try
+        {
+            var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute, flight.Departure, flight.Arrival);
+            return parsedRoute;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Failed to parse route for flight {Callsign}", flight.Callsign);
+            SentrySdk.CaptureException(e, scope =>
+            {
+                scope.SetExtra("Callsign", flight.Callsign);
+                scope.SetExtra("RawRoute", flight.RawRoute);
+            });
+        }
+        return null!;
+    }
 }

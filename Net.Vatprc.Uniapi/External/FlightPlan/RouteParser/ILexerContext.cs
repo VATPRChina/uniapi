@@ -1,6 +1,6 @@
 namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 
-public interface IParseContext
+public interface ILexerContext
 {
     public int CurrentSegmentIndex { get; }
 

@@ -2,12 +2,12 @@ namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser.TokenHandlers;
 
 public class SidTokenHandler : ITokenHandler
 {
-    public bool IsAllowed(IParseContext context, INavdataProvider navdataProvider)
+    public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
         return context.LastSegment?.Kind == RouteTokenKind.AIRPORT;
     }
 
-    public async Task Resolve(IParseContext context, INavdataProvider navdataProvider)
+    public async Task Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
         if (context.LastSegment == null) return;
         var proc = await navdataProvider.FindSid(context.CurrentSegment.Value, context.LastSegment.Value);

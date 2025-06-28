@@ -7,15 +7,15 @@ namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser.TokenHandlers;
 public class AirportTokenHandlerTest
 {
     protected AirportTokenHandler Handler { get; set; }
-    protected Mock<IParseContext> ContextMock { get; set; }
-    protected IParseContext Context => ContextMock.Object;
+    protected Mock<ILexerContext> ContextMock { get; set; }
+    protected ILexerContext Context => ContextMock.Object;
     protected Mock<INavdataProvider> NavdataMock { get; set; }
     protected INavdataProvider Navdata => NavdataMock.Object;
 
     [SetUp]
     public void SetUp()
     {
-        ContextMock = new Mock<IParseContext>();
+        ContextMock = new Mock<ILexerContext>();
         NavdataMock = new Mock<INavdataProvider>();
         Handler = new AirportTokenHandler();
     }

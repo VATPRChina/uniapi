@@ -4,8 +4,9 @@ public class AirwayTokenHandler : ITokenHandler
 {
     public bool NeedParseNextSegment => true;
 
-    public bool IsAllowed(IParseContext context, INavdataProvider navdataProvider)
+    public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
+        Console.WriteLine($"Last segment: {context.LastSegment?.Kind}, Next segment: {context.NextSegment?.Kind}");
         return (context.LastSegment?.Kind == RouteTokenKind.VHF
             || context.LastSegment?.Kind == RouteTokenKind.NDB
             || context.LastSegment?.Kind == RouteTokenKind.WAYPOINT
@@ -15,7 +16,7 @@ public class AirwayTokenHandler : ITokenHandler
             );
     }
 
-    public async Task Resolve(IParseContext context, INavdataProvider navdataProvider)
+    public async Task Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
         if (context.LastSegment == null) return;
         if (context.NextSegment == null) return;
