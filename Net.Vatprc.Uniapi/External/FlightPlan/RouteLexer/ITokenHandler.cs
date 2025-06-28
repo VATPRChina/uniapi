@@ -6,5 +6,5 @@ public interface ITokenHandler
 
     public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider);
 
-    public Task Resolve(ILexerContext context, INavdataProvider navdataProvider);
+    public Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider);
 }

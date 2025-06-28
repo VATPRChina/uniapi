@@ -7,14 +7,15 @@ public class SidTokenHandler : ITokenHandler
         return context.LastSegment?.Kind == RouteTokenKind.AIRPORT;
     }
 
-    public async Task Resolve(ILexerContext context, INavdataProvider navdataProvider)
+    public async Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
-        if (context.LastSegment == null) return;
+        if (context.LastSegment == null) return false;
         var proc = await navdataProvider.FindSid(context.CurrentSegment.Value, context.LastSegment.Value);
-        if (proc == null) return;
+        if (proc == null) return false;
 
         context.CurrentSegment.Kind = RouteTokenKind.SID;
         context.CurrentSegment.Id = proc.Id;
         context.CurrentSegment.Value = proc.Identifier;
+        return true;
     }
 }

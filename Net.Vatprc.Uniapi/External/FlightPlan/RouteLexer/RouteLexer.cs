@@ -72,10 +72,10 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
             {
                 Logger.Verbose("Handler {Handler} is allowed for segment {Segment}",
                     handler.GetType().Name, CurrentSegment.Value);
-                await handler.Resolve(this, NavdataProvider);
+                var resolved = await handler.Resolve(this, NavdataProvider);
                 Logger.Verbose("Handler {Handler} resolved segment {Segment} to kind {Kind} and id {Id}",
                     handler.GetType().Name, CurrentSegment.Value, CurrentSegment.Kind, CurrentSegment.Id);
-                if (CurrentSegment.Kind != RouteTokenKind.UNKNOWN)
+                if (CurrentSegment.Kind != RouteTokenKind.UNKNOWN && resolved)
                 {
                     break;
                 }

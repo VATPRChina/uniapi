@@ -7,7 +7,7 @@ public class WaypointTokenHandler : ITokenHandler
         return true;
     }
 
-    public async Task Resolve(ILexerContext context, INavdataProvider navdataProvider)
+    public async Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
         var vhf = await navdataProvider.FindVhfNavaid(context.CurrentSegment.Value, context.CurrentLat, context.CurrentLon);
         if (vhf != null)
@@ -18,7 +18,7 @@ public class WaypointTokenHandler : ITokenHandler
                 ?? throw new InvalidOperationException("VHF must have geographic coordinates");
             context.CurrentLat = vhf.VorLatitude ?? vhf.DmeLatitude
                 ?? throw new InvalidOperationException("VHF must have geographic coordinates");
-            return;
+            return true;
         }
         var ndb = await navdataProvider.FindNdbNavaid(context.CurrentSegment.Value, context.CurrentLat, context.CurrentLon);
         if (ndb != null)
@@ -27,7 +27,7 @@ public class WaypointTokenHandler : ITokenHandler
             context.CurrentSegment.Id = ndb.Id;
             context.CurrentLon = ndb.Longitude;
             context.CurrentLat = ndb.Latitude;
-            return;
+            return true;
         }
         var waypoint = await navdataProvider.FindWaypoint(context.CurrentSegment.Value, context.CurrentLat, context.CurrentLon);
         if (waypoint != null)
@@ -36,7 +36,8 @@ public class WaypointTokenHandler : ITokenHandler
             context.CurrentSegment.Id = waypoint.Id;
             context.CurrentLon = waypoint.Longitude;
             context.CurrentLat = waypoint.Latitude;
-            return;
+            return true;
         }
+        return false;
     }
 }

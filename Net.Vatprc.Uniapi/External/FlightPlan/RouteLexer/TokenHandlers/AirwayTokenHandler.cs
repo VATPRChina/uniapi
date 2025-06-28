@@ -6,7 +6,6 @@ public class AirwayTokenHandler : ITokenHandler
 
     public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
-        Console.WriteLine($"Last segment: {context.LastSegment?.Kind}, Next segment: {context.NextSegment?.Kind}");
         return (context.LastSegment?.Kind == RouteTokenKind.VHF
             || context.LastSegment?.Kind == RouteTokenKind.NDB
             || context.LastSegment?.Kind == RouteTokenKind.WAYPOINT
@@ -16,20 +15,21 @@ public class AirwayTokenHandler : ITokenHandler
             );
     }
 
-    public async Task Resolve(ILexerContext context, INavdataProvider navdataProvider)
+    public async Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
-        if (context.LastSegment == null) return;
-        if (context.NextSegment == null) return;
+        if (context.LastSegment == null) return false;
+        if (context.NextSegment == null) return false;
         var existsLeft = await navdataProvider.ExistsAirwayWithFix(
             context.CurrentSegment.Value,
             context.LastSegment.Value);
         var existsRight = await navdataProvider.ExistsAirwayWithFix(
             context.CurrentSegment.Value,
             context.NextSegment.Value);
-        if (!existsLeft || !existsRight) return;
+        if (!existsLeft || !existsRight) return false;
 
         context.CurrentSegment.Kind = RouteTokenKind.AIRWAY;
         context.CurrentSegment.Id = Ulid.Empty;
         context.CurrentSegment.Value = context.CurrentSegment.Value;
+        return true;
     }
 }
