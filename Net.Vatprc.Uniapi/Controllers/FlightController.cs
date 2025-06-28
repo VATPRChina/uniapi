@@ -29,7 +29,6 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         public string __SimplifiedRoute { get; init; }
         public string Aircraft { get; init; }
         public string? __NormalizedRoute { get; init; }
-        public IList<RouteToken> __ParsedRouteTokens { get; set; } = [];
 
         public FlightDto(Flight flight, string? normalizedRoute = null)
         {
@@ -66,24 +65,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
     {
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
             ?? throw new ApiError.CallsignNotFound(callsign);
-        var result = new FlightDto(flight, await FlightRoute.TryNormalizeRoute(DbContext, flight.Departure, flight.Arrival, flight.RawRoute));
-
-        try
-        {
-            var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute);
-            result.__ParsedRouteTokens = parsedRoute;
-        }
-        catch (Exception e)
-        {
-            Logger.LogError(e, "Failed to parse route for flight {Callsign}", flight.Callsign);
-            SentrySdk.CaptureException(e, scope =>
-            {
-                scope.SetExtra("Callsign", flight.Callsign);
-                scope.SetExtra("RawRoute", flight.RawRoute);
-            });
-        }
-
-        return result;
+        return new FlightDto(flight, await FlightRoute.TryNormalizeRoute(DbContext, flight.Departure, flight.Arrival, flight.RawRoute));
     }
 
     public enum WarningMessageCode
@@ -170,5 +152,28 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
             result.Add(new WarningMessage { MessageCode = WarningMessageCode.parse_route_failed, Parameter = e.Message });
         }
         return result;
+    }
+
+    [HttpGet("by-callsign/{callsign}/__route")]
+    [AllowAnonymous]
+    public async Task<IList<RouteToken>> GetRouteByCallsign(string callsign)
+    {
+        var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
+            ?? throw new ApiError.CallsignNotFound(callsign);
+        try
+        {
+            var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute);
+            return parsedRoute;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Failed to parse route for flight {Callsign}", flight.Callsign);
+            SentrySdk.CaptureException(e, scope =>
+            {
+                scope.SetExtra("Callsign", flight.Callsign);
+                scope.SetExtra("RawRoute", flight.RawRoute);
+            });
+        }
+        return null!;
     }
 }
