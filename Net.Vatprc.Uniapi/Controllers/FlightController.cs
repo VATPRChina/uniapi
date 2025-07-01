@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer;
+using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
@@ -156,7 +157,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 
     [HttpGet("by-callsign/{callsign}/__route")]
     [AllowAnonymous]
-    public async Task<IList<RouteToken>> GetRouteByCallsign(string callsign)
+    public async Task<IList<FlightFix>> GetRouteByCallsign(string callsign)
     {
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
             ?? throw new ApiError.CallsignNotFound(callsign);

@@ -63,6 +63,10 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
     {
         Logger.Debug("Parsing segment {Index}/{TotalSegmentCount}: {Segment}",
             CurrentSegmentIndex, SegmentCount, CurrentSegment.Value);
+
+        CurrentSegment.Kind = RouteTokenKind.UNKNOWN;
+        CurrentSegment.Id = Ulid.Empty;
+
         foreach (var handler in TokenHandlers)
         {
             if (skipRequireNextSegment && handler.NeedParseNextSegment) { continue; }

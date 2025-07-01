@@ -68,4 +68,32 @@ public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
             .FirstOrDefaultAsync();
         return waypoint;
     }
+
+    public async IAsyncEnumerable<INavdataProvider.AirwayLeg> FindAirwayLegs(string ident)
+    {
+        var airways = DbContext.Airway.Where(a => a.Identifier == ident)
+            .Include(a => a.Fixes)
+            .ToAsyncEnumerable();
+        var legs = new List<INavdataProvider.AirwayLeg>();
+
+        await foreach (var airway in airways)
+        {
+            airway.Fixes = airway.Fixes.OrderBy(f => f.SequenceNumber).ToList();
+            for (int i = 0; i < airway.Fixes.Count - 1; i++)
+            {
+                var fromFix = airway.Fixes[i];
+                var toFix = airway.Fixes[i + 1];
+                yield return new INavdataProvider.AirwayLeg
+                {
+                    Ident = airway.Identifier,
+                    FromFixIcaoCode = fromFix.FixIcaoCode,
+                    FromFixIdentifier = fromFix.FixIdentifier,
+                    FromFixId = fromFix.Id,
+                    ToFixIcaoCode = toFix.FixIcaoCode,
+                    ToFixIdentifier = toFix.FixIdentifier,
+                    ToFixId = toFix.Id,
+                };
+            }
+        }
+    }
 }
