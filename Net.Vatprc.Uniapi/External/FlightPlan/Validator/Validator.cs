@@ -93,7 +93,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 Logger.Information("Restrictions: From leg: {FromLeg}, To leg: {ToLeg}", fromLeg.DirectionalRestriction, toLeg.DirectionalRestriction);
                 Logger.Information("Sequence numbers: From leg: {FromSeq}, To leg: {ToSeq}",
                     fromLeg.SequenceNumber, toLeg.SequenceNumber);
-                if (fromLeg.DirectionalRestriction == 'F' && fromLeg.SequenceNumber >= toLeg.SequenceNumber)
+                if (fromLeg.SequenceNumber <= toLeg.SequenceNumber && fromLeg.DirectionalRestriction == 'B')
                 {
                     Logger.Information("Violation found: From leg is forward.");
                     Violations.Add(new Violation
@@ -103,7 +103,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                         Type = Violation.ViolationType.LegDirection,
                     });
                 }
-                if (toLeg.DirectionalRestriction == 'B' && toLeg.SequenceNumber >= fromLeg.SequenceNumber)
+                if (toLeg.SequenceNumber <= fromLeg.SequenceNumber && toLeg.DirectionalRestriction == 'B')
                 {
                     Logger.Information("Violation found: To leg is backward.");
                     Violations.Add(new Violation
