@@ -187,6 +187,7 @@ public class NavdataCommand : Command
                     FixIdentifier = record[30..35].Trim(),
                     FixIcaoCode = record[35..37],
                     DescriptionCode = record[40..44],
+                    DirectionalRestriction = record[46],
                 };
                 if (fix.DescriptionCode[1] == 'E')
                 {

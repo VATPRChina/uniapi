@@ -1,11 +1,12 @@
-using System.Diagnostics;
 using Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer;
+using Serilog;
 using static Net.Vatprc.Uniapi.External.FlightPlan.INavdataProvider;
 
 namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 
 public class RouteParser(string rawRoute, INavdataProvider navdata)
 {
+    protected readonly Serilog.ILogger Logger = Log.ForContext<RouteParser>();
     protected readonly RouteLexer.RouteLexer Lexer = new(rawRoute, navdata);
     protected IList<FlightLeg> Legs = [];
     protected FlightFix? lastFixOverride = null;
@@ -83,11 +84,11 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
                 var fromFix = Lexer.Tokens[i - 1].Value;
                 var toFix = Lexer.Tokens[i + 1].Value;
                 var path = BFSPath(fromFix, toFix, legLookup);
-                Console.WriteLine($"Found path from {fromFix} to {toFix} with {path.Count} legs.");
+                Logger.Information($"Found path from {fromFix} to {toFix} with {path.Count} legs.");
 
                 foreach (var leg in path)
                 {
-                    Console.WriteLine($"Adding leg from {leg.FromFixIdentifier} to {leg.ToFixIdentifier} ({leg.Ident})");
+                    Logger.Information($"Adding leg from {leg.FromFixIdentifier}({leg.FromFixId}) to {leg.ToFixIdentifier}({leg.ToFixId}) ({leg.Ident})");
                     Legs.Add(new FlightLeg
                     {
                         From = new FlightFix
@@ -100,7 +101,7 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
                                 FixType.Vhf => FlightFix.FixType.Vhf,
                                 FixType.Ndb => FlightFix.FixType.Ndb,
                                 _ => FlightFix.FixType.Unknown,
-                            }
+                            },
                         },
                         To = new FlightFix
                         {
@@ -114,7 +115,7 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
                                 _ => FlightFix.FixType.Unknown,
                             },
                         },
-                        LegId = Ulid.Empty,
+                        LegId = (leg.FromFixId, leg.ToFixId),
                         LegIdentifier = leg.Ident,
                         Type = FlightLeg.LegType.Airway
                     });
@@ -238,11 +239,12 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
             return;
         }
 
+        Logger.Information($"Adding direct leg from {LastFix.Identifier}({LastFix.Id}) to {fix.Identifier}({fix.Id})");
         Legs.Add(new FlightLeg
         {
             From = LastFix,
             To = fix,
-            LegId = Ulid.Empty,
+            LegId = null,
             LegIdentifier = "DCT",
             Type = FlightLeg.LegType.Direct,
         });

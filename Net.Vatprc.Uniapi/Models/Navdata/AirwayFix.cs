@@ -37,6 +37,11 @@ public class AirwayFix
     /// </summary>
     public string DescriptionCode { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Directional Restriction. (Section 5.115)
+    /// </summary>
+    public char DirectionalRestriction { get; set; } = ' ';
+
     public class Configuration : IEntityTypeConfiguration<AirwayFix>
     {
         public void Configure(EntityTypeBuilder<AirwayFix> builder)
@@ -47,6 +52,9 @@ public class AirwayFix
                 .WithMany(x => x.Fixes)
                 .HasForeignKey(x => x.AirwayId)
                 .IsRequired();
+
+            builder.Property(x => x.DirectionalRestriction)
+                .HasDefaultValue(' ');
         }
     }
 }
