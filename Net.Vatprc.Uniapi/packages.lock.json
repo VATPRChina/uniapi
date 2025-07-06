@@ -2,6 +2,12 @@
   "version": 1,
   "dependencies": {
     "net9.0": {
+      "arinc424": {
+        "type": "Direct",
+        "requested": "[0.1.8, )",
+        "resolved": "0.1.8",
+        "contentHash": "8k4W8TI+ykzTAAc1skuilZ/8YHrFlrfkA3f4Asagcm8Ms+zN+Y4dyvSDOZn7hhtrmCWhIDQ4YGZU5Pkj1Kif0A=="
+      },
       "Discord.Net": {
         "type": "Direct",
         "requested": "[3.16.0, )",

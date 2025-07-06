@@ -13,7 +13,10 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
         new SidTokenHandler(),
         new StarTokenHandler(),
         new AirwayTokenHandler(),
+        new DctTokenHandler(),
         new WaypointTokenHandler(),
+        new Geo7CharTokenHandler(),
+        new Geo11CharTokenHandler(),
     ];
 
     public INavdataProvider NavdataProvider => navdata;
