@@ -90,7 +90,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                     {
                         Field = Violation.FieldType.Route,
                         FieldParam = index.ToString(),
-                        Type = Violation.ViolationType.Direct,
+                        Type = Violation.ViolationType.LegDirection,
                     });
                 }
                 if (fromLeg.DirectionalRestriction == 'B' && fromLeg.SequenceNumber <= toLeg.SequenceNumber)
@@ -99,7 +99,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                     {
                         Field = Violation.FieldType.Route,
                         FieldParam = index.ToString(),
-                        Type = Violation.ViolationType.Direct,
+                        Type = Violation.ViolationType.LegDirection,
                     });
                 }
                 if (toLeg.DirectionalRestriction == 'F' && toLeg.SequenceNumber >= fromLeg.SequenceNumber)
@@ -108,7 +108,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                     {
                         Field = Violation.FieldType.Route,
                         FieldParam = index.ToString(),
-                        Type = Violation.ViolationType.Direct,
+                        Type = Violation.ViolationType.LegDirection,
                     });
                 }
                 if (toLeg.DirectionalRestriction == 'F' && toLeg.SequenceNumber >= fromLeg.SequenceNumber)
@@ -117,7 +117,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                     {
                         Field = Violation.FieldType.Route,
                         FieldParam = index.ToString(),
-                        Type = Violation.ViolationType.Direct,
+                        Type = Violation.ViolationType.LegDirection,
                     });
                 }
 
