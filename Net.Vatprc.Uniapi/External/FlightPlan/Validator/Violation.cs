@@ -23,5 +23,6 @@ public class Violation
         NoTransponder,
         Direct,
         LegDirection,
+        AirwayRequireApproval,
     }
 }

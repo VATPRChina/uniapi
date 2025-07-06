@@ -91,6 +91,9 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 
         [Description("The route contains a leg with an incorrect direction.")]
         route_leg_direction,
+
+        [Description("The route contains a leg requiring controller approval.")]
+        airway_require_approval,
     }
 
     public record WarningMessage
@@ -124,6 +127,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
                         Violation.ViolationType.NoTransponder => WarningMessageCode.no_transponder,
                         Violation.ViolationType.Direct => WarningMessageCode.route_direct_segment,
                         Violation.ViolationType.LegDirection => WarningMessageCode.route_leg_direction,
+                        Violation.ViolationType.AirwayRequireApproval => WarningMessageCode.airway_require_approval,
                         _ => throw new InvalidOperationException($"Unknown violation type: {v.Type}")
                     };
                     return new WarningMessage

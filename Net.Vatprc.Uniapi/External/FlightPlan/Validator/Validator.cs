@@ -120,6 +120,19 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                         Type = Violation.ViolationType.Direct,
                     });
                 }
+
+                if ((fromLeg.FixIcaoCode.StartsWith("Z") &&
+                        (fromLeg.AirwayIdentifier!.StartsWith("V") || fromLeg.AirwayIdentifier!.StartsWith("X")))
+                    || (toLeg.FixIcaoCode.StartsWith("Z") &&
+                            (toLeg.AirwayIdentifier!.StartsWith("V") || toLeg.AirwayIdentifier!.StartsWith("X"))))
+                {
+                    Violations.Add(new Violation
+                    {
+                        Field = Violation.FieldType.Route,
+                        FieldParam = index.ToString(),
+                        Type = Violation.ViolationType.AirwayRequireApproval,
+                    });
+                }
             }
         }
 
