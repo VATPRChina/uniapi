@@ -1,5 +1,6 @@
 using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 using Net.Vatprc.Uniapi.Models.Acdm;
+using Serilog;
 
 namespace Net.Vatprc.Uniapi.External.FlightPlan.Validator;
 
@@ -10,6 +11,8 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
     protected readonly INavdataProvider Navdata = navdata;
 
     protected readonly IList<Violation> Violations = [];
+
+    protected readonly Serilog.ILogger Logger = Log.ForContext<Validator>();
 
     public async Task<IList<Violation>> Validate()
     {
@@ -84,8 +87,15 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                     ?? throw new InvalidOperationException($"Unexpected null airway leg: {fromLegId}");
                 var toLeg = await Navdata.GetAirwayFix(toLegId)
                     ?? throw new InvalidOperationException($"Unexpected null airway leg: {toLegId}");
+
+                Logger.Information("Validating airway leg {FromLeg} to {ToLeg} for flight {FlightId}",
+                    fromLeg.FixIdentifier, toLeg.FixIdentifier, Flight.Id);
+                Logger.Information("Restrictions: From leg: {FromLeg}, To leg: {ToLeg}", fromLeg.DirectionalRestriction, toLeg.DirectionalRestriction);
+                Logger.Information("Sequence numbers: From leg: {FromSeq}, To leg: {ToSeq}",
+                    fromLeg.SequenceNumber, toLeg.SequenceNumber);
                 if (fromLeg.DirectionalRestriction == 'F' && fromLeg.SequenceNumber >= toLeg.SequenceNumber)
                 {
+                    Logger.Information("Violation found: From leg is forward.");
                     Violations.Add(new Violation
                     {
                         Field = Violation.FieldType.Route,
@@ -93,26 +103,9 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                         Type = Violation.ViolationType.LegDirection,
                     });
                 }
-                if (fromLeg.DirectionalRestriction == 'B' && fromLeg.SequenceNumber <= toLeg.SequenceNumber)
+                if (toLeg.DirectionalRestriction == 'B' && toLeg.SequenceNumber >= fromLeg.SequenceNumber)
                 {
-                    Violations.Add(new Violation
-                    {
-                        Field = Violation.FieldType.Route,
-                        FieldParam = index.ToString(),
-                        Type = Violation.ViolationType.LegDirection,
-                    });
-                }
-                if (toLeg.DirectionalRestriction == 'F' && toLeg.SequenceNumber >= fromLeg.SequenceNumber)
-                {
-                    Violations.Add(new Violation
-                    {
-                        Field = Violation.FieldType.Route,
-                        FieldParam = index.ToString(),
-                        Type = Violation.ViolationType.LegDirection,
-                    });
-                }
-                if (toLeg.DirectionalRestriction == 'F' && toLeg.SequenceNumber >= fromLeg.SequenceNumber)
-                {
+                    Logger.Information("Violation found: To leg is backward.");
                     Violations.Add(new Violation
                     {
                         Field = Violation.FieldType.Route,
