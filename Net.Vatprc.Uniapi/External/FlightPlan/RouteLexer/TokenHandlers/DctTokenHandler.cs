@@ -9,10 +9,14 @@ public class DctTokenHandler : ITokenHandler
         return context.CurrentSegment.Value == "DCT"
             && (context.LastSegment?.Kind == RouteTokenKind.VHF
                 || context.LastSegment?.Kind == RouteTokenKind.NDB
-                || context.LastSegment?.Kind == RouteTokenKind.WAYPOINT)
+                || context.LastSegment?.Kind == RouteTokenKind.WAYPOINT
+                || context.LastSegment?.Kind == RouteTokenKind.AIRPORT
+                || context.LastSegment?.Kind == RouteTokenKind.GEO_COORD)
             && (context.NextSegment?.Kind == RouteTokenKind.VHF
                 || context.NextSegment?.Kind == RouteTokenKind.NDB
                 || context.NextSegment?.Kind == RouteTokenKind.WAYPOINT
+                || context.NextSegment?.Kind == RouteTokenKind.AIRPORT
+                || context.NextSegment?.Kind == RouteTokenKind.GEO_COORD
             );
     }
 

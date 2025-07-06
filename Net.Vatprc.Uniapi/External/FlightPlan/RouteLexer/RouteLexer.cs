@@ -113,9 +113,21 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
         }
         // Pass 2
         CurrentSegmentIndex = 0;
+        CurrentLat = 0;
+        CurrentLon = 0;
         while (CurrentSegmentIndex < SegmentCount)
         {
             await ParseSegment(skipRequireNextSegment: false);
+        }
+
+        Logger.Information("Route parsing completed. Total segments: {SegmentCount}", SegmentCount);
+        if (Logger.IsEnabled(Serilog.Events.LogEventLevel.Debug))
+        {
+            foreach (var token in Tokens)
+            {
+                Logger.Debug("Segment {Index}: {Kind} - {Value} (Id: {Id})",
+                    Tokens.IndexOf(token), token.Kind, token.Value, token.Id);
+            }
         }
     }
 
