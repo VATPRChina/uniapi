@@ -21,11 +21,22 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
     public IList<RouteToken> Tokens =
         rawRoute
             .Split(' ')
-            .Select((segment, index) => new RouteToken
+            .Select((segment, index) =>
             {
-                Kind = RouteTokenKind.UNKNOWN,
-                Value = segment,
-                Id = Ulid.Empty,
+                // trim and remove anything after first '/'
+                var slashIndex = segment.IndexOf('/');
+                if (slashIndex >= 0)
+                {
+                    segment = segment[..slashIndex];
+                }
+                segment = segment.Trim();
+
+                return new RouteToken
+                {
+                    Kind = RouteTokenKind.UNKNOWN,
+                    Value = segment,
+                    Id = Ulid.Empty,
+                };
             })
             .ToArray();
 
