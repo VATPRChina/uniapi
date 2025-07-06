@@ -1,11 +1,8 @@
 using System.ComponentModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer;
-using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Services;
-using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -27,11 +24,9 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         public string NavigationPerformance { get; init; }
         public string Transponder { get; init; }
         public string RawRoute { get; init; }
-        public string __SimplifiedRoute { get; init; }
         public string Aircraft { get; init; }
-        public string? __NormalizedRoute { get; init; }
 
-        public FlightDto(Flight flight, string? normalizedRoute = null)
+        public FlightDto(Flight flight)
         {
             Id = flight.Id;
             Cid = flight.Cid;
@@ -43,9 +38,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
             NavigationPerformance = flight.NavigationPerformance;
             Transponder = flight.Transponder;
             RawRoute = flight.RawRoute;
-            __SimplifiedRoute = FlightRoute.SimplifyRoute(flight.RawRoute);
             Aircraft = flight.Aircraft;
-            __NormalizedRoute = normalizedRoute;
         }
     }
 
@@ -56,7 +49,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         return await DbContext.Flight
             .Where(f => f.FinalizedAt == null)
             .OrderBy(f => f.Callsign)
-            .Select(f => new FlightDto(f, null))
+            .Select(f => new FlightDto(f))
             .ToListAsync();
     }
 
@@ -66,7 +59,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
     {
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
             ?? throw new ApiError.CallsignNotFound(callsign);
-        return new FlightDto(flight, await FlightRoute.TryNormalizeRoute(DbContext, flight.Departure, flight.Arrival, flight.RawRoute));
+        return new FlightDto(flight);
     }
 
     public enum WarningMessageCode
@@ -143,19 +136,22 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         {
             result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_transponder });
         }
-        var simplifiedRoute = FlightRoute.SimplifyRoute(flight.RawRoute);
-
-        string normalizedRoute;
-        try { normalizedRoute = await FlightRoute.NormalizeRoute(DbContext, flight.Departure, flight.Arrival, flight.RawRoute); }
-        catch (Exception e)
-        {
-            normalizedRoute = simplifiedRoute;
-            result.Add(new WarningMessage { MessageCode = WarningMessageCode.parse_route_failed, Parameter = e.Message });
-        }
         return result;
     }
 
-    [HttpGet("by-callsign/{callsign}/__route")]
+    public record FlightLeg
+    {
+        public required FlightFix From { get; set; }
+        public required FlightFix To { get; set; }
+        public required string LegIdentifier { get; set; }
+    }
+
+    public record FlightFix
+    {
+        public required string Identifier { get; set; }
+    }
+
+    [HttpGet("by-callsign/{callsign}/route")]
     [AllowAnonymous]
     public async Task<IList<FlightLeg>> GetRouteByCallsign(string callsign)
     {
@@ -164,7 +160,18 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         try
         {
             var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute, flight.Departure, flight.Arrival);
-            return parsedRoute;
+            return parsedRoute.Select(leg => new FlightLeg
+            {
+                From = new FlightFix
+                {
+                    Identifier = leg.From.Identifier,
+                },
+                To = new FlightFix
+                {
+                    Identifier = leg.To.Identifier,
+                },
+                LegIdentifier = leg.LegIdentifier,
+            }).ToList();
         }
         catch (Exception e)
         {
