@@ -1,3 +1,4 @@
+using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 using Net.Vatprc.Uniapi.Models.Navdata;
 
 namespace Net.Vatprc.Uniapi.External.FlightPlan;
@@ -12,6 +13,8 @@ public interface INavdataProvider
     public Task<NdbNavaid?> FindNdbNavaid(string ident, double lat, double lon);
     public Task<Waypoint?> FindWaypoint(string ident, double lat, double lon);
     public IAsyncEnumerable<AirwayLeg> FindAirwayLegs(string ident);
+    // public Task<FlightFix?> FindLastFixOfSid(string ident, string icao);
+    // public Task<FlightFix?> FindLastFixOfStar(string ident, string icao);
 
     public record AirwayLeg
     {
@@ -19,12 +22,13 @@ public interface INavdataProvider
         public required string FromFixIcaoCode { get; init; }
         public required string FromFixIdentifier { get; init; }
         public required Ulid FromFixId { get; init; }
+        public required FixType FromFixType { get; init; }
         public required string ToFixIcaoCode { get; init; }
         public required string ToFixIdentifier { get; init; }
         public required Ulid ToFixId { get; init; }
+        public required FixType ToFixType { get; init; }
     }
 
-    // TODO: use FixType for fix in leg
     public enum FixType
     {
         Waypoint,

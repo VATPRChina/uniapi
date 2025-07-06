@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer;
 using static Net.Vatprc.Uniapi.External.FlightPlan.INavdataProvider;
 
@@ -6,10 +7,14 @@ namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 public class RouteParser(string rawRoute, INavdataProvider navdata)
 {
     protected readonly RouteLexer.RouteLexer Lexer = new(rawRoute, navdata);
+    protected IList<FlightLeg> Legs = [];
+    protected FlightFix? lastFixOverride = null;
+    protected FlightFix LastFix => lastFixOverride ?? Legs.LastOrDefault()?.To
+        ?? throw new InvalidOperationException("No last fix available.");
 
-    public async Task<IList<FlightFix>> Parse()
+    public async Task<IList<FlightLeg>> Parse()
     {
-        var fixes = new List<FlightFix>();
+        Legs = [];
 
         await Lexer.ParseAllSegments();
 
@@ -17,13 +22,35 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
         {
             var segment = Lexer.Tokens[i];
 
+            if (lastFixOverride == null && Legs.Count == 0)
+            {
+                lastFixOverride = new FlightFix
+                {
+                    Id = segment.Id,
+                    Identifier = segment.Value,
+                    Type = segment.Kind switch
+                    {
+                        RouteTokenKind.AIRPORT => FlightFix.FixType.Airport,
+                        RouteTokenKind.VHF => FlightFix.FixType.Vhf,
+                        RouteTokenKind.NDB => FlightFix.FixType.Ndb,
+                        RouteTokenKind.WAYPOINT => FlightFix.FixType.Waypoint,
+                        RouteTokenKind.GEO_COORD => FlightFix.FixType.GeoCoord,
+                        _ => throw new InvalidOperationException($"Unexpected token kind {segment.Kind} for initial fix."),
+                    }
+                };
+            }
+            else if (Legs.Count > 0)
+            {
+                lastFixOverride = null;
+            }
+
             if (segment.Kind == RouteTokenKind.SID)
             {
-                fixes.Last().ToNextLegAirwayId = segment.Id;
+                continue; // TODO: Implement SID handling
             }
             else if (segment.Kind == RouteTokenKind.STAR)
             {
-                fixes.Last().ToNextLegAirwayId = segment.Id;
+                continue; // TODO: Implement STAR handling
             }
             else if (segment.Kind == RouteTokenKind.AIRWAY)
             {
@@ -40,81 +67,111 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
                     {
                         legLookup[leg.ToFixIdentifier] = [];
                     }
-                    legLookup[leg.ToFixIdentifier][leg.FromFixIdentifier] = leg;
+                    legLookup[leg.ToFixIdentifier][leg.FromFixIdentifier] = new AirwayLeg
+                    {
+                        Ident = leg.Ident,
+                        FromFixIcaoCode = leg.ToFixIcaoCode,
+                        FromFixIdentifier = leg.ToFixIdentifier,
+                        FromFixId = leg.ToFixId,
+                        FromFixType = leg.ToFixType,
+                        ToFixIcaoCode = leg.FromFixIcaoCode,
+                        ToFixIdentifier = leg.FromFixIdentifier,
+                        ToFixId = leg.FromFixId,
+                        ToFixType = leg.FromFixType,
+                    };
                 }
                 var fromFix = Lexer.Tokens[i - 1].Value;
                 var toFix = Lexer.Tokens[i + 1].Value;
                 var path = BFSPath(fromFix, toFix, legLookup);
-                fixes.Last().ToNextLegAirwayId = path.First().FromFixId;
-                foreach (var leg in path.Skip(1))
+                Console.WriteLine($"Found path from {fromFix} to {toFix} with {path.Count} legs.");
+
+                foreach (var leg in path)
                 {
-                    fixes.Add(new FlightFix
+                    Console.WriteLine($"Adding leg from {leg.FromFixIdentifier} to {leg.ToFixIdentifier} ({leg.Ident})");
+                    Legs.Add(new FlightLeg
                     {
-                        ToNextLegAirwayId = leg.FromFixId,
-                        FixIdentifier = leg.ToFixIdentifier,
-                        FixId = leg.ToFixId, // TODO: set this to the actual fix ID if available
-                        IsUnknown = false
+                        From = new FlightFix
+                        {
+                            Id = leg.FromFixId,
+                            Identifier = leg.FromFixIdentifier,
+                            Type = leg.FromFixType switch
+                            {
+                                FixType.Waypoint => FlightFix.FixType.Waypoint,
+                                FixType.Vhf => FlightFix.FixType.Vhf,
+                                FixType.Ndb => FlightFix.FixType.Ndb,
+                                _ => FlightFix.FixType.Unknown,
+                            }
+                        },
+                        To = new FlightFix
+                        {
+                            Id = leg.ToFixId,
+                            Identifier = leg.ToFixIdentifier,
+                            Type = leg.ToFixType switch
+                            {
+                                FixType.Waypoint => FlightFix.FixType.Waypoint,
+                                FixType.Vhf => FlightFix.FixType.Vhf,
+                                FixType.Ndb => FlightFix.FixType.Ndb,
+                                _ => FlightFix.FixType.Unknown,
+                            },
+                        },
+                        LegId = Ulid.Empty,
+                        LegIdentifier = leg.Ident,
+                        Type = FlightLeg.LegType.Airway
                     });
                 }
             }
             else if (segment.Kind == RouteTokenKind.AIRPORT)
             {
-                fixes.Add(new FlightFix
+                HandleWaypoint(new FlightFix
                 {
-                    ToNextLegAirwayId = Ulid.Empty,
-                    FixIdentifier = segment.Value,
-                    FixId = segment.Id,
-                    IsUnknown = false
+                    Id = segment.Id,
+                    Identifier = segment.Value,
+                    Type = FlightFix.FixType.Airport,
                 });
             }
             else if (segment.Kind == RouteTokenKind.VHF)
             {
-                fixes.Add(new FlightFix
+                HandleWaypoint(new FlightFix
                 {
-                    ToNextLegAirwayId = Ulid.Empty,
-                    FixIdentifier = segment.Value,
-                    FixId = segment.Id,
-                    IsUnknown = false
+                    Id = segment.Id,
+                    Identifier = segment.Value,
+                    Type = FlightFix.FixType.Vhf,
                 });
             }
             else if (segment.Kind == RouteTokenKind.NDB)
             {
-                fixes.Add(new FlightFix
+                HandleWaypoint(new FlightFix
                 {
-                    ToNextLegAirwayId = Ulid.Empty,
-                    FixIdentifier = segment.Value,
-                    FixId = segment.Id,
-                    IsUnknown = false
+                    Id = segment.Id,
+                    Identifier = segment.Value,
+                    Type = FlightFix.FixType.Ndb,
                 });
             }
             else if (segment.Kind == RouteTokenKind.WAYPOINT)
             {
-                fixes.Add(new FlightFix
+                HandleWaypoint(new FlightFix
                 {
-                    ToNextLegAirwayId = Ulid.Empty,
-                    FixIdentifier = segment.Value,
-                    FixId = segment.Id,
-                    IsUnknown = false
+                    Id = segment.Id,
+                    Identifier = segment.Value,
+                    Type = FlightFix.FixType.Waypoint,
                 });
             }
             else if (segment.Kind == RouteTokenKind.GEO_COORD)
             {
-                fixes.Add(new FlightFix
+                HandleWaypoint(new FlightFix
                 {
-                    ToNextLegAirwayId = Ulid.Empty,
-                    FixIdentifier = segment.Value,
-                    FixId = Ulid.Empty,
-                    IsUnknown = true
+                    Id = segment.Id,
+                    Identifier = segment.Value,
+                    Type = FlightFix.FixType.GeoCoord,
                 });
             }
             else if (segment.Kind == RouteTokenKind.UNKNOWN)
             {
-                fixes.Add(new FlightFix
+                HandleWaypoint(new FlightFix
                 {
-                    ToNextLegAirwayId = Ulid.Empty,
-                    FixIdentifier = segment.Value,
-                    FixId = Ulid.Empty,
-                    IsUnknown = true
+                    Id = segment.Id,
+                    Identifier = segment.Value,
+                    Type = FlightFix.FixType.Unknown,
                 });
             }
             else
@@ -123,7 +180,7 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
             }
         }
 
-        return fixes;
+        return Legs;
     }
 
     protected IList<AirwayLeg> BFSPath(string from, string to, Dictionary<string, Dictionary<string, AirwayLeg>> legs)
@@ -172,5 +229,22 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
 
         path.Reverse();
         return path;
+    }
+
+    protected void HandleWaypoint(FlightFix fix)
+    {
+        if (LastFix.Identifier == fix.Identifier)
+        {
+            return;
+        }
+
+        Legs.Add(new FlightLeg
+        {
+            From = LastFix,
+            To = fix,
+            LegId = Ulid.Empty,
+            LegIdentifier = "DCT",
+            Type = FlightLeg.LegType.Direct,
+        });
     }
 }

@@ -1,3 +1,4 @@
+using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Utils;
 
@@ -89,9 +90,11 @@ public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
                     FromFixIcaoCode = fromFix.FixIcaoCode,
                     FromFixIdentifier = fromFix.FixIdentifier,
                     FromFixId = fromFix.Id,
+                    FromFixType = INavdataProvider.FixType.Waypoint, // TODO: add real fix type if available
                     ToFixIcaoCode = toFix.FixIcaoCode,
                     ToFixIdentifier = toFix.FixIdentifier,
                     ToFixId = toFix.Id,
+                    ToFixType = INavdataProvider.FixType.Waypoint, // TODO: add real fix type if available
                 };
             }
         }
