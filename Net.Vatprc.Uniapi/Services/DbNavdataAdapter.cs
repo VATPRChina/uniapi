@@ -99,4 +99,11 @@ public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
             }
         }
     }
+
+    public Task<AirwayFix?> GetAirwayFix(Ulid id)
+    {
+        return DbContext.AirwayFix
+            .Include(f => f.Airway)
+            .FirstOrDefaultAsync(f => f.Id == id);
+    }
 }

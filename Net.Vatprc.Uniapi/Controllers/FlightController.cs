@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.External.FlightPlan.Validator;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Services;
 
@@ -85,14 +86,11 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         [Description("The aircraft does not have a transponder.")]
         no_transponder,
 
-        [Description("There is no preferred route designated by CAAC.")]
-        no_preferred_route,
+        [Description("The route contains a direct segment.")]
+        route_direct_segment,
 
-        [Description("The flight does not follow the preferred route designated by CAAC. The parameter is the preferred route.")]
-        not_preferred_route,
-
-        [Description("The route cannot be parsed with the navdata on the server.")]
-        parse_route_failed,
+        [Description("The route contains a leg with an incorrect direction.")]
+        route_leg_direction,
     }
 
     public record WarningMessage
@@ -107,36 +105,33 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
     {
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
             ?? throw new ApiError.CallsignNotFound(callsign);
-        var result = new List<WarningMessage>();
-        if (!flight.SupportRvsm)
-        {
-            result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_rvsm });
-        }
-        if (!flight.SupportRnav1)
-        {
-            result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_rnav1 });
-        }
-        if (!flight.SupportRnav1Equipment)
-        {
-            result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_rnav1_equipment });
-        }
-        if (!flight.SupportRnav1Pbn)
-        {
-            result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_rnav1_pbn });
-        }
-        if (flight.SupportRnpArWithRf)
-        {
-            result.Add(new WarningMessage { MessageCode = WarningMessageCode.rnp_ar });
-        }
-        if (flight.SupportRnpArWithoutRf && !flight.SupportRnpArWithRf)
-        {
-            result.Add(new WarningMessage { MessageCode = WarningMessageCode.rnp_ar_without_rf });
-        }
-        if (!flight.HasTransponder)
-        {
-            result.Add(new WarningMessage { MessageCode = WarningMessageCode.no_transponder });
-        }
-        return result;
+        var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute, flight.Departure, flight.Arrival);
+        var violations = await RouteParse.ValidateFlight(flight, parsedRoute);
+
+        return violations.Select(v =>
+                {
+                    var message = v.Type switch
+                    {
+                        Violation.ViolationType.NoRvsm => WarningMessageCode.no_rvsm,
+                        Violation.ViolationType.NoRnav1 => v.Field switch
+                        {
+                            Violation.FieldType.Equipment => WarningMessageCode.no_rnav1_equipment,
+                            Violation.FieldType.NavigationPerformance => WarningMessageCode.no_rnav1_pbn,
+                            _ => throw new InvalidOperationException($"Unknown field type: {v.Field} for NoRnav1")
+                        },
+                        Violation.ViolationType.RnpAr => WarningMessageCode.rnp_ar,
+                        Violation.ViolationType.RnpArWithoutRf => WarningMessageCode.rnp_ar_without_rf,
+                        Violation.ViolationType.NoTransponder => WarningMessageCode.no_transponder,
+                        Violation.ViolationType.Direct => WarningMessageCode.route_direct_segment,
+                        Violation.ViolationType.LegDirection => WarningMessageCode.route_leg_direction,
+                        _ => throw new InvalidOperationException($"Unknown violation type: {v.Type}")
+                    };
+                    return new WarningMessage
+                    {
+                        MessageCode = message,
+                        Parameter = string.IsNullOrEmpty(v.FieldParam) ? null : v.FieldParam,
+                    };
+                });
     }
 
     public record FlightLeg

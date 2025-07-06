@@ -130,31 +130,4 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
             }
         }
     }
-
-    public class NextSegmentLexerContextWrapper(ILexerContext context) : ILexerContext
-    {
-        public int CurrentSegmentIndex => context.CurrentSegmentIndex + 1;
-
-        public int SegmentCount => context.SegmentCount;
-
-        public RouteToken CurrentSegment
-        {
-            get
-            {
-                if (context.NextSegment != null)
-                {
-                    return context.NextSegment;
-                }
-                throw new InvalidOperationException("No next segment available.");
-            }
-        }
-
-        public RouteToken? LastSegment => context.CurrentSegment;
-
-        public RouteToken? NextSegment => null;
-
-        public double CurrentLat { get => context.CurrentLat; set => context.CurrentLat = value; }
-
-        public double CurrentLon { get => context.CurrentLon; set => context.CurrentLon = value; }
-    }
 }
