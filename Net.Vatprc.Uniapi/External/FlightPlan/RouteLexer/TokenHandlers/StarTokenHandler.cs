@@ -11,8 +11,8 @@ public class StarTokenHandler : ITokenHandler
 
     public async Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
-        if (context.LastSegment == null) return false;
-        var proc = await navdataProvider.FindStar(context.CurrentSegment.Value, context.LastSegment.Value);
+        if (context.NextSegment == null) return false;
+        var proc = await navdataProvider.FindStar(context.CurrentSegment.Value, context.NextSegment.Value);
         if (proc == null) return false;
 
         context.CurrentSegment.Kind = RouteTokenKind.STAR;
