@@ -36,6 +36,7 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
                         RouteTokenKind.NDB => FlightFix.FixType.Ndb,
                         RouteTokenKind.WAYPOINT => FlightFix.FixType.Waypoint,
                         RouteTokenKind.GEO_COORD => FlightFix.FixType.GeoCoord,
+                        RouteTokenKind.UNKNOWN => FlightFix.FixType.Unknown,
                         _ => throw new InvalidOperationException($"Unexpected token kind {segment.Kind} for initial fix."),
                     }
                 };
