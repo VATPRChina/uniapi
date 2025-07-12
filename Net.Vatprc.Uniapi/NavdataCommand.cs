@@ -15,15 +15,19 @@ namespace Net.Vatprc.Uniapi;
 
 public class NavdataCommand : Command
 {
+    private const string NAVDATA_BUCKET = "navdata";
+    private const string FILE_BUCKET = "vatprc-files";
+    private const string ROUTE_KEY = "sectors/Route-Server.csv";
+
     protected readonly WebApplication App;
 
     private readonly Option<string> ServiceUrl = new("--service-url");
     private readonly Option<string> AccessKey = new("--access-key");
     private readonly Option<string> SecretKey = new("--secret-key");
-    private readonly Option<string> Bucket = new("--bucket", () => "navdata");
     private readonly Option<string> ArincPath = new("--arinc", () => "cesfpl.pc");
+    private readonly Option<string> ArincLocalPath = new("--arinc-local", () => "../Data/cesfpl.pc");
     private readonly Option<string> AipPath = new("--aip", () => "aip.db3");
-    private readonly Option<string> AipLocalPath = new("--aip-local", () => "Data/aip.db3");
+    private readonly Option<string> AipLocalPath = new("--aip-local", () => "../Data/aip.db3");
 
     public NavdataCommand(WebApplication app) : base("navdata", "Import navdata")
     {
@@ -32,8 +36,8 @@ public class NavdataCommand : Command
         AddOption(ServiceUrl);
         AddOption(AccessKey);
         AddOption(SecretKey);
-        AddOption(Bucket);
         AddOption(ArincPath);
+        AddOption(ArincLocalPath);
         AddOption(AipPath);
         AddOption(AipLocalPath);
     }
@@ -43,17 +47,10 @@ public class NavdataCommand : Command
         string accessKey,
         string secretKey,
         string bucket,
-        string arincPath)
+        string arincPath,
+        string arincLocalPath)
     {
-        IEnumerable<string> strings = [];
-
-        if (File.Exists("Data/cesfpl.pc"))
-        {
-            strings = File.ReadAllLines("Data/cesfpl.pc")
-                .Select(line => line.Trim())
-                .Where(line => !string.IsNullOrWhiteSpace(line));
-        }
-        else
+        if (!File.Exists(arincLocalPath))
         {
             var credentials = new BasicAWSCredentials(accessKey, secretKey);
             var s3Client = new AmazonS3Client(credentials, new AmazonS3Config
@@ -61,14 +58,12 @@ public class NavdataCommand : Command
                 ServiceURL = serviceUrl,
             });
             var response = await s3Client.GetObjectAsync(bucket, arincPath);
-            using var reader = new StreamReader(response.ResponseStream);
-            var content = await reader.ReadToEndAsync();
-            Console.WriteLine($"Read {content.Length} characters from {arincPath} in bucket {bucket} at {serviceUrl}");
-            strings = content.Split('\n')
-               .Select(line => line.Trim())
-               .Where(line => !string.IsNullOrWhiteSpace(line))
-               .ToList();
+            await response.WriteResponseStreamToFileAsync(arincLocalPath, false, default);
         }
+
+        var strings = File.ReadAllLines(arincLocalPath)
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line));
 
         var meta = Meta424.Create(Supplement.V18);
         var data = Data424.Create(meta, strings, out var invalid, out var skipped);
@@ -96,6 +91,55 @@ public class NavdataCommand : Command
         var aipConnection = new SqliteConnection($"Data Source={aipLocalPath}");
         await aipConnection.OpenAsync();
         return aipConnection;
+    }
+
+    protected record RouteData
+    {
+        public required string Dep;
+        public required string Arr;
+        public required string Name;
+        public required string EvenOdd;
+        public required string AltList;
+        public required string MinAlt;
+        public required string Route;
+        public required string Remarks;
+    }
+
+    protected async Task<IEnumerable<RouteData>> GetRouteDataAsync(
+        string serviceUrl,
+        string accessKey,
+        string secretKey,
+        string bucket,
+        string routeKey,
+        string routeLocalPath)
+    {
+        if (!File.Exists(routeLocalPath))
+        {
+            var credentials = new BasicAWSCredentials(accessKey, secretKey);
+            var s3Client = new AmazonS3Client(credentials, new AmazonS3Config
+            {
+                ServiceURL = serviceUrl,
+            });
+            var response = await s3Client.GetObjectAsync(bucket, routeKey);
+            await response.WriteResponseStreamToFileAsync(routeLocalPath, false, default);
+        }
+
+        using var reader = Sep.Reader().FromFile(routeLocalPath);
+        var list = reader.ParallelEnumerate(row =>
+        {
+            return new RouteData
+            {
+                Dep = row["Dep"].Parse<string>(),
+                Arr = row["Arr"].Parse<string>(),
+                Name = row["Name"].Parse<string>(),
+                EvenOdd = row["EvenOdd"].Parse<string>(),
+                AltList = row["AltList"].Parse<string>(),
+                MinAlt = row["MinAlt"].Parse<string>(),
+                Route = row["Route"].Parse<string>(),
+                Remarks = row["Remarks"].Parse<string>(),
+            };
+        }).ToList();
+        return list;
     }
 
     protected void BuildArincData(
@@ -256,8 +300,8 @@ public class NavdataCommand : Command
         var serviceUrl = context.ParseResult.GetValueForOption(ServiceUrl) ?? throw new ArgumentNullException(nameof(ServiceUrl));
         var accessKey = context.ParseResult.GetValueForOption(AccessKey) ?? throw new ArgumentNullException(nameof(AccessKey));
         var secretKey = context.ParseResult.GetValueForOption(SecretKey) ?? throw new ArgumentNullException(nameof(SecretKey));
-        var bucket = context.ParseResult.GetValueForOption(Bucket) ?? throw new ArgumentNullException(nameof(Bucket));
         var arincPath = context.ParseResult.GetValueForOption(ArincPath) ?? throw new ArgumentNullException(nameof(ArincPath));
+        var arincLocalPath = context.ParseResult.GetValueForOption(ArincLocalPath) ?? throw new ArgumentNullException(nameof(ArincLocalPath));
         var aipPath = context.ParseResult.GetValueForOption(AipPath) ?? throw new ArgumentNullException(nameof(AipPath));
         var aipLocalPath = context.ParseResult.GetValueForOption(AipLocalPath) ?? throw new ArgumentNullException(nameof(AipLocalPath));
 
@@ -289,7 +333,7 @@ public class NavdataCommand : Command
         var airwayFixesRaw = new Dictionary<string, IList<string>>();
         var existingAirwaySegments = new HashSet<string>();
 
-        var arinc = await GetArincFileAsync(serviceUrl, accessKey, secretKey, bucket, arincPath);
+        var arinc = await GetArincFileAsync(serviceUrl, accessKey, secretKey, NAVDATA_BUCKET, arincPath, arincLocalPath);
 
         BuildArincData(
             arinc,
@@ -304,121 +348,24 @@ public class NavdataCommand : Command
             vhfNavaids,
             waypoints);
 
-        var airportsIndex = airports.ToDictionary(a => a.Identifier);
-        var airportRunwaysIndex = runways.ToDictionary(a => $"{a.AirportIdentifier}/{a.Identifier}");
+        // TODO: AIP
 
-        using var aipdb = await GetAipDataSync(serviceUrl, accessKey, secretKey, bucket, aipPath, aipLocalPath);
-
-        var airportList = await aipdb.QueryAsync("SELECT * FROM AD_HP WHERE CHINA = 'Y';");
-        foreach (var airportData in airportList)
+        var route = await GetRouteDataAsync(
+            serviceUrl,
+            accessKey,
+            secretKey,
+            FILE_BUCKET,
+            ROUTE_KEY,
+            "../Data/Route-Server.csv");
+        foreach (var routeData in route)
         {
-            var airport = airportsIndex.GetValueOrDefault((string)airportData.CODE_ICAO);
-            if (airport == null)
+            routes.Add(new PreferredRoute
             {
-                airport = new Airport
-                {
-                    Identifier = "#" + airportData.CODE_ICAO,
-                    Latitude = Geography.ParseCaacCoordinate(airportData.GEO_LAT),
-                    Longitude = Geography.ParseCaacCoordinate(airportData.GEO_LONG),
-                    Elevation = (int)airportData.VAL_ELEV,
-                };
-                airports.Add(airport);
-            }
-
-            var runwayList = await aipdb.QueryAsync("SELECT * FROM RWY WHERE CODE_AIRPORT = @Icao;", new { Icao = airportData.CODE_ICAO });
-            foreach (var runway in runwayList)
-            {
-                var directions = ((string)runway.TXT_DESIG).Split('/');
-                if (runway.TXT_RMK == null)
-                {
-                    Console.WriteLine($"Runway {runway.CODE_AIRPORT}/{runway.TXT_DESIG} has no coordinates in TXT_RMK, skipping.");
-                    continue;
-                }
-                var coords = ((string)runway.TXT_RMK).Split('-');
-                Debug.Assert(directions.Length == 2 && coords.Length == 2);
-                for (var i = 0; i < 2; i++)
-                {
-                    var ident = $"{runway.CODE_AIRPORT}/{directions[i]}";
-                    if (!airportRunwaysIndex.ContainsKey(ident))
-                    {
-                        var coordsCurrent = coords[i].Split(',');
-                        Debug.Assert(coordsCurrent.Length == 2);
-                        var coord = runway.TXT_RMK.Split('-');
-                        runways.Add(new Runway
-                        {
-                            Airport = airport,
-                            Identifier = "#" + directions[i],
-                            Latitude = Geography.ParseCaacCoordinate(coordsCurrent[0]),
-                            Longitude = Geography.ParseCaacCoordinate(coordsCurrent[1]),
-                        });
-                    }
-                }
-            }
+                Departure = routeData.Dep,
+                Arrival = routeData.Arr,
+                RawRoute = routeData.Route,
+            });
         }
-
-        // TODO: AIP gates
-        // TODO: AIP procedures
-
-        var ndbIndex = ndbNavaids.ToDictionary(n => $"{n.IcaoCode}/{n.Identifier}");
-        var ndbList = await aipdb.QueryAsync("""SELECT * FROM NDB WHERE ("CODE_IN_AIRWAY" = 'Y') AND ("CHINA" = 'Y');""");
-        foreach (var ndbData in ndbList)
-        {
-            var ndbNavaid = ndbIndex.GetValueOrDefault($"{ndbData.CODE_AREA}/{ndbData.CODE_ID}");
-            if (ndbNavaid == null)
-            {
-                ndbNavaid = new NdbNavaid
-                {
-                    SectionCode = "DB",
-                    IcaoCode = ndbData.CODE_AREA,
-                    Identifier = "#" + ndbData.CODE_ID,
-                    Latitude = Geography.ParseCaacCoordinate(ndbData.GEO_LAT),
-                    Longitude = Geography.ParseCaacCoordinate(ndbData.GEO_LONG),
-                };
-                ndbNavaids.Add(ndbNavaid);
-            }
-        }
-
-        var vhfIndex = vhfNavaids.ToDictionary(v => $"{v.IcaoCode}/{v.VorIdentifier}");
-        var vhfList = await aipdb.QueryAsync("""SELECT * FROM VOR WHERE ("CODE_IN_AIRWAY" = 'Y') AND ("CHINA" = 'Y');""");
-        foreach (var vhfData in vhfList)
-        {
-            var vhfNavaid = vhfIndex.GetValueOrDefault($"{vhfData.CODE_AREA}/{vhfData.CODE_ID}");
-            if (vhfNavaid == null)
-            {
-                vhfNavaid = new VhfNavaid
-                {
-                    IcaoCode = vhfData.CODE_AREA,
-                    VorIdentifier = "#" + vhfData.CODE_ID,
-                    VorLatitude = Geography.ParseCaacCoordinate(vhfData.GEO_LAT),
-                    VorLongitude = Geography.ParseCaacCoordinate(vhfData.GEO_LONG),
-                };
-                vhfNavaids.Add(vhfNavaid);
-            }
-        }
-
-        var waypointIndex = waypoints.ToDictionary(w => $"{w.IcaoCode}/{w.Identifier}");
-        var waypointList = await aipdb.QueryAsync("""SELECT * FROM DESIGNATED_POINT WHERE "CHINA" = 'Y';""");
-        foreach (var waypointData in waypointList)
-        {
-            var waypoint = waypointIndex.GetValueOrDefault($"{waypointData.CODE_AREA}/{waypointData.CODE_ID}");
-            if (waypoint == null)
-            {
-                waypoint = new Waypoint
-                {
-                    SectionCode = "EA",
-                    RegionCode = "ENRT",
-                    Identifier = "#" + waypointData.CODE_ID,
-                    Latitude = Geography.ParseCaacCoordinate(waypointData.GEO_LAT),
-                    Longitude = Geography.ParseCaacCoordinate(waypointData.GEO_LONG),
-                    IcaoCode = waypointData.CODE_AREA,
-                };
-                waypoints.Add(waypoint);
-            }
-        }
-
-        // TODO: AIP airways
-        // TODO: AIP airwayFixes
-        // TODO: AIP preferred routes
 
         db.Airport.AddRange(airports);
         db.AirportGate.AddRange(gates);
