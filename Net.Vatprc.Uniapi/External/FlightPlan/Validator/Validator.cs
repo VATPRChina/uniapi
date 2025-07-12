@@ -83,7 +83,7 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
                         prefRte.CruisingLevelRestriction, cruisingLevelType);
                     Violations.Add(new Violation
                     {
-                        Field = Violation.FieldType.Route,
+                        Field = Violation.FieldType.CruisingLevel,
                         Type = Violation.ViolationType.CruisingLevelMismatch,
                         Param = prefRte.CruisingLevelRestriction switch
                         {
@@ -104,7 +104,7 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
                         Flight.Altitude, prefRte);
                     Violations.Add(new Violation
                     {
-                        Field = Violation.FieldType.Route,
+                        Field = Violation.FieldType.CruisingLevel,
                         Type = Violation.ViolationType.CruisingLevelNotAllowed,
                         Param = string.Join(",", prefRte.AllowedAltitudes)
                     });
@@ -116,7 +116,7 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
                         Flight.Altitude, prefRte.MinimalAltitude, prefRte);
                     Violations.Add(new Violation
                     {
-                        Field = Violation.FieldType.Route,
+                        Field = Violation.FieldType.CruisingLevel,
                         Type = Violation.ViolationType.CruisingLevelTooLow,
                         Param = prefRte.MinimalAltitude.ToString()
                     });

@@ -13,6 +13,7 @@ public class Violation
         Transponder,
         NavigationPerformance,
         Route,
+        CruisingLevel,
     }
 
     public enum ViolationType

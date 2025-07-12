@@ -359,7 +359,6 @@ public class NavdataCommand : Command
             "../Data/Route-Server.csv");
         foreach (var routeData in route)
         {
-            Console.WriteLine($"Processing route: {JsonSerializer.Serialize(routeData)}");
             routes.Add(new PreferredRoute
             {
                 Departure = routeData.Dep,

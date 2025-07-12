@@ -92,6 +92,15 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 
         [Description("The route is not recommended.")]
         not_preferred_route,
+
+        [Description("The cruising level type does not match the preferred route.")]
+        cruising_level_mismatch,
+
+        [Description("The cruising level is too low for the preferred route.")]
+        cruising_level_too_low,
+
+        [Description("The cruising level is not allowed for the preferred route.")]
+        cruising_level_not_allowed,
     }
 
     public enum WarningMessageField
@@ -107,6 +116,9 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 
         [Description("Route, with field index if applicable")]
         route,
+
+        [Description("Cruising Altitude")]
+        cruising_altitude,
     }
 
     public record WarningMessage
@@ -141,6 +153,9 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
                             Violation.ViolationType.LegDirection => WarningMessageCode.route_leg_direction,
                             Violation.ViolationType.AirwayRequireApproval => WarningMessageCode.airway_require_approval,
                             Violation.ViolationType.NotRecommendedRoute => WarningMessageCode.not_preferred_route,
+                            Violation.ViolationType.CruisingLevelMismatch => WarningMessageCode.cruising_level_mismatch,
+                            Violation.ViolationType.CruisingLevelTooLow => WarningMessageCode.cruising_level_too_low,
+                            Violation.ViolationType.CruisingLevelNotAllowed => WarningMessageCode.cruising_level_not_allowed,
                             _ => throw new InvalidEnumArgumentException($"Unexpected violation type {v.Type}"),
                         },
                         Field = v.Field switch
@@ -149,6 +164,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
                             Violation.FieldType.Transponder => WarningMessageField.transponder,
                             Violation.FieldType.NavigationPerformance => WarningMessageField.navigation_performance,
                             Violation.FieldType.Route => WarningMessageField.route,
+                            Violation.FieldType.CruisingLevel => WarningMessageField.cruising_altitude,
                             _ => throw new InvalidEnumArgumentException($"Unexpected violation field {v.Field}"),
                         },
                         Parameter = v.Param,
