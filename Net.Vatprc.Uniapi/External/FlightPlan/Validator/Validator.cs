@@ -76,7 +76,7 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
                 foundMatchingRoute = true;
                 Logger.Information("Found matching route: {Route}", prefRte);
 
-                var cruisingLevelType = AltitudeHelper.GetLevelRestrictionTypeFromCruisingLevel((int)Flight.Altitude);
+                var cruisingLevelType = AltitudeHelper.GetLevelRestrictionTypeFromCruisingLevel((int)Flight.CruisingLevel);
                 if (!AltitudeHelper.IsFlightLevelTypeMatching(cruisingLevelType, prefRte.CruisingLevelRestriction))
                 {
                     Logger.Information("Cruising level type mismatch: {Expected} vs {Actual}",
@@ -98,10 +98,10 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
                     });
                 }
 
-                if (prefRte.AllowedAltitudes.Any() && !prefRte.AllowedAltitudes.Contains((int)Flight.Altitude))
+                if (prefRte.AllowedAltitudes.Any() && !prefRte.AllowedAltitudes.Contains((int)Flight.CruisingLevel))
                 {
                     Logger.Information("Cruising level {CruisingLevel} is not allowed by preferred route {Route}",
-                        Flight.Altitude, prefRte);
+                        Flight.CruisingLevel, prefRte);
                     Violations.Add(new Violation
                     {
                         Field = Violation.FieldType.CruisingLevel,
@@ -110,10 +110,10 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
                     });
                 }
 
-                if (Flight.Altitude < prefRte.MinimalAltitude)
+                if (Flight.CruisingLevel < prefRte.MinimalAltitude)
                 {
                     Logger.Information("Cruising level {CruisingLevel} is below minimal altitude {MinimalAltitude} for preferred route {Route}",
-                        Flight.Altitude, prefRte.MinimalAltitude, prefRte);
+                        Flight.CruisingLevel, prefRte.MinimalAltitude, prefRte);
                     Violations.Add(new Violation
                     {
                         Field = Violation.FieldType.CruisingLevel,
