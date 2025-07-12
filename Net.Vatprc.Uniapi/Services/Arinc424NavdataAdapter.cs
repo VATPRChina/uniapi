@@ -86,7 +86,7 @@ public class Arinc424NavdataAdapter : INavdataProvider
         throw new NotImplementedException();
     }
 
-    public Task<IEnumerable<string>> GetRecommendedRoutes(string dep, string arr)
+    public Task<IList<string>> GetRecommendedRoutes(string dep, string arr)
     {
         throw new NotImplementedException();
     }

@@ -71,7 +71,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             var prefRte = await new RouteParser.RouteParser(r, Navdata).Parse();
             return GetRouteDifferenceViolations(Legs, prefRte, r).Count();
         }));
-        if (!violationsPerRoute.Any(v => v == 0))
+        if (prefRteStr.Count > 0 && !violationsPerRoute.Any(v => v == 0))
         {
             Violations.Add(new Violation
             {

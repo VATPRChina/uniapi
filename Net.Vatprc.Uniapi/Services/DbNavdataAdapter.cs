@@ -107,7 +107,7 @@ public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
             .FirstOrDefaultAsync(f => f.Id == id);
     }
 
-    public async Task<IEnumerable<string>> GetRecommendedRoutes(string dep, string arr)
+    public async Task<IList<string>> GetRecommendedRoutes(string dep, string arr)
     {
         var recommendedRoute = await DbContext.PreferredRoute
             .Where(r => r.Departure == dep && r.Arrival == arr)
