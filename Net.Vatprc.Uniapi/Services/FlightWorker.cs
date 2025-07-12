@@ -140,6 +140,7 @@ public class FlightWorker(
         flight.Departure = pilot.FlightPlan.Departure;
         flight.Arrival = pilot.FlightPlan.Arrival;
         flight.CruiseTas = uint.Parse(pilot.FlightPlan.CruiseTas);
+        flight.CruisingLevel = long.Parse(pilot.FlightPlan.Altitude);
         flight.RawRoute = pilot.FlightPlan.Route;
         var aircraft = FlightPlan.ParseIcaoAircraftCode(pilot.FlightPlan.Aircraft, pilot.FlightPlan.Remarks);
         flight.Aircraft = aircraft.AircraftCode;

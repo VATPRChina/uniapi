@@ -42,6 +42,8 @@ public class Flight
 
     public uint CruiseTas { get; set; }
 
+    public long CruisingLevel { get; set; }
+
     public string RawRoute { get; set; } = string.Empty;
 
     public FlightState State { get; set; }

@@ -27,7 +27,8 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         public string Transponder { get; init; }
         public string RawRoute { get; init; }
         public string Aircraft { get; init; }
-        public int Altitude { get; init; }
+        public long Altitude { get; init; }
+        public long CruisingLevel { get; init; }
 
         public FlightDto(Flight flight)
         {
@@ -42,7 +43,8 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
             Transponder = flight.Transponder;
             RawRoute = flight.RawRoute;
             Aircraft = flight.Aircraft;
-            Altitude = (int)flight.Altitude;
+            Altitude = flight.Altitude;
+            CruisingLevel = flight.CruisingLevel;
         }
     }
 
@@ -119,8 +121,8 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         [Description("Route, with field index if applicable")]
         route,
 
-        [Description("Cruising Altitude")]
-        cruising_altitude,
+        [Description("Cruising Level")]
+        cruising_level,
     }
 
     public record WarningMessage
@@ -166,7 +168,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
                             Violation.FieldType.Transponder => WarningMessageField.transponder,
                             Violation.FieldType.NavigationPerformance => WarningMessageField.navigation_performance,
                             Violation.FieldType.Route => WarningMessageField.route,
-                            Violation.FieldType.CruisingLevel => WarningMessageField.cruising_altitude,
+                            Violation.FieldType.CruisingLevel => WarningMessageField.cruising_level,
                             _ => throw new InvalidEnumArgumentException($"Unexpected violation field {v.Field}"),
                         },
                         Parameter = v.Param,
