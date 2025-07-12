@@ -187,10 +187,8 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
                     });
                 }
 
-                if ((fromLeg.FixIcaoCode.StartsWith("Z") &&
-                        (fromLeg.AirwayIdentifier!.StartsWith("V") || fromLeg.AirwayIdentifier!.StartsWith("X")))
-                    || (toLeg.FixIcaoCode.StartsWith("Z") &&
-                            (toLeg.AirwayIdentifier!.StartsWith("V") || toLeg.AirwayIdentifier!.StartsWith("X"))))
+                if (fromLeg.FixIcaoCode.StartsWith("Z")
+                    && (fromLeg.AirwayIdentifier!.StartsWith("V") || fromLeg.AirwayIdentifier!.StartsWith("X")))
                 {
                     Violations.Add(new Violation
                     {
