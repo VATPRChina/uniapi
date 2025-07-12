@@ -8,7 +8,8 @@ public class StarFallbackTokenHandler : ITokenHandler
     {
         return context.NextSegment?.Kind == RouteTokenKind.AIRPORT
             && context.CurrentSegment.Kind == RouteTokenKind.UNKNOWN
-            && context.CurrentSegmentIndex == context.SegmentCount - 2;
+            && context.CurrentSegmentIndex == context.SegmentCount - 2
+            && (context.LastSegment?.Kind.IsFix() ?? false);
     }
 
     public Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)

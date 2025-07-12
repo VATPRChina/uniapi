@@ -6,7 +6,8 @@ public class SidFallbackTokenHandler : ITokenHandler
     {
         return context.LastSegment?.Kind == RouteTokenKind.AIRPORT
             && context.CurrentSegment.Kind == RouteTokenKind.UNKNOWN
-            && context.CurrentSegmentIndex == 1;
+            && context.CurrentSegmentIndex == 1
+            && (context.NextSegment?.Kind.IsFix() ?? false);
     }
 
     public Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
