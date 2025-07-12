@@ -175,14 +175,23 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
 
         for (int i = actualLeft; i <= actualRight; i++)
         {
-            if (expectedIndex >= expected.Count
-                || expected[expectedIndex].From.Identifier != actual[i].From.Identifier
+            if (expectedIndex >= expected.Count)
+            {
+                break;
+            }
+            if (expected[expectedIndex].From.Identifier != actual[i].From.Identifier
                 || expected[expectedIndex].To.Identifier != actual[i].To.Identifier)
             {
                 return false;
             }
 
             expectedIndex++;
+        }
+
+        if (expectedIndex - expectedStart < 1)
+        {
+            Logger.Warning("Matched expected route is empty");
+            return false;
         }
 
         Logger.Information("Route matches expected route from {From} to {To} for expected route segments: {FromIdent} to {ToIdent}",
