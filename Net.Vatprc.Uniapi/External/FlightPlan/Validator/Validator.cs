@@ -135,7 +135,7 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
             {
                 Field = Violation.FieldType.Route,
                 Type = Violation.ViolationType.NotRecommendedRoute,
-                Param = string.Join(",", prefRoutes),
+                Param = string.Join(",", prefRoutes.Select(r => r.RawRoute)),
             });
         }
 
