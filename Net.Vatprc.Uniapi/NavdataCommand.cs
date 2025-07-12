@@ -1,4 +1,12 @@
 using System.CommandLine;
+using System.CommandLine.Invocation;
+using System.Diagnostics;
+using System.Text.Json;
+using Amazon.Runtime;
+using Amazon.S3;
+using Arinc424;
+using Dapper;
+using Microsoft.Data.Sqlite;
 using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Utils;
 using nietras.SeparatedValues;
@@ -9,14 +17,250 @@ public class NavdataCommand : Command
 {
     protected readonly WebApplication App;
 
+    private readonly Option<string> ServiceUrl = new("--service-url");
+    private readonly Option<string> AccessKey = new("--access-key");
+    private readonly Option<string> SecretKey = new("--secret-key");
+    private readonly Option<string> Bucket = new("--bucket", () => "navdata");
+    private readonly Option<string> ArincPath = new("--arinc", () => "cesfpl.pc");
+    private readonly Option<string> AipPath = new("--aip", () => "aip.db3");
+    private readonly Option<string> AipLocalPath = new("--aip-local", () => "Data/aip.db3");
+
     public NavdataCommand(WebApplication app) : base("navdata", "Import navdata")
     {
         App = app;
         this.SetHandler(Handle);
+        AddOption(ServiceUrl);
+        AddOption(AccessKey);
+        AddOption(SecretKey);
+        AddOption(Bucket);
+        AddOption(ArincPath);
+        AddOption(AipPath);
+        AddOption(AipLocalPath);
     }
 
-    protected async Task Handle()
+    protected async Task<Data424> GetArincFileAsync(
+        string serviceUrl,
+        string accessKey,
+        string secretKey,
+        string bucket,
+        string arincPath)
     {
+        IEnumerable<string> strings = [];
+
+        if (File.Exists("Data/cesfpl.pc"))
+        {
+            strings = File.ReadAllLines("Data/cesfpl.pc")
+                .Select(line => line.Trim())
+                .Where(line => !string.IsNullOrWhiteSpace(line));
+        }
+        else
+        {
+            var credentials = new BasicAWSCredentials(accessKey, secretKey);
+            var s3Client = new AmazonS3Client(credentials, new AmazonS3Config
+            {
+                ServiceURL = serviceUrl,
+            });
+            var response = await s3Client.GetObjectAsync(bucket, arincPath);
+            using var reader = new StreamReader(response.ResponseStream);
+            var content = await reader.ReadToEndAsync();
+            Console.WriteLine($"Read {content.Length} characters from {arincPath} in bucket {bucket} at {serviceUrl}");
+            strings = content.Split('\n')
+               .Select(line => line.Trim())
+               .Where(line => !string.IsNullOrWhiteSpace(line))
+               .ToList();
+        }
+
+        var meta = Meta424.Create(Supplement.V18);
+        var data = Data424.Create(meta, strings, out var invalid, out var skipped);
+        return data;
+    }
+
+    protected async Task<SqliteConnection> GetAipDataSync(
+        string serviceUrl,
+        string accessKey,
+        string secretKey,
+        string bucket,
+        string aipPath,
+        string aipLocalPath)
+    {
+        if (!File.Exists(aipLocalPath))
+        {
+            var credentials = new BasicAWSCredentials(accessKey, secretKey);
+            var s3Client = new AmazonS3Client(credentials, new AmazonS3Config
+            {
+                ServiceURL = serviceUrl,
+            });
+            var response = await s3Client.GetObjectAsync(bucket, aipPath);
+            await response.WriteResponseStreamToFileAsync(aipLocalPath, false, default);
+        }
+        var aipConnection = new SqliteConnection($"Data Source={aipLocalPath}");
+        await aipConnection.OpenAsync();
+        return aipConnection;
+    }
+
+    protected void BuildArincData(
+        Data424 arinc,
+        IList<Airport> airports,
+        IList<AirportGate> gates,
+        IList<Airway> airways,
+        IList<AirwayFix> airwayFixes,
+        IList<NdbNavaid> ndbNavaids,
+        IList<PreferredRoute> routes,
+        IList<Procedure> procedures,
+        IList<Runway> runways,
+        IList<VhfNavaid> vhfNavaids,
+        IList<Waypoint> waypoints)
+    {
+        foreach (var airportData in arinc.Airports)
+        {
+            var airport = new Airport
+            {
+                Identifier = airportData.Identifier,
+                Latitude = airportData.Coordinates.Latitude,
+                Longitude = airportData.Coordinates.Longitude,
+                Elevation = airportData.Elevation
+            };
+
+            airports.Add(airport);
+
+            foreach (var gate in airportData.Gates ?? [])
+            {
+                var airportGate = new AirportGate
+                {
+                    Identifier = gate.Identifier,
+                    Airport = airport,
+                    Latitude = gate.Coordinates.Latitude,
+                    Longitude = gate.Coordinates.Longitude
+                };
+                gates.Add(airportGate);
+            }
+
+            foreach (var runwayData in airportData.Thresholds ?? [])
+            {
+                var runway = new Runway
+                {
+                    Airport = airport,
+                    Identifier = runwayData.Identifier.StripPrefix("RW"),
+                    Latitude = runwayData.Coordinates.Latitude,
+                    Longitude = runwayData.Coordinates.Longitude
+                };
+                runways.Add(runway);
+            }
+
+            foreach (var procedureData in airportData.Departures ?? [])
+            {
+                var procedure = new Procedure
+                {
+                    Airport = airport,
+                    Identifier = procedureData.Identifier,
+                    SubsectionCode = 'D', // SID
+                };
+                procedures.Add(procedure);
+            }
+
+            foreach (var procedureData in airportData.Arrivals ?? [])
+            {
+                var procedure = new Procedure
+                {
+                    Airport = airport,
+                    Identifier = procedureData.Identifier,
+                    SubsectionCode = 'E', // STAR
+                };
+                procedures.Add(procedure);
+            }
+        }
+
+        foreach (var airwayData in arinc.Airways)
+        {
+            var airway = new Airway
+            {
+                Identifier = airwayData.Identifier,
+            };
+
+            airways.Add(airway);
+
+            foreach (var fixData in airwayData.Sequence ?? [])
+            {
+                var fix = new AirwayFix
+                {
+                    Airway = airway,
+                    SequenceNumber = (uint)fixData.SeqNumber,
+                    FixIdentifier = fixData.Fix.Identifier,
+                    FixIcaoCode = fixData.Fix.Icao.ToString(),
+                    DirectionalRestriction = fixData.Restriction switch
+                    {
+                        Arinc424.Routing.Terms.AirwayRestriction.None => ' ',
+                        Arinc424.Routing.Terms.AirwayRestriction.Forward => 'F',
+                        Arinc424.Routing.Terms.AirwayRestriction.Backward => 'B',
+                        _ => throw new ArgumentOutOfRangeException(nameof(fixData.Restriction), fixData.Restriction, null)
+                    }
+                };
+                airwayFixes.Add(fix);
+
+                if (fixData.Descriptions.HasFlag(Arinc424.Waypoints.Terms.WaypointDescriptions.ContinuousSegmentEnd))
+                {
+                    airway = new Airway
+                    {
+                        Identifier = airwayData.Identifier,
+                    };
+                    airways.Add(airway);
+                }
+            }
+        }
+
+        foreach (var ndbData in arinc.Nondirectionals)
+        {
+            var ndbNavaid = new NdbNavaid
+            {
+                SectionCode = "DB",
+                IcaoCode = ndbData.Icao.ToString(),
+                Identifier = ndbData.Identifier,
+                Latitude = ndbData.Coordinates.Latitude,
+                Longitude = ndbData.Coordinates.Longitude,
+            };
+            ndbNavaids.Add(ndbNavaid);
+        }
+
+        foreach (var vhfData in arinc.Omnidirectionals)
+        {
+            var vhfNavaid = new VhfNavaid
+            {
+                IcaoCode = vhfData.Icao.ToString(),
+                VorIdentifier = vhfData.Identifier,
+                VorLatitude = vhfData.Coordinates.Latitude,
+                VorLongitude = vhfData.Coordinates.Longitude,
+                DmeIdentifier = vhfData.EquipmentIdentifier,
+                DmeLatitude = vhfData.EquipmentCoordinates?.Latitude,
+                DmeLongitude = vhfData.EquipmentCoordinates?.Longitude,
+            };
+            vhfNavaids.Add(vhfNavaid);
+        }
+
+        foreach (var waypointData in arinc.EnrouteWaypoints)
+        {
+            var waypoint = new Waypoint
+            {
+                SectionCode = "EA",
+                RegionCode = "ENRT",
+                Identifier = waypointData.Identifier,
+                Latitude = waypointData.Coordinates.Latitude,
+                Longitude = waypointData.Coordinates.Longitude,
+                IcaoCode = waypointData.Icao.ToString(),
+            };
+            waypoints.Add(waypoint);
+        }
+    }
+
+    protected async Task Handle(InvocationContext context)
+    {
+        var serviceUrl = context.ParseResult.GetValueForOption(ServiceUrl) ?? throw new ArgumentNullException(nameof(ServiceUrl));
+        var accessKey = context.ParseResult.GetValueForOption(AccessKey) ?? throw new ArgumentNullException(nameof(AccessKey));
+        var secretKey = context.ParseResult.GetValueForOption(SecretKey) ?? throw new ArgumentNullException(nameof(SecretKey));
+        var bucket = context.ParseResult.GetValueForOption(Bucket) ?? throw new ArgumentNullException(nameof(Bucket));
+        var arincPath = context.ParseResult.GetValueForOption(ArincPath) ?? throw new ArgumentNullException(nameof(ArincPath));
+        var aipPath = context.ParseResult.GetValueForOption(AipPath) ?? throw new ArgumentNullException(nameof(AipPath));
+        var aipLocalPath = context.ParseResult.GetValueForOption(AipLocalPath) ?? throw new ArgumentNullException(nameof(AipLocalPath));
+
         using var scope = App.Services.CreateScope();
         using var db = scope.ServiceProvider.GetRequiredService<VATPRCContext>();
 
@@ -31,316 +275,161 @@ public class NavdataCommand : Command
         await db.VhfNavaid.ExecuteDeleteAsync();
         await db.Waypoint.ExecuteDeleteAsync();
 
-        var airports = new Dictionary<string, Airport>();
-        var gates = new Dictionary<string, AirportGate>();
-        var airways = new Dictionary<string, Airway>();
-        var airwayFixes = new Dictionary<string, AirwayFix>();
-        var ndbNavaids = new Dictionary<string, NdbNavaid>();
-        var routes = new Dictionary<string, PreferredRoute>();
-        var procedures = new Dictionary<string, Procedure>();
-        var runways = new Dictionary<string, Runway>();
-        var vhfNavaids = new Dictionary<string, VhfNavaid>();
-        var waypoints = new Dictionary<string, Waypoint>();
+        var airports = new List<Airport>();
+        var gates = new List<AirportGate>();
+        var airways = new List<Airway>();
+        var airwayFixes = new List<AirwayFix>();
+        var ndbNavaids = new List<NdbNavaid>();
+        var routes = new List<PreferredRoute>();
+        var procedures = new List<Procedure>();
+        var runways = new List<Runway>();
+        var vhfNavaids = new List<VhfNavaid>();
+        var waypoints = new List<Waypoint>();
 
         var airwayFixesRaw = new Dictionary<string, IList<string>>();
         var existingAirwaySegments = new HashSet<string>();
 
-        await foreach (var record_ in File.ReadLinesAsync("../Data/cesfpl.pc"))
-        {
-            if (record_ == null) continue;
-            var record = " " + record_;
-            switch ((record[5], record[6]))
-            {
-                case ('D', ' '):
-                    {
-                        if (record[22] != '0' && record[22] != '1') continue; // ignore continuation records
-                        var dme = record[52..56].Trim();
-                        var vhf = new VhfNavaid
-                        {
-                            IcaoCode = record[20..22],
-                            VorIdentifier = record[14..18].Trim(),
-                            VorLatitude = string.IsNullOrWhiteSpace(record[33..42]) ? null : Geography.ParseArincCoordinate(record[33..42]),
-                            VorLongitude = string.IsNullOrWhiteSpace(record[42..52]) ? null : Geography.ParseArincCoordinate(record[42..52]),
-                            DmeIdentifier = string.IsNullOrEmpty(dme) ? null : dme,
-                            DmeLatitude = string.IsNullOrEmpty(dme) ? null : Geography.ParseArincCoordinate(record[56..65]),
-                            DmeLongitude = string.IsNullOrEmpty(dme) ? null : Geography.ParseArincCoordinate(record[65..75]),
-                        };
-                        vhfNavaids.Add($"{vhf.IcaoCode}/{vhf.VorIdentifier}", vhf);
-                        break;
-                    }
-                case ('D', 'B'):
-                case ('P', 'N'):
-                    {
-                        if (record[22] != '0' && record[22] != '1') continue; // ignore continuation records
-                        var ndb = new NdbNavaid
-                        {
-                            SectionCode = record[5..7],
-                            AirportIcaoIdent = string.IsNullOrWhiteSpace(record[7..11]) ? null : record[7..11],
-                            IcaoCode = record[20..22],
-                            Identifier = record[14..18].Trim(),
-                            Latitude = Geography.ParseArincCoordinate(record[33..42]),
-                            Longitude = Geography.ParseArincCoordinate(record[42..52]),
-                        };
-                        ndbNavaids.Add($"{ndb.AirportIcaoIdent ?? ndb.IcaoCode}/{ndb.Identifier}", ndb);
-                        break;
-                    }
-                case ('E', 'A'):
-                case ('P', 'C'):
-                    {
-                        if (record[22] != '0' && record[22] != '1') continue; // ignore continuation records
-                        var wpt = new Waypoint
-                        {
-                            SectionCode = record[5..7],
-                            RegionCode = record[7..11],
-                            IcaoCode = record[20..22],
-                            Identifier = record[14..20].Trim(),
-                            Latitude = Geography.ParseArincCoordinate(record[33..42]),
-                            Longitude = Geography.ParseArincCoordinate(record[42..52]),
-                        };
-                        waypoints.Add($"{wpt.IcaoCode}/{wpt.Identifier}", wpt);
-                        break;
-                    }
-                case ('E', 'R'):
-                    {
-                        if (record[39] != '0' && record[39] != '1') continue; // ignore continuation records
-                        var ident = record[14..20].Trim();
-                        if (!airwayFixesRaw.TryGetValue(ident, out IList<string>? value))
-                        {
-                            value = [];
-                            airwayFixesRaw[ident] = value;
-                        }
-                        value.Add(record);
-                        break;
-                    }
-                case ('P', ' '):
-                    switch (record[13])
-                    {
-                        case 'A':
-                            {
-                                if (record[22] != '0' && record[22] != '1') continue; // ignore continuation records
-                                var airport = new Airport
-                                {
-                                    Identifier = record[7..11],
-                                    Latitude = Geography.ParseArincCoordinate(record[33..42]),
-                                    Longitude = Geography.ParseArincCoordinate(record[42..52]),
-                                    Elevation = int.Parse(record[57..62]),
-                                };
-                                airports.Add(airport.Identifier, airport);
-                                break;
-                            }
-                        case 'B':
-                            {
-                                Console.WriteLine("Unexpected airport gate record: " + record_);
-                                break;
-                            }
-                        case 'G':
-                            {
-                                if (record[22] != '0' && record[22] != '1') continue; // ignore continuation records
-                                var runway = new Runway
-                                {
-                                    AirportId = airports[record[7..11]].Id,
-                                    Identifier = record[14..19].Trim(),
-                                    Latitude = string.IsNullOrWhiteSpace(record[33..42]) ? double.MinValue : Geography.ParseArincCoordinate(record[33..42]),
-                                    Longitude = string.IsNullOrWhiteSpace(record[42..52]) ? double.MinValue : Geography.ParseArincCoordinate(record[42..52]),
-                                };
-                                runways.Add($"{airports[record[7..11]].Identifier}/{runway.Identifier}", runway);
-                                break;
-                            }
-                        case 'D':
-                        case 'E':
-                        case 'F':
-                            {
-                                if (record[39] != '0' && record[39] != '1') continue; // ignore continuation records
-                                var airportId = record[7..11];
-                                var ident = record[14..20].Trim();
-                                if (procedures.ContainsKey($"{airportId}/{ident}")) continue;
-                                var procedure = new Procedure
-                                {
-                                    AirportId = airports[airportId].Id,
-                                    Identifier = ident,
-                                    SubsectionCode = record[13],
-                                };
-                                procedures.Add($"{airportId}/{ident}", procedure);
-                                break;
-                            }
-                    }
-                    break;
+        var arinc = await GetArincFileAsync(serviceUrl, accessKey, secretKey, bucket, arincPath);
 
-                default: continue;
-            }
-        }
+        BuildArincData(
+            arinc,
+            airports,
+            gates,
+            airways,
+            airwayFixes,
+            ndbNavaids,
+            routes,
+            procedures,
+            runways,
+            vhfNavaids,
+            waypoints);
 
-        foreach (var (ident, recordsRaw) in airwayFixesRaw)
-        {
-            var records = recordsRaw.OrderBy(x => x[2..5]).ThenBy(x => uint.Parse(x[26..30])).ToArray();
-            var airway = new Airway
-            {
-                Identifier = ident.Replace(" ", null),
-            };
-            foreach (var record in records)
-            {
-                if (!airways.ContainsKey(airway.Id.ToString())) { airways.Add(airway.Id.ToString(), airway); }
-                var fix = new AirwayFix
-                {
-                    AirwayId = airway.Id,
-                    SequenceNumber = uint.Parse(record[26..30]),
-                    FixIdentifier = record[30..35].Trim(),
-                    FixIcaoCode = record[35..37],
-                    DescriptionCode = record[40..44],
-                    DirectionalRestriction = record[47],
-                };
-                if (fix.DescriptionCode[1] == 'E')
-                {
-                    airway = new Airway { Identifier = ident.Replace(" ", null) };
-                }
-                airwayFixes.Add(fix.Id.ToString(), fix);
-                existingAirwaySegments.Add($"{airway.Identifier}/{fix.FixIcaoCode}/{fix.FixIdentifier}");
-            }
-        }
+        var airportsIndex = airports.ToDictionary(a => a.Identifier);
+        var airportRunwaysIndex = runways.ToDictionary(a => $"{a.AirportIdentifier}/{a.Identifier}");
 
-        foreach (var line in Sep.Reader().FromFile("../Data/2412-data/AD_HP.csv"))
+        using var aipdb = await GetAipDataSync(serviceUrl, accessKey, secretKey, bucket, aipPath, aipLocalPath);
+
+        var airportList = await aipdb.QueryAsync("SELECT * FROM AD_HP WHERE CHINA = 'Y';");
+        foreach (var airportData in airportList)
         {
-            if (line["VAL_LONG_RWY"].ToString() == "0") continue;
-            if (airports.ContainsKey(line["CODE_ID"].ToString())) continue;
-            var airport = new Airport
+            var airport = airportsIndex.GetValueOrDefault((string)airportData.CODE_ICAO);
+            if (airport == null)
             {
-                Identifier = line["CODE_ID"].ToString(),
-                Latitude = Geography.ParseCaacCoordinate(line["GEO_LAT_ACCURACY"].ToString()),
-                Longitude = Geography.ParseCaacCoordinate(line["GEO_LONG_ACCURACY"].ToString()),
-                Elevation = Geography.ConvertMeterToFeet(line["VAL_ELEV"].Parse<int>()),
-            };
-            airports.Add(airport.Identifier, airport);
-        }
-        foreach (var data in Sep.New(' ').Reader(o => o with { HasHeader = false }).FromFile("../Data/Runway.txt"))
-        {
-            var airportIdent = data[^1].ToString();
-            if (!airports.TryGetValue(airportIdent, out var airport))
-            {
-                Console.WriteLine($"Runway: Airport {airportIdent} not found");
-                continue;
-            }
-            if (!runways.ContainsKey($"{airport.Identifier}/RW{data[0].ToString()}"))
-            {
-                var runway1 = new Runway
+                airport = new Airport
                 {
-                    Identifier = data[0].ToString(),
-                    AirportId = airport.Id,
-                    Latitude = data[2].Parse<double>(),
-                    Longitude = data[3].Parse<double>(),
+                    Identifier = "#" + airportData.CODE_ICAO,
+                    Latitude = Geography.ParseCaacCoordinate(airportData.GEO_LAT),
+                    Longitude = Geography.ParseCaacCoordinate(airportData.GEO_LONG),
+                    Elevation = (int)airportData.VAL_ELEV,
                 };
-                runways.Add($"{airport.Identifier}/RW{data[0].ToString()}", runway1);
+                airports.Add(airport);
             }
-            if (!runways.ContainsKey($"{airport.Identifier}/RW{data[1].ToString()}"))
+
+            var runwayList = await aipdb.QueryAsync("SELECT * FROM RWY WHERE CODE_AIRPORT = @Icao;", new { Icao = airportData.CODE_ICAO });
+            foreach (var runway in runwayList)
             {
-                var runway2 = new Runway
+                var directions = ((string)runway.TXT_DESIG).Split('/');
+                if (runway.TXT_RMK == null)
                 {
-                    Identifier = data[1].ToString(),
-                    AirportId = airport.Id,
-                    Latitude = data[4].Parse<double>(),
-                    Longitude = data[5].Parse<double>(),
-                };
-                runways.Add($"{airport.Identifier}/RW{data[1].ToString()}", runway2);
-            }
-        }
-        foreach (var data in Sep.Reader(o => o with { HasHeader = false, Unescape = true }).FromFile("../Data/sectors_stand.csv"))
-        {
-            var airportIdent = data[0].ToString();
-            if (!airports.TryGetValue(airportIdent, out var airport))
-            {
-                Console.WriteLine($"sectors_stand: Airport {airportIdent} not found");
-                continue;
-            }
-            if (gates.ContainsKey($"{airport.Identifier}/{data[1].ToString()}")) continue;
-            var gate = new AirportGate
-            {
-                AirportId = airport.Id,
-                Identifier = data[1].ToString(),
-                Latitude = data[2].Parse<double>(),
-                Longitude = data[3].Parse<double>(),
-            };
-            gates.Add($"{airport.Identifier}/{gate.Identifier}", gate);
-        }
-        var flightAirlinePoints = Sep.Reader().FromFile("../Data/2412-data/FLIGHT_AIRLINE_POINT.csv")
-            .Enumerate(p => new
-            {
-                FlightAirlineId = p["FLIGHT_AIRLINE_ID"].ToString(),
-                Sequence = p["Sequnce"].Parse<int>(),
-                StartPointIdentifier = !string.IsNullOrEmpty(p["StartPointIdentifier"].ToString()) ? p["StartPointIdentifier"].ToString() : p["StartPointName"].ToString(),
-                EndPointIdentifier = !string.IsNullOrEmpty(p["EndPointIdentifier"].ToString()) ? p["EndPointIdentifier"].ToString() : p["EndPointName"].ToString(),
-                AirwayName = p["AirwayName"].ToString(),
-            })
-            .GroupBy(p => p.FlightAirlineId)
-            .Select(r => r.OrderBy(p => p.Sequence).ToList())
-            .ToList();
-        foreach (var line in Sep.Reader().FromFile("../Data/2412-data/FLIGHT_AIRLINE.csv"))
-        {
-            var airlineId = line["FLIGHT_AIRLINE_ID"].ToString();
-            var points = flightAirlinePoints.FirstOrDefault(r => r.First().FlightAirlineId == airlineId);
-            if (points == null)
-            {
-                Console.WriteLine($"Invalid route for {airlineId}");
-                continue;
-            }
-            List<string> routeSegments = [];
-            foreach (var point in points)
-            {
-                if (routeSegments.Count > 0 && routeSegments[^1] == point.StartPointIdentifier)
-                {
-                    if (routeSegments.Count > 1 && routeSegments[^2] == point.AirwayName)
-                    {
-                        routeSegments[^1] = point.EndPointIdentifier;
-                    }
-                    else
-                    {
-                        routeSegments.AddRange(point.AirwayName, point.EndPointIdentifier);
-                    }
+                    Console.WriteLine($"Runway {runway.CODE_AIRPORT}/{runway.TXT_DESIG} has no coordinates in TXT_RMK, skipping.");
                     continue;
                 }
-                else
+                var coords = ((string)runway.TXT_RMK).Split('-');
+                Debug.Assert(directions.Length == 2 && coords.Length == 2);
+                for (var i = 0; i < 2; i++)
                 {
-                    routeSegments.AddRange(point.StartPointIdentifier, point.AirwayName, point.EndPointIdentifier);
+                    var ident = $"{runway.CODE_AIRPORT}/{directions[i]}";
+                    if (!airportRunwaysIndex.ContainsKey(ident))
+                    {
+                        var coordsCurrent = coords[i].Split(',');
+                        Debug.Assert(coordsCurrent.Length == 2);
+                        var coord = runway.TXT_RMK.Split('-');
+                        runways.Add(new Runway
+                        {
+                            Airport = airport,
+                            Identifier = "#" + directions[i],
+                            Latitude = Geography.ParseCaacCoordinate(coordsCurrent[0]),
+                            Longitude = Geography.ParseCaacCoordinate(coordsCurrent[1]),
+                        });
+                    }
                 }
-            }
-            var route = new PreferredRoute
-            {
-                Departure = line["StartAirportID"].ToString(),
-                Arrival = line["EndAirportID"].ToString(),
-                RawRoute = string.Join(" ", routeSegments),
-            };
-            routes.Add(route.Id.ToString(), route);
-        }
-        foreach (var data in Sep.New(':').Reader(o => o with { HasHeader = false }).FromFile("../Data/SIDSSTARS.txt"))
-        {
-            var airportIdent = data[1].ToString();
-            if (!airports.TryGetValue(airportIdent, out var airport))
-            {
-                Console.WriteLine($"SIDSTARS: Airport {airportIdent} not found");
-                continue;
-            }
-            if (!procedures.ContainsKey($"{airport.Identifier}/{data[3].ToString()}"))
-            {
-                if (data[0].ToString().StartsWith("//")) continue;
-                var procedure = new Procedure
-                {
-                    AirportId = airport.Id,
-                    Identifier = data[3].ToString(),
-                    SubsectionCode = data[0].ToString() == "SID" ? 'D' : data[0].ToString() == "STAR" ? 'E' : 'X',
-                };
-                if (procedure.SubsectionCode == 'X') throw new Exception("Unknown procedure type: " + data.ToString());
-                procedures.Add($"{airport.Identifier}/{data[3].ToString()}", procedure);
             }
         }
 
-        db.Airport.AddRange(airports.Values);
-        db.AirportGate.AddRange(gates.Values);
-        db.Airway.AddRange(airways.Values); // TODO: nimbus
-        db.AirwayFix.AddRange(airwayFixes.Values); // TODO: nimbus
-        db.NdbNavaid.AddRange(ndbNavaids.Values); // TODO: nimbus
-        db.PreferredRoute.AddRange(routes.Values);
-        db.Procedure.AddRange(procedures.Values);
-        db.Runway.AddRange(runways.Values);
-        db.VhfNavaid.AddRange(vhfNavaids.Values); // TODO: nimbus
-        db.Waypoint.AddRange(waypoints.Values); // TODO: nimbus
+        // TODO: AIP gates
+        // TODO: AIP procedures
+
+        var ndbIndex = ndbNavaids.ToDictionary(n => $"{n.IcaoCode}/{n.Identifier}");
+        var ndbList = await aipdb.QueryAsync("""SELECT * FROM NDB WHERE ("CODE_IN_AIRWAY" = 'Y') AND ("CHINA" = 'Y');""");
+        foreach (var ndbData in ndbList)
+        {
+            var ndbNavaid = ndbIndex.GetValueOrDefault($"{ndbData.CODE_AREA}/{ndbData.CODE_ID}");
+            if (ndbNavaid == null)
+            {
+                ndbNavaid = new NdbNavaid
+                {
+                    SectionCode = "DB",
+                    IcaoCode = ndbData.CODE_AREA,
+                    Identifier = "#" + ndbData.CODE_ID,
+                    Latitude = Geography.ParseCaacCoordinate(ndbData.GEO_LAT),
+                    Longitude = Geography.ParseCaacCoordinate(ndbData.GEO_LONG),
+                };
+                ndbNavaids.Add(ndbNavaid);
+            }
+        }
+
+        var vhfIndex = vhfNavaids.ToDictionary(v => $"{v.IcaoCode}/{v.VorIdentifier}");
+        var vhfList = await aipdb.QueryAsync("""SELECT * FROM VOR WHERE ("CODE_IN_AIRWAY" = 'Y') AND ("CHINA" = 'Y');""");
+        foreach (var vhfData in vhfList)
+        {
+            var vhfNavaid = vhfIndex.GetValueOrDefault($"{vhfData.CODE_AREA}/{vhfData.CODE_ID}");
+            if (vhfNavaid == null)
+            {
+                vhfNavaid = new VhfNavaid
+                {
+                    IcaoCode = vhfData.CODE_AREA,
+                    VorIdentifier = "#" + vhfData.CODE_ID,
+                    VorLatitude = Geography.ParseCaacCoordinate(vhfData.GEO_LAT),
+                    VorLongitude = Geography.ParseCaacCoordinate(vhfData.GEO_LONG),
+                };
+                vhfNavaids.Add(vhfNavaid);
+            }
+        }
+
+        var waypointIndex = waypoints.ToDictionary(w => $"{w.IcaoCode}/{w.Identifier}");
+        var waypointList = await aipdb.QueryAsync("""SELECT * FROM DESIGNATED_POINT WHERE "CHINA" = 'Y';""");
+        foreach (var waypointData in waypointList)
+        {
+            var waypoint = waypointIndex.GetValueOrDefault($"{waypointData.CODE_AREA}/{waypointData.CODE_ID}");
+            if (waypoint == null)
+            {
+                waypoint = new Waypoint
+                {
+                    SectionCode = "EA",
+                    RegionCode = "ENRT",
+                    Identifier = "#" + waypointData.CODE_ID,
+                    Latitude = Geography.ParseCaacCoordinate(waypointData.GEO_LAT),
+                    Longitude = Geography.ParseCaacCoordinate(waypointData.GEO_LONG),
+                    IcaoCode = waypointData.CODE_AREA,
+                };
+                waypoints.Add(waypoint);
+            }
+        }
+
+        // TODO: AIP airways
+        // TODO: AIP airwayFixes
+        // TODO: AIP preferred routes
+
+        db.Airport.AddRange(airports);
+        db.AirportGate.AddRange(gates);
+        db.Runway.AddRange(runways);
+        db.Procedure.AddRange(procedures);
+        db.Airway.AddRange(airways);
+        db.AirwayFix.AddRange(airwayFixes);
+        db.NdbNavaid.AddRange(ndbNavaids);
+        db.VhfNavaid.AddRange(vhfNavaids);
+        db.Waypoint.AddRange(waypoints);
+        db.PreferredRoute.AddRange(routes);
 
         await db.SaveChangesAsync();
     }

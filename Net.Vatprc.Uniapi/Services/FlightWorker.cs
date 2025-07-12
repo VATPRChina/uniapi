@@ -100,21 +100,6 @@ public class FlightWorker(
         bool isOverflyChina = false;
         if (!IsChinaAirport(pilot.FlightPlan.Departure) && !IsChinaAirport(pilot.FlightPlan.Arrival))
         {
-            // try
-            // {
-            //     var normalizedRoute = await FlightRoute.NormalizeRoute(
-            //         db,
-            //         pilot.FlightPlan.Departure,
-            //         pilot.FlightPlan.Arrival,
-            //         pilot.FlightPlan.Route);
-            //     isOverflyChina = await db.PreferredRoute
-            //         .Where(r => r.Arrival.Length > 4
-            //             && r.Departure.Length > 4
-            //             && normalizedRoute.Contains(r.Departure)
-            //             && normalizedRoute.Contains(r.Arrival))
-            //         .AnyAsync(ct);
-            // }
-            // catch (Exception) { }
             if (!isOverflyChina)
             {
                 Logger.LogDebug("Ignore {Callsign} ({Departure}-{Arrival}) with no VATPRC airport.",
