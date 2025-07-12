@@ -6,10 +6,10 @@ using Serilog;
 
 namespace Net.Vatprc.Uniapi.External.FlightPlan.Validator;
 
-public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider navdata)
+public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider navdata)
 {
     protected readonly Flight Flight = flight;
-    protected readonly IList<FlightLeg> Legs = legs;
+    protected readonly List<FlightLeg> Legs = legs;
     protected readonly INavdataProvider Navdata = navdata;
 
     protected readonly List<Violation> Violations = [];
@@ -66,19 +66,22 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
         var prefRteStr = await Navdata.GetRecommendedRoutes(Flight.Departure, Flight.Arrival);
         Logger.Information("Recommended routes for {Dep} to {Arr}: {Routes}",
             Flight.Departure, Flight.Arrival, prefRteStr);
-        IList<IEnumerable<Violation>> violationsPerRoute = [];
+        bool foundMatchingRoute = prefRteStr.Count == 0;
         foreach (var prefRte in prefRteStr)
         {
             var prefRteParsed = await new RouteParser.RouteParser(prefRte, Navdata).Parse();
-            var routeViolations = GetRouteDifferenceViolations(Legs, prefRteParsed, prefRte);
-            if (routeViolations.Any())
+            if (IsRouteMatchingExpected(Legs, prefRteParsed))
             {
-                Logger.Information("Route {Route} has violations: {Violations}",
-                    prefRte, string.Join(", ", routeViolations.Select(v => v.ToString())));
-                violationsPerRoute.Add(routeViolations);
+                foundMatchingRoute = true;
+                Logger.Information("Found matching route: {Route}", prefRte);
+                break;
+            }
+            else
+            {
+                Logger.Information("Expected route {Expected} does not match.", prefRte);
             }
         }
-        if (prefRteStr.Count > 0 && violationsPerRoute.Any(v => !v.Any()))
+        if (!foundMatchingRoute)
         {
             Violations.Add(new Violation
             {
@@ -154,69 +157,38 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
         return Violations;
     }
 
-    protected static IEnumerable<Violation> GetRouteDifferenceViolations(IList<FlightLeg> route1, IList<FlightLeg> route2, string route2Raw)
+    protected static bool IsRouteMatchingExpected(List<FlightLeg> actual, List<FlightLeg> expected)
     {
-        IList<Violation> violations = [];
+        int actualLeft = actual.FindIndex(l => l.Type != FlightLeg.LegType.Sid && l.From.Type != FlightFix.FixType.Airport);
+        if (actualLeft == -1) actualLeft = 0;
+        int actualRight = actual.FindLastIndex(l => l.Type != FlightLeg.LegType.Star && l.To.Type != FlightFix.FixType.Airport);
+        if (actualRight == -1) actualRight = actual.Count - 1;
 
-        int i = route1
-            .TakeWhile(x => x.From.Identifier != route2.First().From.Identifier)
-            .Count();
-        int validLegs = 0;
-        foreach (var leg2 in route2)
+        int expectedIndex = expected.FindIndex(i => actual[actualLeft].From.Identifier == i.From.Identifier);
+        if (expectedIndex == -1)
         {
-            if (i >= route1.Count)
+            Logger.Warning("Expected route does not start with actual route segment: {ActualSegment}",
+                actual[actualLeft].From.Identifier);
+            return false;
+        }
+        var expectedStart = expectedIndex;
+
+        for (int i = actualLeft; i <= actualRight; i++)
+        {
+            if (expectedIndex >= expected.Count
+                || expected[expectedIndex].From.Identifier != actual[i].From.Identifier
+                || expected[expectedIndex].To.Identifier != actual[i].To.Identifier)
             {
-                if (validLegs == 0)
-                {
-                    Logger.Information("Route {Route1} does not match preferred route {Route2}",
-                        string.Join(" ", route1.Select(l => $"{l.From.Identifier}-{l.To.Identifier}")),
-                        route2Raw);
-                    violations.Add(new Violation
-                    {
-                        Field = Violation.FieldType.Route,
-                        Type = Violation.ViolationType.NotRecommendedRoute,
-                        Param = route2Raw,
-                    });
-                }
-                break;
+                return false;
             }
-            Logger.Information("Comparing leg {Leg1From}-{Leg1To} with preferred leg {Leg2From}-{Leg2To}",
-                route1[i].From.Identifier, route1[i].To.Identifier,
-                leg2.From.Identifier, leg2.To.Identifier);
-            if (route1[i].From.Identifier != leg2.From.Identifier ||
-                route1[i].To.Identifier != leg2.To.Identifier)
-            {
-                if (i + 1 == route1.Count)
-                {
-                    Logger.Information("Last leg {Leg1From}-{Leg1To} does not match preferred leg {Leg2From}-{Leg2To}",
-                        route1[i].From.Identifier, route1[i].To.Identifier,
-                        leg2.From.Identifier, leg2.To.Identifier);
-                }
-                else
-                {
-                    Logger.Information("Leg {Leg1From}-{Leg1To} does not match preferred leg {Leg2From}-{Leg2To}",
-                        route1[i].From.Identifier, route1[i].To.Identifier,
-                        leg2.From.Identifier, leg2.To.Identifier);
-                    violations.Add(new Violation
-                    {
-                        Field = Violation.FieldType.Route,
-                        FieldParam = i,
-                        Type = Violation.ViolationType.NotRecommendedRoute,
-                        Param = "".SetQueryParam("expected_from", leg2.From.Identifier)
-                            .SetQueryParam("expected_to", leg2.To.Identifier)
-                            .SetQueryParam("actual_from", route1[i].From.Identifier)
-                            .SetQueryParam("actual_to", route1[i].To.Identifier)
-                            .ToString(),
-                    });
-                }
-            }
-            else
-            {
-                validLegs += 1;
-            }
-            i += 1;
+
+            expectedIndex++;
         }
 
-        return violations;
+        Logger.Information("Route matches expected route from {From} to {To} for expected route segments: {FromIdent} to {ToIdent}",
+            actual[actualLeft].From.Identifier, actual[actualRight].To.Identifier,
+            expected[expectedStart].From.Identifier, expected[expectedIndex - 1].To.Identifier);
+
+        return true;
     }
 }
