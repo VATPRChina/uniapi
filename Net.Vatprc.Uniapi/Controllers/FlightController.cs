@@ -27,6 +27,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         public string Transponder { get; init; }
         public string RawRoute { get; init; }
         public string Aircraft { get; init; }
+        public int Altitude { get; init; }
 
         public FlightDto(Flight flight)
         {
@@ -41,6 +42,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
             Transponder = flight.Transponder;
             RawRoute = flight.RawRoute;
             Aircraft = flight.Aircraft;
+            Altitude = (int)flight.Altitude;
         }
     }
 
