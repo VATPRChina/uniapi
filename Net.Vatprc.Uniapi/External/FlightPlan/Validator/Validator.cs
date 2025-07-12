@@ -2,6 +2,7 @@ using System.Text.Json;
 using Flurl;
 using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 using Net.Vatprc.Uniapi.Models.Acdm;
+using Net.Vatprc.Uniapi.Utils;
 using Serilog;
 
 namespace Net.Vatprc.Uniapi.External.FlightPlan.Validator;
@@ -63,17 +64,64 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
             });
         }
 
-        var prefRteStr = await Navdata.GetRecommendedRoutes(Flight.Departure, Flight.Arrival);
+        var prefRoutes = await Navdata.GetRecommendedRoutes(Flight.Departure, Flight.Arrival);
         Logger.Information("Recommended routes for {Dep} to {Arr}: {Routes}",
-            Flight.Departure, Flight.Arrival, prefRteStr);
-        bool foundMatchingRoute = prefRteStr.Count == 0;
-        foreach (var prefRte in prefRteStr)
+            Flight.Departure, Flight.Arrival, prefRoutes);
+        bool foundMatchingRoute = prefRoutes.Count == 0;
+        foreach (var prefRte in prefRoutes)
         {
-            var prefRteParsed = await new RouteParser.RouteParser(prefRte, Navdata).Parse();
+            var prefRteParsed = await new RouteParser.RouteParser(prefRte.RawRoute, Navdata).Parse();
             if (IsRouteMatchingExpected(Legs, prefRteParsed))
             {
                 foundMatchingRoute = true;
                 Logger.Information("Found matching route: {Route}", prefRte);
+
+                var cruisingLevelType = AltitudeHelper.GetLevelRestrictionTypeFromCruisingLevel((int)Flight.Altitude);
+                if (!AltitudeHelper.IsFlightLevelTypeMatching(cruisingLevelType, prefRte.CruisingLevelRestriction))
+                {
+                    Logger.Information("Cruising level type mismatch: {Expected} vs {Actual}",
+                        prefRte.CruisingLevelRestriction, cruisingLevelType);
+                    Violations.Add(new Violation
+                    {
+                        Field = Violation.FieldType.Route,
+                        Type = Violation.ViolationType.CruisingLevelMismatch,
+                        Param = prefRte.CruisingLevelRestriction switch
+                        {
+                            Models.Navdata.PreferredRoute.LevelRestrictionType.StandardEven => "standard_even",
+                            Models.Navdata.PreferredRoute.LevelRestrictionType.StandardOdd => "standard_odd",
+                            Models.Navdata.PreferredRoute.LevelRestrictionType.Standard => "standard",
+                            Models.Navdata.PreferredRoute.LevelRestrictionType.FlightLevelEven => "flight_level_even",
+                            Models.Navdata.PreferredRoute.LevelRestrictionType.FlightLevelOdd => "flight_level_odd",
+                            Models.Navdata.PreferredRoute.LevelRestrictionType.FlightLevel => "flight_level",
+                            _ => "unknown"
+                        }
+                    });
+                }
+
+                if (prefRte.AllowedAltitudes.Any() && !prefRte.AllowedAltitudes.Contains((int)Flight.Altitude))
+                {
+                    Logger.Information("Cruising level {CruisingLevel} is not allowed by preferred route {Route}",
+                        Flight.Altitude, prefRte);
+                    Violations.Add(new Violation
+                    {
+                        Field = Violation.FieldType.Route,
+                        Type = Violation.ViolationType.CruisingLevelNotAllowed,
+                        Param = string.Join(",", prefRte.AllowedAltitudes)
+                    });
+                }
+
+                if (Flight.Altitude < prefRte.MinimalAltitude)
+                {
+                    Logger.Information("Cruising level {CruisingLevel} is below minimal altitude {MinimalAltitude} for preferred route {Route}",
+                        Flight.Altitude, prefRte.MinimalAltitude, prefRte);
+                    Violations.Add(new Violation
+                    {
+                        Field = Violation.FieldType.Route,
+                        Type = Violation.ViolationType.CruisingLevelTooLow,
+                        Param = prefRte.MinimalAltitude.ToString()
+                    });
+                }
+
                 break;
             }
             else
@@ -87,7 +135,7 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
             {
                 Field = Violation.FieldType.Route,
                 Type = Violation.ViolationType.NotRecommendedRoute,
-                Param = string.Join(",", prefRteStr),
+                Param = string.Join(",", prefRoutes),
             });
         }
 

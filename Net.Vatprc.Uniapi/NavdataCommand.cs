@@ -359,11 +359,37 @@ public class NavdataCommand : Command
             "../Data/Route-Server.csv");
         foreach (var routeData in route)
         {
+            Console.WriteLine($"Processing route: {JsonSerializer.Serialize(routeData)}");
             routes.Add(new PreferredRoute
             {
                 Departure = routeData.Dep,
                 Arrival = routeData.Arr,
                 RawRoute = routeData.Route,
+                CruisingLevelRestriction = routeData.EvenOdd switch
+                {
+                    "SE" => PreferredRoute.LevelRestrictionType.StandardEven,
+                    "SO" => PreferredRoute.LevelRestrictionType.StandardOdd,
+                    "FE" => PreferredRoute.LevelRestrictionType.FlightLevelEven,
+                    "FO" => PreferredRoute.LevelRestrictionType.FlightLevelOdd,
+                    _ => PreferredRoute.LevelRestrictionType.Standard,
+                },
+                AllowedAltitudes = routeData.AltList.Split('/').Where(s => !string.IsNullOrWhiteSpace(s)).Select(alt =>
+                {
+                    if (alt.StartsWith('S') && int.TryParse(alt[1..], out var standardAltitude))
+                    {
+                        return AltitudeHelper.StandardAltitudesToFlightLevel[standardAltitude * 100];
+                    }
+                    else if (alt.StartsWith('F') && int.TryParse(alt[1..], out var flightLevel))
+                    {
+                        return flightLevel * 100;
+                    }
+                    else
+                    {
+                        throw new FormatException($"Invalid altitude format: '{alt}'");
+                    }
+                }).ToList(),
+                MinimalAltitude = !string.IsNullOrWhiteSpace(routeData.MinAlt) ? int.Parse(routeData.MinAlt) : 0,
+                Remarks = routeData.Remarks,
             });
         }
 

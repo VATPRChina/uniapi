@@ -15,7 +15,7 @@ public interface INavdataProvider
     public IAsyncEnumerable<AirwayLeg> FindAirwayLegs(string ident);
     // TODO: public Task<FlightFix?> FindLastFixOfSid(string ident, string icao);
     // TODO: public Task<FlightFix?> FindLastFixOfStar(string ident, string icao);
-    public Task<IList<string>> GetRecommendedRoutes(string dep, string arr);
+    public Task<IList<PreferredRoute>> GetRecommendedRoutes(string dep, string arr);
     public Task<AirwayFix?> GetAirwayFix(Ulid id);
 
     public record AirwayLeg

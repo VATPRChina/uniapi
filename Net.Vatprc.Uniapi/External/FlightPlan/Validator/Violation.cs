@@ -26,5 +26,8 @@ public class Violation
         LegDirection,
         AirwayRequireApproval,
         NotRecommendedRoute,
+        CruisingLevelMismatch,
+        CruisingLevelTooLow,
+        CruisingLevelNotAllowed,
     }
 }
