@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Flurl;
 using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Serilog;
@@ -10,7 +12,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
     protected readonly IList<FlightLeg> Legs = legs;
     protected readonly INavdataProvider Navdata = navdata;
 
-    protected readonly IList<Violation> Violations = [];
+    protected readonly List<Violation> Violations = [];
 
     protected readonly Serilog.ILogger Logger = Log.ForContext<Validator>();
 
@@ -21,7 +23,6 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             Violations.Add(new Violation
             {
                 Field = Violation.FieldType.Equipment,
-                FieldParam = string.Empty,
                 Type = Violation.ViolationType.NoRvsm,
             });
         }
@@ -31,7 +32,6 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             Violations.Add(new Violation
             {
                 Field = Violation.FieldType.Equipment,
-                FieldParam = string.Empty,
                 Type = Violation.ViolationType.NoRnav1,
             });
         }
@@ -41,7 +41,6 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             Violations.Add(new Violation
             {
                 Field = Violation.FieldType.NavigationPerformance,
-                FieldParam = string.Empty,
                 Type = Violation.ViolationType.NoRnav1,
             });
         }
@@ -51,7 +50,6 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             Violations.Add(new Violation
             {
                 Field = Violation.FieldType.NavigationPerformance,
-                FieldParam = string.Empty,
                 Type = Violation.ViolationType.RnpArWithoutRf,
             });
         }
@@ -61,8 +59,25 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             Violations.Add(new Violation
             {
                 Field = Violation.FieldType.NavigationPerformance,
-                FieldParam = string.Empty,
                 Type = Violation.ViolationType.RnpAr,
+            });
+        }
+
+        var prefRteStr = await Navdata.GetRecommendedRoutes(Flight.Departure, Flight.Arrival);
+        Log.Information("Recommended routes for {Dep} to {Arr}: {Routes}",
+            Flight.Departure, Flight.Arrival, prefRteStr);
+        var violationsPerRoute = await Task.WhenAll(prefRteStr.Select(async r =>
+        {
+            var prefRte = await new RouteParser.RouteParser(r, Navdata).Parse();
+            return GetRouteDifferenceViolations(Legs, prefRte, r).Count();
+        }));
+        if (violationsPerRoute.Any(v => v > 0))
+        {
+            Violations.Add(new Violation
+            {
+                Field = Violation.FieldType.Route,
+                Type = Violation.ViolationType.NotRecommendedRoute,
+                Param = string.Join(",", prefRteStr),
             });
         }
 
@@ -75,7 +90,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 Violations.Add(new Violation
                 {
                     Field = Violation.FieldType.Route,
-                    FieldParam = index.ToString(),
+                    FieldParam = index,
                     Type = Violation.ViolationType.Direct,
                 });
             }
@@ -99,7 +114,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                     Violations.Add(new Violation
                     {
                         Field = Violation.FieldType.Route,
-                        FieldParam = index.ToString(),
+                        FieldParam = index,
                         Type = Violation.ViolationType.LegDirection,
                     });
                 }
@@ -109,7 +124,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                     Violations.Add(new Violation
                     {
                         Field = Violation.FieldType.Route,
-                        FieldParam = index.ToString(),
+                        FieldParam = index,
                         Type = Violation.ViolationType.LegDirection,
                     });
                 }
@@ -122,7 +137,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                     Violations.Add(new Violation
                     {
                         Field = Violation.FieldType.Route,
-                        FieldParam = index.ToString(),
+                        FieldParam = index,
                         Type = Violation.ViolationType.AirwayRequireApproval,
                     });
                 }
@@ -130,5 +145,45 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
         }
 
         return Violations;
+    }
+
+    protected static IEnumerable<Violation> GetRouteDifferenceViolations(IList<FlightLeg> route1, IList<FlightLeg> route2, string route2Raw)
+    {
+        IList<Violation> violations = [];
+
+        int i = route1
+            .TakeWhile(x => x.From.Identifier != route2.First().From.Identifier)
+            .Count();
+        foreach (var leg2 in route2)
+        {
+            if (i >= route1.Count)
+            {
+                violations.Add(new Violation
+                {
+                    Field = Violation.FieldType.Route,
+                    Type = Violation.ViolationType.NotRecommendedRoute,
+                    Param = route2Raw,
+                });
+                break;
+            }
+            if (route1[i].From.Identifier != leg2.From.Identifier ||
+                route1[i].To.Identifier != leg2.To.Identifier)
+            {
+                violations.Add(new Violation
+                {
+                    Field = Violation.FieldType.Route,
+                    FieldParam = i,
+                    Type = Violation.ViolationType.NotRecommendedRoute,
+                    Param = "".SetQueryParam("expected_from", leg2.From.Identifier)
+                        .SetQueryParam("expected_to", leg2.To.Identifier)
+                        .SetQueryParam("actual_from", route1[i].From.Identifier)
+                        .SetQueryParam("actual_to", route1[i].To.Identifier)
+                        .ToString(),
+                });
+            }
+            i += 1;
+        }
+
+        return violations;
     }
 }

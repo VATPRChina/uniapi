@@ -3,8 +3,9 @@ namespace Net.Vatprc.Uniapi.External.FlightPlan.Validator;
 public class Violation
 {
     public required FieldType Field { get; set; }
-    public required string FieldParam { get; set; }
+    public int? FieldParam { get; set; }
     public required ViolationType Type { get; set; }
+    public string? Param { get; set; }
 
     public enum FieldType
     {
@@ -24,5 +25,6 @@ public class Violation
         Direct,
         LegDirection,
         AirwayRequireApproval,
+        NotRecommendedRoute,
     }
 }

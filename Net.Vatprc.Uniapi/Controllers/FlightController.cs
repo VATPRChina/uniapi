@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.External.FlightPlan.Validator;
@@ -71,12 +72,6 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         [Description("The aircraft does not support RNAV1.")]
         no_rnav1,
 
-        [Description("The aircraft does not support RNAV1.")]
-        no_rnav1_equipment,
-
-        [Description("The aircraft does not support RNAV1.")]
-        no_rnav1_pbn,
-
         [Description("The aircraft supports RNP AR with RF.")]
         rnp_ar,
 
@@ -94,12 +89,32 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 
         [Description("The route contains a leg requiring controller approval.")]
         airway_require_approval,
+
+        [Description("The route is not recommended.")]
+        not_preferred_route,
+    }
+
+    public enum WarningMessageField
+    {
+        [Description("Equipment")]
+        equipment,
+
+        [Description("Transponder")]
+        transponder,
+
+        [Description("Navigation Performance")]
+        navigation_performance,
+
+        [Description("Route, with field index if applicable")]
+        route,
     }
 
     public record WarningMessage
     {
         public required WarningMessageCode MessageCode { get; init; }
         public string? Parameter { get; init; } = null;
+        public required WarningMessageField Field { get; init; }
+        public int? FieldIndex { get; init; } = null;
     }
 
     [HttpGet("by-callsign/{callsign}/warnings")]
@@ -113,27 +128,31 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 
         return violations.Select(v =>
                 {
-                    var message = v.Type switch
-                    {
-                        Violation.ViolationType.NoRvsm => WarningMessageCode.no_rvsm,
-                        Violation.ViolationType.NoRnav1 => v.Field switch
-                        {
-                            Violation.FieldType.Equipment => WarningMessageCode.no_rnav1_equipment,
-                            Violation.FieldType.NavigationPerformance => WarningMessageCode.no_rnav1_pbn,
-                            _ => throw new InvalidOperationException($"Unknown field type: {v.Field} for NoRnav1")
-                        },
-                        Violation.ViolationType.RnpAr => WarningMessageCode.rnp_ar,
-                        Violation.ViolationType.RnpArWithoutRf => WarningMessageCode.rnp_ar_without_rf,
-                        Violation.ViolationType.NoTransponder => WarningMessageCode.no_transponder,
-                        Violation.ViolationType.Direct => WarningMessageCode.route_direct_segment,
-                        Violation.ViolationType.LegDirection => WarningMessageCode.route_leg_direction,
-                        Violation.ViolationType.AirwayRequireApproval => WarningMessageCode.airway_require_approval,
-                        _ => throw new InvalidOperationException($"Unknown violation type: {v.Type}")
-                    };
                     return new WarningMessage
                     {
-                        MessageCode = message,
-                        Parameter = string.IsNullOrEmpty(v.FieldParam) ? null : v.FieldParam,
+                        MessageCode = v.Type switch
+                        {
+                            Violation.ViolationType.NoRvsm => WarningMessageCode.no_rvsm,
+                            Violation.ViolationType.NoRnav1 => WarningMessageCode.no_rnav1,
+                            Violation.ViolationType.RnpAr => WarningMessageCode.rnp_ar,
+                            Violation.ViolationType.RnpArWithoutRf => WarningMessageCode.rnp_ar_without_rf,
+                            Violation.ViolationType.NoTransponder => WarningMessageCode.no_transponder,
+                            Violation.ViolationType.Direct => WarningMessageCode.route_direct_segment,
+                            Violation.ViolationType.LegDirection => WarningMessageCode.route_leg_direction,
+                            Violation.ViolationType.AirwayRequireApproval => WarningMessageCode.airway_require_approval,
+                            Violation.ViolationType.NotRecommendedRoute => WarningMessageCode.not_preferred_route,
+                            _ => throw new InvalidEnumArgumentException($"Unexpected violation type {v.Type}"),
+                        },
+                        Field = v.Field switch
+                        {
+                            Violation.FieldType.Equipment => WarningMessageField.equipment,
+                            Violation.FieldType.Transponder => WarningMessageField.transponder,
+                            Violation.FieldType.NavigationPerformance => WarningMessageField.navigation_performance,
+                            Violation.FieldType.Route => WarningMessageField.route,
+                            _ => throw new InvalidEnumArgumentException($"Unexpected violation field {v.Field}"),
+                        },
+                        Parameter = v.Param,
+                        FieldIndex = v.FieldParam
                     };
                 });
     }

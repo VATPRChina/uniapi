@@ -106,4 +106,14 @@ public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
             .Include(f => f.Airway)
             .FirstOrDefaultAsync(f => f.Id == id);
     }
+
+    public async Task<IEnumerable<string>> GetRecommendedRoutes(string dep, string arr)
+    {
+        var recommendedRoute = await DbContext.PreferredRoute
+            .Where(r => r.Departure == dep && r.Arrival == arr)
+            .Select(r => r.RawRoute)
+            .ToArrayAsync();
+
+        return recommendedRoute;
+    }
 }
