@@ -154,16 +154,20 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
         int i = route1
             .TakeWhile(x => x.From.Identifier != route2.First().From.Identifier)
             .Count();
+        int validLegs = 0;
         foreach (var leg2 in route2)
         {
             if (i >= route1.Count)
             {
-                violations.Add(new Violation
+                if (validLegs == 0)
                 {
-                    Field = Violation.FieldType.Route,
-                    Type = Violation.ViolationType.NotRecommendedRoute,
-                    Param = route2Raw,
-                });
+                    violations.Add(new Violation
+                    {
+                        Field = Violation.FieldType.Route,
+                        Type = Violation.ViolationType.NotRecommendedRoute,
+                        Param = route2Raw,
+                    });
+                }
                 break;
             }
             if (route1[i].From.Identifier != leg2.From.Identifier ||
@@ -180,6 +184,10 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                         .SetQueryParam("actual_to", route1[i].To.Identifier)
                         .ToString(),
                 });
+            }
+            else
+            {
+                validLegs += 1;
             }
             i += 1;
         }
