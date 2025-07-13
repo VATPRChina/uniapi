@@ -133,7 +133,9 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             {
                 Field = Violation.FieldType.Route,
                 Type = Violation.ViolationType.NotRecommendedRoute,
-                Param = string.Join(",", prefRoutes.Select(r => r.RawRoute)),
+                Param = string.Join(",", prefRoutes
+                    .Where(r => !r.Remarks.Contains("AIP Route", StringComparison.InvariantCultureIgnoreCase))
+                    .Select(r => r.RawRoute)),
             });
         }
 
