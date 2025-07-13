@@ -14,7 +14,7 @@ WORKDIR "/src/"
 RUN dotnet restore --locked-mode -a $TARGETARCH
 
 COPY "." "/src/"
-RUN sed -i '' 's|<AssemblyVersion>0.0.1</AssemblyVersion>|<AssemblyVersion>${VERSION}</AssemblyVersion>|g' "/src/Net.Vatprc.Uniapi.csproj"
+RUN sed -i 's|<AssemblyVersion>0.0.1</AssemblyVersion>|<AssemblyVersion>${VERSION}</AssemblyVersion>|g' "/src/Net.Vatprc.Uniapi.csproj"
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
     dotnet build -c Release --no-self-contained --no-restore -a $TARGETARCH
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
