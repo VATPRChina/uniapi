@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Net.Vatprc.Uniapi.External.FlightPlan.Validator;
+using Net.Vatprc.Uniapi.External.FlightPlan.Validating;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Services;
 

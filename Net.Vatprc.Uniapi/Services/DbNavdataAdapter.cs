@@ -1,8 +1,8 @@
-using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
+using Net.Vatprc.Uniapi.External.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Utils;
 
-namespace Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer;
+namespace Net.Vatprc.Uniapi.External.FlightPlan.Lexing;
 
 public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
 {

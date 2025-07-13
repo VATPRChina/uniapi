@@ -1,4 +1,4 @@
-using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
+using Net.Vatprc.Uniapi.External.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Models.Navdata;
 
 namespace Net.Vatprc.Uniapi.External.FlightPlan;

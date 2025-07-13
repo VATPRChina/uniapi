@@ -1,6 +1,6 @@
-using Net.Vatprc.Uniapi.External.FlightPlan.RouteLexer;
-using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
-using Net.Vatprc.Uniapi.External.FlightPlan.Validator;
+using Net.Vatprc.Uniapi.External.FlightPlan.Lexing;
+using Net.Vatprc.Uniapi.External.FlightPlan.Parsing;
+using Net.Vatprc.Uniapi.External.FlightPlan.Validating;
 using Net.Vatprc.Uniapi.Models.Acdm;
 
 namespace Net.Vatprc.Uniapi.Services;
