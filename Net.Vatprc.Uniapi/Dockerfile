@@ -15,7 +15,7 @@ RUN dotnet restore --locked-mode -a $TARGETARCH
 
 COPY "." "/src/"
 RUN sed -i "s|<AssemblyVersion>0.0.1</AssemblyVersion>|<AssemblyVersion>${VERSION}</AssemblyVersion>|g" "/src/Net.Vatprc.Uniapi.csproj"
-ENV SENTRY_RELEASE=${VERSION}
+ENV SENTRY_RELEASE=Net.Vatprc.Uniapi@${VERSION}
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
     dotnet build -c Release --no-self-contained --no-restore -a $TARGETARCH
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
