@@ -5,6 +5,8 @@ ARG TARGETARCH
 RUN apt update && \
     apt install -y ca-certificates curl gnupg2
 
+RUN curl -sL https://sentry.io/get-cli/ | sh
+
 COPY "Net.Vatprc.Uniapi.csproj" "/src/"
 COPY "packages.lock.json" "/src/"
 WORKDIR "/src/"
