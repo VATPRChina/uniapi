@@ -8,12 +8,12 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
 {
     protected readonly Serilog.ILogger Logger = Log.ForContext<RouteParser>();
     protected readonly RouteLexer.RouteLexer Lexer = new(rawRoute, navdata);
-    protected List<FlightLeg> Legs = [];
+    protected IList<FlightLeg> Legs = [];
     protected FlightFix? lastFixOverride = null;
     protected FlightFix LastFix => lastFixOverride ?? Legs.LastOrDefault()?.To
         ?? throw new InvalidOperationException("No last fix available.");
 
-    public async Task<List<FlightLeg>> Parse()
+    public async Task<IList<FlightLeg>> Parse()
     {
         Legs = [];
 

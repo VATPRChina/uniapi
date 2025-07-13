@@ -1,5 +1,3 @@
-using System.Text.Json;
-using Flurl;
 using Net.Vatprc.Uniapi.External.FlightPlan.RouteParser;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Utils;
@@ -7,13 +5,13 @@ using Serilog;
 
 namespace Net.Vatprc.Uniapi.External.FlightPlan.Validator;
 
-public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider navdata)
+public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider navdata)
 {
     protected readonly Flight Flight = flight;
-    protected readonly List<FlightLeg> Legs = legs;
+    protected readonly IList<FlightLeg> Legs = legs;
     protected readonly INavdataProvider Navdata = navdata;
 
-    protected readonly List<Violation> Violations = [];
+    protected readonly IList<Violation> Violations = [];
 
     protected static readonly Serilog.ILogger Logger = Log.ForContext<Validator>();
 
@@ -71,7 +69,7 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
         foreach (var prefRte in prefRoutes)
         {
             var prefRteParsed = await new RouteParser.RouteParser(prefRte.RawRoute, Navdata).Parse();
-            if (IsRouteMatchingExpected(Legs, prefRteParsed))
+            if (EnrouteRouteComparator.IsRouteMatchingExpected(Legs, prefRteParsed))
             {
                 foundMatchingRoute = true;
                 Logger.Information("Found matching route: {Route}", prefRte);
@@ -203,47 +201,4 @@ public class Validator(Flight flight, List<FlightLeg> legs, INavdataProvider nav
         return Violations;
     }
 
-    protected static bool IsRouteMatchingExpected(List<FlightLeg> actual, List<FlightLeg> expected)
-    {
-        int actualLeft = actual.FindIndex(l => l.Type != FlightLeg.LegType.Sid && l.From.Type != FlightFix.FixType.Airport);
-        if (actualLeft == -1) actualLeft = 0;
-        int actualRight = actual.FindLastIndex(l => l.Type != FlightLeg.LegType.Star && l.To.Type != FlightFix.FixType.Airport);
-        if (actualRight == -1) actualRight = actual.Count - 1;
-
-        int expectedIndex = expected.FindIndex(i => actual[actualLeft].From.Identifier == i.From.Identifier);
-        if (expectedIndex == -1)
-        {
-            Logger.Warning("Expected route does not start with actual route segment: {ActualSegment}",
-                actual[actualLeft].From.Identifier);
-            return false;
-        }
-        var expectedStart = expectedIndex;
-
-        for (int i = actualLeft; i <= actualRight; i++)
-        {
-            if (expectedIndex >= expected.Count)
-            {
-                break;
-            }
-            if (expected[expectedIndex].From.Identifier != actual[i].From.Identifier
-                || expected[expectedIndex].To.Identifier != actual[i].To.Identifier)
-            {
-                return false;
-            }
-
-            expectedIndex++;
-        }
-
-        if (expectedIndex - expectedStart < 1)
-        {
-            Logger.Warning("Matched expected route is empty");
-            return false;
-        }
-
-        Logger.Information("Route matches expected route from {From} to {To} for expected route segments: {FromIdent} to {ToIdent}",
-            actual[actualLeft].From.Identifier, actual[actualRight].To.Identifier,
-            expected[expectedStart].From.Identifier, expected[expectedIndex - 1].To.Identifier);
-
-        return true;
-    }
 }
