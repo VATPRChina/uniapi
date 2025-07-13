@@ -69,7 +69,21 @@ public class FlightWorker(
         await ClearFinalizedFlights(db, data, ct);
         foreach (var pilot in data.Pilots)
         {
-            await UpdateFlight(db, pilot, ct);
+            try
+            {
+                await UpdateFlight(db, pilot, ct);
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e, "Failed to update flight for pilot {Callsign}.", pilot.Callsign);
+                e.SetSentryMechanism(nameof(FlightWorker), handled: false);
+                SentrySdk.CaptureException(e, scope =>
+                {
+                    scope.TransactionName = $"{nameof(FlightWorker)}@{pilot.Callsign}";
+                    scope.SetTag("callsign", pilot.Callsign);
+                    scope.SetExtra("cid", pilot.Cid.ToString());
+                });
+            }
         }
     }
 
