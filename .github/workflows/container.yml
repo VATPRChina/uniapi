@@ -39,3 +39,5 @@ jobs:
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          secret-envs: |
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
