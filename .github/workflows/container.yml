@@ -30,7 +30,7 @@ jobs:
             type=raw,value=1.0.${{ github.run_number }}
 
       - name: Publish images
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: Net.Vatprc.Uniapi
           tags: ${{ steps.meta.outputs.tags }}
@@ -39,5 +39,5 @@ jobs:
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          secret-envs: |
+          secrets: |
             SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}

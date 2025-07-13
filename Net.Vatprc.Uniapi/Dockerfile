@@ -11,8 +11,10 @@ WORKDIR "/src/"
 RUN dotnet restore --locked-mode -a $TARGETARCH
 
 COPY "." "/src/"
-RUN dotnet build -c Release --no-self-contained --no-restore -a $TARGETARCH
-RUN dotnet publish -c Release -o /app/publish --no-self-contained --no-restore -a $TARGETARCH
+RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
+    dotnet build -c Release --no-self-contained --no-restore -a $TARGETARCH
+RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
+    dotnet publish -c Release -o /app/publish --no-self-contained --no-restore -a $TARGETARCH
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
