@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <AssemblyVersion>22.09.0</AssemblyVersion>
+    <AssemblyVersion>0.0.1</AssemblyVersion>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -83,7 +83,7 @@
     <SentryOrg>xfoxfu</SentryOrg>
     <SentryProject>vatprc-uniapi</SentryProject>
 
-    <!-- <SentryCreateRelease>true</SentryCreateRelease> -->
+    <SentryCreateRelease>true</SentryCreateRelease>
     <!-- <SentrySetCommits>true</SentrySetCommits> -->
     <SentryUploadSymbols>true</SentryUploadSymbols>
     <SentryUploadSources>true</SentryUploadSources>
