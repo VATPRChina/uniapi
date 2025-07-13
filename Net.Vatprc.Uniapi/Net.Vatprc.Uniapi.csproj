@@ -83,8 +83,8 @@
     <SentryOrg>xfoxfu</SentryOrg>
     <SentryProject>vatprc-uniapi</SentryProject>
 
-    <SentryCreateRelease>true</SentryCreateRelease>
-    <SentrySetCommits>true</SentrySetCommits>
+    <!-- <SentryCreateRelease>true</SentryCreateRelease> -->
+    <!-- <SentrySetCommits>true</SentrySetCommits> -->
     <SentryUploadSymbols>true</SentryUploadSymbols>
     <SentryUploadSources>true</SentryUploadSources>
   </PropertyGroup>
