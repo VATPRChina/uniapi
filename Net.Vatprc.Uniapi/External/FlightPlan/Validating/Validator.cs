@@ -176,9 +176,10 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                         Type = Violation.ViolationType.LegDirection,
                     });
                 }
-                if (toLeg.SequenceNumber <= fromLeg.SequenceNumber && fromLeg.DirectionalRestriction == 'F')
+                // TODO: test for KARSI[5720] * - TR[5750] F is bidirectional
+                if (toLeg.SequenceNumber <= fromLeg.SequenceNumber && toLeg.DirectionalRestriction == 'F')
                 {
-                    Logger.Information("Violation found: From leg is forward.");
+                    Logger.Information("Violation found: To leg is forward.");
                     Violations.Add(new Violation
                     {
                         Field = Violation.FieldType.Route,
