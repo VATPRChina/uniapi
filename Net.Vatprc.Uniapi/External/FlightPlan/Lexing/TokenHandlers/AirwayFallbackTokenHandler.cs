@@ -8,12 +8,8 @@ public class AirwayFallbackTokenHandler : ITokenHandler
 
     public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
-        return (context.LastSegment?.Kind == RouteTokenKind.VHF
-                || context.LastSegment?.Kind == RouteTokenKind.NDB
-                || context.LastSegment?.Kind == RouteTokenKind.WAYPOINT)
-            && (context.NextSegment?.Kind == RouteTokenKind.VHF
-                || context.NextSegment?.Kind == RouteTokenKind.NDB
-                || context.NextSegment?.Kind == RouteTokenKind.WAYPOINT)
+        return (context.LastSegment?.Kind.IsFix() ?? false)
+            && (context.NextSegment?.Kind.IsFix() ?? false)
             && context.CurrentSegment.Kind == RouteTokenKind.UNKNOWN
             && new Regex("^[A-Za-z][0-9]+$").IsMatch(context.CurrentSegment.Value);
     }
