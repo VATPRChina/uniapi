@@ -86,12 +86,12 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                         Type = ValidationMessage.ViolationType.CruisingLevelMismatch,
                         Param = prefRte.CruisingLevelRestriction switch
                         {
-                            Models.Navdata.PreferredRoute.LevelRestrictionType.StandardEven => "standard_even",
-                            Models.Navdata.PreferredRoute.LevelRestrictionType.StandardOdd => "standard_odd",
-                            Models.Navdata.PreferredRoute.LevelRestrictionType.Standard => "standard",
-                            Models.Navdata.PreferredRoute.LevelRestrictionType.FlightLevelEven => "flight_level_even",
-                            Models.Navdata.PreferredRoute.LevelRestrictionType.FlightLevelOdd => "flight_level_odd",
-                            Models.Navdata.PreferredRoute.LevelRestrictionType.FlightLevel => "flight_level",
+                            PreferredRoute.LevelRestrictionType.StandardEven => "standard_even",
+                            PreferredRoute.LevelRestrictionType.StandardOdd => "standard_odd",
+                            PreferredRoute.LevelRestrictionType.Standard => "standard",
+                            PreferredRoute.LevelRestrictionType.FlightLevelEven => "flight_level_even",
+                            PreferredRoute.LevelRestrictionType.FlightLevelOdd => "flight_level_odd",
+                            PreferredRoute.LevelRestrictionType.FlightLevel => "flight_level",
                             _ => "unknown"
                         }
                     });
@@ -153,7 +153,8 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
         {
             if (leg.LegId == null && leg.LegIdentifier == "DCT"
                 && leg.From.Type != FlightFix.FixType.Airport
-                && leg.To.Type != FlightFix.FixType.Airport)
+                && leg.To.Type != FlightFix.FixType.Airport
+                && matchingRoute == null)
             {
                 Messages.Add(new ValidationMessage
                 {
@@ -176,7 +177,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 Logger.Information("Restrictions: From leg: {FromLeg}, To leg: {ToLeg}", fromLeg.DirectionalRestriction, toLeg.DirectionalRestriction);
                 Logger.Information("Sequence numbers: From leg: {FromSeq}, To leg: {ToSeq}",
                     fromLeg.SequenceNumber, toLeg.SequenceNumber);
-                if (fromLeg.SequenceNumber <= toLeg.SequenceNumber && fromLeg.DirectionalRestriction == 'B')
+                if (fromLeg.SequenceNumber <= toLeg.SequenceNumber && fromLeg.DirectionalRestriction == 'B' && matchingRoute == null)
                 {
                     Logger.Information("Violation found: From leg is backward.");
                     Messages.Add(new ValidationMessage
@@ -187,7 +188,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                     });
                 }
                 // TODO: test for KARSI[5720] * - TR[5750] F is bidirectional
-                if (toLeg.SequenceNumber <= fromLeg.SequenceNumber && toLeg.DirectionalRestriction == 'F')
+                if (toLeg.SequenceNumber <= fromLeg.SequenceNumber && toLeg.DirectionalRestriction == 'F' && matchingRoute == null)
                 {
                     Logger.Information("Violation found: To leg is forward.");
                     Messages.Add(new ValidationMessage
@@ -199,7 +200,8 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 }
 
                 if (fromLeg.FixIcaoCode.StartsWith("Z")
-                    && (fromLeg.AirwayIdentifier!.StartsWith("V") || fromLeg.AirwayIdentifier!.StartsWith("X")))
+                    && (fromLeg.AirwayIdentifier!.StartsWith("V") || fromLeg.AirwayIdentifier!.StartsWith("X"))
+                    && matchingRoute == null)
                 {
                     Messages.Add(new ValidationMessage
                     {
