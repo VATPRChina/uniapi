@@ -103,4 +103,9 @@ public static class AltitudeHelper
             _ => throw new InvalidOperationException($"Unexpected level restriction type: {expected}"),
         };
     }
+
+    public static bool IsInRvsm(long cruisingLevel)
+    {
+        return cruisingLevel >= 29000 && cruisingLevel <= 41100;
+    }
 }

@@ -27,7 +27,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             });
         }
 
-        if (!Flight.SupportRnav1Equipment)
+        if (!Flight.SupportRnav1Equipment && AltitudeHelper.IsInRvsm(Flight.CruisingLevel))
         {
             Messages.Add(new ValidationMessage
             {
