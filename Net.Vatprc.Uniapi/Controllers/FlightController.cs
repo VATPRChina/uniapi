@@ -105,6 +105,9 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 
         [Description("The cruising level is not allowed for the preferred route.")]
         cruising_level_not_allowed,
+
+        [Description("The planned route is matching a preferred route.")]
+        route_match_preferred,
     }
 
     public enum WarningMessageField
@@ -160,7 +163,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
                             ValidationMessage.ViolationType.CruisingLevelMismatch => WarningMessageCode.cruising_level_mismatch,
                             ValidationMessage.ViolationType.CruisingLevelTooLow => WarningMessageCode.cruising_level_too_low,
                             ValidationMessage.ViolationType.CruisingLevelNotAllowed => WarningMessageCode.cruising_level_not_allowed,
-                            ValidationMessage.ViolationType.RouteMatchPreferred => throw new NotImplementedException(),
+                            ValidationMessage.ViolationType.RouteMatchPreferred => WarningMessageCode.route_match_preferred,
                             _ => throw new InvalidEnumArgumentException($"Unexpected violation type {v.Type}"),
                         },
                         Field = v.Field switch
