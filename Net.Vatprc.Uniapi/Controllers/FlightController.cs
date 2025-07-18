@@ -148,31 +148,32 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
                     {
                         MessageCode = v.Type switch
                         {
-                            Violation.ViolationType.NoRvsm => WarningMessageCode.no_rvsm,
-                            Violation.ViolationType.NoRnav1 => WarningMessageCode.no_rnav1,
-                            Violation.ViolationType.RnpAr => WarningMessageCode.rnp_ar,
-                            Violation.ViolationType.RnpArWithoutRf => WarningMessageCode.rnp_ar_without_rf,
-                            Violation.ViolationType.NoTransponder => WarningMessageCode.no_transponder,
-                            Violation.ViolationType.Direct => WarningMessageCode.route_direct_segment,
-                            Violation.ViolationType.LegDirection => WarningMessageCode.route_leg_direction,
-                            Violation.ViolationType.AirwayRequireApproval => WarningMessageCode.airway_require_approval,
-                            Violation.ViolationType.NotRecommendedRoute => WarningMessageCode.not_preferred_route,
-                            Violation.ViolationType.CruisingLevelMismatch => WarningMessageCode.cruising_level_mismatch,
-                            Violation.ViolationType.CruisingLevelTooLow => WarningMessageCode.cruising_level_too_low,
-                            Violation.ViolationType.CruisingLevelNotAllowed => WarningMessageCode.cruising_level_not_allowed,
+                            ValidationMessage.ViolationType.NoRvsm => WarningMessageCode.no_rvsm,
+                            ValidationMessage.ViolationType.NoRnav1 => WarningMessageCode.no_rnav1,
+                            ValidationMessage.ViolationType.RnpAr => WarningMessageCode.rnp_ar,
+                            ValidationMessage.ViolationType.RnpArWithoutRf => WarningMessageCode.rnp_ar_without_rf,
+                            ValidationMessage.ViolationType.NoTransponder => WarningMessageCode.no_transponder,
+                            ValidationMessage.ViolationType.Direct => WarningMessageCode.route_direct_segment,
+                            ValidationMessage.ViolationType.LegDirectionViolation => WarningMessageCode.route_leg_direction,
+                            ValidationMessage.ViolationType.AirwayRequireApproval => WarningMessageCode.airway_require_approval,
+                            ValidationMessage.ViolationType.NotRecommendedRoute => WarningMessageCode.not_preferred_route,
+                            ValidationMessage.ViolationType.CruisingLevelMismatch => WarningMessageCode.cruising_level_mismatch,
+                            ValidationMessage.ViolationType.CruisingLevelTooLow => WarningMessageCode.cruising_level_too_low,
+                            ValidationMessage.ViolationType.CruisingLevelNotAllowed => WarningMessageCode.cruising_level_not_allowed,
+                            ValidationMessage.ViolationType.RouteMatchPreferred => throw new NotImplementedException(),
                             _ => throw new InvalidEnumArgumentException($"Unexpected violation type {v.Type}"),
                         },
                         Field = v.Field switch
                         {
-                            Violation.FieldType.Equipment => WarningMessageField.equipment,
-                            Violation.FieldType.Transponder => WarningMessageField.transponder,
-                            Violation.FieldType.NavigationPerformance => WarningMessageField.navigation_performance,
-                            Violation.FieldType.Route => WarningMessageField.route,
-                            Violation.FieldType.CruisingLevel => WarningMessageField.cruising_level,
+                            ValidationMessage.FieldType.Equipment => WarningMessageField.equipment,
+                            ValidationMessage.FieldType.Transponder => WarningMessageField.transponder,
+                            ValidationMessage.FieldType.NavigationPerformance => WarningMessageField.navigation_performance,
+                            ValidationMessage.FieldType.Route => WarningMessageField.route,
+                            ValidationMessage.FieldType.CruisingLevel => WarningMessageField.cruising_level,
                             _ => throw new InvalidEnumArgumentException($"Unexpected violation field {v.Field}"),
                         },
                         Parameter = v.Param,
-                        FieldIndex = v.FieldParam
+                        FieldIndex = v.FieldParam,
                     };
                 });
     }

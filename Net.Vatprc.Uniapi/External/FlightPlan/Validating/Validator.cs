@@ -1,5 +1,6 @@
 using Net.Vatprc.Uniapi.External.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Models.Acdm;
+using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Utils;
 using Serilog;
 
@@ -11,67 +12,67 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
     protected readonly IList<FlightLeg> Legs = legs;
     protected readonly INavdataProvider Navdata = navdata;
 
-    protected readonly IList<Violation> Violations = [];
+    protected readonly IList<ValidationMessage> Messages = [];
 
     protected static readonly Serilog.ILogger Logger = Log.ForContext<Validator>();
 
-    public async Task<IList<Violation>> Validate()
+    public async Task<IList<ValidationMessage>> Validate()
     {
         if (!Flight.SupportRvsm)
         {
-            Violations.Add(new Violation
+            Messages.Add(new ValidationMessage
             {
-                Field = Violation.FieldType.Equipment,
-                Type = Violation.ViolationType.NoRvsm,
+                Field = ValidationMessage.FieldType.Equipment,
+                Type = ValidationMessage.ViolationType.NoRvsm,
             });
         }
 
         if (!Flight.SupportRnav1Equipment)
         {
-            Violations.Add(new Violation
+            Messages.Add(new ValidationMessage
             {
-                Field = Violation.FieldType.Equipment,
-                Type = Violation.ViolationType.NoRnav1,
+                Field = ValidationMessage.FieldType.Equipment,
+                Type = ValidationMessage.ViolationType.NoRnav1,
             });
         }
 
         if (!Flight.SupportRnav1Pbn)
         {
-            Violations.Add(new Violation
+            Messages.Add(new ValidationMessage
             {
-                Field = Violation.FieldType.NavigationPerformance,
-                Type = Violation.ViolationType.NoRnav1,
+                Field = ValidationMessage.FieldType.NavigationPerformance,
+                Type = ValidationMessage.ViolationType.NoRnav1,
             });
         }
 
         if (Flight.SupportRnpArWithoutRf)
         {
-            Violations.Add(new Violation
+            Messages.Add(new ValidationMessage
             {
-                Field = Violation.FieldType.NavigationPerformance,
-                Type = Violation.ViolationType.RnpArWithoutRf,
+                Field = ValidationMessage.FieldType.NavigationPerformance,
+                Type = ValidationMessage.ViolationType.RnpArWithoutRf,
             });
         }
 
         if (Flight.SupportRnpArWithRf)
         {
-            Violations.Add(new Violation
+            Messages.Add(new ValidationMessage
             {
-                Field = Violation.FieldType.NavigationPerformance,
-                Type = Violation.ViolationType.RnpAr,
+                Field = ValidationMessage.FieldType.NavigationPerformance,
+                Type = ValidationMessage.ViolationType.RnpAr,
             });
         }
 
         var prefRoutes = await Navdata.GetRecommendedRoutes(Flight.Departure, Flight.Arrival);
         Logger.Information("Recommended routes for {Dep} to {Arr}: {Routes}",
             Flight.Departure, Flight.Arrival, prefRoutes);
-        bool foundMatchingRoute = prefRoutes.Count == 0;
+        PreferredRoute? matchingRoute = null;
         foreach (var prefRte in prefRoutes)
         {
             var prefRteParsed = await new RouteParser(prefRte.RawRoute, Navdata).Parse();
             if (EnrouteRouteComparator.IsRouteMatchingExpected(Legs, prefRteParsed))
             {
-                foundMatchingRoute = true;
+                matchingRoute = prefRte;
                 Logger.Information("Found matching route: {Route}", prefRte);
 
                 var cruisingLevelType = AltitudeHelper.GetLevelRestrictionTypeFromCruisingLevel((int)Flight.CruisingLevel);
@@ -79,10 +80,10 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 {
                     Logger.Information("Cruising level type mismatch: {Expected} vs {Actual}",
                         prefRte.CruisingLevelRestriction, cruisingLevelType);
-                    Violations.Add(new Violation
+                    Messages.Add(new ValidationMessage
                     {
-                        Field = Violation.FieldType.CruisingLevel,
-                        Type = Violation.ViolationType.CruisingLevelMismatch,
+                        Field = ValidationMessage.FieldType.CruisingLevel,
+                        Type = ValidationMessage.ViolationType.CruisingLevelMismatch,
                         Param = prefRte.CruisingLevelRestriction switch
                         {
                             Models.Navdata.PreferredRoute.LevelRestrictionType.StandardEven => "standard_even",
@@ -100,10 +101,10 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 {
                     Logger.Information("Cruising level {CruisingLevel} is not allowed by preferred route {Route}",
                         Flight.CruisingLevel, prefRte);
-                    Violations.Add(new Violation
+                    Messages.Add(new ValidationMessage
                     {
-                        Field = Violation.FieldType.CruisingLevel,
-                        Type = Violation.ViolationType.CruisingLevelNotAllowed,
+                        Field = ValidationMessage.FieldType.CruisingLevel,
+                        Type = ValidationMessage.ViolationType.CruisingLevelNotAllowed,
                         Param = string.Join(",", prefRte.AllowedAltitudes)
                     });
                 }
@@ -112,10 +113,10 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 {
                     Logger.Information("Cruising level {CruisingLevel} is below minimal altitude {MinimalAltitude} for preferred route {Route}",
                         Flight.CruisingLevel, prefRte.MinimalAltitude, prefRte);
-                    Violations.Add(new Violation
+                    Messages.Add(new ValidationMessage
                     {
-                        Field = Violation.FieldType.CruisingLevel,
-                        Type = Violation.ViolationType.CruisingLevelTooLow,
+                        Field = ValidationMessage.FieldType.CruisingLevel,
+                        Type = ValidationMessage.ViolationType.CruisingLevelTooLow,
                         Param = prefRte.MinimalAltitude.ToString()
                     });
                 }
@@ -127,15 +128,24 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 Logger.Information("Expected route {Expected} does not match.", prefRte);
             }
         }
-        if (!foundMatchingRoute)
+        if (matchingRoute == null && prefRoutes.Any())
         {
-            Violations.Add(new Violation
+            Messages.Add(new ValidationMessage
             {
-                Field = Violation.FieldType.Route,
-                Type = Violation.ViolationType.NotRecommendedRoute,
+                Field = ValidationMessage.FieldType.Route,
+                Type = ValidationMessage.ViolationType.NotRecommendedRoute,
                 Param = string.Join(",", prefRoutes
                     .Where(r => !r.Remarks.Contains("AIP Route", StringComparison.InvariantCultureIgnoreCase))
                     .Select(r => r.RawRoute)),
+            });
+        }
+        if (matchingRoute != null)
+        {
+            Messages.Add(new ValidationMessage
+            {
+                Field = ValidationMessage.FieldType.Route,
+                Type = ValidationMessage.ViolationType.RouteMatchPreferred,
+                Param = matchingRoute.RawRoute,
             });
         }
 
@@ -145,11 +155,11 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 && leg.From.Type != FlightFix.FixType.Airport
                 && leg.To.Type != FlightFix.FixType.Airport)
             {
-                Violations.Add(new Violation
+                Messages.Add(new ValidationMessage
                 {
-                    Field = Violation.FieldType.Route,
+                    Field = ValidationMessage.FieldType.Route,
                     FieldParam = index,
-                    Type = Violation.ViolationType.Direct,
+                    Type = ValidationMessage.ViolationType.Direct,
                 });
             }
 
@@ -169,39 +179,39 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 if (fromLeg.SequenceNumber <= toLeg.SequenceNumber && fromLeg.DirectionalRestriction == 'B')
                 {
                     Logger.Information("Violation found: From leg is backward.");
-                    Violations.Add(new Violation
+                    Messages.Add(new ValidationMessage
                     {
-                        Field = Violation.FieldType.Route,
+                        Field = ValidationMessage.FieldType.Route,
                         FieldParam = index,
-                        Type = Violation.ViolationType.LegDirection,
+                        Type = ValidationMessage.ViolationType.LegDirectionViolation,
                     });
                 }
                 // TODO: test for KARSI[5720] * - TR[5750] F is bidirectional
                 if (toLeg.SequenceNumber <= fromLeg.SequenceNumber && toLeg.DirectionalRestriction == 'F')
                 {
                     Logger.Information("Violation found: To leg is forward.");
-                    Violations.Add(new Violation
+                    Messages.Add(new ValidationMessage
                     {
-                        Field = Violation.FieldType.Route,
+                        Field = ValidationMessage.FieldType.Route,
                         FieldParam = index,
-                        Type = Violation.ViolationType.LegDirection,
+                        Type = ValidationMessage.ViolationType.LegDirectionViolation,
                     });
                 }
 
                 if (fromLeg.FixIcaoCode.StartsWith("Z")
                     && (fromLeg.AirwayIdentifier!.StartsWith("V") || fromLeg.AirwayIdentifier!.StartsWith("X")))
                 {
-                    Violations.Add(new Violation
+                    Messages.Add(new ValidationMessage
                     {
-                        Field = Violation.FieldType.Route,
+                        Field = ValidationMessage.FieldType.Route,
                         FieldParam = index,
-                        Type = Violation.ViolationType.AirwayRequireApproval,
+                        Type = ValidationMessage.ViolationType.AirwayRequireApproval,
                     });
                 }
             }
         }
 
-        return Violations;
+        return Messages;
     }
 
 }

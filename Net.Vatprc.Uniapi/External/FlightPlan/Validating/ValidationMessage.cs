@@ -1,6 +1,6 @@
 namespace Net.Vatprc.Uniapi.External.FlightPlan.Validating;
 
-public class Violation
+public class ValidationMessage
 {
     public required FieldType Field { get; set; }
     public int? FieldParam { get; set; }
@@ -24,11 +24,12 @@ public class Violation
         RnpArWithoutRf,
         NoTransponder,
         Direct,
-        LegDirection,
+        LegDirectionViolation,
         AirwayRequireApproval,
         NotRecommendedRoute,
         CruisingLevelMismatch,
         CruisingLevelTooLow,
         CruisingLevelNotAllowed,
+        RouteMatchPreferred,
     }
 }

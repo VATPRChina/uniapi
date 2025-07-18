@@ -15,7 +15,7 @@ public class RouteParseService(DbNavdataAdapter navdata)
         return await parser.Parse();
     }
 
-    public async Task<IList<Violation>> ValidateFlight(Flight flight, IList<FlightLeg> legs)
+    public async Task<IList<ValidationMessage>> ValidateFlight(Flight flight, IList<FlightLeg> legs)
     {
         var validator = new Validator(flight, legs, Navdata);
         return await validator.Validate();
