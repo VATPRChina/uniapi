@@ -90,4 +90,9 @@ public class Arinc424NavdataAdapter : INavdataProvider
     {
         throw new NotImplementedException();
     }
+
+    public Task<string?> GetFullQualifiedFixIdentifier(Ulid id, INavdataProvider.FixType type)
+    {
+        throw new NotImplementedException();
+    }
 }

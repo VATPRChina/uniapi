@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Net.Vatprc.Uniapi.External.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Models.Navdata;
@@ -156,12 +157,36 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 && leg.To.Type != FlightFix.FixType.Airport
                 && matchingRoute == null)
             {
-                Messages.Add(new ValidationMessage
+                var fromFix = await Navdata.GetFullQualifiedFixIdentifier(leg.From.Id, leg.From.Type switch
                 {
-                    Field = ValidationMessage.FieldType.Route,
-                    FieldParam = index,
-                    Type = ValidationMessage.ViolationType.Direct,
+                    FlightFix.FixType.Airport => INavdataProvider.FixType.Unknown,
+                    FlightFix.FixType.Waypoint => INavdataProvider.FixType.Waypoint,
+                    FlightFix.FixType.Vhf => INavdataProvider.FixType.Vhf,
+                    FlightFix.FixType.Ndb => INavdataProvider.FixType.Ndb,
+                    FlightFix.FixType.GeoCoord => INavdataProvider.FixType.Unknown,
+                    FlightFix.FixType.Unknown => INavdataProvider.FixType.Unknown,
+                    _ => throw new InvalidEnumArgumentException($"Unexpected fix type: {leg.From.Type}"),
                 });
+                var toFix = await Navdata.GetFullQualifiedFixIdentifier(leg.To.Id, leg.To.Type switch
+                {
+                    FlightFix.FixType.Airport => INavdataProvider.FixType.Unknown,
+                    FlightFix.FixType.Waypoint => INavdataProvider.FixType.Waypoint,
+                    FlightFix.FixType.Vhf => INavdataProvider.FixType.Vhf,
+                    FlightFix.FixType.Ndb => INavdataProvider.FixType.Ndb,
+                    FlightFix.FixType.GeoCoord => INavdataProvider.FixType.Unknown,
+                    FlightFix.FixType.Unknown => INavdataProvider.FixType.Unknown,
+                    _ => throw new InvalidEnumArgumentException($"Unexpected fix type: {leg.To.Type}"),
+                });
+                if ((fromFix == null || fromFix.StartsWith("Z"))
+                    && (toFix == null || toFix.StartsWith("Z")))
+                {
+                    Messages.Add(new ValidationMessage
+                    {
+                        Field = ValidationMessage.FieldType.Route,
+                        FieldParam = index,
+                        Type = ValidationMessage.ViolationType.Direct,
+                    });
+                }
             }
 
             if (leg.LegId != null)
@@ -200,6 +225,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 }
 
                 if (fromLeg.FixIcaoCode.StartsWith("Z")
+                    && toLeg.FixIcaoCode.StartsWith("Z")
                     && (fromLeg.AirwayIdentifier!.StartsWith("V") || fromLeg.AirwayIdentifier!.StartsWith("X"))
                     && matchingRoute == null)
                 {
@@ -215,5 +241,4 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
 
         return Messages;
     }
-
 }

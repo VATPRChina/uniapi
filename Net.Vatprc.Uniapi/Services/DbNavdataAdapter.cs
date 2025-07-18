@@ -115,4 +115,31 @@ public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
 
         return recommendedRoute;
     }
+
+    public async Task<string?> GetFullQualifiedFixIdentifier(Ulid id, INavdataProvider.FixType type)
+    {
+        if (type == INavdataProvider.FixType.Unknown)
+        {
+            return null;
+        }
+        if (type == INavdataProvider.FixType.Vhf)
+        {
+            var vhf = await DbContext.VhfNavaid.Where(v => v.Id == id).FirstOrDefaultAsync();
+            if (vhf == null) return null;
+            return $"{vhf.IcaoCode}/{vhf.VorIdentifier ?? vhf.DmeIdentifier}";
+        }
+        if (type == INavdataProvider.FixType.Ndb)
+        {
+            var ndb = await DbContext.NdbNavaid.Where(n => n.Id == id).FirstOrDefaultAsync();
+            if (ndb == null) return null;
+            return $"{ndb.IcaoCode}/{ndb.Identifier}";
+        }
+        if (type == INavdataProvider.FixType.Waypoint)
+        {
+            var waypoint = await DbContext.Waypoint.Where(w => w.Id == id).FirstOrDefaultAsync();
+            if (waypoint == null) return null;
+            return $"{waypoint.IcaoCode}/{waypoint.Identifier}";
+        }
+        return null;
+    }
 }
