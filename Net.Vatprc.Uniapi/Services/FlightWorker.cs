@@ -121,6 +121,11 @@ public class FlightWorker(
                 return;
             }
         }
+        if (pilot.FlightPlan.Departure == pilot.FlightPlan.Arrival)
+        {
+            Logger.LogDebug("Ignore {Callsign} with same departure and arrival airport.", pilot.Callsign);
+            return;
+        }
         Logger.LogDebug("Discovered flight: {Callsign}", pilot.Callsign);
 
         var flight = await db.Flight
