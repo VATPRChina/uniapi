@@ -126,6 +126,11 @@ public class FlightWorker(
             Logger.LogDebug("Ignore {Callsign} with same departure and arrival airport.", pilot.Callsign);
             return;
         }
+        if (pilot.FlightPlan.FlightRules != "I")
+        {
+            Logger.LogDebug("Ignore {Callsign} with flight rules {FlightRules} (not IFR).", pilot.Callsign, pilot.FlightPlan.FlightRules);
+            return;
+        }
         Logger.LogDebug("Discovered flight: {Callsign}", pilot.Callsign);
 
         var flight = await db.Flight
