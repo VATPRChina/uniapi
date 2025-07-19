@@ -30,7 +30,8 @@ public class EnrouteRouteComparator
                 break;
             }
             if (expected[expectedIndex].From.Identifier != actual[i].From.Identifier
-                || expected[expectedIndex].To.Identifier != actual[i].To.Identifier)
+                || expected[expectedIndex].To.Identifier != actual[i].To.Identifier
+                || expected[expectedIndex].LegIdentifier != actual[i].LegIdentifier)
             {
                 return false;
             }
