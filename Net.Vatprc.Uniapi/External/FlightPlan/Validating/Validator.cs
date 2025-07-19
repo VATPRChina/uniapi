@@ -146,7 +146,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             {
                 Field = ValidationMessage.FieldType.Route,
                 Type = ValidationMessage.ViolationType.RouteMatchPreferred,
-                Param = matchingRoute.RawRoute,
+                Param = flight.RawRoute ?? string.Empty,
             });
         }
 
