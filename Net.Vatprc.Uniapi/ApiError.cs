@@ -278,4 +278,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.NotFound, "CALLSIGN_NOT_FOUND", "Callsign {callsign} is not found.")]
     public class CallsignNotFound(string callsign) :
         ApiError($"Callsign {callsign} is not found.");
+
+    [Error(HttpStatusCode.NotFound, "FLIGHT_NOT_FOUND_FOR_CID", "Flight for CID {cid} is not found.")]
+    public class FlightNotFoundForCid(string cid) :
+        ApiError($"Flight for CID {cid} is not found.");
 }

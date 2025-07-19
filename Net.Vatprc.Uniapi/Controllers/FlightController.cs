@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.External.FlightPlan.Validating;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Services;
+using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -225,5 +226,16 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
             });
         }
         return null!;
+    }
+
+    [HttpGet("mine")]
+    public async Task<FlightDto> GetMyFlight()
+    {
+        var user = await DbContext.User.FindAsync(this.GetUserId()) ??
+            throw new ApiError.UserNotFound(this.GetUserId());
+
+        var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Cid == user.Cid && f.FinalizedAt == null)
+            ?? throw new ApiError.FlightNotFoundForCid(user.Cid);
+        return new FlightDto(flight);
     }
 }
