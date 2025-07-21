@@ -7,7 +7,7 @@ using Serilog;
 
 namespace Net.Vatprc.Uniapi.External.FlightPlan.Validating;
 
-public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider navdata)
+public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider navdata, RouteParserFactory routeParserFactory)
 {
     protected readonly Flight Flight = flight;
     protected readonly IList<FlightLeg> Legs = legs;
@@ -16,6 +16,8 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
     protected readonly IList<ValidationMessage> Messages = [];
 
     protected static readonly Serilog.ILogger Logger = Log.ForContext<Validator>();
+
+    protected readonly RouteParserFactory RouteParserFactory = routeParserFactory;
 
     public async Task<IList<ValidationMessage>> Validate(CancellationToken ct = default)
     {
@@ -75,7 +77,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 Logger.Warning("Validation cancelled.");
                 return Messages;
             }
-            var prefRteParsed = await new RouteParser(prefRte.RawRoute, Navdata).Parse(ct);
+            var prefRteParsed = await RouteParserFactory.Create(prefRte.RawRoute, Navdata).Parse(ct);
             if (EnrouteRouteComparator.IsRouteMatchingExpected(Legs, prefRteParsed, ct))
             {
                 matchingRoute = prefRte;

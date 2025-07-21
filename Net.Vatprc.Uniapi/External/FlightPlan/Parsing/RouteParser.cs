@@ -1,19 +1,41 @@
+using Microsoft.Extensions.Caching.Memory;
 using Net.Vatprc.Uniapi.External.FlightPlan.Lexing;
 using Serilog;
 using static Net.Vatprc.Uniapi.External.FlightPlan.INavdataProvider;
 
 namespace Net.Vatprc.Uniapi.External.FlightPlan.Parsing;
 
-public class RouteParser(string rawRoute, INavdataProvider navdata)
+public class RouteParser
 {
     protected readonly Serilog.ILogger Logger = Log.ForContext<RouteParser>();
-    protected readonly RouteLexer Lexer = new(rawRoute, navdata);
+    protected readonly RouteLexer Lexer;
     protected IList<FlightLeg> Legs = [];
     protected FlightFix? lastFixOverride = null;
     protected FlightFix LastFix => lastFixOverride ?? Legs.LastOrDefault()?.To
         ?? throw new InvalidOperationException("No last fix available.");
+    protected IMemoryCache Cache;
+    protected INavdataProvider Navdata;
+    protected string RawRoute;
+
+    public RouteParser(string rawRoute, INavdataProvider navdata, IMemoryCache cache)
+    {
+        RawRoute = rawRoute;
+        Lexer = new(rawRoute, navdata);
+        Navdata = navdata;
+        Cache = cache;
+    }
 
     public async Task<IList<FlightLeg>> Parse(CancellationToken ct = default)
+    {
+        return await Cache.GetOrCreateAsync(RawRoute, async entry =>
+        {
+            Logger.Information("Parsing route: {RawRoute}, since cache entry not found.", RawRoute);
+            entry.SetSlidingExpiration(TimeSpan.FromHours(1));
+            return await ParseWithoutCache(ct);
+        }) ?? throw new InvalidOperationException("Failed to parse route.");
+    }
+
+    protected async Task<IList<FlightLeg>> ParseWithoutCache(CancellationToken ct = default)
     {
         Legs = [];
 
@@ -63,7 +85,7 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
             else if (segment.Kind == RouteTokenKind.AIRWAY)
             {
                 var legLookup = new Dictionary<string, Dictionary<string, AirwayLeg>>();
-                var airwayLegs = navdata.FindAirwayLegs(segment.Value);
+                var airwayLegs = Navdata.FindAirwayLegs(segment.Value);
                 await foreach (var leg in airwayLegs)
                 {
                     if (!legLookup.ContainsKey(leg.FromFixIdentifier))
@@ -91,11 +113,14 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
                 var fromFix = Lexer.Tokens[i - 1].Value;
                 var toFix = Lexer.Tokens[i + 1].Value;
                 var path = BFSPath(fromFix, toFix, legLookup, ct);
-                Logger.Information($"Found path from {fromFix} to {toFix} with {path.Count} legs.");
+                Logger.Information("Found path from {FromFix} to {ToFix} with {LegCount} legs.",
+                    fromFix, toFix, path.Count);
 
                 foreach (var leg in path)
                 {
-                    Logger.Information($"Adding leg from {leg.FromFixIdentifier}({leg.FromFixId}) to {leg.ToFixIdentifier}({leg.ToFixId}) ({leg.Ident})");
+                    Logger.Information(
+                        "Adding leg from {FromFixIdentifier}({FromFixId}) to {ToFixIdentifier}({ToFixId}) ({Ident})",
+                        leg.FromFixIdentifier, leg.FromFixId, leg.ToFixIdentifier, leg.ToFixId, leg.Ident);
                     Legs.Add(new FlightLeg
                     {
                         From = new FlightFix
@@ -252,7 +277,10 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
             return;
         }
 
-        Logger.Information($"Adding direct leg from {LastFix.Identifier}({LastFix.Id}) to {fix.Identifier}({fix.Id})");
+        Logger.Information(
+            "Adding direct leg from {FromIdentifier}({FromId}) to {ToIdentifier}({ToId})",
+            LastFix.Identifier, LastFix.Id, fix.Identifier, fix.Id);
+
         Legs.Add(new FlightLeg
         {
             From = LastFix,
