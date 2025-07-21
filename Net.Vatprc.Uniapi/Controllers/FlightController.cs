@@ -139,12 +139,12 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 
     [HttpGet("by-callsign/{callsign}/warnings")]
     [AllowAnonymous]
-    public async Task<IEnumerable<WarningMessage>> GetWarningByCallsign(string callsign)
+    public async Task<IEnumerable<WarningMessage>> GetWarningByCallsign(string callsign, CancellationToken ct)
     {
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
             ?? throw new ApiError.CallsignNotFound(callsign);
-        var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute, flight.Departure, flight.Arrival);
-        var violations = await RouteParse.ValidateFlight(flight, parsedRoute);
+        var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute, flight.Departure, flight.Arrival, ct);
+        var violations = await RouteParse.ValidateFlight(flight, parsedRoute, ct);
 
         return violations.Select(v =>
                 {
@@ -202,7 +202,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
             ?? throw new ApiError.CallsignNotFound(callsign);
         try
         {
-            var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute, flight.Departure, flight.Arrival);
+            var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute, flight.Departure, flight.Arrival, ct);
             return parsedRoute.Select(leg => new FlightLeg
             {
                 From = new FlightFix

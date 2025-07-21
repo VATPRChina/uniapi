@@ -31,8 +31,18 @@ public class RouteParser
         {
             Logger.Information("Parsing route: {RawRoute}, since cache entry not found.", RawRoute);
             entry.SetSlidingExpiration(TimeSpan.FromHours(1));
-            return await ParseWithoutCache(ct);
-        }) ?? throw new InvalidOperationException("Failed to parse route.");
+            var parsed = await ParseWithoutCache(ct);
+            if (!ct.IsCancellationRequested)
+            {
+                Logger.Information("Parsed route: {RawRoute} with {LegCount} legs.", RawRoute, parsed.Count);
+                return parsed;
+            }
+            else
+            {
+                Logger.Warning("Parsing of route {RawRoute} was cancelled.", RawRoute);
+                throw new OperationCanceledException("Parsing was cancelled.", ct);
+            }
+        }) ?? throw new InvalidOperationException("Unexpected null for parse result.");
     }
 
     protected async Task<IList<FlightLeg>> ParseWithoutCache(CancellationToken ct = default)
