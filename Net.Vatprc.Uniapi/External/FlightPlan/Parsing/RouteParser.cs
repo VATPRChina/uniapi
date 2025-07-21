@@ -90,7 +90,7 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
                 }
                 var fromFix = Lexer.Tokens[i - 1].Value;
                 var toFix = Lexer.Tokens[i + 1].Value;
-                var path = BFSPath(fromFix, toFix, legLookup);
+                var path = BFSPath(fromFix, toFix, legLookup, ct);
                 Logger.Information($"Found path from {fromFix} to {toFix} with {path.Count} legs.");
 
                 foreach (var leg in path)
@@ -191,7 +191,7 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
         return Legs;
     }
 
-    protected IList<AirwayLeg> BFSPath(string from, string to, Dictionary<string, Dictionary<string, AirwayLeg>> legs)
+    protected IList<AirwayLeg> BFSPath(string from, string to, Dictionary<string, Dictionary<string, AirwayLeg>> legs, CancellationToken ct = default)
     {
         var queue = new Queue<string>();
         var visited = new HashSet<string>();
@@ -202,6 +202,12 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
 
         while (queue.Count > 0)
         {
+            if (ct.IsCancellationRequested)
+            {
+                Logger.Warning("BFS path search cancelled.");
+                return [];
+            }
+
             var current = queue.Dequeue();
 
             if (current == to)
