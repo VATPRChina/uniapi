@@ -17,7 +17,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
 
     protected static readonly Serilog.ILogger Logger = Log.ForContext<Validator>();
 
-    public async Task<IList<ValidationMessage>> Validate()
+    public async Task<IList<ValidationMessage>> Validate(CancellationToken ct = default)
     {
         if (!Flight.SupportRvsm)
         {
@@ -70,8 +70,13 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
         PreferredRoute? matchingRoute = null;
         foreach (var prefRte in prefRoutes)
         {
-            var prefRteParsed = await new RouteParser(prefRte.RawRoute, Navdata).Parse();
-            if (EnrouteRouteComparator.IsRouteMatchingExpected(Legs, prefRteParsed))
+            if (ct.IsCancellationRequested)
+            {
+                Logger.Warning("Validation cancelled.");
+                return Messages;
+            }
+            var prefRteParsed = await new RouteParser(prefRte.RawRoute, Navdata).Parse(ct);
+            if (EnrouteRouteComparator.IsRouteMatchingExpected(Legs, prefRteParsed, ct))
             {
                 matchingRoute = prefRte;
                 Logger.Information("Found matching route: {Route}", prefRte);
@@ -146,12 +151,17 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             {
                 Field = ValidationMessage.FieldType.Route,
                 Type = ValidationMessage.ViolationType.RouteMatchPreferred,
-                Param = flight.RawRoute ?? string.Empty,
+                Param = Flight.RawRoute ?? string.Empty,
             });
         }
 
         foreach (var (leg, index) in Legs.Select((l, i) => (l, i)))
         {
+            if (ct.IsCancellationRequested)
+            {
+                Logger.Warning("Validation cancelled.");
+                return Messages;
+            }
             if (leg.LegId == null && leg.LegIdentifier == "DCT"
                 && leg.From.Type != FlightFix.FixType.Airport
                 && leg.To.Type != FlightFix.FixType.Airport

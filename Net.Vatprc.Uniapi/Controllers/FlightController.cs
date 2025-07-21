@@ -196,7 +196,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 
     [HttpGet("by-callsign/{callsign}/route")]
     [AllowAnonymous]
-    public async Task<IList<FlightLeg>> GetRouteByCallsign(string callsign)
+    public async Task<IList<FlightLeg>> GetRouteByCallsign(string callsign, CancellationToken ct)
     {
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
             ?? throw new ApiError.CallsignNotFound(callsign);

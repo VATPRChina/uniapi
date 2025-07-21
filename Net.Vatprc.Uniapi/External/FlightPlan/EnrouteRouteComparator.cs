@@ -6,7 +6,7 @@ public class EnrouteRouteComparator
 {
     protected static readonly Serilog.ILogger Logger = Serilog.Log.ForContext<EnrouteRouteComparator>();
 
-    public static bool IsRouteMatchingExpected(IList<FlightLeg> actual, IList<FlightLeg> expected)
+    public static bool IsRouteMatchingExpected(IList<FlightLeg> actual, IList<FlightLeg> expected, CancellationToken ct = default)
     {
         var actualFirstEnroute = actual.FirstOrDefault(l => l.Type != FlightLeg.LegType.Sid && l.From.Type != FlightFix.FixType.Airport);
         int actualLeft = actualFirstEnroute != null ? actual.IndexOf(actualFirstEnroute) : 0;
@@ -25,6 +25,11 @@ public class EnrouteRouteComparator
 
         for (int i = actualLeft; i <= actualRight; i++)
         {
+            if (ct.IsCancellationRequested)
+            {
+                Logger.Warning("Route comparison cancelled.");
+                return false;
+            }
             if (expectedIndex >= expected.Count)
             {
                 break;

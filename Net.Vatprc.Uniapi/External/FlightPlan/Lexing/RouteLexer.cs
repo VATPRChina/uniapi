@@ -108,11 +108,16 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
         MoveToNextSegment();
     }
 
-    public async Task ParseAllSegments()
+    public async Task ParseAllSegments(CancellationToken ct = default)
     {
         // Pass 1
         while (CurrentSegmentIndex < SegmentCount)
         {
+            if (ct.IsCancellationRequested)
+            {
+                Logger.Warning("Parsing cancelled.");
+                return;
+            }
             await ParseSegment(skipRequireNextSegment: true);
         }
         // Pass 2
@@ -121,6 +126,11 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
         CurrentLon = 0;
         while (CurrentSegmentIndex < SegmentCount)
         {
+            if (ct.IsCancellationRequested)
+            {
+                Logger.Warning("Parsing cancelled.");
+                return;
+            }
             await ParseSegment(skipRequireNextSegment: false);
         }
 

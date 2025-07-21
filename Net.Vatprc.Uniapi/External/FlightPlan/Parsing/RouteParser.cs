@@ -13,14 +13,20 @@ public class RouteParser(string rawRoute, INavdataProvider navdata)
     protected FlightFix LastFix => lastFixOverride ?? Legs.LastOrDefault()?.To
         ?? throw new InvalidOperationException("No last fix available.");
 
-    public async Task<IList<FlightLeg>> Parse()
+    public async Task<IList<FlightLeg>> Parse(CancellationToken ct = default)
     {
         Legs = [];
 
-        await Lexer.ParseAllSegments();
+        await Lexer.ParseAllSegments(ct);
 
         for (var i = 0; i < Lexer.Tokens.Count; i++)
         {
+            if (ct.IsCancellationRequested)
+            {
+                Logger.Warning("Parsing cancelled.");
+                return Legs;
+            }
+
             var segment = Lexer.Tokens[i];
 
             if (lastFixOverride == null && Legs.Count == 0)
