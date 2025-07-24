@@ -104,11 +104,6 @@ public partial class CompatController(
     protected async Task<IActionResult> GetMetar(string icao)
     {
         var normalizedIcao = icao.ToUpperInvariant();
-        if (normalizedIcao == "ALL")
-        {
-            var allMetars = await MetarService.GetMetarDatabaseAsync();
-            return Content(allMetars, "text/plain", System.Text.Encoding.UTF8);
-        }
         var metar = await MetarService.GetMetar(normalizedIcao);
         if (string.IsNullOrEmpty(metar))
         {
