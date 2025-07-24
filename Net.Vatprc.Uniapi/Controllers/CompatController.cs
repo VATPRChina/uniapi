@@ -107,7 +107,7 @@ public partial class CompatController(
         var metar = await MetarService.GetMetar(normalizedIcao);
         if (string.IsNullOrEmpty(metar))
         {
-            var content = Content("NO METAR FOUND", "text/plain", System.Text.Encoding.UTF8);
+            var content = Content($"{normalizedIcao}_NO_METAR", "text/plain", System.Text.Encoding.UTF8);
             content.StatusCode = (int)HttpStatusCode.NotFound;
             return content;
         }
