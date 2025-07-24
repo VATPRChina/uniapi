@@ -19,20 +19,57 @@ public class RudiMetarService(
         return builder;
     }
 
+    protected async Task<string> GetRudiMetarAsync(string icao, CancellationToken ct = default)
+    {
+        try
+        {
+            var metar = await Options.Value.Endpoint
+                .WithHeader("User-Agent", UniapiUserAgent)
+                .AppendPathSegment(icao)
+                .WithTimeout(15)
+                .GetStringAsync(cancellationToken: ct);
+            return metar.Trim();
+
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to fetch METAR for {Icao} from Rudi's database.", icao);
+            SentrySdk.CaptureException(ex, scope =>
+            {
+                scope.SetTag("Icao", icao);
+                scope.SetExtra("Endpoint", Options.Value.Endpoint);
+            });
+            return string.Empty;
+        }
+    }
+
+    protected async Task<string> GetVatsimMetarAsync(string icao, CancellationToken ct = default)
+    {
+        try
+        {
+            var metar = await "https://metar.vatsim.net/"
+                .WithHeader("User-Agent", UniapiUserAgent)
+                .AppendPathSegment(icao)
+                .WithTimeout(15)
+                .GetStringAsync(cancellationToken: ct);
+            return metar.Trim();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to fetch METAR for {Icao} from VATSIM.", icao);
+            SentrySdk.CaptureException(ex, scope =>
+            {
+                scope.SetTag("Icao", icao);
+            });
+            return string.Empty;
+        }
+    }
+
     public async Task<string> GetMetar(string icao, CancellationToken ct = default)
     {
-        var rudiMetar = await Options.Value.Endpoint
-            .WithHeader("User-Agent", UniapiUserAgent)
-            .AppendPathSegment(icao)
-            .WithTimeout(15)
-            .GetStringAsync(cancellationToken: ct);
-        rudiMetar = rudiMetar.Trim();
+        var rudiMetar = await GetRudiMetarAsync(icao, ct);
         Logger.LogInformation("Fetched METAR for {Icao} from Rudi's database: {Metar}", icao, rudiMetar);
-        var vatsimMetar = await "https://metar.vatsim.net/"
-            .WithHeader("User-Agent", UniapiUserAgent)
-            .AppendPathSegment(icao)
-            .WithTimeout(15)
-            .GetStringAsync(cancellationToken: ct);
+        var vatsimMetar = await GetVatsimMetarAsync(icao, ct);
         Logger.LogInformation("Fetched METAR for {Icao} from VATSIM: {Metar}", icao, vatsimMetar);
         var rudiMetarTime = MetarParser.TryGetMetarTime(rudiMetar);
         var vatprcMetarTime = MetarParser.TryGetMetarTime(vatsimMetar);
