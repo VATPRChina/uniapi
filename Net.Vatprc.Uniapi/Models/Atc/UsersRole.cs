@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace Net.Vatprc.Uniapi.Models.Atc;
 
 public class UsersRole

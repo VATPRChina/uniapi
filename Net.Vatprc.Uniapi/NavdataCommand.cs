@@ -1,11 +1,8 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.Diagnostics;
-using System.Text.Json;
 using Amazon.Runtime;
 using Amazon.S3;
 using Arinc424;
-using Dapper;
 using Microsoft.Data.Sqlite;
 using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Utils;

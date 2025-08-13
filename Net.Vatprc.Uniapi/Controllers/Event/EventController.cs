@@ -9,7 +9,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/events")]
-public class EventController(VATPRCContext DbContext) : ControllerBase
+public class EventController(VATPRCContext DbContext, DiscourseService Discourse) : ControllerBase
 {
     public record EventDto
     {
@@ -49,6 +49,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
         {
             query = query.Where(x => DateTimeOffset.UtcNow.AddDays(7) > x.StartBookingAt);
         }
+        var discourseEvents = await Discourse.GetCalendarEvents();
         return await query
             .OrderBy(x => x.StartBookingAt)
             .Select(x => new EventDto(x)).ToListAsync();

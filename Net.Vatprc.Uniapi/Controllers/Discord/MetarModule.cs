@@ -1,9 +1,5 @@
-using System.Diagnostics;
-using System.Text.Json.Serialization;
 using Discord.Interactions;
-using Flurl.Http;
 using Net.Vatprc.Uniapi.Services;
-using OpenTelemetry.Trace;
 
 namespace Net.Vatprc.Uniapi.Controllers.Discord;
 
