@@ -1,7 +1,8 @@
-using Net.Vatprc.Uniapi.Services;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
 using Flurl;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
+using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -10,7 +11,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// </summary>
 [ApiController, Route("api/notams")]
 [AllowAnonymous]
-public class NotamController(DiscourseService DiscourseService) : ControllerBase
+public class NotamController(DiscourseAdapter DiscourseService) : ControllerBase
 {
     public record Notam
     {
@@ -19,7 +20,7 @@ public class NotamController(DiscourseService DiscourseService) : ControllerBase
         public required string Link { get; set; }
     }
 
-    protected IEnumerable<VatprcAtcService.Role> FlattenRoles(IEnumerable<VatprcAtcService.Role> Roles)
+    protected IEnumerable<VatprcAtcApiAdapter.Role> FlattenRoles(IEnumerable<VatprcAtcApiAdapter.Role> Roles)
     {
         return Roles.SelectMany(r => FlattenRoles(r.AllSuperroles)).Concat(Roles);
     }

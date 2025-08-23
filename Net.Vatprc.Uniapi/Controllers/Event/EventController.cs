@@ -1,6 +1,6 @@
-using Net.Vatprc.Uniapi.Services;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models;
 
 namespace Net.Vatprc.Uniapi.Controllers;
@@ -9,7 +9,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/events")]
-public class EventController(VATPRCContext DbContext, DiscourseService Discourse) : ControllerBase
+public class EventController(VATPRCContext DbContext, DiscourseAdapter Discourse) : ControllerBase
 {
     public record EventDto
     {

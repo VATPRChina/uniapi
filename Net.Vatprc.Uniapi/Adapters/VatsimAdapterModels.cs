@@ -2,7 +2,7 @@
 
 using System.Text.Json.Serialization;
 
-namespace Net.Vatprc.Uniapi.Services.VatsimData;
+namespace Net.Vatprc.Uniapi.Adapters.VatsimAdapterModels;
 
 public class VatsimData
 {

@@ -6,17 +6,18 @@ using Flurl;
 using Flurl.Http;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Net.Vatprc.Uniapi.Services;
 
-namespace Net.Vatprc.Uniapi.Services;
+namespace Net.Vatprc.Uniapi.Adapters;
 
-public class VatprcAtcService(IOptions<VatprcAtcService.Option> Options,
+public class VatprcAtcApiAdapter(IOptions<VatprcAtcApiAdapter.Option> Options,
     IOptions<TokenService.Option> TokenOptions)
 {
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
     {
         builder.Services.Configure<Option>(builder.Configuration.GetSection(Option.LOCATION));
         builder.Services.ConfigureOptions<OptionConfigure>();
-        builder.Services.AddSingleton<VatprcAtcService>();
+        builder.Services.AddSingleton<VatprcAtcApiAdapter>();
         return builder;
     }
 

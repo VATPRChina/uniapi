@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
-using Net.Vatprc.Uniapi.Services;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;
@@ -12,7 +12,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 public class SectorController(
     VATPRCContext DbContext,
     ILogger<SectorController> Logger,
-    VatprcAtcService VatprcAtcService) : ControllerBase
+    VatprcAtcApiAdapter VatprcAtcService) : ControllerBase
 {
     public record SectorPermissionResponse
     {
@@ -33,7 +33,7 @@ public class SectorController(
         "ATC Student",
     ];
 
-    protected IEnumerable<VatprcAtcService.Role> FlattenRoles(IEnumerable<VatprcAtcService.Role> Roles)
+    protected IEnumerable<VatprcAtcApiAdapter.Role> FlattenRoles(IEnumerable<VatprcAtcApiAdapter.Role> Roles)
     {
         return Roles.SelectMany(r => FlattenRoles(r.AllSuperroles)).Concat(Roles);
     }

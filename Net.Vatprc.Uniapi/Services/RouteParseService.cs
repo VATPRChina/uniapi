@@ -1,3 +1,4 @@
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.External.FlightPlan.Lexing;
 using Net.Vatprc.Uniapi.External.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.External.FlightPlan.Validating;

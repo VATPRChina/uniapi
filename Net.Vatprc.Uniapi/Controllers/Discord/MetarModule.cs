@@ -1,9 +1,9 @@
 using Discord.Interactions;
-using Net.Vatprc.Uniapi.Services;
+using Net.Vatprc.Uniapi.Adapters;
 
 namespace Net.Vatprc.Uniapi.Controllers.Discord;
 
-public class MetarModule(RudiMetarService MetarService, ILogger<MetarModule> Logger) : InteractionModuleBase
+public class MetarModule(MetarAdapter MetarService, ILogger<MetarModule> Logger) : InteractionModuleBase
 {
     [SlashCommand("metar", "Get METAR for an airport")]
     public async Task WhoAmIAsync(string icao)

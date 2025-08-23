@@ -3,11 +3,11 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Net.Vatprc.Uniapi.External;
 
-namespace Net.Vatprc.Uniapi.Services;
+namespace Net.Vatprc.Uniapi.Adapters;
 
-public class RudiMetarService(
-    IOptions<RudiMetarService.Option> Options,
-    ILogger<RudiMetarService> Logger)
+public class MetarAdapter(
+    IOptions<MetarAdapter.Option> Options,
+    ILogger<MetarAdapter> Logger)
 {
     protected MemoryCache Cache { get; init; } = new(new MemoryCacheOptions());
     protected string LastData { get; set; } = string.Empty;
@@ -15,7 +15,7 @@ public class RudiMetarService(
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
     {
         builder.Services.Configure<Option>(builder.Configuration.GetSection(Option.LOCATION));
-        builder.Services.AddSingleton<RudiMetarService>();
+        builder.Services.AddSingleton<MetarAdapter>();
         return builder;
     }
 

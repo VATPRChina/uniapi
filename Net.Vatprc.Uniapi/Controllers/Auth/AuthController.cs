@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
 
@@ -16,9 +17,9 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [AllowAnonymous]
 [ResponseCache(NoStore = true)]
 public class AuthController(
-    IOptions<VatsimAuthService.Option> Options,
+    IOptions<VatsimAuthAdapter.Option> Options,
     TokenService TokenService,
-    VatsimAuthService AuthService,
+    VatsimAuthAdapter AuthService,
     VATPRCContext DbContext,
     ILogger<AuthController> Logger) : Controller
 {
@@ -303,7 +304,7 @@ public class AuthController(
     [ApiExplorerSettings(IgnoreApi = true)]
     public IActionResult Login([FromQuery] string state)
     {
-        var (challenge, verifier) = VatsimAuthService.GeneratePkce();
+        var (challenge, verifier) = VatsimAuthAdapter.GeneratePkce();
         var url = new Url(Options.Value.Endpoint)
             .AppendPathSegment("oauth/authorize")
             .SetQueryParam("response_type", "code")
@@ -374,8 +375,8 @@ public class AuthController(
         Response.Cookies.Delete($"auth-{state}-code_verifier");
         Logger.LogInformation("Delete code_verifier cookie");
 
-        VatsimAuthService.TokenResponse token;
-        VatsimAuthService.UserResponse vatsimUser;
+        VatsimAuthAdapter.TokenResponse token;
+        VatsimAuthAdapter.UserResponse vatsimUser;
         try
         {
             token = await AuthService.GetTokenAsync(code, verifier ?? string.Empty);

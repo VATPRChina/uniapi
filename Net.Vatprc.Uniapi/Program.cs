@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.IdentityModel.Tokens;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.External;
 using Net.Vatprc.Uniapi.External.FlightPlan.Lexing;
 using Net.Vatprc.Uniapi.External.FlightPlan.Parsing;
@@ -128,7 +129,7 @@ builder.Services.AddOpenApi(opts =>
 TokenService.ConfigureOn(builder);
 builder.Services.AddTransient<AuthenticationEventHandler>();
 
-VatsimAuthService.ConfigureOn(builder);
+VatsimAuthAdapter.ConfigureOn(builder);
 // FIXME: This will raise "No XML encryptor configured. Key {GUID} may be
 // persisted to storage in unencrypted form." on start, but I think it is ok
 // as the JWT keys are managed manually.
@@ -176,12 +177,11 @@ builder.Services.AddCors(options =>
     });
 });
 
-RudiMetarService.ConfigureOn(builder);
-VatsimService.ConfigureOn(builder);
-VatprcAtcService.ConfigureOn(builder);
-DiscourseService.ConfigureOn(builder);
+MetarAdapter.ConfigureOn(builder);
+builder.Services.AddSingleton<VatsimAdapter>();
+VatprcAtcApiAdapter.ConfigureOn(builder);
+DiscourseAdapter.ConfigureOn(builder);
 FlightWorker.ConfigureOn(builder);
-QQWorker.ConfigureOn(builder);
 builder.Services.AddSingleton<TrackAudioService>();
 builder.Services.AddScoped<DbNavdataAdapter>();
 builder.Services.AddScoped<RouteParseService>();

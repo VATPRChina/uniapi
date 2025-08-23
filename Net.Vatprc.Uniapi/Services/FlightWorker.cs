@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Utils;
 
@@ -7,7 +8,7 @@ namespace Net.Vatprc.Uniapi.Services;
 public class FlightWorker(
     ILogger<FlightWorker> Logger,
     IOptionsMonitor<FlightWorker.Option> Options,
-    VatsimService VatsimService,
+    VatsimAdapter VatsimService,
     IServiceScopeFactory ScopeFactory
 ) : BackgroundService
 {
@@ -86,7 +87,7 @@ public class FlightWorker(
         }
     }
 
-    protected async ValueTask ClearFinalizedFlights(VATPRCContext db, VatsimData.VatsimData data, CancellationToken ct = default)
+    protected async ValueTask ClearFinalizedFlights(VATPRCContext db, Adapters.VatsimAdapterModels.VatsimData data, CancellationToken ct = default)
     {
         var flights = await db.Flight
             .Where(f => f.FinalizedAt == null).ToArrayAsync(ct);
@@ -103,7 +104,7 @@ public class FlightWorker(
         await db.SaveChangesAsync(ct);
     }
 
-    protected async ValueTask UpdateFlight(VATPRCContext db, VatsimData.Pilot pilot, CancellationToken ct = default)
+    protected async ValueTask UpdateFlight(VATPRCContext db, Adapters.VatsimAdapterModels.Pilot pilot, CancellationToken ct = default)
     {
         if (pilot.FlightPlan == null)
         {

@@ -5,14 +5,14 @@ using Flurl;
 using Flurl.Http;
 using Microsoft.Extensions.Options;
 
-namespace Net.Vatprc.Uniapi.Services;
+namespace Net.Vatprc.Uniapi.Adapters;
 
-public class VatsimAuthService(IOptions<VatsimAuthService.Option> Options)
+public class VatsimAuthAdapter(IOptions<VatsimAuthAdapter.Option> Options)
 {
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
     {
         builder.Services.Configure<Option>(builder.Configuration.GetSection(Option.LOCATION));
-        builder.Services.AddSingleton<VatsimAuthService>();
+        builder.Services.AddSingleton<VatsimAuthAdapter>();
         return builder;
     }
 
