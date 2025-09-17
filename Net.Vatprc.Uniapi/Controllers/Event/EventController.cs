@@ -49,27 +49,10 @@ public class EventController(VATPRCContext DbContext, DiscourseAdapter Discourse
         {
             query = query.Where(x => DateTimeOffset.UtcNow.AddDays(7) > x.StartBookingAt);
         }
-        var events = await query
+
+        return await query
             .OrderBy(x => x.StartBookingAt)
             .Select(x => new EventDto(x)).ToListAsync();
-
-        var discourseEvents = await Discourse.GetCalendarEvents();
-        var additionalEvents = discourseEvents.Events
-            .Where(ev => !events.Any(x => x.StartAt == ev.StartsAt && x.EndAt == ev.EndsAt))
-            .Select(ev => new EventDto(new Event
-            {
-                Id = Ulid.NewUlid(),
-                CreatedAt = DateTimeOffset.UtcNow,
-                UpdatedAt = DateTimeOffset.UtcNow,
-                Title = ev.Post.Topic.Title,
-                StartAt = ev.StartsAt,
-                EndAt = ev.EndsAt,
-                StartBookingAt = ev.StartsAt,
-                EndBookingAt = ev.StartsAt,
-                Description = $"[Forum](https://community.vatprc.net/t/{ev.Post.Topic.Id}) (Automatic sync)",
-            }));
-
-        return events.Concat(additionalEvents);
     }
 
     [HttpGet("{eid}")]
