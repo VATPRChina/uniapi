@@ -49,10 +49,12 @@ public class DiscourseAdapter(IOptions<DiscourseAdapter.Option> Options)
     {
         [JsonPropertyName("id")]
         public required uint Id { get; set; }
+
         [JsonPropertyName("title")]
         public required string Title { get; set; }
+
         [JsonPropertyName("tags")]
-        public required IEnumerable<string> Tags { get; set; }
+        public IEnumerable<string> Tags { get; set; } = [];
     }
     #endregion
 
