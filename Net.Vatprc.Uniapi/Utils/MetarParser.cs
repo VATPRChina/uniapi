@@ -1,4 +1,4 @@
-namespace Net.Vatprc.Uniapi.External;
+namespace Net.Vatprc.Uniapi.Utils;
 
 public static class MetarParser
 {

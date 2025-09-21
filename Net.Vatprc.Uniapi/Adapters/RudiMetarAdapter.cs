@@ -1,7 +1,7 @@
 using Flurl.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
-using Net.Vatprc.Uniapi.External;
+using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Adapters;
 

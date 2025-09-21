@@ -15,7 +15,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 public partial class CompatController(
     VatsimAdapter VatsimService,
     MetarAdapter MetarService,
-    TrackAudioService TrackAudioService) : ControllerBase
+    TrackAudioAdapter TrackAudioService) : ControllerBase
 {
     public class ControllerDto
     {

@@ -13,8 +13,7 @@ namespace Net.Vatprc.Uniapi;
 public class NavdataCommand : Command
 {
     private const string NAVDATA_BUCKET = "navdata";
-    private const string FILE_BUCKET = "vatprc-files";
-    private const string ROUTE_KEY = "sectors/Route-Server.csv";
+    private const string ROUTE_KEY = "Route-Server.csv";
 
     protected readonly WebApplication App;
 
@@ -351,7 +350,7 @@ public class NavdataCommand : Command
             serviceUrl,
             accessKey,
             secretKey,
-            FILE_BUCKET,
+            NAVDATA_BUCKET,
             ROUTE_KEY,
             "../Data/Route-Server.csv");
         foreach (var routeData in route)

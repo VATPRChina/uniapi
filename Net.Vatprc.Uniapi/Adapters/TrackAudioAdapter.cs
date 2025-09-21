@@ -1,9 +1,9 @@
 using Flurl.Http;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace Net.Vatprc.Uniapi.External;
+namespace Net.Vatprc.Uniapi.Adapters;
 
-public class TrackAudioService
+public class TrackAudioAdapter
 {
     protected const string ENDPOINT = "https://raw.githubusercontent.com/pierr3/TrackAudio/main/MANDATORY_VERSION";
 

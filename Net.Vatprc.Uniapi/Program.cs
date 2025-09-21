@@ -182,7 +182,7 @@ builder.Services.AddSingleton<VatsimAdapter>();
 VatprcAtcApiAdapter.ConfigureOn(builder);
 DiscourseAdapter.ConfigureOn(builder);
 FlightWorker.ConfigureOn(builder);
-builder.Services.AddSingleton<TrackAudioService>();
+builder.Services.AddSingleton<TrackAudioAdapter>();
 builder.Services.AddScoped<DbNavdataAdapter>();
 builder.Services.AddScoped<RouteParseService>();
 builder.Services.AddMemoryCache();
