@@ -274,4 +274,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.NotFound, "FLIGHT_NOT_FOUND_FOR_CID", "Flight for CID {cid} is not found.")]
     public class FlightNotFoundForCid(string cid) :
         ApiError($"Flight for CID {cid} is not found.");
+
+    [Error(HttpStatusCode.NotFound, "EVENT_SLOT_NOT_FOUND_FOR_USER", "Event {event_id}'s slot not found for {user_id}.")]
+    public class EventSlotNotFoundForUser(Ulid event_id, Ulid user_id) :
+        ApiError($"Event {event_id}'s slot not found for {user_id}.");
 }

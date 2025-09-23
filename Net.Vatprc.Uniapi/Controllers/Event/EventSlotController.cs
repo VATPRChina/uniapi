@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
+using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -92,6 +93,23 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
     {
         var slot = await LoadAsync(eid, sid);
         return new(slot);
+    }
+
+    [HttpGet("mine")]
+    [AllowAnonymous]
+    [ApiError.Has<ApiError.EventSlotNotFound>]
+    public async Task<EventSlotDto> GetMine(Ulid eid)
+    {
+        var user = await DbContext.User.FindAsync(this.GetUserId()) ??
+            throw new ApiError.UserNotFound(this.GetUserId());
+
+        var slot = await DbContext.EventSlot
+            .Include(x => x.EventAirspace)
+                .ThenInclude(x => x.Event)
+            .Include(x => x.Booking)
+            .FirstOrDefaultAsync(f => f.EventAirspace!.Id == eid && f.Booking!.UserId == user.Id)
+            ?? throw new ApiError.EventSlotNotFoundForUser(eid, user.Id);
+        return new EventSlotDto(slot);
     }
 
     public record CreateEventSlotDto
