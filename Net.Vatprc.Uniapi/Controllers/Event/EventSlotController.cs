@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
 
 namespace Net.Vatprc.Uniapi.Controllers;
@@ -61,7 +61,12 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
             .ThenInclude(x => x.Booking)
             .SingleOrDefaultAsync(x => x.Id == eid)
             ?? throw new ApiError.EventNotFound(eid);
-        return eventt.Airspaces.SelectMany(x => x.Slots).OrderBy(x => x.EnterAt).Select(x => new EventSlotDto(x)).ToArray();
+        return eventt.Airspaces
+            .SelectMany(x => x.Slots)
+            .OrderBy(x => x.EnterAt)
+            .ThenBy(x => x.LeaveAt)
+            .Select(x => new EventSlotDto(x))
+            .ToArray();
     }
 
     [HttpGet("bookings.csv")]
