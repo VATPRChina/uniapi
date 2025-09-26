@@ -56,7 +56,7 @@ public partial class CompatController(
 
     [GeneratedRegex("^(Z[BSGUHWJPLYM][A-Z0-9]{2}(_[A-Z0-9]*)?_(DEL|GND|TWR|APP|DEP|CTR))|(PRC_FSS)$")]
     protected static partial Regex vatprcControllerRegexp();
-    [GeneratedRegex("Z[BMSPGJYWLH][A-Z]{2}")]
+    [GeneratedRegex("^Z[BMSPGJYWLH][A-Z]{2}")]
     protected static partial Regex vatprcAirportRegexp();
 
     [HttpGet("online-status")]
@@ -81,7 +81,8 @@ public partial class CompatController(
                     Aircraft = x.FlightPlan?.AircraftShort,
                 }),
             Controllers = vatsimData.Controllers
-                .Where(x => vatprcAirportRegexp().IsMatch(x.Callsign))
+                .Where(x => vatprcControllerRegexp().IsMatch(x.Callsign))
+                .Where(x => x.Facility > 0)
                 .Select(x => new ControllerDto
                 {
                     Cid = Convert.ToInt32(x.Cid),
