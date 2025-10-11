@@ -51,7 +51,7 @@ export const devLogin = async (username: string, password: string) => {
   handleSessionLoginResponse(data.data);
 };
 export const login = async (code: string) => {
-  const data = await authClient.POST("/api/session", {
+  const data = await authClient.POST("/auth/token", {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: {
       grant_type: "authorization_code",
@@ -72,7 +72,7 @@ export const refresh = async () => {
     return;
   }
   sessionStore.set(isRefreshingAtom, true);
-  const result = await authClient.POST("/api/session", {
+  const result = await authClient.POST("/auth/token", {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
@@ -84,7 +84,7 @@ export const refresh = async () => {
       return new URLSearchParams(body).toString();
     },
   });
-  if (result.error?.error_code === "INVALID_REFRESH_TOKEN") {
+  if (result.error?.error === "invalid_grant") {
     forceLogout();
     return;
   } else if (!result.data) {
