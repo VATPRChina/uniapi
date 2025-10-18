@@ -9,7 +9,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/events")]
-public class EventController(VATPRCContext DbContext, DiscourseAdapter Discourse) : ControllerBase
+public class EventController(VATPRCContext DbContext) : ControllerBase
 {
     public record EventDto
     {

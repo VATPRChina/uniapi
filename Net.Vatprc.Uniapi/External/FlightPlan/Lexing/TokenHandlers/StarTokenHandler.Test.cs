@@ -52,7 +52,7 @@ public class StarTokenHandlerTest
     [Test]
     public async Task Resolve_ShouldReturnStar_WhenFound()
     {
-        ContextMock.SetupGet(c => c.LastSegment).Returns(new RouteToken
+        ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.AIRPORT,
             Value = "ZYTX",
@@ -85,7 +85,7 @@ public class StarTokenHandlerTest
     [Test]
     public async Task Resolve_ShouldNotChangeSegment_WhenStarNotFound()
     {
-        ContextMock.SetupGet(c => c.LastSegment).Returns(new RouteToken
+        ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.AIRPORT,
             Value = "ZYTX",
@@ -110,7 +110,7 @@ public class StarTokenHandlerTest
     [Test]
     public async Task Resolve_ShouldFindStarInAirport()
     {
-        ContextMock.SetupGet(c => c.LastSegment).Returns(new RouteToken
+        ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.AIRPORT,
             Value = "ZYTX",
