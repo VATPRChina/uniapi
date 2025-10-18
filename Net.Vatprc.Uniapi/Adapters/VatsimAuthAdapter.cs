@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -25,20 +26,14 @@ public class VatsimAuthAdapter(IOptions<VatsimAuthAdapter.Option> Options)
         using var rng = RandomNumberGenerator.Create();
         var randomBytes = new byte[size];
         rng.GetBytes(randomBytes);
-        var verifier = Base64UrlEncode(randomBytes);
+        var verifier = Base64Url.EncodeToString(randomBytes);
 
         var buffer = Encoding.UTF8.GetBytes(verifier);
         var hash = SHA256.HashData(buffer);
-        var challenge = Base64UrlEncode(hash);
+        var challenge = Base64Url.EncodeToString(hash);
 
         return (challenge, verifier);
     }
-
-    private static string Base64UrlEncode(byte[] data) =>
-        Convert.ToBase64String(data)
-            .Replace("+", "-")
-            .Replace("/", "_")
-            .TrimEnd('=');
 
     public class TokenResponse
     {
