@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Options;
-using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
-using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Net.Vatprc.Uniapi.Models;
 
 namespace Net.Vatprc.Uniapi.Services;
@@ -40,7 +40,7 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
             new (JwtClaimNames.Scope, EncodeScopes([])),
             new (JwtClaimNames.UpdatedAt, user.UpdatedAt.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
             new (JwtRegisteredClaimNames.Sid, refresh.Token.ToString()),
-            new (JwtClaimNames.ClientId, BuiltInClientId),
+            new (JwtClaimNames.ClientId, refresh.ClientId),
         };
         var token = new JwtSecurityToken(
             issuer: Options.CurrentValue.Issuer,
@@ -175,8 +175,6 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         /// </summary>
         public const string AuthCode = "authorization_code";
     }
-
-    public const string BuiltInClientId = "vatprc";
 
     public class Option
     {
