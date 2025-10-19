@@ -166,7 +166,7 @@ public class FlightWorker(
         flight.CruiseTas = uint.Parse(pilot.FlightPlan.CruiseTas);
         flight.CruisingLevel = ParseFlightAltitude(pilot.FlightPlan.Altitude);
         flight.RawRoute = pilot.FlightPlan.Route;
-        var aircraft = FlightPlan.ParseIcaoAircraftCode(pilot.FlightPlan.Aircraft, pilot.FlightPlan.Remarks);
+        var aircraft = FlightPlanUtils.ParseIcaoAircraftCode(pilot.FlightPlan.Aircraft, pilot.FlightPlan.Remarks);
         flight.Aircraft = aircraft.AircraftCode;
         flight.Equipment = aircraft.Equipment;
         flight.Transponder = aircraft.Transponder;

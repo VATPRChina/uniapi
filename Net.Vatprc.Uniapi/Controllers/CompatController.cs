@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Adapters;
-using Net.Vatprc.Uniapi.External;
+using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 

@@ -1,5 +1,5 @@
-using Net.Vatprc.Uniapi.External.FlightPlan;
 using Net.Vatprc.Uniapi.Models.Navdata;
+using Net.Vatprc.Uniapi.Services.FlightPlan;
 using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Adapters;
