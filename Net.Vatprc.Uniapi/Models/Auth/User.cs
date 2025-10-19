@@ -59,5 +59,13 @@ public class User
         /// Controller
         /// </summary>
         public const string Controller = "controller";
+
+        public const string Editor = "editor";
+    }
+
+    public static class SpecialRoles
+    {
+        public const string ApiClient = "api_client";
+        public const string User = "user";
     }
 }
