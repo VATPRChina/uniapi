@@ -18,15 +18,22 @@ public class SmmsAdapter(IOptions<SmmsAdapter.Option> Options)
             .ReceiveJson<SmmsResponse>();
         if (!response.Success)
         {
-            throw new Exception("Image upload to SM.MS failed");
+            if (response.Code == "image_repeated")
+            {
+                return response.Images;
+            }
+            throw new Exception("Image upload to SM.MS failed: " + response.Message);
         }
-        return response.Data.Url;
+        return response.Data!.Url;
     }
 
     public class SmmsResponse
     {
         public required bool Success { get; set; }
-        public required SmmsData Data { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string Images { get; set; } = string.Empty;
+        public SmmsData? Data { get; set; }
     }
 
     public class SmmsData
