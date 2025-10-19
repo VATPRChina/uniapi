@@ -7,6 +7,10 @@ public static class ControllerExtensions
 {
     public static Ulid GetUserId(this ControllerBase controller)
     {
+        if (!controller.User.IsInRole("user"))
+        {
+            throw new ApiError.Forbidden(["user"]);
+        }
         return Ulid.Parse(controller.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)?.Value);
     }
 }

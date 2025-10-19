@@ -211,10 +211,6 @@ public abstract class ApiError : Exception
     public class InvalidToken(string? oauth_code, string? oauth_desc, Exception? ex) :
         ApiError($"Invalid token {oauth_code}: {oauth_desc}.", ex);
 
-    [Error(HttpStatusCode.Forbidden, "INVALID_TOKEN_NOT_FIRST_PARTY", "Token is not issued to first-party application.")]
-    public class InvalidTokenNotFirstParty() :
-        ApiError($"Token is not issued to first-party application.");
-
     [Error(HttpStatusCode.Forbidden, "INVALID_REFRESH_TOKEN", "Refresh token is not valid for {code}.")]
     public class InvalidRefreshToken(string code) :
         ApiError($"Refresh token is not valid for {code}.");

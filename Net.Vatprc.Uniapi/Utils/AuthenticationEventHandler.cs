@@ -92,12 +92,6 @@ public class AuthenticationEventHandler(VATPRCContext DbContext) : JwtBearerEven
         {
             throw new ApiError.InvalidToken("vatprc_invalid_subject", "subject is not ulid", null);
         }
-        var updatedAtStr = context.Principal.FindFirstValue(Services.TokenService.JwtClaimNames.UpdatedAt) ??
-            throw new ApiError.InvalidToken("vatprc_no_updated_at", "no updated_at in token", null);
-        if (long.TryParse(updatedAtStr, out var _) == false)
-        {
-            throw new ApiError.InvalidToken("vatprc_invalid_updated_at", "updated_at is not number", null);
-        }
         return Task.CompletedTask;
     }
 
@@ -110,7 +104,13 @@ public class AuthenticationEventHandler(VATPRCContext DbContext) : JwtBearerEven
             var id = Ulid.Parse(context.Principal.FindFirstValue(ClaimTypes.NameIdentifier));
             var user = await DbContext.User.FindAsync(id);
             var identity = (ClaimsIdentity)context.Principal.Identity!;
-            foreach (var role in user!.Roles)
+            if (user == null)
+            {
+                identity?.AddClaim(new(ClaimTypes.Role, "api_client"));
+                return;
+            }
+            identity?.AddClaim(new(ClaimTypes.Role, "user"));
+            foreach (var role in user.Roles)
             {
                 identity?.AddClaim(new(ClaimTypes.Role, role));
             }

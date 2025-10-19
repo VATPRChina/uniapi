@@ -20,9 +20,7 @@ public class SessionController(
 
     /// <summary>Get Current</summary>
     /// <returns></returns>
-    /// <exception cref="ApiError.InvalidTokenNotFirstParty"></exception>
     [HttpGet]
-    [ApiError.Has<ApiError.InvalidTokenNotFirstParty>]
     public async Task<TokenDto> Get()
     {
         var expires = User.FindFirstValue(JwtRegisteredClaimNames.Exp);
@@ -39,11 +37,9 @@ public class SessionController(
 
     /// <summary>Logout</summary>
     /// <returns></returns>
-    /// <exception cref="ApiError.InvalidTokenNotFirstParty"></exception>
     /// <exception cref="ApiError.InvalidToken"></exception>
     [HttpDelete]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ApiError.Has<ApiError.InvalidTokenNotFirstParty>]
     public async Task<IActionResult> Logout()
     {
         var refresh = User.FindFirstValue(JwtRegisteredClaimNames.Sid) ??

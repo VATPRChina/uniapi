@@ -52,6 +52,27 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         return (new JwtSecurityTokenHandler().WriteToken(token), token);
     }
 
+    public (string, JwtSecurityToken) IssueClientAccessToken(string clientId)
+    {
+        var claims = new List<Claim>
+        {
+            new (JwtRegisteredClaimNames.Sub, clientId),
+            new (JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new (JwtClaimNames.Scope, EncodeScopes([])),
+            new (JwtRegisteredClaimNames.Sid, Ulid.NewUlid().ToString()),
+            new (JwtClaimNames.ClientId, clientId),
+        };
+        var token = new JwtSecurityToken(
+            issuer: Options.CurrentValue.Issuer,
+            audience: Options.CurrentValue.AudienceFirstParty,
+            expires: DateTime.Now.Add(Options.CurrentValue.FirstPartyExpires),
+            notBefore: DateTime.Now,
+            claims: claims,
+            signingCredentials: Options.CurrentValue.Credentials);
+        return (new JwtSecurityTokenHandler().WriteToken(token), token);
+    }
+
     public async Task<RefreshToken> IssueRefreshToken(User user, RefreshToken? oldToken = null, bool createCode = false)
     {
         var now = DateTimeOffset.UtcNow;
@@ -152,6 +173,12 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
             .Any(x => x.ClientId == clientId && x.RedirectUri.Contains(redirectUri));
     }
 
+    public bool CheckClientExistsWithSecret(string clientId, string clientSecret)
+    {
+        return Options.CurrentValue.Clients
+            .Any(x => x.ClientId == clientId && x.ClientSecret != null && x.ClientSecret == clientSecret);
+    }
+
     public struct JwtClaimNames
     {
         /// <summary>
@@ -174,6 +201,12 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         /// redirect uri, only used in auth code
         /// </summary>
         public const string AuthCode = "authorization_code";
+
+        /// <summary>
+        /// Roles
+        /// <see href="https://www.rfc-editor.org/rfc/rfc9068.html#section-7.2.1.1" />
+        /// </summary>
+        public const string Roles = "roles";
     }
 
     public class Option
@@ -206,6 +239,8 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         public class Client
         {
             public string ClientId { get; set; } = string.Empty;
+
+            public string? ClientSecret { get; set; }
 
             public IEnumerable<string> RedirectUri { get; set; } = [];
         }

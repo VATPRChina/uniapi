@@ -466,8 +466,9 @@ public class AuthController(
         /// <summary>
         /// REQUIRED. Identifier of the grant type the client uses
         /// with the particular token request. This endpoint supports
-        /// `authorization_code` (authz code), `refresh_token` (refresh token)
-        /// and `urn:ietf:params:oauth:grant-type:device_code` (device code).
+        /// `authorization_code` (authz code), `refresh_token` (refresh token),
+        /// `urn:ietf:params:oauth:grant-type:device_code` (device code) and
+        /// `client_credentials` (client credentials).
         /// </summary>
         /// <see href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-11#section-3.2.2" />
         [ModelBinder(Name = "grant_type")]
@@ -512,6 +513,12 @@ public class AuthController(
         /// </summary>
         [ModelBinder(Name = "code_verifier")]
         public string CodeVerifier { get; set; } = string.Empty;
+
+        /// <summary>
+        /// REQUIRED for client credentials grant.
+        /// </summary>
+        [ModelBinder(Name = "client_secret")]
+        public string ClientSecret { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -543,7 +550,8 @@ public class AuthController(
         /// access tokens using the same authorization grant as described
         /// in Section 6.
         /// </summary>
-        public required string RefreshToken { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? RefreshToken { get; set; }
         /// <summary>
         /// OPTIONAL, if identical to the scope requested by the client;
         /// otherwise, REQUIRED.  The scope of the access token as
@@ -611,6 +619,10 @@ public class AuthController(
         else if (req.GrantType == "authorization_code")
         {
             return await AuthzCodeGrant(req);
+        }
+        else if (req.GrantType == "client_credentials")
+        {
+            return ClientCredentialGrant(req);
         }
         else
         {
@@ -794,6 +806,45 @@ public class AuthController(
                 ExpiresIn = (uint)(expires - now),
                 RefreshToken = session.Token.ToString(),
                 Scope = scopes
+            });
+        }
+        catch (TokenService.InvalidClientIdOrRedirectUriException)
+        {
+            throw new ApiError.InvalidAuthorizationCode();
+        }
+    }
+
+    protected IActionResult ClientCredentialGrant(AccessTokenRequest req)
+    {
+        if (string.IsNullOrEmpty(req.ClientId) || string.IsNullOrEmpty(req.ClientSecret))
+        {
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_grant",
+                ErrorDescription = "Missing client_id or client_secret",
+            });
+        }
+
+        if (!TokenService.CheckClientExistsWithSecret(req.ClientId, req.ClientSecret))
+        {
+            return BadRequest(new TokenErrorDto
+            {
+                Error = "invalid_grant",
+                ErrorDescription = "client_id or client_secret is invalid",
+            });
+        }
+
+        try
+        {
+            var (token, jwt) = TokenService.IssueClientAccessToken(req.ClientId);
+            var expires = jwt.Payload.Expiration ?? 0;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var scopes = jwt.Payload.Claims.FirstOrDefault(x => x.Type == TokenService.JwtClaimNames.Scope)?.Value ?? "";
+            return Ok(new TokenResponse
+            {
+                AccessToken = token,
+                ExpiresIn = (uint)(expires - now),
+                Scope = scopes,
             });
         }
         catch (TokenService.InvalidClientIdOrRedirectUriException)

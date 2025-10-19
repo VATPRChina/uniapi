@@ -2,6 +2,11 @@
 ClientId = "01J2ED6BDX9J9BTYS2RVW83ME7"
 RedirectUri = ["http://localhost:3000/auth/callback"]
 
+[[Authentication.Jwt.Clients]]
+ClientId = "01K7X723S04R1F5P2P8NJV5QT5"
+ClientSecret = "01K7X71YQQXWSDT2XK1ZNYMS2J"
+RedirectUri = []
+
 [Authentication.Vatsim]
 Endpoint = "https://auth-dev.vatsim.net"
 ClientId = "841"
