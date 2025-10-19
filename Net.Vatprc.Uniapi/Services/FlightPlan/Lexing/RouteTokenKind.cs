@@ -11,6 +11,7 @@ public enum RouteTokenKind
     WAYPOINT,
     GEO_COORD,
     UNKNOWN,
+    SPEED_AND_ALTITUDE,
 }
 
 public static class RouteTokenKindExtensions

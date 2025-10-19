@@ -5,6 +5,7 @@ public class AirportTokenHandler : ITokenHandler
     public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
         return context.CurrentSegmentIndex == 0
+            || (context.CurrentSegmentIndex == 1 && context.LastSegment?.Kind == RouteTokenKind.SPEED_AND_ALTITUDE)
             || context.CurrentSegmentIndex == context.SegmentCount - 1;
     }
 

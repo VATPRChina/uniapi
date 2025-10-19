@@ -9,6 +9,7 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
 
     protected readonly IList<ITokenHandler> TokenHandlers =
     [
+        new InitialSpeedAndAltitudeTokenHandler(),
         new AirportTokenHandler(),
         new SidTokenHandler(),
         new StarTokenHandler(),

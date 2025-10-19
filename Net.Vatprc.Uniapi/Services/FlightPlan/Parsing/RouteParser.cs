@@ -217,6 +217,10 @@ public class RouteParser
                     Type = FlightFix.FixType.Unknown,
                 });
             }
+            else if (segment.Kind == RouteTokenKind.SPEED_AND_ALTITUDE)
+            {
+                // Ignore for now
+            }
             else
             {
                 throw new InvalidOperationException($"Unexpected token kind: {segment.Kind}");
