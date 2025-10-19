@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Net.Http.Headers;
 using Net.Vatprc.Uniapi.Models;
+using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Utils;
 
@@ -104,23 +105,20 @@ public class AuthenticationEventHandler(VATPRCContext DbContext) : JwtBearerEven
             var id = Ulid.Parse(context.Principal.FindFirstValue(ClaimTypes.NameIdentifier));
             var user = await DbContext.User.FindAsync(id);
             var identity = (ClaimsIdentity)context.Principal.Identity!;
+            if (identity == null) return;
             if (user == null)
             {
-                identity?.AddClaim(new(ClaimTypes.Role, User.SpecialRoles.ApiClient));
+                identity.AddClaim(new(ClaimTypes.Role, User.SpecialRoles.ApiClient));
                 return;
             }
-            identity?.AddClaim(new(ClaimTypes.Role, User.SpecialRoles.User));
-            foreach (var role in user.Roles)
+            identity.AddClaim(new(ClaimTypes.Role, User.SpecialRoles.User));
+            var allRoles = UserRoleService.GetRoleClosure(new HashSet<string>(user.Roles));
+            foreach (var role in allRoles)
             {
-                identity?.AddClaim(new(ClaimTypes.Role, role));
-            }
-            if (user.Roles.Contains(User.UserRoles.Admin) && !user.Roles.Contains(User.UserRoles.EventCoordinator))
-            {
-                identity?.AddClaim(new(ClaimTypes.Role, User.UserRoles.EventCoordinator));
-            }
-            if (user.Roles.Contains(User.UserRoles.Admin) && !user.Roles.Contains(User.UserRoles.Controller))
-            {
-                identity?.AddClaim(new(ClaimTypes.Role, User.UserRoles.Controller));
+                if (!identity.HasClaim(ClaimTypes.Role, role))
+                {
+                    identity.AddClaim(new(ClaimTypes.Role, role));
+                }
             }
         }
         catch (Exception e)

@@ -1,7 +1,8 @@
-using Net.Vatprc.Uniapi.Models;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using Net.Vatprc.Uniapi.Models;
+using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -20,13 +21,9 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
         ISet<string> Roles
     )
     {
-        public UserDto(User user) : this(user.Id, user.Cid, user.FullName, user.CreatedAt, user.UpdatedAt, user.Roles.ToHashSet())
+        public UserDto(User user) : this(user.Id, user.Cid, user.FullName, user.CreatedAt, user.UpdatedAt, null!)
         {
-            if (user.Roles.Contains(Models.User.UserRoles.Admin))
-            {
-                Roles.Add(Models.User.UserRoles.EventCoordinator);
-                Roles.Add(Models.User.UserRoles.Controller);
-            }
+            Roles = UserRoleService.GetRoleClosure(user.Roles);
         }
     }
 
