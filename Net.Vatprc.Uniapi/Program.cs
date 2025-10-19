@@ -185,6 +185,7 @@ builder.Services.AddScoped<DbNavdataAdapter>();
 builder.Services.AddScoped<RouteParseService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<RouteParserFactory>();
+SmmsAdapter.ConfigureOn(builder);
 
 var app = builder.Build();
 
