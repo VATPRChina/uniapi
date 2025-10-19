@@ -10,6 +10,10 @@ public class SmmsAdapter(IOptions<SmmsAdapter.Option> Options)
 
     public async Task<string> UploadImageAsync(Stream imageStream, string fileName, CancellationToken ct = default)
     {
+        if (fileName.Any(c => !char.IsAscii(c)))
+        {
+            fileName = Ulid.NewUlid().ToString();
+        }
         var response = await BASE_URL
             .AppendPathSegment("upload")
             .WithHeader("Authorization", Options.Value.SecretToken)
