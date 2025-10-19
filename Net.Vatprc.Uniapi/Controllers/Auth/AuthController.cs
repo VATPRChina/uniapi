@@ -30,6 +30,7 @@ public class AuthController(
         public string? ClientId { get; set; }
         public string? RedirectUri { get; set; }
         public string? UserCode { get; set; }
+        public string? State { get; set; }
 
         public enum AuthnType
         {
@@ -44,6 +45,7 @@ public class AuthController(
     /// <param name="response_type">REQUIRED.  Value MUST be set to "code".</param>
     /// <param name="client_id">REQUIRED.  The client identifier as described in Section 2.2.</param>
     /// <param name="redirect_uri">OPTIONAL.  As described in Section 3.1.2.</param>
+    /// <param name="state">RECOMMENDED.  An opaque value used by the client to maintain state between the request and callback.</param>
     /// <returns></returns>
     /// <see href="https://datatracker.ietf.org/doc/html/rfc6749#autoid-36" />
     [HttpGet("authorize")]
@@ -52,7 +54,8 @@ public class AuthController(
     public IActionResult Authorize(
         [FromQuery][Description("Value MUST be set to \"code\".")] string response_type,
         [FromQuery] string client_id,
-        [FromQuery] string redirect_uri)
+        [FromQuery] string redirect_uri,
+        [FromQuery] string? state)
     {
         Logger.LogInformation("Authorize code flow: {response_type}, {client_id}, {redirect_uri}",
             response_type, client_id, redirect_uri);
@@ -65,14 +68,15 @@ public class AuthController(
             return Unauthorized("client is invalid");
         }
 
-        var state = Ulid.NewUlid();
-        Logger.LogInformation("Write cookie: {id}", state);
-        Response.Cookies.Append($"auth-{state}",
+        var stateId = Ulid.NewUlid();
+        Logger.LogInformation("Write cookie: {id}", stateId);
+        Response.Cookies.Append($"auth-{stateId}",
             JsonSerializer.Serialize(new AuthenticationState
             {
                 Type = AuthenticationState.AuthnType.CODE,
                 ClientId = client_id,
                 RedirectUri = redirect_uri,
+                State = state,
             }),
             new CookieOptions
             {
@@ -82,7 +86,7 @@ public class AuthController(
                 Expires = DateTimeOffset.UtcNow + AuthnStateExpires,
             });
         Logger.LogInformation("Redirect to login");
-        return RedirectPreserveMethod(Url.Action(nameof(Login), new { state })!);
+        return RedirectPreserveMethod(Url.Action(nameof(Login), new { state = stateId })!);
     }
 
     /// <summary>
@@ -434,8 +438,11 @@ public class AuthController(
 
             var refresh = await TokenService.IssueRefreshToken(user, createCode: true);
             var authCode = TokenService.GenerateAuthCode(refresh, authState.ClientId, authState.RedirectUri);
+            Logger.LogInformation("Issued auth code for client: {client_id}, redirect_uri: {redirect_uri}, state: {state}",
+                authState.ClientId, authState.RedirectUri, authState.State);
             var redirectTarget = authState.RedirectUri
                 .SetQueryParam("code", authCode)
+                .SetQueryParam("state", authState.State)
                 .ToString();
             return RedirectPreserveMethod(redirectTarget);
         }
