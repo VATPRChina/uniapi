@@ -10,7 +10,6 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// </summary>
 [ApiController, Route("api/sectors")]
 public class SectorController(
-    VATPRCContext DbContext,
     ILogger<SectorController> Logger,
     VatprcAtcApiAdapter VatprcAtcService) : ControllerBase
 {
@@ -42,8 +41,7 @@ public class SectorController(
     [Produces<SectorPermissionResponse>]
     public async Task<SectorPermissionResponse> GetPermission()
     {
-        var user = await DbContext.User.FindAsync(this.GetUserId()) ??
-            throw new ApiError.UserNotFound(this.GetUserId());
+        var user = await this.GetUser();
 
         var roles = await VatprcAtcService.GetUserRole(user.Cid);
         var flattenRoles = FlattenRoles(roles);

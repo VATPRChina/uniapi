@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models.Acdm;
@@ -16,20 +17,21 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
 {
     public record FlightDto
     {
-        public Ulid Id { get; init; }
-        public string Cid { get; init; }
-        public string Callsign { get; init; }
-        public DateTimeOffset LastObservedAt { get; init; }
-        public string Departure { get; init; }
-        public string Arrival { get; init; }
-        public string Equipment { get; init; }
-        public string NavigationPerformance { get; init; }
-        public string Transponder { get; init; }
-        public string RawRoute { get; init; }
-        public string Aircraft { get; init; }
-        public long Altitude { get; init; }
-        public long CruisingLevel { get; init; }
+        public required Ulid Id { get; init; }
+        public required string Cid { get; init; }
+        public required string Callsign { get; init; }
+        public required DateTimeOffset LastObservedAt { get; init; }
+        public required string Departure { get; init; }
+        public required string Arrival { get; init; }
+        public required string Equipment { get; init; }
+        public required string NavigationPerformance { get; init; }
+        public required string Transponder { get; init; }
+        public required string RawRoute { get; init; }
+        public required string Aircraft { get; init; }
+        public required long Altitude { get; init; }
+        public required long CruisingLevel { get; init; }
 
+        [SetsRequiredMembers]
         public FlightDto(Flight flight)
         {
             Id = flight.Id;
@@ -46,6 +48,8 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
             Altitude = flight.Altitude;
             CruisingLevel = flight.CruisingLevel;
         }
+
+        public FlightDto() { }
     }
 
     [HttpGet("active")]
@@ -134,6 +138,41 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         public string? Parameter { get; init; } = null;
         public required WarningMessageField Field { get; init; }
         public int? FieldIndex { get; init; } = null;
+
+        public WarningMessage() { }
+
+        [SetsRequiredMembers]
+        public WarningMessage(ValidationMessage v)
+        {
+            MessageCode = v.Type switch
+            {
+                ValidationMessage.ViolationType.NoRvsm => WarningMessageCode.no_rvsm,
+                ValidationMessage.ViolationType.NoRnav1 => WarningMessageCode.no_rnav1,
+                ValidationMessage.ViolationType.RnpAr => WarningMessageCode.rnp_ar,
+                ValidationMessage.ViolationType.RnpArWithoutRf => WarningMessageCode.rnp_ar_without_rf,
+                ValidationMessage.ViolationType.NoTransponder => WarningMessageCode.no_transponder,
+                ValidationMessage.ViolationType.Direct => WarningMessageCode.route_direct_segment,
+                ValidationMessage.ViolationType.LegDirectionViolation => WarningMessageCode.route_leg_direction,
+                ValidationMessage.ViolationType.AirwayRequireApproval => WarningMessageCode.airway_require_approval,
+                ValidationMessage.ViolationType.NotRecommendedRoute => WarningMessageCode.not_preferred_route,
+                ValidationMessage.ViolationType.CruisingLevelMismatch => WarningMessageCode.cruising_level_mismatch,
+                ValidationMessage.ViolationType.CruisingLevelTooLow => WarningMessageCode.cruising_level_too_low,
+                ValidationMessage.ViolationType.CruisingLevelNotAllowed => WarningMessageCode.cruising_level_not_allowed,
+                ValidationMessage.ViolationType.RouteMatchPreferred => WarningMessageCode.route_match_preferred,
+                _ => throw new InvalidEnumArgumentException($"Unexpected violation type {v.Type}"),
+            };
+            Field = v.Field switch
+            {
+                ValidationMessage.FieldType.Equipment => WarningMessageField.equipment,
+                ValidationMessage.FieldType.Transponder => WarningMessageField.transponder,
+                ValidationMessage.FieldType.NavigationPerformance => WarningMessageField.navigation_performance,
+                ValidationMessage.FieldType.Route => WarningMessageField.route,
+                ValidationMessage.FieldType.CruisingLevel => WarningMessageField.cruising_level,
+                _ => throw new InvalidEnumArgumentException($"Unexpected violation field {v.Field}"),
+            };
+            Parameter = v.Param;
+            FieldIndex = v.FieldParam;
+        }
     }
 
     [HttpGet("by-callsign/{callsign}/warnings")]
@@ -145,40 +184,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute, flight.Departure, flight.Arrival, ct);
         var violations = await RouteParse.ValidateFlight(flight, parsedRoute, ct);
 
-        return violations.Select(v =>
-                {
-                    return new WarningMessage
-                    {
-                        MessageCode = v.Type switch
-                        {
-                            ValidationMessage.ViolationType.NoRvsm => WarningMessageCode.no_rvsm,
-                            ValidationMessage.ViolationType.NoRnav1 => WarningMessageCode.no_rnav1,
-                            ValidationMessage.ViolationType.RnpAr => WarningMessageCode.rnp_ar,
-                            ValidationMessage.ViolationType.RnpArWithoutRf => WarningMessageCode.rnp_ar_without_rf,
-                            ValidationMessage.ViolationType.NoTransponder => WarningMessageCode.no_transponder,
-                            ValidationMessage.ViolationType.Direct => WarningMessageCode.route_direct_segment,
-                            ValidationMessage.ViolationType.LegDirectionViolation => WarningMessageCode.route_leg_direction,
-                            ValidationMessage.ViolationType.AirwayRequireApproval => WarningMessageCode.airway_require_approval,
-                            ValidationMessage.ViolationType.NotRecommendedRoute => WarningMessageCode.not_preferred_route,
-                            ValidationMessage.ViolationType.CruisingLevelMismatch => WarningMessageCode.cruising_level_mismatch,
-                            ValidationMessage.ViolationType.CruisingLevelTooLow => WarningMessageCode.cruising_level_too_low,
-                            ValidationMessage.ViolationType.CruisingLevelNotAllowed => WarningMessageCode.cruising_level_not_allowed,
-                            ValidationMessage.ViolationType.RouteMatchPreferred => WarningMessageCode.route_match_preferred,
-                            _ => throw new InvalidEnumArgumentException($"Unexpected violation type {v.Type}"),
-                        },
-                        Field = v.Field switch
-                        {
-                            ValidationMessage.FieldType.Equipment => WarningMessageField.equipment,
-                            ValidationMessage.FieldType.Transponder => WarningMessageField.transponder,
-                            ValidationMessage.FieldType.NavigationPerformance => WarningMessageField.navigation_performance,
-                            ValidationMessage.FieldType.Route => WarningMessageField.route,
-                            ValidationMessage.FieldType.CruisingLevel => WarningMessageField.cruising_level,
-                            _ => throw new InvalidEnumArgumentException($"Unexpected violation field {v.Field}"),
-                        },
-                        Parameter = v.Param,
-                        FieldIndex = v.FieldParam,
-                    };
-                });
+        return violations.Select(v => new WarningMessage(v));
     }
 
     public record FlightLeg
@@ -227,11 +233,72 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         return null!;
     }
 
+    public record TemporaryFlightQuery
+    {
+        [FromQuery]
+        [ModelBinder(Name = "departure")]
+        public required string Departure { get; init; }
+
+        [FromQuery]
+        [ModelBinder(Name = "arrival")]
+        public required string Arrival { get; init; }
+
+        [FromQuery]
+        [ModelBinder(Name = "aircraft")]
+        public string Aircraft { get; init; } = string.Empty;
+
+        [FromQuery]
+        [ModelBinder(Name = "equipment")]
+        public string Equipment { get; init; } = string.Empty;
+
+        [FromQuery]
+        [ModelBinder(Name = "navigation_performance")]
+        public string NavigationPerformance { get; init; } = string.Empty;
+
+        [FromQuery]
+        [ModelBinder(Name = "transponder")]
+        public string Transponder { get; init; } = string.Empty;
+
+        [FromQuery]
+        [ModelBinder(Name = "raw_route")]
+        public string RawRoute { get; init; } = string.Empty;
+
+        [FromQuery]
+        [ModelBinder(Name = "cruising_level")]
+        public long CruisingLevel { get; init; } = 0;
+    }
+
+    [HttpGet("temporary/by-plan/warnings")]
+    [Authorize(Roles = "api_client")]
+    public async Task<IEnumerable<WarningMessage>> GetByFlightPlanId(TemporaryFlightQuery query, CancellationToken ct = default)
+    {
+        var flight = new Flight
+        {
+            Id = Ulid.Empty,
+            Cid = string.Empty,
+            Callsign = string.Empty,
+            LastObservedAt = DateTimeOffset.UtcNow,
+            Departure = query.Departure,
+            Arrival = query.Arrival,
+            Equipment = query.Equipment,
+            NavigationPerformance = query.NavigationPerformance,
+            Transponder = query.Transponder,
+            RawRoute = query.RawRoute,
+            Aircraft = query.Aircraft,
+            Altitude = 0,
+            CruisingLevel = query.CruisingLevel,
+        };
+
+        var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute, flight.Departure, flight.Arrival, ct);
+        var violations = await RouteParse.ValidateFlight(flight, parsedRoute, ct);
+
+        return violations.Select(v => new WarningMessage(v));
+    }
+
     [HttpGet("mine")]
     public async Task<FlightDto> GetMyFlight()
     {
-        var user = await DbContext.User.FindAsync(this.GetUserId()) ??
-            throw new ApiError.UserNotFound(this.GetUserId());
+        var user = await this.GetUser();
 
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Cid == user.Cid && f.FinalizedAt == null)
             ?? throw new ApiError.FlightNotFoundForCid(user.Cid);

@@ -44,13 +44,17 @@ public static class OpenApiTransformers
             {
                 Password = new OpenApiOAuthFlow
                 {
-                    TokenUrl = new Uri("{{baseUrl}}/api/session", UriKind.Relative),
+                    TokenUrl = new Uri("/api/session", UriKind.Relative),
                 },
                 AuthorizationCode = new OpenApiOAuthFlow
                 {
-                    AuthorizationUrl = new Uri("{{baseUrl}}/auth/authorize", UriKind.Relative),
-                    TokenUrl = new Uri("{{baseUrl}}/auth/token", UriKind.Relative),
-                    RefreshUrl = new Uri("{{baseUrl}}/auth/token", UriKind.Relative),
+                    AuthorizationUrl = new Uri("/auth/authorize", UriKind.Relative),
+                    TokenUrl = new Uri("/auth/token", UriKind.Relative),
+                    RefreshUrl = new Uri("/auth/token", UriKind.Relative),
+                },
+                ClientCredentials = new OpenApiOAuthFlow
+                {
+                    TokenUrl = new Uri("/auth/token", UriKind.Relative),
                 },
             },
         });

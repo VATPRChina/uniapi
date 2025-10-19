@@ -100,8 +100,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
     [ApiError.Has<ApiError.EventSlotNotFound>]
     public async Task<EventSlotDto> GetMine(Ulid eid)
     {
-        var user = await DbContext.User.FindAsync(this.GetUserId()) ??
-            throw new ApiError.UserNotFound(this.GetUserId());
+        var user = await this.GetUser();
 
         var slot = await DbContext.EventSlot
             .Include(x => x.EventAirspace)
