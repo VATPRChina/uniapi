@@ -3,19 +3,22 @@ using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Utils;
-using Serilog;
 
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Validating;
 
-public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider navdata, RouteParserFactory routeParserFactory)
+public class Validator(
+    Flight flight,
+    IList<FlightLeg> legs,
+    INavdataProvider navdata,
+    RouteParserFactory routeParserFactory,
+    ILogger<Validator> Logger,
+    ILoggerFactory loggerFactory)
 {
     protected readonly Flight Flight = flight;
     protected readonly IList<FlightLeg> Legs = legs;
     protected readonly INavdataProvider Navdata = navdata;
 
     protected readonly IList<ValidationMessage> Messages = [];
-
-    protected static readonly Serilog.ILogger Logger = Log.ForContext<Validator>();
 
     protected readonly RouteParserFactory RouteParserFactory = routeParserFactory;
 
@@ -67,26 +70,26 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
         }
 
         var prefRoutes = await Navdata.GetRecommendedRoutes(Flight.Departure, Flight.Arrival);
-        Logger.Information("Recommended routes for {Dep} to {Arr}: {Routes}",
+        Logger.LogInformation("Recommended routes for {Dep} to {Arr}: {Routes}",
             Flight.Departure, Flight.Arrival, prefRoutes);
         PreferredRoute? matchingRoute = null;
         foreach (var prefRte in prefRoutes)
         {
             if (ct.IsCancellationRequested)
             {
-                Logger.Warning("Validation cancelled.");
+                Logger.LogWarning("Validation cancelled.");
                 return Messages;
             }
             var prefRteParsed = await RouteParserFactory.Create(prefRte.RawRoute, Navdata).Parse(ct);
-            if (EnrouteRouteComparator.IsRouteMatchingExpected(Legs, prefRteParsed, ct))
+            if (EnrouteRouteComparator.IsRouteMatchingExpected(Legs, prefRteParsed, loggerFactory.CreateLogger<EnrouteRouteComparator>(), ct))
             {
                 matchingRoute = prefRte;
-                Logger.Information("Found matching route: {Route}", prefRte);
+                Logger.LogInformation("Found matching route: {Route}", prefRte);
 
                 var cruisingLevelType = AltitudeHelper.GetLevelRestrictionTypeFromCruisingLevel((int)Flight.CruisingLevel);
                 if (!AltitudeHelper.IsFlightLevelTypeMatching(cruisingLevelType, prefRte.CruisingLevelRestriction))
                 {
-                    Logger.Information("Cruising level type mismatch: {Expected} vs {Actual}",
+                    Logger.LogInformation("Cruising level type mismatch: {Expected} vs {Actual}",
                         prefRte.CruisingLevelRestriction, cruisingLevelType);
                     Messages.Add(new ValidationMessage
                     {
@@ -107,7 +110,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
 
                 if (prefRte.AllowedAltitudes.Any() && !prefRte.AllowedAltitudes.Contains((int)Flight.CruisingLevel))
                 {
-                    Logger.Information("Cruising level {CruisingLevel} is not allowed by preferred route {Route}",
+                    Logger.LogInformation("Cruising level {CruisingLevel} is not allowed by preferred route {Route}",
                         Flight.CruisingLevel, prefRte);
                     Messages.Add(new ValidationMessage
                     {
@@ -119,7 +122,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
 
                 if (Flight.CruisingLevel < prefRte.MinimalAltitude)
                 {
-                    Logger.Information("Cruising level {CruisingLevel} is below minimal altitude {MinimalAltitude} for preferred route {Route}",
+                    Logger.LogInformation("Cruising level {CruisingLevel} is below minimal altitude {MinimalAltitude} for preferred route {Route}",
                         Flight.CruisingLevel, prefRte.MinimalAltitude, prefRte);
                     Messages.Add(new ValidationMessage
                     {
@@ -133,7 +136,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
             }
             else
             {
-                Logger.Information("Expected route {Expected} does not match.", prefRte);
+                Logger.LogInformation("Expected route {Expected} does not match.", prefRte);
             }
         }
         if (matchingRoute == null && prefRoutes.Any())
@@ -161,7 +164,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
         {
             if (ct.IsCancellationRequested)
             {
-                Logger.Warning("Validation cancelled.");
+                Logger.LogWarning("Validation cancelled.");
                 return Messages;
             }
             if (leg.LegId == null && leg.LegIdentifier == "DCT"
@@ -209,14 +212,14 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 var toLeg = await Navdata.GetAirwayFix(toLegId)
                     ?? throw new InvalidOperationException($"Unexpected null airway leg: {toLegId}");
 
-                Logger.Information("Validating airway leg {FromLeg} to {ToLeg} for flight {FlightId}",
+                Logger.LogInformation("Validating airway leg {FromLeg} to {ToLeg} for flight {FlightId}",
                     fromLeg.FixIdentifier, toLeg.FixIdentifier, Flight.Id);
-                Logger.Information("Restrictions: From leg: {FromLeg}, To leg: {ToLeg}", fromLeg.DirectionalRestriction, toLeg.DirectionalRestriction);
-                Logger.Information("Sequence numbers: From leg: {FromSeq}, To leg: {ToSeq}",
+                Logger.LogInformation("Restrictions: From leg: {FromLeg}, To leg: {ToLeg}", fromLeg.DirectionalRestriction, toLeg.DirectionalRestriction);
+                Logger.LogInformation("Sequence numbers: From leg: {FromSeq}, To leg: {ToSeq}",
                     fromLeg.SequenceNumber, toLeg.SequenceNumber);
                 if (fromLeg.SequenceNumber <= toLeg.SequenceNumber && fromLeg.DirectionalRestriction == 'B' && matchingRoute == null)
                 {
-                    Logger.Information("Violation found: From leg is backward.");
+                    Logger.LogInformation("Violation found: From leg is backward.");
                     Messages.Add(new ValidationMessage
                     {
                         Field = ValidationMessage.FieldType.Route,
@@ -227,7 +230,7 @@ public class Validator(Flight flight, IList<FlightLeg> legs, INavdataProvider na
                 // TODO: test for KARSI[5720] * - TR[5750] F is bidirectional
                 if (toLeg.SequenceNumber <= fromLeg.SequenceNumber && toLeg.DirectionalRestriction == 'F' && matchingRoute == null)
                 {
-                    Logger.Information("Violation found: To leg is forward.");
+                    Logger.LogInformation("Violation found: To leg is forward.");
                     Messages.Add(new ValidationMessage
                     {
                         Field = ValidationMessage.FieldType.Route,

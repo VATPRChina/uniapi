@@ -1,13 +1,12 @@
 using Microsoft.Extensions.Caching.Memory;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Lexing;
-using Serilog;
 using static Net.Vatprc.Uniapi.Services.FlightPlan.INavdataProvider;
 
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
 
 public class RouteParser
 {
-    protected readonly Serilog.ILogger Logger = Log.ForContext<RouteParser>();
+    protected readonly ILogger<RouteParser> Logger;
     protected readonly RouteLexer Lexer;
     protected IList<FlightLeg> Legs = [];
     protected FlightFix? lastFixOverride = null;
@@ -17,10 +16,11 @@ public class RouteParser
     protected INavdataProvider Navdata;
     protected string RawRoute;
 
-    public RouteParser(string rawRoute, INavdataProvider navdata, IMemoryCache cache)
+    public RouteParser(string rawRoute, INavdataProvider navdata, IMemoryCache cache, ILoggerFactory loggerFactory)
     {
+        Logger = loggerFactory.CreateLogger<RouteParser>();
         RawRoute = rawRoute;
-        Lexer = new(rawRoute, navdata);
+        Lexer = new(rawRoute, navdata, loggerFactory.CreateLogger<RouteLexer>());
         Navdata = navdata;
         Cache = cache;
     }
@@ -29,17 +29,17 @@ public class RouteParser
     {
         return await Cache.GetOrCreateAsync(RawRoute, async entry =>
         {
-            Logger.Information("Parsing route: {RawRoute}, since cache entry not found.", RawRoute);
+            Logger.LogInformation("Parsing route: {RawRoute}, since cache entry not found.", RawRoute);
             entry.SetSlidingExpiration(TimeSpan.FromHours(1));
             var parsed = await ParseWithoutCache(ct);
             if (!ct.IsCancellationRequested)
             {
-                Logger.Information("Parsed route: {RawRoute} with {LegCount} legs.", RawRoute, parsed.Count);
+                Logger.LogInformation("Parsed route: {RawRoute} with {LegCount} legs.", RawRoute, parsed.Count);
                 return parsed;
             }
             else
             {
-                Logger.Warning("Parsing of route {RawRoute} was cancelled.", RawRoute);
+                Logger.LogWarning("Parsing of route {RawRoute} was cancelled.", RawRoute);
                 throw new OperationCanceledException("Parsing was cancelled.", ct);
             }
         }) ?? throw new InvalidOperationException("Unexpected null for parse result.");
@@ -55,7 +55,7 @@ public class RouteParser
         {
             if (ct.IsCancellationRequested)
             {
-                Logger.Warning("Parsing cancelled.");
+                Logger.LogWarning("Parsing cancelled.");
                 return Legs;
             }
 
@@ -123,12 +123,12 @@ public class RouteParser
                 var fromFix = Lexer.Tokens[i - 1].Value;
                 var toFix = Lexer.Tokens[i + 1].Value;
                 var path = BFSPath(fromFix, toFix, legLookup, ct);
-                Logger.Information("Found path from {FromFix} to {ToFix} with {LegCount} legs.",
+                Logger.LogInformation("Found path from {FromFix} to {ToFix} with {LegCount} legs.",
                     fromFix, toFix, path.Count);
 
                 foreach (var leg in path)
                 {
-                    Logger.Information(
+                    Logger.LogInformation(
                         "Adding leg from {FromFixIdentifier}({FromFixId}) to {ToFixIdentifier}({ToFixId}) ({Ident})",
                         leg.FromFixIdentifier, leg.FromFixId, leg.ToFixIdentifier, leg.ToFixId, leg.Ident);
                     Legs.Add(new FlightLeg
@@ -243,7 +243,7 @@ public class RouteParser
         {
             if (ct.IsCancellationRequested)
             {
-                Logger.Warning("BFS path search cancelled.");
+                Logger.LogWarning("BFS path search cancelled.");
                 return [];
             }
 
@@ -291,7 +291,7 @@ public class RouteParser
             return;
         }
 
-        Logger.Information(
+        Logger.LogInformation(
             "Adding direct leg from {FromIdentifier}({FromId}) to {ToIdentifier}({ToId})",
             LastFix.Identifier, LastFix.Id, fix.Identifier, fix.Id);
 

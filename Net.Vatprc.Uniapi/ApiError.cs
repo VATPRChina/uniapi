@@ -81,16 +81,14 @@ public abstract class ApiError : Exception
 
     public class ErrorExceptionFilter(
         IHostEnvironment HostEnvironment,
-        Serilog.ILogger Logger) : IExceptionFilter
+        ILogger<ErrorExceptionFilter> Logger) : IExceptionFilter
     {
         public void OnException(ExceptionContext context)
         {
             var exception = context.Exception;
             if (exception is not ApiError)
             {
-                Logger.Error(exception, "Internal error occurred.");
-                exception.SetSentryMechanism(nameof(ErrorExceptionFilter), handled: false);
-                SentrySdk.CaptureException(exception);
+                Logger.LogError(exception, "Internal error occurred.");
             }
 
             var error = exception switch

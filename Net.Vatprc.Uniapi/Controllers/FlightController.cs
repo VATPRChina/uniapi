@@ -224,11 +224,6 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
         catch (Exception e)
         {
             Logger.LogError(e, "Failed to parse route for flight {Callsign}", flight.Callsign);
-            SentrySdk.CaptureException(e, scope =>
-            {
-                scope.SetExtra("Callsign", flight.Callsign);
-                scope.SetExtra("RawRoute", flight.RawRoute);
-            });
         }
         return null!;
     }

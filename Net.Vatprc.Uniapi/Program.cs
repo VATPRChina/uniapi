@@ -16,23 +16,14 @@ using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Utils;
 using Net.Vatprc.Uniapi.Utils.Toml;
 using Npgsql;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Scalar.AspNetCore;
-using Sentry.OpenTelemetry;
-using Serilog;
-
-Log.Logger = new LoggerConfiguration()
-    .Enrich.FromLogContext()
-    .Enrich.WithClientIp()
-    .Enrich.WithCorrelationId(addValueIfHeaderAbsence: true)
-    .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3} {CorrelationId}] {Message} (at {SourceContext}){NewLine}{Exception}"
-    )
-    .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.WebHost.UseSentry(opts => opts.UseOpenTelemetry());
 
 builder.Configuration.ReplaceJsonWithToml();
 builder.Configuration.AddTomlFile("appsettings.Local.toml", true);
@@ -50,23 +41,34 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     }
 });
 
-builder.Host.UseSerilog((context, services, configuration) => configuration
-    .Enrich.FromLogContext()
-    .Enrich.WithClientIp()
-    .Enrich.WithCorrelationId(addValueIfHeaderAbsence: true)
-    .ReadFrom.Configuration(context.Configuration)
-    .ReadFrom.Services(services)
-);
-
+builder.Services.Configure<OtlpExporterOptions>("Tracing", builder.Configuration.GetSection("OpenTelemetry:Tracing:Otlp"));
+builder.Services.Configure<OtlpExporterOptions>("Metrics", builder.Configuration.GetSection("OpenTelemetry:Metrics:Otlp"));
+builder.Services.Configure<OtlpExporterOptions>("Logging", builder.Configuration.GetSection("OpenTelemetry:Logging:Otlp"));
+var resource = ResourceBuilder.CreateDefault().AddService(
+    serviceName: "vatprc-uniapi",
+    serviceNamespace: "vatprc",
+    serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown");
+builder.Logging.AddOpenTelemetry(options =>
+{
+    options.IncludeFormattedMessage = builder.Configuration
+        .GetValue("OpenTelemetry:Logging:IncludeFormattedMessage", true);
+    options
+        .SetResourceBuilder(resource)
+        .AddOtlpExporter("Logging", configure: null);
+});
 builder.Services.AddOpenTelemetry()
-    .WithTracing(tracerProviderBuilder =>
-        tracerProviderBuilder
-            .AddSource($"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.*")
-            .AddAspNetCoreInstrumentation()
-            .AddEntityFrameworkCoreInstrumentation()
-            .AddHttpClientInstrumentation()
-            .AddSentry()
-    );
+      .ConfigureResource(resource => resource.AddService(serviceName: "vatprc-uniapi",
+            serviceNamespace: "vatprc",
+            serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown"))
+      .WithTracing(tracing => tracing
+          .AddAspNetCoreInstrumentation()
+          .AddEntityFrameworkCoreInstrumentation()
+          .AddHttpClientInstrumentation()
+          .AddOtlpExporter("Tracing", configure: null))
+      .WithMetrics(metrics => metrics
+          .AddAspNetCoreInstrumentation()
+          .AddHttpClientInstrumentation()
+          .AddOtlpExporter("Metrics", configure: null));
 
 builder.Services.AddHttpContextAccessor();
 
@@ -128,9 +130,7 @@ TokenService.ConfigureOn(builder);
 builder.Services.AddTransient<AuthenticationEventHandler>();
 
 VatsimAuthAdapter.ConfigureOn(builder);
-// FIXME: This will raise "No XML encryptor configured. Key {GUID} may be
-// persisted to storage in unencrypted form." on start, but I think it is ok
-// as the JWT keys are managed manually.
+
 builder.Services.AddAuthentication(opts =>
 {
     opts.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -205,7 +205,7 @@ app.UseForwardedHeaders();
 
 if (app.Environment.IsProduction()) app.UseHttpsRedirection();
 
-app.UseSerilogRequestLogging();
+app.UseMiddleware<TraceparentMiddleware>();
 
 app.UseRouting();
 

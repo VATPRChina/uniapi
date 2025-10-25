@@ -4,9 +4,11 @@ namespace Net.Vatprc.Uniapi.Services.FlightPlan;
 
 public class EnrouteRouteComparator
 {
-    protected static readonly Serilog.ILogger Logger = Serilog.Log.ForContext<EnrouteRouteComparator>();
-
-    public static bool IsRouteMatchingExpected(IList<FlightLeg> actual, IList<FlightLeg> expected, CancellationToken ct = default)
+    public static bool IsRouteMatchingExpected(
+        IList<FlightLeg> actual,
+        IList<FlightLeg> expected,
+        ILogger<EnrouteRouteComparator> logger,
+        CancellationToken ct = default)
     {
         var actualFirstEnroute = actual.FirstOrDefault(l => l.Type != FlightLeg.LegType.Sid && l.From.Type != FlightFix.FixType.Airport);
         int actualLeft = actualFirstEnroute != null ? actual.IndexOf(actualFirstEnroute) : 0;
@@ -16,7 +18,7 @@ public class EnrouteRouteComparator
         var expectedFirstMatching = expected.FirstOrDefault(i => actual[actualLeft].From.Identifier == i.From.Identifier);
         if (expectedFirstMatching == null)
         {
-            Logger.Warning("Expected route does not start with actual route segment: {ActualSegment}",
+            logger.LogWarning("Expected route does not start with actual route segment: {ActualSegment}",
                 actual[actualLeft].From.Identifier);
             return false;
         }
@@ -27,7 +29,7 @@ public class EnrouteRouteComparator
         {
             if (ct.IsCancellationRequested)
             {
-                Logger.Warning("Route comparison cancelled.");
+                logger.LogWarning("Route comparison cancelled.");
                 return false;
             }
             if (expectedIndex >= expected.Count)
@@ -46,11 +48,11 @@ public class EnrouteRouteComparator
 
         if (expectedIndex - expectedStart < 1)
         {
-            Logger.Warning("Matched expected route is empty");
+            logger.LogWarning("Matched expected route is empty");
             return false;
         }
 
-        Logger.Information("Route matches expected route from {From} to {To} for expected route segments: {FromIdent} to {ToIdent}",
+        logger.LogInformation("Route matches expected route from {From} to {To} for expected route segments: {FromIdent} to {ToIdent}",
             actual[actualLeft].From.Identifier, actual[actualRight].To.Identifier,
             expected[expectedStart].From.Identifier, expected[expectedIndex - 1].To.Identifier);
 

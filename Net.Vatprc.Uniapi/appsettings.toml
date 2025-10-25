@@ -1,33 +1,5 @@
 AllowedHosts = "*"
 
-[Serilog]
-Using = [
-  "Serilog.Sinks.Console",
-  "Net.Vatprc.Uniapi",
-  "Sentry.Serilog",
-  "Serilog.Sinks.OpenTelemetry",
-]
-
-[Serilog.MinimumLevel]
-Default = "Information"
-[Serilog.MinimumLevel.Override]
-Microsoft = "Information"
-"Microsoft.AspNetCore" = "Warning"
-"Microsoft.EntityFrameworkCore.Database.Command" = "Warning"
-"AspNetCore.SpaYarp" = "Information"
-"Yarp.ReverseProxy" = "Warning"
-
-[Serilog.WriteTo.Console]
-Name = "Console"
-[Serilog.WriteTo.Console.Args]
-outputTemplate = "[{Timestamp:HH:mm:ss} {Level:u3}] {Message} (at {SourceContext}) {TraceId}{NewLine}{Exception}"
-
-[Serilog.Properties]
-Application = "VATPRC-UniAPI"
-
-[Sentry]
-Dsn = ""
-
 [ConnectionStrings]
 VATPRCContext = "Host=localhost;Database=uniapi;Include Error Detail=true"
 

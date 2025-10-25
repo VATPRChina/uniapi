@@ -34,11 +34,6 @@ public class MetarAdapter(
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to fetch METAR for {Icao} from Rudi's database.", icao);
-            SentrySdk.CaptureException(ex, scope =>
-            {
-                scope.SetTag("Icao", icao);
-                scope.SetExtra("Endpoint", Options.Value.Endpoint);
-            });
             return string.Empty;
         }
     }
@@ -57,10 +52,6 @@ public class MetarAdapter(
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to fetch METAR for {Icao} from VATSIM.", icao);
-            SentrySdk.CaptureException(ex, scope =>
-            {
-                scope.SetTag("Icao", icao);
-            });
             return string.Empty;
         }
     }

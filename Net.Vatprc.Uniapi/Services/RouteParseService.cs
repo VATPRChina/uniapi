@@ -6,7 +6,7 @@ using Net.Vatprc.Uniapi.Services.FlightPlan.Validating;
 
 namespace Net.Vatprc.Uniapi.Services;
 
-public class RouteParseService(DbNavdataAdapter navdata, RouteParserFactory routeParserFactory)
+public class RouteParseService(DbNavdataAdapter navdata, RouteParserFactory routeParserFactory, ILoggerFactory loggerFactory)
 {
     protected DbNavdataAdapter Navdata => navdata;
     protected RouteParserFactory RouteParserFactory => routeParserFactory;
@@ -19,7 +19,13 @@ public class RouteParseService(DbNavdataAdapter navdata, RouteParserFactory rout
 
     public async Task<IList<ValidationMessage>> ValidateFlight(Flight flight, IList<FlightLeg> legs, CancellationToken ct = default)
     {
-        var validator = new Validator(flight, legs, Navdata, RouteParserFactory);
+        var validator = new Validator(
+            flight,
+            legs,
+            Navdata,
+            RouteParserFactory,
+            loggerFactory.CreateLogger<Validator>(),
+            loggerFactory);
         return await validator.Validate(ct);
     }
 }

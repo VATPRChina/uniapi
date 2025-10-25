@@ -1,12 +1,9 @@
 using Net.Vatprc.Uniapi.Services.FlightPlan.Lexing.TokenHandlers;
-using Serilog;
 
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Lexing;
 
-public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerContext
+public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<RouteLexer> Logger) : ILexerContext
 {
-    protected readonly Serilog.ILogger Logger = Log.ForContext<RouteLexer>();
-
     protected readonly IList<ITokenHandler> TokenHandlers =
     [
         new InitialSpeedAndAltitudeTokenHandler(),
@@ -70,7 +67,7 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
 
     public void MoveToNextSegment()
     {
-        Logger.Debug("Moving to next segment: {CurrentSegmentIndex} -> {NextSegmentIndex}",
+        Logger.LogDebug("Moving to next segment: {CurrentSegmentIndex} -> {NextSegmentIndex}",
             CurrentSegmentIndex, CurrentSegmentIndex + 1);
         if (CurrentSegmentIndex + 1 <= SegmentCount)
         {
@@ -80,7 +77,7 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
 
     public async Task ParseSegment(bool skipRequireNextSegment)
     {
-        Logger.Debug("Parsing segment {Index}/{TotalSegmentCount}: {Segment}",
+        Logger.LogDebug("Parsing segment {Index}/{TotalSegmentCount}: {Segment}",
             CurrentSegmentIndex, SegmentCount, CurrentSegment.Value);
 
         CurrentSegment.Kind = RouteTokenKind.UNKNOWN;
@@ -89,20 +86,20 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
         foreach (var handler in TokenHandlers)
         {
             if (skipRequireNextSegment && handler.NeedParseNextSegment) { continue; }
-            Logger.Verbose("Checking handler {Handler} for segment {Segment}",
+            Logger.LogTrace("Checking handler {Handler} for segment {Segment}",
                 handler.GetType().Name, CurrentSegment.Value);
             if (handler.IsAllowed(this, NavdataProvider))
             {
-                Logger.Verbose("Handler {Handler} is allowed for segment {Segment}",
+                Logger.LogTrace("Handler {Handler} is allowed for segment {Segment}",
                     handler.GetType().Name, CurrentSegment.Value);
                 var resolved = await handler.Resolve(this, NavdataProvider);
-                Logger.Verbose("Handler {Handler} resolved segment {Segment} to kind {Kind} and id {Id}",
+                Logger.LogTrace("Handler {Handler} resolved segment {Segment} to kind {Kind} and id {Id}",
                     handler.GetType().Name, CurrentSegment.Value, CurrentSegment.Kind, CurrentSegment.Id);
                 if (CurrentSegment.Kind != RouteTokenKind.UNKNOWN && resolved)
                 {
                     break;
                 }
-                Logger.Verbose("Handler {Handler} did not resolve segment {Segment}, continuing to next handler",
+                Logger.LogTrace("Handler {Handler} did not resolve segment {Segment}, continuing to next handler",
                     handler.GetType().Name, CurrentSegment.Value);
             }
         }
@@ -116,7 +113,7 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
         {
             if (ct.IsCancellationRequested)
             {
-                Logger.Warning("Parsing cancelled.");
+                Logger.LogWarning("Parsing cancelled.");
                 return;
             }
             await ParseSegment(skipRequireNextSegment: true);
@@ -129,18 +126,18 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata) : ILexerConte
         {
             if (ct.IsCancellationRequested)
             {
-                Logger.Warning("Parsing cancelled.");
+                Logger.LogWarning("Parsing cancelled.");
                 return;
             }
             await ParseSegment(skipRequireNextSegment: false);
         }
 
-        Logger.Information("Route parsing completed. Total segments: {SegmentCount}", SegmentCount);
-        if (Logger.IsEnabled(Serilog.Events.LogEventLevel.Debug))
+        Logger.LogInformation("Route parsing completed. Total segments: {SegmentCount}", SegmentCount);
+        if (Logger.IsEnabled(LogLevel.Debug))
         {
             foreach (var token in Tokens)
             {
-                Logger.Debug("Segment {Index}: {Kind} - {Value} (Id: {Id})",
+                Logger.LogDebug("Segment {Index}: {Kind} - {Value} (Id: {Id})",
                     Tokens.IndexOf(token), token.Kind, token.Value, token.Id);
             }
         }

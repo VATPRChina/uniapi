@@ -33,11 +33,6 @@ public class FlightWorker(
             catch (Exception e)
             {
                 Logger.LogError(e, "An error occurred while running FlightWorker at {Time}.", startTime);
-                e.SetSentryMechanism(nameof(FlightWorker), handled: false);
-                SentrySdk.CaptureException(e, scope =>
-                {
-                    scope.TransactionName = $"{nameof(FlightWorker)}@{startTime}";
-                });
             }
         } while (!ct.IsCancellationRequested && await Timer.WaitForNextTickAsync(ct));
         Logger.LogInformation("FlightWorker is stopping.");
@@ -77,13 +72,6 @@ public class FlightWorker(
             catch (Exception e)
             {
                 Logger.LogError(e, "Failed to update flight for pilot {Callsign}.", pilot.Callsign);
-                e.SetSentryMechanism(nameof(FlightWorker), handled: false);
-                SentrySdk.CaptureException(e, scope =>
-                {
-                    scope.TransactionName = $"{nameof(FlightWorker)}@{pilot.Callsign}";
-                    scope.SetTag("callsign", pilot.Callsign);
-                    scope.SetExtra("cid", pilot.Cid.ToString());
-                });
             }
         }
     }

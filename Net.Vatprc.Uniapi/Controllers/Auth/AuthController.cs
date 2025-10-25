@@ -390,8 +390,6 @@ public class AuthController(
         {
             var response = await e.GetResponseStringAsync();
             Logger.LogError(e, "Failed to get token or user info since {Response}", response);
-            e.SetSentryMechanism(nameof(AuthController), handled: true);
-            SentrySdk.CaptureException(new Exception($"Failed to get token or user info: {response}", e));
             return RenderCallbackUI("Error", "Internal error", "Please try again later.", Url.Action(nameof(Login)));
         }
 
