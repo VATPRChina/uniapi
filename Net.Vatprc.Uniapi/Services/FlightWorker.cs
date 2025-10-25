@@ -55,6 +55,7 @@ public class FlightWorker(
             ident[1] == 'Y' ||
             ident[1] == 'W' ||
             ident[1] == 'L' ||
+            ident[1] == 'U' ||
             ident[1] == 'H'
         );
     }
