@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Options;
 using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models.Acdm;
@@ -9,7 +10,8 @@ public class FlightWorker(
     ILogger<FlightWorker> Logger,
     IOptionsMonitor<FlightWorker.Option> Options,
     VatsimAdapter VatsimService,
-    IServiceScopeFactory ScopeFactory
+    IServiceScopeFactory ScopeFactory,
+    ActivitySource ActivitySource
 ) : BackgroundService
 {
     protected readonly PeriodicTimer Timer = new(TimeSpan.FromSeconds(Options.CurrentValue.PeriodInSeconds));
@@ -24,6 +26,8 @@ public class FlightWorker(
         Logger.LogInformation("FlightWorker is starting at interval {Interval}s.", Timer.Period.TotalSeconds);
         do
         {
+            using var activity = ActivitySource.StartActivity("FlightWorker.RunAsync");
+
             var startTime = DateTimeOffset.Now;
             Logger.LogInformation("Running FlightWorker at {Time}.", startTime);
             try
@@ -33,6 +37,7 @@ public class FlightWorker(
             catch (Exception e)
             {
                 Logger.LogError(e, "An error occurred while running FlightWorker at {Time}.", startTime);
+                activity?.SetStatus(ActivityStatusCode.Error, e.Message);
             }
         } while (!ct.IsCancellationRequested && await Timer.WaitForNextTickAsync(ct));
         Logger.LogInformation("FlightWorker is stopping.");
@@ -65,6 +70,7 @@ public class FlightWorker(
         await ClearFinalizedFlights(db, data, ct);
         foreach (var pilot in data.Pilots)
         {
+            using var activity = ActivitySource.StartActivity("FlightWorker.UpdateFlight");
             try
             {
                 await UpdateFlight(db, pilot, ct);
@@ -72,6 +78,7 @@ public class FlightWorker(
             catch (Exception e)
             {
                 Logger.LogError(e, "Failed to update flight for pilot {Callsign}.", pilot.Callsign);
+                activity?.SetStatus(ActivityStatusCode.Error, e.Message);
             }
         }
     }

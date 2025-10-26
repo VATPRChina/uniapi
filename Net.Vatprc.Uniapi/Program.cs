@@ -55,21 +55,22 @@ builder.Logging.AddOpenTelemetry(options =>
         .GetValue("OpenTelemetry:Logging:IncludeFormattedMessage", true);
     options
         .SetResourceBuilder(resource)
+        .AddConsoleExporter()
         .AddOtlpExporter("Logging", configure: null);
 });
 builder.Services.AddOpenTelemetry()
-      .ConfigureResource(resource => resource.AddService(serviceName: "vatprc-uniapi",
-            serviceNamespace: "vatprc",
-            serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown"))
-      .WithTracing(tracing => tracing
-          .AddAspNetCoreInstrumentation()
-          .AddEntityFrameworkCoreInstrumentation()
-          .AddHttpClientInstrumentation()
-          .AddOtlpExporter("Tracing", configure: null))
-      .WithMetrics(metrics => metrics
-          .AddAspNetCoreInstrumentation()
-          .AddHttpClientInstrumentation()
-          .AddOtlpExporter("Metrics", configure: null));
+    .ConfigureResource(resource => resource.AddService(serviceName: "vatprc-uniapi",
+        serviceNamespace: "vatprc",
+        serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString()))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddEntityFrameworkCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter("Tracing", configure: null))
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter("Metrics", configure: null));
 
 builder.Services.AddHttpContextAccessor();
 

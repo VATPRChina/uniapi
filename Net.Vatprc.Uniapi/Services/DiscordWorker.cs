@@ -21,8 +21,11 @@ public class DiscordWorker(
 
     public async Task StartAsync(CancellationToken ct)
     {
+        using var activity = ActivitySource.StartActivity($"DiscordWorker.StartAsync", ActivityKind.Consumer);
+
         Client.Ready += async () =>
         {
+            using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.Ready", ActivityKind.Consumer);
             Logger.LogInformation("Discord bot is connected.");
             try
             {
@@ -52,7 +55,7 @@ public class DiscordWorker(
 
         Client.InteractionCreated += async (x) =>
         {
-            using var activity = ActivitySource.StartActivity($"Discord {x.Type}", ActivityKind.Server);
+            using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.InteractionCreated", ActivityKind.Consumer);
             var ctx = new SocketInteractionContext(Client, x);
             await Interaction.ExecuteCommandAsync(ctx, ServiceProvider);
         };
