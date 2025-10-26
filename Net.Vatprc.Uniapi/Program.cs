@@ -55,7 +55,6 @@ builder.Logging.AddOpenTelemetry(options =>
         .GetValue("OpenTelemetry:Logging:IncludeFormattedMessage", true);
     options
         .SetResourceBuilder(resource)
-        .AddConsoleExporter()
         .AddOtlpExporter("Logging", configure: null);
 });
 builder.Services.AddOpenTelemetry()
