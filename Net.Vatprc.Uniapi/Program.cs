@@ -3,6 +3,7 @@ global using Net.Vatprc.Uniapi;
 global using static Net.Vatprc.Uniapi.Utils.Utils;
 global using UniApi = Net.Vatprc.Uniapi;
 using System.CommandLine;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -47,7 +48,7 @@ builder.Services.Configure<OtlpExporterOptions>("Logging", builder.Configuration
 var resource = ResourceBuilder.CreateDefault().AddService(
     serviceName: "vatprc-uniapi",
     serviceNamespace: "vatprc",
-    serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown");
+    serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString());
 builder.Logging.AddOpenTelemetry(options =>
 {
     options.IncludeFormattedMessage = builder.Configuration
