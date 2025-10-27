@@ -11,28 +11,37 @@ public class Geo7CharTokenHandler : ITokenHandler
 
     public Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
-        var latStr = context.CurrentSegment.Value[..2];
-        if (!int.TryParse(latStr, out var lat))
+        try
         {
-            throw new InvalidOperationException("Invalid latitude in geo coordinate");
-        }
-        var latSign = context.CurrentSegment.Value[2] == 'N' ? 1
-            : context.CurrentSegment.Value[2] == 'S' ? -1
-            : throw new InvalidOperationException("Invalid latitude sign in geo coordinate");
+            var latStr = context.CurrentSegment.Value[..2];
+            if (!int.TryParse(latStr, out var lat))
+            {
+                throw new InvalidOperationException($"Invalid latitude in geo coordinate {context.CurrentSegment.Value}");
+            }
+            var latSign = context.CurrentSegment.Value[2] == 'N' ? 1
+                : context.CurrentSegment.Value[2] == 'S' ? -1
+                : throw new InvalidOperationException($"Invalid latitude sign in geo coordinate {context.CurrentSegment.Value}");
 
-        var lonStr = context.CurrentSegment.Value[3..6];
-        if (!int.TryParse(lonStr, out var lon))
+            var lonStr = context.CurrentSegment.Value[3..6];
+            if (!int.TryParse(lonStr, out var lon))
+            {
+                throw new InvalidOperationException($"Invalid longitude in geo coordinate {context.CurrentSegment.Value}");
+            }
+            var lonSign = context.CurrentSegment.Value[6] == 'E' ? 1
+                : context.CurrentSegment.Value[6] == 'W' ? -1
+                : throw new InvalidOperationException($"Invalid longitude sign in geo coordinate {context.CurrentSegment.Value}");
+
+            context.CurrentSegment.Kind = RouteTokenKind.GEO_COORD;
+            context.CurrentSegment.Id = Ulid.Empty;
+            context.CurrentLat = lat * latSign;
+            context.CurrentLon = lon * lonSign;
+            return Task.FromResult(true);
+        }
+        catch (InvalidOperationException ex)
         {
-            throw new InvalidOperationException("Invalid longitude in geo coordinate");
+            context.GetLogger<Geo7CharTokenHandler>()
+                .LogWarning(ex, "Failed to parse geo coordinate token {Token}", context.CurrentSegment.Value);
+            return Task.FromResult(false);
         }
-        var lonSign = context.CurrentSegment.Value[6] == 'E' ? 1
-            : context.CurrentSegment.Value[6] == 'W' ? -1
-            : throw new InvalidOperationException("Invalid longitude sign in geo coordinate");
-
-        context.CurrentSegment.Kind = RouteTokenKind.GEO_COORD;
-        context.CurrentSegment.Id = Ulid.Empty;
-        context.CurrentLat = lat * latSign;
-        context.CurrentLon = lon * lonSign;
-        return Task.FromResult(true);
     }
 }

@@ -20,7 +20,7 @@ public class RouteParser
     {
         Logger = loggerFactory.CreateLogger<RouteParser>();
         RawRoute = rawRoute;
-        Lexer = new(rawRoute, navdata, loggerFactory.CreateLogger<RouteLexer>());
+        Lexer = new(rawRoute, navdata, loggerFactory.CreateLogger<RouteLexer>(), loggerFactory);
         Navdata = navdata;
         Cache = cache;
     }

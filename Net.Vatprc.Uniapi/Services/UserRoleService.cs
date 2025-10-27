@@ -4,7 +4,6 @@ public class UserRoleService
 {
     public static IEnumerable<string> GetDirectlyInheritedRoles(string role)
     {
-        var roles = new HashSet<string> { role };
         if (role == Models.User.UserRoles.Admin)
         {
             return [

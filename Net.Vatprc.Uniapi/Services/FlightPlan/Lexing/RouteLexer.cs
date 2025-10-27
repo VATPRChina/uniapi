@@ -2,7 +2,7 @@ using Net.Vatprc.Uniapi.Services.FlightPlan.Lexing.TokenHandlers;
 
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Lexing;
 
-public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<RouteLexer> Logger) : ILexerContext
+public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<RouteLexer> Logger, ILoggerFactory loggerFactory) : ILexerContext
 {
     protected readonly IList<ITokenHandler> TokenHandlers =
     [
@@ -141,5 +141,10 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<Route
                     Tokens.IndexOf(token), token.Kind, token.Value, token.Id);
             }
         }
+    }
+
+    public ILogger<T> GetLogger<T>()
+    {
+        return loggerFactory.CreateLogger<T>();
     }
 }

@@ -15,4 +15,6 @@ public interface ILexerContext
     public double CurrentLat { get; set; }
 
     public double CurrentLon { get; set; }
+
+    public ILogger<T> GetLogger<T>();
 }
