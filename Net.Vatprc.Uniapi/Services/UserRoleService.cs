@@ -1,16 +1,69 @@
+using System.Collections.Immutable;
+using static Net.Vatprc.Uniapi.Models.User;
+
 namespace Net.Vatprc.Uniapi.Services;
 
 public class UserRoleService
 {
+    public static readonly ImmutableDictionary<string, IEnumerable<string>> DIRECTLY_INHERITED_ROLES =
+        new Dictionary<string, IEnumerable<string>> {
+            { UserRoles.Staff, [UserRoles.Volunteer] },
+            { UserRoles.Volunteer, [] },
+
+            { UserRoles.DivisionDirector, [
+                UserRoles.Staff,
+                UserRoles.ControllerTrainingDirector,
+                UserRoles.OperationDirector,
+                UserRoles.EventDirector,
+                UserRoles.TechDirector
+            ] },
+
+            { UserRoles.ControllerTrainingDirector, [
+                UserRoles.Staff,
+                UserRoles.ControllerTrainingDirectorAssistant,
+                UserRoles.ControllerTrainingInstructor,
+                UserRoles.ControllerTrainingMentor,
+                UserRoles.ControllerTrainingSopEditor,
+            ] },
+            { UserRoles.ControllerTrainingDirectorAssistant, [UserRoles.Volunteer] },
+            { UserRoles.ControllerTrainingInstructor, [UserRoles.Volunteer, UserRoles.ControllerTrainingMentor] },
+            { UserRoles.ControllerTrainingMentor, [UserRoles.Volunteer] },
+            { UserRoles.ControllerTrainingSopEditor, [UserRoles.Volunteer] },
+
+            { UserRoles.OperationDirector, [
+                UserRoles.Staff,
+                UserRoles.OperationDirectorAssistant,
+                UserRoles.OperationSectorEditor,
+                UserRoles.OperationLoaEditor,
+            ] },
+            { UserRoles.OperationDirectorAssistant, [UserRoles.Volunteer] },
+            { UserRoles.OperationSectorEditor, [UserRoles.Volunteer] },
+            { UserRoles.OperationLoaEditor, [UserRoles.Volunteer] },
+
+            { UserRoles.EventDirector, [
+                UserRoles.Staff,
+                UserRoles.EventCoordinator,
+                UserRoles.EventGraphicsDesigner,
+            ] },
+            { UserRoles.EventCoordinator, [UserRoles.Volunteer] },
+            { UserRoles.EventGraphicsDesigner, [UserRoles.Volunteer] },
+
+            { UserRoles.TechDirector, [
+                UserRoles.Staff,
+                UserRoles.TechDirectorAssistant,
+                UserRoles.TechAfvFacilityEngineer,
+            ] },
+            { UserRoles.TechDirectorAssistant, [UserRoles.Volunteer] },
+            { UserRoles.TechAfvFacilityEngineer, [UserRoles.Volunteer] },
+
+            { UserRoles.Controller, [] },
+        }.ToImmutableDictionary();
+
     public static IEnumerable<string> GetDirectlyInheritedRoles(string role)
     {
-        if (role == Models.User.UserRoles.Admin)
+        if (DIRECTLY_INHERITED_ROLES.TryGetValue(role, out var inheritedRoles))
         {
-            return [
-                Models.User.UserRoles.EventCoordinator,
-                Models.User.UserRoles.Controller,
-                Models.User.UserRoles.Editor,
-            ];
+            return inheritedRoles;
         }
         return [];
     }

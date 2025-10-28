@@ -47,20 +47,31 @@ public class User
     /// </summary>
     public static class UserRoles
     {
-        /// <summary>
-        /// Super admin
-        /// </summary>
-        public const string Admin = "admin";
-        /// <summary>
-        /// Event coordinator
-        /// </summary>
-        public const string EventCoordinator = "event_coordinator";
-        /// <summary>
-        /// Controller
-        /// </summary>
-        public const string Controller = "controller";
+        public const string Staff = "staff";
+        public const string Volunteer = "volunteer";
 
-        public const string Editor = "editor";
+        public const string DivisionDirector = "director";
+
+        public const string ControllerTrainingDirector = "controller-training-director";
+        public const string ControllerTrainingDirectorAssistant = "controller-training-director-assistant";
+        public const string ControllerTrainingInstructor = "controller-training-instructor";
+        public const string ControllerTrainingMentor = "controller-training-mentor";
+        public const string ControllerTrainingSopEditor = "controller-training-sop-editor";
+
+        public const string OperationDirector = "operation-director";
+        public const string OperationDirectorAssistant = "operation-director-assistant";
+        public const string OperationSectorEditor = "operation-sector-editor";
+        public const string OperationLoaEditor = "operation-loa-editor";
+
+        public const string EventDirector = "event-director";
+        public const string EventCoordinator = "event-coordinator";
+        public const string EventGraphicsDesigner = "event-graphics-designer";
+
+        public const string TechDirector = "tech-director";
+        public const string TechDirectorAssistant = "tech-director-assistant";
+        public const string TechAfvFacilityEngineer = "tech-afv-facility-engineer";
+
+        public const string Controller = "controller";
     }
 
     public static class SpecialRoles

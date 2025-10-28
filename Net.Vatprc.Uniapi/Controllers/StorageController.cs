@@ -8,7 +8,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 public class StorageController(SmmsAdapter smmsAdapter) : ControllerBase
 {
     [HttpPost("images")]
-    [Authorize(Roles = Models.User.UserRoles.Editor)]
+    [Authorize(Roles = Models.User.UserRoles.Volunteer)]
     public async Task<UploadImageResponse> UploadImage(IFormFile image, CancellationToken ct = default)
     {
         if (image == null || image.Length == 0)
