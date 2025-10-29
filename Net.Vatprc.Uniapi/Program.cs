@@ -121,6 +121,7 @@ builder.Services.AddDbContext<VATPRCContext>(opt =>
 builder.Services.AddOpenApi(opts =>
 {
     opts.AddDocumentTransformer(OpenApiTransformers.TransformDocument);
+    opts.AddSchemaTransformer(OpenApiTransformers.AddUlid);
     opts.AddSchemaTransformer(OpenApiTransformers.EnforceNotNull);
     opts.AddOperationTransformer(OpenApiTransformers.AllowAnonymous);
     opts.AddOperationTransformer(OpenApiTransformers.AddErrorResponse);

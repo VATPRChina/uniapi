@@ -71,6 +71,16 @@ public static class OpenApiTransformers
         return Task.CompletedTask;
     }
 
+    public static Task AddUlid(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
+    {
+        if (context.JsonTypeInfo.Type == typeof(Ulid) && schema.Type == null)
+        {
+            schema.Type = "string";
+            schema.Description = "ULID";
+        }
+        return Task.CompletedTask;
+    }
+
     public static Task EnforceNotNull(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
     {
         if (schema.Properties == null)
@@ -158,7 +168,7 @@ public static class OpenApiTransformers
                                     ["error_code"] = new OpenApiSchema
                                     {
                                         Type = "string",
-                                        Example = new OpenApiString(x.ErrorCode),
+                                        Enum = [new OpenApiString(x.ErrorCode)],
                                         Description = x.ErrorCode
                                     },
                                     ["message"] = new OpenApiSchema
@@ -170,7 +180,7 @@ public static class OpenApiTransformers
                                     ["type"] = new OpenApiSchema
                                     {
                                         Type = "string",
-                                        Example = new OpenApiString($"urn:vatprc-uniapi-error:{x.ErrorCode.ToLowerInvariant().Replace('_', '-')}"),
+                                        Enum = [new OpenApiString($"urn:vatprc-uniapi-error:{x.ErrorCode.ToLowerInvariant().Replace('_', '-')}")],
                                         Description = x.ErrorCode
                                     },
                                     ["title"] = new OpenApiSchema
