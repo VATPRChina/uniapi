@@ -5,6 +5,7 @@ Default = "Warning"
 "Net.Vatprc" = "Information"
 "Program" = "Information"
 "Microsoft.Hosting.Lifetime" = "Information"
+"Microsoft.AspNetCore.Hosting.Diagnostics" = "Information"
 
 [ConnectionStrings]
 VATPRCContext = "Host=localhost;Database=uniapi;Include Error Detail=true"
