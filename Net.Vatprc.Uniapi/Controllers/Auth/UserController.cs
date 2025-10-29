@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
+using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -40,6 +41,27 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
     public async Task<UserDto> Get(Ulid id)
     {
         return new UserDto(await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id));
+    }
+
+    [HttpPut("{id}/roles")]
+    [ApiError.Has<ApiError.UserNotFound>]
+    [Authorize(Roles = Models.User.UserRoles.Staff)]
+    public async Task<UserDto> SetRoles(Ulid id, ISet<string> roles)
+    {
+        var currentUser = await this.GetUser();
+
+        var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
+        var curRoles = UserRoleService.GetRoleClosure(user.Roles);
+        var newRoles = UserRoleService.GetRoleClosure(roles);
+        if (curRoles.Contains(Models.User.UserRoles.Staff)
+            && !newRoles.Contains(Models.User.UserRoles.Staff)
+            && !currentUser.Roles.Contains(Models.User.UserRoles.DivisionDirector))
+        {
+            throw new ApiError.RemoveStaffForbidden();
+        }
+        user.Roles = roles.ToList();
+        await DbContext.SaveChangesAsync();
+        return new UserDto(user);
     }
 
     [HttpGet("me")]

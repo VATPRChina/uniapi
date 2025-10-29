@@ -72,6 +72,11 @@ public class User
         public const string TechAfvFacilityEngineer = "tech-afv-facility-engineer";
 
         public const string Controller = "controller";
+
+        public static IEnumerable<string> AllRoles => typeof(UserRoles).GetFields()
+                .Where(f => f.IsStatic && f.IsLiteral && f.FieldType == typeof(string))
+                .Select(f => f.GetValue(null)?.ToString() ?? string.Empty)
+                .ToList();
     }
 
     public static class SpecialRoles

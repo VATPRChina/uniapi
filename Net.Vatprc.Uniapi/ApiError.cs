@@ -272,4 +272,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.NotFound, "EVENT_SLOT_NOT_FOUND_FOR_USER", "Event {event_id}'s slot not found for {user_id}.")]
     public class EventSlotNotFoundForUser(Ulid event_id, Ulid user_id) :
         ApiError($"Event {event_id}'s slot not found for {user_id}.");
+
+    [Error(HttpStatusCode.Forbidden, "REMOVE_STAFF_FORBIDDEN", "Normal staff cannot remove staff role of another user.")]
+    public class RemoveStaffForbidden() :
+        ApiError($"Normal staff cannot remove staff role of another user.");
 }

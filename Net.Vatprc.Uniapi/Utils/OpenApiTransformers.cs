@@ -71,16 +71,6 @@ public static class OpenApiTransformers
         return Task.CompletedTask;
     }
 
-    public static Task AddUlid(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
-    {
-        if (context.JsonTypeInfo.Type == typeof(Ulid))
-        {
-            schema.Type = "string";
-            schema.Description = "ULID";
-        }
-        return Task.CompletedTask;
-    }
-
     public static Task EnforceNotNull(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
     {
         if (schema.Properties == null)
