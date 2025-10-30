@@ -5,7 +5,7 @@ namespace Net.Vatprc.Uniapi.Services;
 
 public class UserRoleService
 {
-    public static readonly ImmutableDictionary<string, IEnumerable<string>> DIRECTLY_INHERITED_ROLES =
+    protected static readonly ImmutableDictionary<string, IEnumerable<string>> DIRECTLY_INHERITED_ROLES =
         new Dictionary<string, IEnumerable<string>> {
             { UserRoles.Staff, [UserRoles.Volunteer] },
             { UserRoles.Volunteer, [] },

@@ -19,10 +19,11 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
         string FullName,
         DateTimeOffset CreatedAt,
         DateTimeOffset UpdatedAt,
-        ISet<string> Roles
+        ISet<string> Roles,
+        ISet<string> DirectRoles
     )
     {
-        public UserDto(User user) : this(user.Id, user.Cid, user.FullName, user.CreatedAt, user.UpdatedAt, null!)
+        public UserDto(User user) : this(user.Id, user.Cid, user.FullName, user.CreatedAt, user.UpdatedAt, null!, user.Roles.ToHashSet())
         {
             Roles = UserRoleService.GetRoleClosure(user.Roles);
         }
