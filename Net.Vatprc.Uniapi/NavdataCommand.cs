@@ -357,6 +357,7 @@ public class NavdataCommand : Command
         {
             routes.Add(new PreferredRoute
             {
+                Id = Ulid.NewUlid(),
                 Departure = routeData.Dep,
                 Arrival = routeData.Arr,
                 RawRoute = routeData.Route,

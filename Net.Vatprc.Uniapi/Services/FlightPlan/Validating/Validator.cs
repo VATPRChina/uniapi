@@ -147,6 +147,7 @@ public class Validator(
                 Type = ValidationMessage.ViolationType.NotRecommendedRoute,
                 Param = string.Join(",", prefRoutes
                     .Where(r => !r.Remarks.Contains("AIP Route", StringComparison.InvariantCultureIgnoreCase))
+                    .OrderBy(r => r.Id)
                     .Select(r => r.RawRoute)),
             });
         }
