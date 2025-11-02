@@ -33,7 +33,7 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
     [Authorize(Roles = Models.User.UserRoles.Staff)]
     public async Task<IEnumerable<UserDto>> List()
     {
-        return await DbContext.User.Select(x => new UserDto(x)).ToListAsync();
+        return await DbContext.User.OrderBy(u => u.Cid).Select(x => new UserDto(x)).ToListAsync();
     }
 
     [HttpGet("{id}")]
