@@ -44,6 +44,21 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
         return new UserDto(await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id));
     }
 
+    [HttpPost("by-cid/{cid}")]
+    [Authorize(Roles = Models.User.UserRoles.Staff)]
+    public async Task<UserDto> AssumeByCid(string cid)
+    {
+        var user = new User
+        {
+            Cid = cid,
+            FullName = cid,
+            Email = null,
+        };
+        DbContext.User.Add(user);
+        await DbContext.SaveChangesAsync();
+        return new UserDto(user);
+    }
+
     [HttpPut("{id}/roles")]
     [ApiError.Has<ApiError.UserNotFound>]
     [Authorize(Roles = Models.User.UserRoles.Staff)]
