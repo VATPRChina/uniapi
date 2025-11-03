@@ -72,7 +72,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
 
     [HttpGet("bookings.csv")]
     [Produces("text/csv")]
-    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<IActionResult> Export(Ulid eid)
     {
         var slots = await DbContext.EventBooking
@@ -121,7 +121,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     [ApiError.Has<ApiError.EventAirspaceNotFound>]
     public async Task<EventSlotDto> Create(Ulid eid, CreateEventSlotDto dto)
     {
@@ -149,7 +149,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpPut("{sid}")]
-    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<EventSlotDto> Update(Ulid eid, Ulid sid, UpdateEventSlotDto dto)
     {
         var slot = await LoadAsync(eid, sid);
@@ -162,7 +162,7 @@ public class EventSlotController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpDelete("{sid}")]
-    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<EventSlotDto> Delete(Ulid eid, Ulid sid)
     {
         var slot = await LoadAsync(eid, sid);

@@ -264,7 +264,7 @@ public class FlightController(VATPRCContext DbContext, ILogger<FlightController>
     }
 
     [HttpGet("temporary/by-plan/warnings")]
-    [Authorize(Roles = Models.User.SpecialRoles.ApiClient)]
+    [Authorize(Roles = Models.UserRoles.ApiClient)]
     public async Task<IEnumerable<WarningMessage>> GetByFlightPlanId(TemporaryFlightQuery query, CancellationToken ct = default)
     {
         var flight = new Flight

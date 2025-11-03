@@ -98,7 +98,7 @@ public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBas
             {
                 throw new ApiError.EventNotInBookingTime(eid);
             }
-            if (booking.UserId != this.GetUserId() && !User.IsInRole(Models.User.UserRoles.Staff))
+            if (booking.UserId != this.GetUserId() && !User.IsInRole(UserRoles.Staff))
             {
                 throw new ApiError.EventSlotBookedByAnotherUser(eid, sid);
             }

@@ -45,7 +45,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
     {
         var query = DbContext.Event.AsQueryable()
             .Where(x => DateTimeOffset.UtcNow < x.EndAt);
-        if (!User.IsInRole(Models.User.UserRoles.EventCoordinator))
+        if (!User.IsInRole(UserRoles.EventCoordinator))
         {
             query = query.Where(x => DateTimeOffset.UtcNow.AddDays(7) > x.StartBookingAt);
         }
@@ -75,7 +75,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<EventDto> Create(CreateEventDto dto)
     {
         var eventt = new Event()
@@ -105,7 +105,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpPost("{eid}")]
-    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<EventDto> Update(Ulid eid, UpdateEventDto dto)
     {
         var eventt = await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid);
@@ -121,7 +121,7 @@ public class EventController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpDelete("{eid}")]
-    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<EventDto> Delete(Ulid eid)
     {
         var eventt = await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid);

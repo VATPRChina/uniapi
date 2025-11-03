@@ -108,10 +108,10 @@ public class AuthenticationEventHandler(VATPRCContext DbContext) : JwtBearerEven
             if (identity == null) return;
             if (user == null)
             {
-                identity.AddClaim(new(ClaimTypes.Role, User.SpecialRoles.ApiClient));
+                identity.AddClaim(new(ClaimTypes.Role, UserRoles.ApiClient));
                 return;
             }
-            identity.AddClaim(new(ClaimTypes.Role, User.SpecialRoles.User));
+            identity.AddClaim(new(ClaimTypes.Role, UserRoles.User));
             var allRoles = UserRoleService.GetRoleClosure(new HashSet<string>(user.Roles));
             foreach (var role in allRoles)
             {

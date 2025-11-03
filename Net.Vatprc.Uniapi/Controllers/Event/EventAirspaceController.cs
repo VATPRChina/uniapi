@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
 
 namespace Net.Vatprc.Uniapi.Controllers;
@@ -72,7 +72,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<EventAirspaceDto> Create(Ulid eid, CreateEventAirspaceDto dto)
     {
         var airspace = new EventAirspace()
@@ -95,7 +95,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpPut("{aid}")]
-    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<EventAirspaceDto> Update(Ulid eid, Ulid aid, UpdateEventAirspaceDto dto)
     {
         var airspace = await LoadAsync(eid, aid);
@@ -107,7 +107,7 @@ public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpDelete("{aid}")]
-    [Authorize(Roles = Models.User.UserRoles.EventCoordinator)]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<EventAirspaceDto> Delete(Ulid eid, Ulid aid)
     {
         var airspace = await LoadAsync(eid, aid);

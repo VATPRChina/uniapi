@@ -8,11 +8,11 @@ public class UserRoleServiceTest
     [Test]
     public void GetRoleClosure_ShouldIncludeTransitive()
     {
-        UserRoleService.GetRoleClosure([User.UserRoles.ControllerTrainingInstructor])
+        UserRoleService.GetRoleClosure([UserRoles.ControllerTrainingInstructor])
             .Should().BeEquivalentTo([
-                User.UserRoles.ControllerTrainingInstructor,
-                User.UserRoles.Volunteer,
-                User.UserRoles.ControllerTrainingMentor,
+                UserRoles.ControllerTrainingInstructor,
+                UserRoles.Volunteer,
+                UserRoles.ControllerTrainingMentor,
             ]);
     }
 
@@ -20,16 +20,16 @@ public class UserRoleServiceTest
     public void GetRoleClosure_ShouldForEachInput()
     {
         UserRoleService.GetRoleClosure([
-            User.UserRoles.ControllerTrainingInstructor,
-            User.UserRoles.TechDirector,
+            UserRoles.ControllerTrainingInstructor,
+            UserRoles.TechDirector,
         ]).Should().BeEquivalentTo([
-                User.UserRoles.Staff,
-                User.UserRoles.Volunteer,
-                User.UserRoles.ControllerTrainingInstructor,
-                User.UserRoles.ControllerTrainingMentor,
-                User.UserRoles.TechDirector,
-                User.UserRoles.TechDirectorAssistant,
-                User.UserRoles.TechAfvFacilityEngineer,
+                UserRoles.Staff,
+                UserRoles.Volunteer,
+                UserRoles.ControllerTrainingInstructor,
+                UserRoles.ControllerTrainingMentor,
+                UserRoles.TechDirector,
+                UserRoles.TechDirectorAssistant,
+                UserRoles.TechAfvFacilityEngineer,
             ]);
     }
 }

@@ -30,7 +30,7 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = Models.User.UserRoles.Staff)]
+    [Authorize(Roles = UserRoles.Staff)]
     public async Task<IEnumerable<UserDto>> List()
     {
         return await DbContext.User.OrderBy(u => u.Cid).Select(x => new UserDto(x)).ToListAsync();
@@ -38,14 +38,14 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
 
     [HttpGet("{id}")]
     [ApiError.Has<ApiError.UserNotFound>]
-    [Authorize(Roles = Models.User.UserRoles.Staff)]
+    [Authorize(Roles = UserRoles.Staff)]
     public async Task<UserDto> Get(Ulid id)
     {
         return new UserDto(await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id));
     }
 
     [HttpPost("by-cid/{cid}")]
-    [Authorize(Roles = Models.User.UserRoles.Staff)]
+    [Authorize(Roles = UserRoles.Staff)]
     public async Task<UserDto> AssumeByCid(string cid)
     {
         var user = new User
@@ -61,7 +61,7 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
 
     [HttpPut("{id}/roles")]
     [ApiError.Has<ApiError.UserNotFound>]
-    [Authorize(Roles = Models.User.UserRoles.Staff)]
+    [Authorize(Roles = UserRoles.Staff)]
     public async Task<UserDto> SetRoles(Ulid id, ISet<string> roles)
     {
         var currentUser = await this.GetUser();
@@ -69,9 +69,9 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
         var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
         var curRoles = UserRoleService.GetRoleClosure(user.Roles);
         var newRoles = UserRoleService.GetRoleClosure(roles);
-        if (curRoles.Contains(Models.User.UserRoles.Staff)
-            && !newRoles.Contains(Models.User.UserRoles.Staff)
-            && !currentUser.Roles.Contains(Models.User.UserRoles.DivisionDirector))
+        if (curRoles.Contains(UserRoles.Staff)
+            && !newRoles.Contains(UserRoles.Staff)
+            && !currentUser.Roles.Contains(UserRoles.DivisionDirector))
         {
             throw new ApiError.RemoveStaffForbidden();
         }
