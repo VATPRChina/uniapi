@@ -2,14 +2,39 @@
 
 This project targets providing an universal API server for all the services VATPRC requires.
 
-- [x] Slot
-- [ ] ATC Management
-- [ ] CORS Proxy
-- [x] Discord Bot
-
 ## Architecture
 
 TODO.
+
+## Development
+
+```
+just run
+--- OR ---
+just watch
+```
+
+### Database
+
+This server requires a local PostgreSQL server. Please start one and specify the
+following in `Net.Vatprc.Uniapi/appsettings.Local.toml`.
+
+```
+[ConnectionStrings]
+VATPRCContext = "Host=localhost;Port=5432;Username=postgres;Password=;Database=vatprc"
+```
+
+And, to migrate the database:
+
+```
+just db-update
+```
+
+To create a new migration:
+
+```
+just new-migration MigrationName
+```
 
 ## License
 
