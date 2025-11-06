@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
+using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Utils;
 
@@ -20,5 +21,14 @@ public static class ControllerExtensions
         var dbContext = controller.HttpContext.RequestServices.GetRequiredService<VATPRCContext>();
         return await dbContext.User.FindAsync(controller.GetUserId()) ??
             throw new ApiError.UserNotFound(controller.GetUserId());
+    }
+
+    public static async Task<bool> HasCurrentUserRole(this ControllerBase controller, string role)
+    {
+        var dbContext = controller.HttpContext.RequestServices.GetRequiredService<VATPRCContext>();
+        var user = await dbContext.User.FindAsync(controller.GetUserId()) ??
+            throw new ApiError.UserNotFound(controller.GetUserId());
+        var roles = UserRoleService.GetRoleClosure(user.Roles);
+        return roles.Contains(role);
     }
 }

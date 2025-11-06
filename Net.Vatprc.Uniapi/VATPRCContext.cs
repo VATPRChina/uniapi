@@ -1,5 +1,6 @@
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Acdm;
+using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Utils;
 
@@ -28,6 +29,8 @@ public class VATPRCContext(DbContextOptions<VATPRCContext> options) : DbContext(
     public DbSet<Runway> Runway { get; set; } = null!;
     public DbSet<VhfNavaid> VhfNavaid { get; set; } = null!;
     public DbSet<Waypoint> Waypoint { get; set; } = null!;
+
+    public DbSet<UserAtcPermission> UserAtcPermission { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -276,4 +276,12 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.Forbidden, "REMOVE_STAFF_FORBIDDEN", "Normal staff cannot remove staff role of another user.")]
     public class RemoveStaffForbidden() :
         ApiError($"Normal staff cannot remove staff role of another user.");
+
+    [Error(HttpStatusCode.NotFound, "USER_ATC_PERMISSION_NOT_FOUND", "ATC position kind {kind}'s permission not found for {user_id}.")]
+    public class UserAtcPermissionNotFound(Ulid user_id, string kind) :
+        ApiError($"ATC position kind {kind}'s permission not found for {user_id}.");
+
+    [Error(HttpStatusCode.BadRequest, "SOLO_EXPIRATION_NOT_PROVIDED", "Solo expiration not provided.")]
+    public class SoloExpirationNotProvided() :
+        ApiError($"Solo expiration not provided.");
 }
