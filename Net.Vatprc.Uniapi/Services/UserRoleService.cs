@@ -1,5 +1,5 @@
 using System.Collections.Immutable;
-using static Net.Vatprc.Uniapi.Models.User;
+using Net.Vatprc.Uniapi.Models;
 
 namespace Net.Vatprc.Uniapi.Services;
 
