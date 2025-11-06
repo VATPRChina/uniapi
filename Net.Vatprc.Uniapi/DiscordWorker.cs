@@ -5,7 +5,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Options;
 
-namespace Net.Vatprc.Uniapi.Services;
+namespace Net.Vatprc.Uniapi;
 
 public class DiscordWorker(
     ILogger<DiscordWorker> Logger,

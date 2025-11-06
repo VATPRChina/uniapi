@@ -4,7 +4,7 @@ using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Utils;
 
-namespace Net.Vatprc.Uniapi.Services;
+namespace Net.Vatprc.Uniapi;
 
 public class FlightWorker(
     ILogger<FlightWorker> Logger,
