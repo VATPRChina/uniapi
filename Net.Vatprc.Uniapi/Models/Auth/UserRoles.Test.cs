@@ -26,6 +26,9 @@ public class UserTest
             UserRoles.TechDirectorAssistant,
             UserRoles.TechAfvFacilityEngineer,
             UserRoles.Controller,
+
+            UserRoles.ApiClient,
+            UserRoles.User,
         };
         UserRoles.AllRoles.Should().BeEquivalentTo(definedRoles);
     }

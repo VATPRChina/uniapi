@@ -14,29 +14,6 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/users")]
 public class UserController(VATPRCContext DbContext) : ControllerBase
 {
-    public record UserDto(
-        Ulid Id,
-        string Cid,
-        string FullName,
-        DateTimeOffset CreatedAt,
-        DateTimeOffset UpdatedAt,
-        ISet<string> Roles,
-        ISet<string> DirectRoles
-    )
-    {
-        public UserDto(User user, bool showFullName = false) : this(
-            user.Id,
-            user.Cid,
-            showFullName ? user.FullName : string.Empty,
-            user.CreatedAt,
-            user.UpdatedAt,
-            null!,
-            user.Roles.ToHashSet())
-        {
-            Roles = UserRoleService.GetRoleClosure(user.Roles);
-        }
-    }
-
     [HttpGet]
     [Authorize(Roles = UserRoles.Volunteer)]
     public async Task<IEnumerable<UserDto>> List()
@@ -115,12 +92,6 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
             .FirstOrDefaultAsync() ?? throw new ApiError.UserAtcPermissionNotFound(id, kind);
     }
 
-    public record SetAtcPermissionDto
-    {
-        public required UserAtcPermission.UserControllerState State { get; set; }
-        public DateTimeOffset? SoloExpiresAt { get; set; }
-    }
-
     [HttpPut("{id}/atc/permissions/{kind}")]
     [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
     public async Task<AtcPermissionDto> SetAtcPermissionForKind(Ulid id, string kind, SetAtcPermissionDto req)
@@ -174,6 +145,97 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
         return new UserDto(user ?? throw new ApiError.UserNotFound(userId));
     }
 
+    [HttpGet("me/atc/permissions")]
+    public async Task<IEnumerable<AtcPermissionDto>> GetAtcPermissions()
+    {
+        var user = await this.GetUser();
+
+        return await DbContext.UserAtcPermission
+            .Where(p => p.UserId == user.Id)
+            .Select(p => new AtcPermissionDto(p))
+            .ToListAsync();
+    }
+
+    public record UserDto(
+    Ulid Id,
+    string Cid,
+    string FullName,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    ISet<UserRoleDto> Roles,
+    ISet<UserRoleDto> DirectRoles
+)
+    {
+        public UserDto(User user, bool showFullName = false) : this(
+            user.Id,
+            user.Cid,
+            showFullName ? user.FullName : string.Empty,
+            user.CreatedAt,
+            user.UpdatedAt,
+            null!,
+            user.Roles.Select(ConvertRole).ToHashSet())
+        {
+            Roles = UserRoleService.GetRoleClosure(user.Roles).Select(ConvertRole).ToHashSet();
+        }
+
+        public static UserRoleDto ConvertRole(string role) => role switch
+        {
+            UserRoles.Staff => UserRoleDto.Staff,
+            UserRoles.Volunteer => UserRoleDto.Volunteer,
+            UserRoles.DivisionDirector => UserRoleDto.DivisionDirector,
+            UserRoles.ControllerTrainingDirector => UserRoleDto.ControllerTrainingDirector,
+            UserRoles.ControllerTrainingDirectorAssistant => UserRoleDto.ControllerTrainingDirectorAssistant,
+            UserRoles.ControllerTrainingInstructor => UserRoleDto.ControllerTrainingInstructor,
+            UserRoles.ControllerTrainingMentor => UserRoleDto.ControllerTrainingMentor,
+            UserRoles.ControllerTrainingSopEditor => UserRoleDto.ControllerTrainingSopEditor,
+            UserRoles.OperationDirector => UserRoleDto.OperationDirector,
+            UserRoles.OperationDirectorAssistant => UserRoleDto.OperationDirectorAssistant,
+            UserRoles.OperationSectorEditor => UserRoleDto.OperationSectorEditor,
+            UserRoles.OperationLoaEditor => UserRoleDto.OperationLoaEditor,
+            UserRoles.EventDirector => UserRoleDto.EventDirector,
+            UserRoles.EventCoordinator => UserRoleDto.EventCoordinator,
+            UserRoles.EventGraphicsDesigner => UserRoleDto.EventGraphicsDesigner,
+            UserRoles.TechDirector => UserRoleDto.TechDirector,
+            UserRoles.TechDirectorAssistant => UserRoleDto.TechDirectorAssistant,
+            UserRoles.TechAfvFacilityEngineer => UserRoleDto.TechAfvFacilityEngineer,
+            UserRoles.Controller => UserRoleDto.Controller,
+            UserRoles.ApiClient => UserRoleDto.ApiClient,
+            UserRoles.User => UserRoleDto.User,
+            _ => throw new ArgumentOutOfRangeException(nameof(role), $"Unknown role: {role}"),
+        };
+    }
+
+    public enum UserRoleDto
+    {
+        Staff,
+        Volunteer,
+        DivisionDirector,
+        ControllerTrainingDirector,
+        ControllerTrainingDirectorAssistant,
+        ControllerTrainingInstructor,
+        ControllerTrainingMentor,
+        ControllerTrainingSopEditor,
+        OperationDirector,
+        OperationDirectorAssistant,
+        OperationSectorEditor,
+        OperationLoaEditor,
+        EventDirector,
+        EventCoordinator,
+        EventGraphicsDesigner,
+        TechDirector,
+        TechDirectorAssistant,
+        TechAfvFacilityEngineer,
+        Controller,
+        ApiClient,
+        User,
+    }
+
+    public record SetAtcPermissionDto
+    {
+        public required UserAtcPermission.UserControllerState State { get; set; }
+        public DateTimeOffset? SoloExpiresAt { get; set; }
+    }
+
     public record AtcPermissionDto(
         string PositionKindId,
         UserAtcPermission.UserControllerState State,
@@ -186,16 +248,5 @@ public class UserController(VATPRCContext DbContext) : ControllerBase
             permission.SoloExpiresAt)
         {
         }
-    }
-
-    [HttpGet("me/atc/permissions")]
-    public async Task<IEnumerable<AtcPermissionDto>> GetAtcPermissions()
-    {
-        var user = await this.GetUser();
-
-        return await DbContext.UserAtcPermission
-            .Where(p => p.UserId == user.Id)
-            .Select(p => new AtcPermissionDto(p))
-            .ToListAsync();
     }
 }

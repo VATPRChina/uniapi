@@ -31,7 +31,7 @@ public static class UserRoles
 
     public const string Controller = "controller";
 
-    public const string ApiClient = "api_client";
+    public const string ApiClient = "api-client";
     public const string User = "user";
 
     public static IEnumerable<string> AllRoles => typeof(UserRoles).GetFields()
