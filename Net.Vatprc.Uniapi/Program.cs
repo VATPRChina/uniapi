@@ -187,6 +187,7 @@ builder.Services.AddScoped<RouteParseService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<RouteParserFactory>();
 SmmsAdapter.ConfigureOn(builder);
+builder.Services.AddScoped<SheetService>();
 
 var app = builder.Build();
 

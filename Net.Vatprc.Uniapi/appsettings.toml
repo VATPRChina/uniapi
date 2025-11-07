@@ -56,3 +56,6 @@ Endpoint = "https://community.vatprc.net"
 Enabled = false
 PeriodInSeconds = 15
 TimeoutInMinutes = 5
+
+[Storage.Image.Smms]
+SecretToken = ""

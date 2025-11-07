@@ -7,7 +7,7 @@ using Net.Vatprc.Uniapi.Models;
 
 namespace Net.Vatprc.Uniapi.Services;
 
-public class TokenService(IOptionsMonitor<TokenService.Option> Options, IServiceScopeFactory Services)
+public class TokenService(IOptionsMonitor<TokenService.Option> Options, VATPRCContext dbContext)
 {
     public TimeSpan AccessTokenExpires => Options.CurrentValue.FirstPartyExpires;
     public TimeSpan DeviceAuthzExpires => TimeSpan.FromSeconds(Options.CurrentValue.DeviceAuthzExpires);
@@ -16,13 +16,13 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
     {
         builder.Services.Configure<Option>(builder.Configuration.GetSection(Option.LOCATION));
         builder.Services.ConfigureOptions<OptionConfigure>();
-        builder.Services.AddSingleton<TokenService>();
+        builder.Services.AddScoped<TokenService>();
         return builder;
     }
 
     public string EncodeScopes(IEnumerable<string> scopes)
     {
-        return string.Join(" ", scopes);
+        return string.Join(' ', scopes);
     }
 
     public IEnumerable<string> DecodeScopes(string scopes)
@@ -85,20 +85,18 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
             ExpiresIn = expireTime,
             AuthzCode = createCode ? Ulid.NewUlid() : null,
         };
-        using var services = Services.CreateScope();
-        using var db = services.ServiceProvider.GetRequiredService<VATPRCContext>();
-        using var transaction = db.Database.BeginTransaction();
-        db.Session.Add(token);
+        using var transaction = dbContext.Database.BeginTransaction();
+        dbContext.Session.Add(token);
         if (oldToken != null)
         {
-            var oldTokenDb = await db.Session.FindAsync(oldToken.Token);
-            db.Session.Remove(oldTokenDb!);
+            var oldTokenDb = await dbContext.Session.FindAsync(oldToken.Token);
+            dbContext.Session.Remove(oldTokenDb!);
         }
-        await db.SaveChangesAsync();
-        await db.Session
+        await dbContext.SaveChangesAsync();
+        await dbContext.Session
             .Where(x => x.UserId == user.Id && x.ExpiresIn < now)
             .ExecuteDeleteAsync();
-        await db.Session
+        await dbContext.Session
             .Where(x => x.UserId == user.Id && x.UserUpdatedAt != user.UpdatedAt)
             .ExecuteDeleteAsync();
         await transaction.CommitAsync();
@@ -148,15 +146,13 @@ public class TokenService(IOptionsMonitor<TokenService.Option> Options, IService
         {
             throw new InvalidClientIdOrRedirectUriException();
         }
-        using var services = Services.CreateScope();
-        using var db = services.ServiceProvider.GetRequiredService<VATPRCContext>();
-        var session = await db.Session
+        var session = await dbContext.Session
             .Include(x => x.User)
             .FirstOrDefaultAsync(x => x.AuthzCode == Ulid.Parse(token.Id));
         if (session != null)
         {
             session.AuthzCode = null;
-            await db.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
         }
         return session;
     }

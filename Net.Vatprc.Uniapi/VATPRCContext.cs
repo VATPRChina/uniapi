@@ -2,6 +2,7 @@ using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Models.Navdata;
+using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi;
@@ -31,6 +32,11 @@ public class VATPRCContext(DbContextOptions<VATPRCContext> options) : DbContext(
     public DbSet<Waypoint> Waypoint { get; set; } = null!;
 
     public DbSet<UserAtcPermission> UserAtcPermission { get; set; } = null!;
+
+    public DbSet<Sheet> Sheet { get; set; } = null!;
+    public DbSet<SheetField> SheetField { get; set; } = null!;
+    public DbSet<SheetFiling> SheetFiling { get; set; } = null!;
+    public DbSet<SheetFilingAnswer> SheetFilingAnswer { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
