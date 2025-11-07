@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net.Vatprc.Uniapi", "Net.Vatprc.Uniapi\Net.Vatprc.Uniapi.csproj", "{577748DD-0342-426A-BC81-C8DA84FB85DA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net.Vatprc.Uniapi", "src\Net.Vatprc.Uniapi.csproj", "{577748DD-0342-426A-BC81-C8DA84FB85DA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net.Vatprc.Uniapi.Test", "Net.Vatprc.Uniapi.Test\Net.Vatprc.Uniapi.Test.csproj", "{2999C5F2-BF3F-418E-9359-8B31643F04E3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net.Vatprc.Uniapi.Test", "test\Net.Vatprc.Uniapi.Test.csproj", "{2999C5F2-BF3F-418E-9359-8B31643F04E3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

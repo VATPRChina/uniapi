@@ -8,12 +8,12 @@ RUN apt update && \
 
 RUN curl -sL https://sentry.io/get-cli/ | sh
 
-COPY "Net.Vatprc.Uniapi.csproj" "/src/"
-COPY "packages.lock.json" "/src/"
+COPY "src/Net.Vatprc.Uniapi.csproj" "/src/"
+COPY "src/packages.lock.json" "/src/"
 WORKDIR "/src/"
 RUN dotnet restore --locked-mode -a $TARGETARCH
 
-COPY "." "/src/"
+COPY "src/" "/src/"
 RUN sed -i "s|<AssemblyVersion>0.0.1</AssemblyVersion>|<AssemblyVersion>${VERSION}</AssemblyVersion>|g" "/src/Net.Vatprc.Uniapi.csproj"
 ENV SENTRY_RELEASE=Net.Vatprc.Uniapi@${VERSION}
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \

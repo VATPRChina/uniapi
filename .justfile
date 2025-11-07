@@ -5,14 +5,14 @@ default: watch
 build:
   dotnet build
 run:
-  dotnet run --project Net.Vatprc.Uniapi
+  dotnet run --project src
 watch:
-  dotnet watch run --project Net.Vatprc.Uniapi
+  dotnet watch run --project src
 test:
   dotnet test /p:CollectCoverage=true
 db-update +ARGS="":
-  dotnet ef database update --project Net.Vatprc.Uniapi {{ARGS}}
+  dotnet ef database update --project src {{ARGS}}
 new-migration NAME +ARGS="":
-  dotnet ef migrations add --project Net.Vatprc.Uniapi {{NAME}} {{ARGS}}
+  dotnet ef migrations add --project src {{NAME}} {{ARGS}}
 add NAME:
-  dotnet add Net.Vatprc.Uniapi package {{NAME}}
+  dotnet add src package {{NAME}}

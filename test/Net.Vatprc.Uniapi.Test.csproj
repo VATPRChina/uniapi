@@ -32,10 +32,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Net.Vatprc.Uniapi\**\*.Test.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Net.Vatprc.Uniapi\Net.Vatprc.Uniapi.csproj" />
+    <ProjectReference Include="..\src\Net.Vatprc.Uniapi.csproj" />
   </ItemGroup>
 </Project>

@@ -32,7 +32,6 @@ jobs:
       - name: Publish images
         uses: docker/build-push-action@v6
         with:
-          context: Net.Vatprc.Uniapi
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
