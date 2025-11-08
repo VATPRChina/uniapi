@@ -11,7 +11,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Net.Vatprc.Uniapi.Migrations
 {
-    [DbContext(typeof(VATPRCContext))]
+    [DbContext(typeof(Database))]
     [Migration("20240710131844_SessionAddCode")]
     partial class SessionAddCode
     {

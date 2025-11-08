@@ -11,7 +11,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Net.Vatprc.Uniapi.Migrations
 {
-    [DbContext(typeof(VATPRCContext))]
+    [DbContext(typeof(Database))]
     [Migration("20240714143554_NotamAddBinding")]
     partial class NotamAddBinding
     {

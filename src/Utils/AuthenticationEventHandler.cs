@@ -7,7 +7,7 @@ using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Utils;
 
-public class AuthenticationEventHandler(VATPRCContext DbContext) : JwtBearerEvents
+public class AuthenticationEventHandler(Database DbContext) : JwtBearerEvents
 {
     public override async Task Challenge(JwtBearerChallengeContext context)
     {

@@ -7,7 +7,7 @@ using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi;
 
-public class VATPRCContext(DbContextOptions<VATPRCContext> options) : DbContext(options)
+public class Database(DbContextOptions<Database> options) : DbContext(options)
 {
     public virtual DbSet<User> User { get; set; } = null!;
     public virtual DbSet<RefreshToken> Session { get; set; } = null!;
@@ -38,7 +38,7 @@ public class VATPRCContext(DbContextOptions<VATPRCContext> options) : DbContext(
     public virtual DbSet<SheetFiling> SheetFiling { get; set; } = null!;
     public virtual DbSet<SheetFilingAnswer> SheetFilingAnswer { get; set; } = null!;
 
-    public VATPRCContext() : this(new DbContextOptions<VATPRCContext>())
+    public Database() : this(new DbContextOptions<Database>())
     {
     }
 

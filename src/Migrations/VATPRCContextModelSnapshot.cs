@@ -10,7 +10,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Net.Vatprc.Uniapi.Migrations
 {
-    [DbContext(typeof(VATPRCContext))]
+    [DbContext(typeof(Database))]
     partial class VATPRCContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)

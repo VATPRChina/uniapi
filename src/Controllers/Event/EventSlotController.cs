@@ -9,7 +9,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/events/{eid}/slots")]
-public class EventSlotController(VATPRCContext DbContext) : ControllerBase
+public class EventSlotController(Database DbContext) : ControllerBase
 {
     protected async Task<EventSlot> LoadAsync(Ulid eid, Ulid sid)
     {

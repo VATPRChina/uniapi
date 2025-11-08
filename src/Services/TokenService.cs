@@ -7,7 +7,7 @@ using Net.Vatprc.Uniapi.Models;
 
 namespace Net.Vatprc.Uniapi.Services;
 
-public class TokenService(IOptionsMonitor<TokenService.Option> Options, VATPRCContext dbContext)
+public class TokenService(IOptionsMonitor<TokenService.Option> Options, Database dbContext)
 {
     public TimeSpan AccessTokenExpires => Options.CurrentValue.FirstPartyExpires;
     public TimeSpan DeviceAuthzExpires => TimeSpan.FromSeconds(Options.CurrentValue.DeviceAuthzExpires);

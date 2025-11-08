@@ -302,7 +302,7 @@ public class NavdataCommand : Command
         var aipLocalPath = context.ParseResult.GetValueForOption(AipLocalPath) ?? throw new ArgumentNullException(nameof(AipLocalPath));
 
         using var scope = App.Services.CreateScope();
-        using var db = scope.ServiceProvider.GetRequiredService<VATPRCContext>();
+        using var db = scope.ServiceProvider.GetRequiredService<Database>();
 
         await db.Airport.ExecuteDeleteAsync();
         await db.AirportGate.ExecuteDeleteAsync();

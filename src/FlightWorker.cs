@@ -63,7 +63,7 @@ public class FlightWorker(
     protected async ValueTask RunAsync(CancellationToken ct)
     {
         var scope = ScopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<VATPRCContext>();
+        var db = scope.ServiceProvider.GetRequiredService<Database>();
 
         var data = await VatsimService.GetOnlineData(ct);
 
@@ -83,7 +83,7 @@ public class FlightWorker(
         }
     }
 
-    protected async ValueTask ClearFinalizedFlights(VATPRCContext db, Adapters.VatsimAdapterModels.VatsimData data, CancellationToken ct = default)
+    protected async ValueTask ClearFinalizedFlights(Database db, Adapters.VatsimAdapterModels.VatsimData data, CancellationToken ct = default)
     {
         var flights = await db.Flight
             .Where(f => f.FinalizedAt == null).ToArrayAsync(ct);
@@ -100,7 +100,7 @@ public class FlightWorker(
         await db.SaveChangesAsync(ct);
     }
 
-    protected async ValueTask UpdateFlight(VATPRCContext db, Adapters.VatsimAdapterModels.Pilot pilot, CancellationToken ct = default)
+    protected async ValueTask UpdateFlight(Database db, Adapters.VatsimAdapterModels.Pilot pilot, CancellationToken ct = default)
     {
         if (pilot.FlightPlan == null)
         {

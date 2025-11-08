@@ -2,14 +2,14 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Net.Vatprc.Uniapi.Controllers;
+namespace Net.Vatprc.Uniapi.Controllers.Auth;
 
 /// <summary>
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/session")]
 public class SessionController(
-    VATPRCContext DbContext
+    Database DbContext
 ) : ControllerBase
 {
     public record TokenDto(

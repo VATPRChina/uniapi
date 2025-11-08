@@ -8,7 +8,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/events/{eid}/airspaces")]
-public class EventAirspaceController(VATPRCContext DbContext) : ControllerBase
+public class EventAirspaceController(Database DbContext) : ControllerBase
 {
     protected async Task<EventAirspace> LoadAsync(Ulid eid, Ulid aid)
     {

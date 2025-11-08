@@ -4,9 +4,9 @@ using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Adapters;
 
-public class DbNavdataAdapter(VATPRCContext dbContext) : INavdataProvider
+public class DbNavdataAdapter(Database dbContext) : INavdataProvider
 {
-    protected VATPRCContext DbContext => dbContext;
+    protected Database DbContext => dbContext;
 
     public async Task<bool> ExistsAirwayWithFix(string ident, string fixIdent)
     {

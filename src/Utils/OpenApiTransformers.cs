@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
+using Net.Vatprc.Uniapi.Controllers.Auth;
 using static Net.Vatprc.Uniapi.ApiError;
 
 namespace Net.Vatprc.Uniapi.Utils;
@@ -130,7 +131,7 @@ public static class OpenApiTransformers
         {
             return Task.CompletedTask;
         }
-        if (descriptor.MethodInfo.DeclaringType == typeof(Controllers.AuthController))
+        if (descriptor.MethodInfo.DeclaringType == typeof(AuthController))
         {
             return Task.CompletedTask;
         }

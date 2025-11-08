@@ -107,12 +107,12 @@ builder.Services
     });
 builder.Services.AddProblemDetails();
 
-var connectionString = builder.Configuration.GetConnectionString(nameof(VATPRCContext)) ??
+var connectionString = builder.Configuration.GetConnectionString("VATPRCContext") ??
     throw new Exception("Connection string for VATPRCContext cannot be null");
 var dataSource = new NpgsqlDataSourceBuilder(connectionString)
     .EnableDynamicJson()
     .Build();
-builder.Services.AddDbContext<VATPRCContext>(opt =>
+builder.Services.AddDbContext<Database>(opt =>
 {
     opt.UseSnakeCaseNamingConvention();
     opt.UseNpgsql(dataSource);
@@ -240,7 +240,7 @@ rootCommand.Add(migrateCommand);
 migrateCommand.SetHandler(async () =>
 {
     using var scope = app.Services.CreateScope();
-    using var db = scope.ServiceProvider.GetRequiredService<VATPRCContext>();
+    using var db = scope.ServiceProvider.GetRequiredService<Database>();
     await db.Database.MigrateAsync();
 });
 rootCommand.Add(new NavdataCommand(app));

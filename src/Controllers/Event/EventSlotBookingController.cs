@@ -10,7 +10,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/events/{eid}/slots/{sid}/booking")]
-public class EventSlotBookingController(VATPRCContext DbContext) : ControllerBase
+public class EventSlotBookingController(Database DbContext) : ControllerBase
 {
     /// <summary>
     /// User-level lock to ensure the booking request for a user is processed sequentially.

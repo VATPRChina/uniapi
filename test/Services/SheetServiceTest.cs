@@ -10,13 +10,13 @@ namespace Net.Vatprc.Uniapi.Test.Services;
 [TestFixture]
 public class SheetServiceTest
 {
-    private Mock<VATPRCContext> dbContext;
+    private Mock<Database> dbContext;
     private SheetService sheetService;
 
     [SetUp]
     public void Setup()
     {
-        dbContext = new Mock<VATPRCContext>();
+        dbContext = new Mock<Database>();
 
         sheetService = new SheetService(dbContext.Object);
     }

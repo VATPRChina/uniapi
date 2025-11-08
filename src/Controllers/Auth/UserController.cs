@@ -6,13 +6,13 @@ using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
 
-namespace Net.Vatprc.Uniapi.Controllers;
+namespace Net.Vatprc.Uniapi.Controllers.Auth;
 
 /// <summary>
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/users")]
-public class UserController(VATPRCContext DbContext) : ControllerBase
+public class UserController(Database DbContext) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = UserRoles.Volunteer)]

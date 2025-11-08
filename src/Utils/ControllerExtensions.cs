@@ -18,14 +18,14 @@ public static class ControllerExtensions
 
     public static async Task<User> GetUser(this ControllerBase controller)
     {
-        var dbContext = controller.HttpContext.RequestServices.GetRequiredService<VATPRCContext>();
+        var dbContext = controller.HttpContext.RequestServices.GetRequiredService<Database>();
         return await dbContext.User.FindAsync(controller.GetUserId()) ??
             throw new ApiError.UserNotFound(controller.GetUserId());
     }
 
     public static async Task<bool> HasCurrentUserRole(this ControllerBase controller, string role)
     {
-        var dbContext = controller.HttpContext.RequestServices.GetRequiredService<VATPRCContext>();
+        var dbContext = controller.HttpContext.RequestServices.GetRequiredService<Database>();
         var user = await dbContext.User.FindAsync(controller.GetUserId()) ??
             throw new ApiError.UserNotFound(controller.GetUserId());
         var roles = UserRoleService.GetRoleClosure(user.Roles);

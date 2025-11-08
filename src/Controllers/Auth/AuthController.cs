@@ -11,7 +11,7 @@ using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
 
-namespace Net.Vatprc.Uniapi.Controllers;
+namespace Net.Vatprc.Uniapi.Controllers.Auth;
 
 [ApiController, Route("auth")]
 [AllowAnonymous]
@@ -20,7 +20,7 @@ public class AuthController(
     IOptions<VatsimAuthAdapter.Option> Options,
     TokenService TokenService,
     VatsimAuthAdapter AuthService,
-    VATPRCContext DbContext,
+    Database DbContext,
     ILogger<AuthController> Logger) : Controller
 {
     public readonly TimeSpan AuthnStateExpires = TimeSpan.FromMinutes(10);

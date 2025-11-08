@@ -13,7 +13,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Flight information.
 /// </summary>
 [ApiController, Route("api/flights")]
-public class FlightController(VATPRCContext DbContext, ILogger<FlightController> Logger, RouteParseService RouteParse) : ControllerBase
+public class FlightController(Database DbContext, ILogger<FlightController> Logger, RouteParseService RouteParse) : ControllerBase
 {
     public record FlightDto
     {
