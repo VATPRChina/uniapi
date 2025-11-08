@@ -30,13 +30,22 @@ public class SheetService(
         foreach (var field in fields)
         {
             field.SheetId = sheetId;
+
+            if (field.Kind == SheetFieldKind.SingleChoice && !field.SingleChoiceOptions.Any())
+            {
+                throw new ArgumentException($"Single choice field '{field.NameEn}' must have at least one option", nameof(fields));
+            }
+            else if (field.Kind != SheetFieldKind.SingleChoice)
+            {
+                field.SingleChoiceOptions = [];
+            }
+
             dbContext.SheetField.Add(field);
         }
 
         await dbContext.SaveChangesAsync(ct);
 
-        return await GetSheetByIdAsync(sheetId, ct)
-            ?? throw new InvalidOperationException("Sheet not found after update");
+        return sheet;
     }
 
     public async Task<SheetFiling?> GetSheetFilingByIdAsync(Ulid filingId, CancellationToken ct = default)
