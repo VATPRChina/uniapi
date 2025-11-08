@@ -1,6 +1,5 @@
 using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
-using MockQueryable.Moq;
 using Moq;
 using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Services;
@@ -8,17 +7,14 @@ using Net.Vatprc.Uniapi.Services;
 namespace Net.Vatprc.Uniapi.Test.Services;
 
 [TestFixture]
-public class SheetServiceTest
+public class SheetServiceTest : TestWithDatabase
 {
-    private Mock<Database> dbContext;
     private SheetService sheetService;
 
     [SetUp]
     public void Setup()
     {
-        dbContext = new Mock<Database>();
-
-        sheetService = new SheetService(dbContext.Object);
+        sheetService = new SheetService(dbContext);
     }
 
     [Test]
@@ -48,6 +44,7 @@ public class SheetServiceTest
         var testSheetField1 = new SheetField
         {
             SheetId = "test-sheet",
+            Id = "field-one",
             Sequence = 1,
             NameZh = "字段一",
             NameEn = "Field One",
@@ -56,6 +53,7 @@ public class SheetServiceTest
         var testSheetField2 = new SheetField
         {
             SheetId = "test-sheet",
+            Id = "field-two",
             Sequence = 2,
             NameZh = "字段二",
             NameEn = "Field Two",
@@ -64,14 +62,18 @@ public class SheetServiceTest
         var testSheetField3 = new SheetField
         {
             SheetId = "test-sheet",
+            Id = "field-three",
             Sequence = 3,
             NameZh = "字段三",
             NameEn = "Field Three",
             Kind = SheetFieldKind.SingleChoice,
         };
-        ICollection<SheetField> sheetFields = [testSheetField1, testSheetField2, testSheetField3];
-        var testSheet = new Sheet { Id = "test-sheet", Name = "Test Sheet", Fields = sheetFields };
-        ICollection<Sheet> sheets = [testSheet];
-        dbContext.SetupGet(d => d.Sheet).Returns(sheets.BuildMockDbSet().Object);
+        IList<SheetField> sheetFields = [testSheetField1, testSheetField2, testSheetField3];
+        dbContext.SheetField.AddRange(sheetFields);
+
+        var testSheet = new Sheet { Id = "test-sheet", Name = "Test Sheet" };
+        dbContext.Sheet.Add(testSheet);
+
+        dbContext.SaveChanges();
     }
 }
