@@ -38,10 +38,6 @@ public class Database(DbContextOptions<Database> options) : DbContext(options)
     public virtual DbSet<SheetFiling> SheetFiling { get; set; } = null!;
     public virtual DbSet<SheetFilingAnswer> SheetFilingAnswer { get; set; } = null!;
 
-    public Database() : this(new DbContextOptions<Database>())
-    {
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(
