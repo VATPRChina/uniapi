@@ -7,6 +7,8 @@ public class SheetField
     public string SheetId { get; set; } = default!;
     public Sheet Sheet { get; set; } = default!;
 
+    public string Id { get; set; } = default!;
+
     public uint Sequence { get; set; }
 
     public string NameZh { get; set; } = default!;
@@ -17,16 +19,21 @@ public class SheetField
 
     public IEnumerable<string> SingleChoiceOptions { get; set; } = [];
 
+    public bool IsDeleted { get; set; } = false;
+
     public class Configuration : IEntityTypeConfiguration<SheetField>
     {
         public void Configure(EntityTypeBuilder<SheetField> builder)
         {
-            builder.HasKey(x => new { x.SheetId, x.Sequence });
+            builder.HasKey(x => new { x.SheetId, x.Id });
 
             builder.HasOne(x => x.Sheet)
                 .WithMany(x => x.Fields)
                 .HasForeignKey(x => x.SheetId)
                 .IsRequired(true);
+
+            builder.Property(x => x.IsDeleted)
+                .HasDefaultValue(false);
         }
     }
 }

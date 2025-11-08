@@ -10,7 +10,7 @@ public class SheetService(
     {
         return await dbContext.Sheet
             .Where(s => s.Id == sheetId)
-            .Include(s => s.Fields.OrderBy(f => f.Sequence))
+            .Include(s => s.Fields.OrderBy(f => !f.IsDeleted).ThenBy(f => f.Sequence))
             .FirstOrDefaultAsync(ct);
     }
 
@@ -20,12 +20,7 @@ public class SheetService(
         CancellationToken ct = default)
     {
         var sheet = await GetSheetByIdAsync(sheetId, ct)
-            ?? throw new ArgumentException("Sheet not found", nameof(sheetId));
-
-        var existingFields = dbContext.SheetField
-            .Where(f => f.SheetId == sheetId);
-
-        dbContext.SheetField.RemoveRange(existingFields);
+            ?? throw new SheetNotFoundException(nameof(sheetId));
 
         foreach (var field in fields)
         {
@@ -40,7 +35,28 @@ public class SheetService(
                 field.SingleChoiceOptions = [];
             }
 
-            dbContext.SheetField.Add(field);
+            if (!sheet.Fields.Any(f => f.Id == field.Id))
+            {
+                sheet.Fields.Add(field);
+            }
+            else
+            {
+                var existingField = sheet.Fields.First(f => f.Id == field.Id);
+                existingField.Sequence = field.Sequence;
+                existingField.NameZh = field.NameZh;
+                existingField.NameEn = field.NameEn;
+                existingField.Kind = field.Kind;
+                existingField.SingleChoiceOptions = field.SingleChoiceOptions;
+                existingField.IsDeleted = false;
+            }
+        }
+
+        foreach (var existingField in sheet.Fields)
+        {
+            if (!fields.Any(f => f.Id == existingField.Id))
+            {
+                existingField.IsDeleted = true;
+            }
         }
 
         await dbContext.SaveChangesAsync(ct);
@@ -52,7 +68,7 @@ public class SheetService(
     {
         return await dbContext.SheetFiling
             .Where(f => f.Id == filingId)
-            .Include(f => f.Answers!.OrderBy(a => a.FieldSequence))
+            .Include(f => f.Answers!.OrderBy(a => a.Field!.Sequence))
             .FirstOrDefaultAsync(ct);
     }
 
@@ -63,14 +79,14 @@ public class SheetService(
         CancellationToken ct = default)
     {
         var sheet = await GetSheetByIdAsync(sheetId, ct)
-            ?? throw new ArgumentException("Sheet not found", nameof(sheetId));
+            ?? throw new SheetNotFoundException(nameof(sheetId));
 
         foreach (var (fieldNumber, answerText) in answers)
         {
             var field = sheet.Fields.FirstOrDefault(f => f.Sequence == fieldNumber);
             if (field == null)
             {
-                throw new ArgumentException($"Field number {fieldNumber} not found in sheet {sheetId}", nameof(answers));
+                throw new FieldNotFoundException(fieldNumber, sheetId, nameof(answers));
             }
         }
 
@@ -87,13 +103,13 @@ public class SheetService(
         {
             if (!answers.TryGetValue(field.Sequence, out string? value) || string.IsNullOrWhiteSpace(value))
             {
-                throw new ArgumentException($"Required field number {field.Sequence} is missing or empty", nameof(answers));
+                throw new RequiredFieldMissingException(field.Sequence, sheetId, nameof(answers));
             }
 
             var filingAnswer = new SheetFilingAnswer
             {
                 FilingId = sheetFiling.Id,
-                FieldSequence = field.Sequence,
+                FieldId = field.Id,
                 Answer = value,
             };
 
@@ -105,5 +121,20 @@ public class SheetService(
         await dbContext.SaveChangesAsync(ct);
 
         return sheetFiling;
+    }
+
+    public class SheetNotFoundException(string paramName) :
+        ArgumentException("Sheet not found", paramName)
+    {
+    }
+
+    public class FieldNotFoundException(uint fieldSeq, string sheetId, string paramName) :
+        ArgumentException($"Field number {fieldSeq} not found in sheet {sheetId}", paramName)
+    {
+    }
+
+    public class RequiredFieldMissingException(uint fieldSeq, string sheetId, string paramName) :
+        ArgumentException($"Required field number {fieldSeq} is missing or empty for sheet {sheetId}", paramName)
+    {
     }
 }

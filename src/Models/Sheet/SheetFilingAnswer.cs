@@ -5,7 +5,7 @@ namespace Net.Vatprc.Uniapi.Models.Sheet;
 public class SheetFilingAnswer
 {
     public string SheetId { get; set; } = default!;
-    public uint FieldSequence { get; set; }
+    public string FieldId { get; set; } = default!;
 
     public SheetField? Field { get; set; }
 
@@ -18,11 +18,11 @@ public class SheetFilingAnswer
     {
         public void Configure(EntityTypeBuilder<SheetFilingAnswer> builder)
         {
-            builder.HasKey(x => new { x.SheetId, x.FieldSequence, x.FilingId });
+            builder.HasKey(x => new { x.SheetId, x.FieldId, x.FilingId });
 
             builder.HasOne(x => x.Field)
                 .WithMany()
-                .HasForeignKey(x => new { x.SheetId, x.FieldSequence })
+                .HasForeignKey(x => new { x.SheetId, x.FieldId })
                 .IsRequired(true);
 
             builder.HasOne(x => x.Filing)

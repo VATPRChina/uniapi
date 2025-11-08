@@ -8,7 +8,7 @@ public class Sheet
 
     public string Name { get; set; } = default!;
 
-    public IEnumerable<SheetField> Fields { get; set; } = null!;
+    public IList<SheetField> Fields { get; set; } = null!;
 
     public class Configuration : IEntityTypeConfiguration<Sheet>
     {
