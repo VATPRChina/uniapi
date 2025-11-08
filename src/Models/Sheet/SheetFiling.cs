@@ -14,7 +14,7 @@ public class SheetFiling
 
     public DateTimeOffset FiledAt { get; set; }
 
-    public IEnumerable<SheetFilingAnswer> Answers { get; set; } = null!;
+    public IList<SheetFilingAnswer>? Answers { get; set; }
 
     public class Configuration : IEntityTypeConfiguration<SheetFiling>
     {
