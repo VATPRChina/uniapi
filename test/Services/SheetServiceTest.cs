@@ -1,3 +1,4 @@
+using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Services;
 using static Net.Vatprc.Uniapi.Services.SheetService;
@@ -8,6 +9,7 @@ namespace Net.Vatprc.Uniapi.Test.Services;
 public class SheetServiceTest : TestWithDatabase
 {
     private SheetService sheetService;
+    private User? user;
 
     [SetUp]
     public void Setup()
@@ -35,54 +37,6 @@ public class SheetServiceTest : TestWithDatabase
         var result = await sheetService.GetSheetByIdAsync("test-sheet-b");
 
         result.Should().BeNull();
-    }
-
-    private void SetupSheet()
-    {
-        var testSheetField1 = new SheetField
-        {
-            SheetId = "test-sheet",
-            Id = "field-one",
-            Sequence = 1,
-            NameZh = "字段一",
-            NameEn = "Field One",
-            Kind = SheetFieldKind.ShortText,
-        };
-        var testSheetField2 = new SheetField
-        {
-            SheetId = "test-sheet",
-            Id = "field-two",
-            Sequence = 2,
-            NameZh = "字段二",
-            NameEn = "Field Two",
-            Kind = SheetFieldKind.LongText,
-        };
-        var testSheetField3 = new SheetField
-        {
-            SheetId = "test-sheet",
-            Id = "field-three",
-            Sequence = 3,
-            NameZh = "字段三",
-            NameEn = "Field Three",
-            Kind = SheetFieldKind.SingleChoice,
-        };
-        var testSheetField4 = new SheetField
-        {
-            SheetId = "test-sheet",
-            Id = "field-four",
-            Sequence = 4,
-            NameZh = "字段四",
-            NameEn = "Field Four",
-            Kind = SheetFieldKind.ShortText,
-            IsDeleted = true,
-        };
-        IList<SheetField> sheetFields = [testSheetField1, testSheetField2, testSheetField3, testSheetField4];
-        dbContext.SheetField.AddRange(sheetFields);
-
-        var testSheet = new Sheet { Id = "test-sheet", Name = "Test Sheet" };
-        dbContext.Sheet.Add(testSheet);
-
-        dbContext.SaveChanges();
     }
 
     [Test]
@@ -213,5 +167,225 @@ public class SheetServiceTest : TestWithDatabase
         var newField = result.Fields.First(f => f.Id == "field-one");
         newField.NameZh.Should().Be("字段一");
         newField.NameEn.Should().Be("Field One");
+    }
+
+    [Test]
+    public async Task GetSheetFilingByIdAsync_Returns()
+    {
+        SetupSheet();
+        SetupUser();
+        SetupSheetFiling();
+
+        var existingFiling = dbContext.SheetFiling.First();
+        var result = await sheetService.GetSheetFilingByIdAsync(existingFiling.Id);
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(existingFiling.Id);
+    }
+
+    [Test]
+    public async Task CreateSheetFilingAsync_CreatesFiling()
+    {
+        SetupSheet();
+        SetupUser();
+
+        var answers = new Dictionary<string, string>
+        {
+            { "field-one", "Test Answer" },
+            { "field-two", "Test Answer 2" },
+            { "field-three", "Option A" },
+            {"field-four", "Should be ignored"}
+        };
+        var result = await sheetService.CreateSheetFilingAsync("test-sheet", user!.Id, answers);
+
+        result.Should().NotBeNull();
+        result.SheetId.Should().Be("test-sheet");
+        result.UserId.Should().Be(user.Id);
+        result.Answers.Should().HaveCount(3);
+        result.Answers.ElementAt(0).FieldId.Should().Be("field-one");
+        result.Answers.ElementAt(0).Answer.Should().Be("Test Answer");
+        result.Answers.ElementAt(1).FieldId.Should().Be("field-two");
+        result.Answers.ElementAt(1).Answer.Should().Be("Test Answer 2");
+        result.Answers.ElementAt(2).FieldId.Should().Be("field-three");
+        result.Answers.ElementAt(2).Answer.Should().Be("Option A");
+    }
+
+    [Test]
+    public async Task CreateSheetFilingAsync_CreatesFiling_AllowsEmptyDeletedField()
+    {
+        SetupSheet();
+        SetupUser();
+
+        var answers = new Dictionary<string, string>
+        {
+            { "field-one", "Test Answer" },
+            { "field-two", "Test Answer 2" },
+            { "field-three", "Option A" },
+        };
+        var result = await sheetService.CreateSheetFilingAsync("test-sheet", user!.Id, answers);
+
+        result.Should().NotBeNull();
+        result.SheetId.Should().Be("test-sheet");
+        result.UserId.Should().Be(user.Id);
+        result.Answers.Should().HaveCount(3);
+        result.Answers.ElementAt(0).FieldId.Should().Be("field-one");
+        result.Answers.ElementAt(0).Answer.Should().Be("Test Answer");
+        result.Answers.ElementAt(1).FieldId.Should().Be("field-two");
+        result.Answers.ElementAt(1).Answer.Should().Be("Test Answer 2");
+        result.Answers.ElementAt(2).FieldId.Should().Be("field-three");
+        result.Answers.ElementAt(2).Answer.Should().Be("Option A");
+    }
+
+    [Test]
+    public async Task CreateSheetFilingAsync_MissingRequiredField_ThrowsException()
+    {
+        SetupSheet();
+        SetupUser();
+
+        var answers = new Dictionary<string, string>
+        {
+            { "field-one", "Test Answer" },
+            // Missing field-two
+            { "field-three", "Option A" },
+        };
+        Func<Task> act = async () => await sheetService.CreateSheetFilingAsync("test-sheet", user!.Id, answers);
+
+        await act.Should().ThrowAsync<RequiredFieldMissingException>()
+            .WithMessage("Required field field-two is missing or empty for sheet test-sheet (Parameter 'answers')")
+            .Where(e => e.ParamName == "answers");
+    }
+
+    [Test]
+    public async Task CreateSheetFilingAsync_EmptyRequiredField_ThrowsException()
+    {
+        SetupSheet();
+        SetupUser();
+
+        var answers = new Dictionary<string, string>
+        {
+            { "field-one", "Test Answer" },
+            { "field-two", "   " }, // Empty answer
+            { "field-three", "Option A" },
+        };
+        Func<Task> act = async () => await sheetService.CreateSheetFilingAsync("test-sheet", user!.Id, answers);
+
+        await act.Should().ThrowAsync<RequiredFieldMissingException>()
+            .WithMessage("Required field field-two is missing or empty for sheet test-sheet (Parameter 'answers')")
+            .Where(e => e.ParamName == "answers");
+    }
+
+    [Test]
+    public async Task CreateSheetFilingAsync_AnswersNonExistentField_ThrowsException()
+    {
+        SetupSheet();
+        SetupUser();
+
+        var answers = new Dictionary<string, string>
+        {
+            { "field-one", "Test Answer" },
+            { "field-two", "Test Answer 2" },
+            { "field-three", "Option A" },
+            { "non-existent-field", "Some Answer" },
+        };
+        Func<Task> act = async () => await sheetService.CreateSheetFilingAsync("test-sheet", user!.Id, answers);
+
+        await act.Should().ThrowAsync<FieldNotFoundException>()
+            .WithMessage("Field non-existent-field not found in sheet test-sheet (Parameter 'answers')")
+            .Where(e => e.ParamName == "answers");
+    }
+
+    [Test]
+    public async Task CreateSheetFilingAsync_SheetNotFound_ThrowsException()
+    {
+        SetupUser();
+
+        var answers = new Dictionary<string, string>
+        {
+            { "field-one", "Test Answer" },
+            { "field-two", "Test Answer 2" },
+            { "field-three", "Option A" },
+        };
+        Func<Task> act = async () => await sheetService.CreateSheetFilingAsync("non-existent-sheet", user!.Id, answers);
+
+        await act.Should().ThrowAsync<SheetNotFoundException>()
+            .WithMessage("Sheet not found (Parameter 'sheetId')")
+            .Where(e => e.ParamName == "sheetId");
+    }
+
+    private void SetupSheet()
+    {
+        var testSheetField1 = new SheetField
+        {
+            SheetId = "test-sheet",
+            Id = "field-one",
+            Sequence = 1,
+            NameZh = "字段一",
+            NameEn = "Field One",
+            Kind = SheetFieldKind.ShortText,
+        };
+        var testSheetField2 = new SheetField
+        {
+            SheetId = "test-sheet",
+            Id = "field-two",
+            Sequence = 2,
+            NameZh = "字段二",
+            NameEn = "Field Two",
+            Kind = SheetFieldKind.LongText,
+        };
+        var testSheetField3 = new SheetField
+        {
+            SheetId = "test-sheet",
+            Id = "field-three",
+            Sequence = 3,
+            NameZh = "字段三",
+            NameEn = "Field Three",
+            Kind = SheetFieldKind.SingleChoice,
+            SingleChoiceOptions = ["Option A", "Option B", "Option C"]
+        };
+        var testSheetField4 = new SheetField
+        {
+            SheetId = "test-sheet",
+            Id = "field-four",
+            Sequence = 4,
+            NameZh = "字段四",
+            NameEn = "Field Four",
+            Kind = SheetFieldKind.ShortText,
+            IsDeleted = true,
+        };
+        IList<SheetField> sheetFields = [testSheetField1, testSheetField2, testSheetField3, testSheetField4];
+        dbContext.SheetField.AddRange(sheetFields);
+
+        var testSheet = new Sheet { Id = "test-sheet", Name = "Test Sheet" };
+        dbContext.Sheet.Add(testSheet);
+
+        dbContext.SaveChanges();
+    }
+
+    private void SetupUser()
+    {
+        user = new User
+        {
+            Id = Ulid.NewUlid(),
+            Cid = "1234567",
+            FullName = "Alice Smith",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        };
+        dbContext.User.Add(user);
+        dbContext.SaveChanges();
+    }
+
+    private void SetupSheetFiling()
+    {
+        var testSheetFiling = new SheetFiling
+        {
+            Id = Ulid.NewUlid(),
+            SheetId = "test-sheet",
+            UserId = user!.Id,
+            FiledAt = DateTimeOffset.UtcNow,
+        };
+        dbContext.SheetFiling.Add(testSheetFiling);
+
+        dbContext.SaveChanges();
     }
 }

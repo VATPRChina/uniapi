@@ -108,14 +108,20 @@ public class SheetService(
 
         foreach (var field in sheet.Fields)
         {
+            if (field.IsDeleted)
+            {
+                continue;
+            }
+
             if (!answers.TryGetValue(field.Id, out string? value) || string.IsNullOrWhiteSpace(value))
             {
-                throw new RequiredFieldMissingException(field.Sequence, sheetId, nameof(answers));
+                throw new RequiredFieldMissingException(field.Id, sheetId, nameof(answers));
             }
 
             var filingAnswer = new SheetFilingAnswer
             {
                 FilingId = sheetFiling.Id,
+                SheetId = sheetId,
                 FieldId = field.Id,
                 Answer = value,
             };
@@ -145,8 +151,8 @@ public class SheetService(
     {
     }
 
-    public class RequiredFieldMissingException(uint fieldSeq, string sheetId, string paramName) :
-        ArgumentException($"Required field number {fieldSeq} is missing or empty for sheet {sheetId}", paramName)
+    public class RequiredFieldMissingException(string fieldId, string sheetId, string paramName) :
+        ArgumentException($"Required field {fieldId} is missing or empty for sheet {sheetId}", paramName)
     {
     }
 }
