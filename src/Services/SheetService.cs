@@ -11,6 +11,8 @@ public class SheetService(
         return await dbContext.Sheet
             .Where(s => s.Id == sheetId)
             .Include(s => s.Fields.OrderBy(f => !f.IsDeleted).ThenBy(f => f.Sequence))
+            // .Where(f => !f.IsDeleted) does not work due to navigation fixup:
+            // https://learn.microsoft.com/en-us/ef/core/querying/related-data/eager
             .FirstOrDefaultAsync(ct);
     }
 
@@ -20,7 +22,12 @@ public class SheetService(
         CancellationToken ct = default)
     {
         var sheet = await GetSheetByIdAsync(sheetId, ct)
-            ?? throw new SheetNotFoundException(nameof(sheetId));
+            ?? new Sheet
+            {
+                Id = sheetId,
+                Name = sheetId,
+                Fields = [],
+            };
 
         foreach (var field in fields)
         {
@@ -28,7 +35,7 @@ public class SheetService(
 
             if (field.Kind == SheetFieldKind.SingleChoice && !field.SingleChoiceOptions.Any())
             {
-                throw new ArgumentException($"Single choice field '{field.NameEn}' must have at least one option", nameof(fields));
+                throw new SingleChoiceOptionMissingException(field.Id, sheetId, nameof(fields));
             }
             else if (field.Kind != SheetFieldKind.SingleChoice)
             {
@@ -75,18 +82,18 @@ public class SheetService(
     public async Task<SheetFiling> CreateSheetFilingAsync(
         string sheetId,
         Ulid userId,
-        IDictionary<uint, string> answers,
+        IDictionary<string, string> answers,
         CancellationToken ct = default)
     {
         var sheet = await GetSheetByIdAsync(sheetId, ct)
             ?? throw new SheetNotFoundException(nameof(sheetId));
 
-        foreach (var (fieldNumber, answerText) in answers)
+        foreach (var (id, answerText) in answers)
         {
-            var field = sheet.Fields.FirstOrDefault(f => f.Sequence == fieldNumber);
+            var field = sheet.Fields.FirstOrDefault(f => f.Id == id);
             if (field == null)
             {
-                throw new FieldNotFoundException(fieldNumber, sheetId, nameof(answers));
+                throw new FieldNotFoundException(id, sheetId, nameof(answers));
             }
         }
 
@@ -101,7 +108,7 @@ public class SheetService(
 
         foreach (var field in sheet.Fields)
         {
-            if (!answers.TryGetValue(field.Sequence, out string? value) || string.IsNullOrWhiteSpace(value))
+            if (!answers.TryGetValue(field.Id, out string? value) || string.IsNullOrWhiteSpace(value))
             {
                 throw new RequiredFieldMissingException(field.Sequence, sheetId, nameof(answers));
             }
@@ -128,8 +135,13 @@ public class SheetService(
     {
     }
 
-    public class FieldNotFoundException(uint fieldSeq, string sheetId, string paramName) :
-        ArgumentException($"Field number {fieldSeq} not found in sheet {sheetId}", paramName)
+    public class FieldNotFoundException(string fieldId, string sheetId, string paramName) :
+        ArgumentException($"Field {fieldId} not found in sheet {sheetId}", paramName)
+    {
+    }
+
+    public class SingleChoiceOptionMissingException(string fieldId, string sheetId, string paramName) :
+        ArgumentException($"Single choice field {fieldId} must have at least one option in sheet {sheetId}", paramName)
     {
     }
 
