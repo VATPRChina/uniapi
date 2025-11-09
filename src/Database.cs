@@ -9,34 +9,39 @@ namespace Net.Vatprc.Uniapi;
 
 public class Database(DbContextOptions<Database> options) : DbContext(options)
 {
-    public virtual DbSet<User> User { get; set; } = null!;
-    public virtual DbSet<RefreshToken> Session { get; set; } = null!;
+    public virtual DbSet<User> User { get; set; }
+    public virtual DbSet<RefreshToken> Session { get; set; }
 
-    public virtual DbSet<Event> Event { get; set; } = null!;
-    public virtual DbSet<EventSlot> EventSlot { get; set; } = null!;
-    public virtual DbSet<EventAirspace> EventAirspace { get; set; } = null!;
-    public virtual DbSet<EventBooking> EventBooking { get; set; } = null!;
-    public virtual DbSet<DeviceAuthorization> DeviceAuthorization { get; set; } = null!;
+    public virtual DbSet<Event> Event { get; set; }
+    public virtual DbSet<EventSlot> EventSlot { get; set; }
+    public virtual DbSet<EventAirspace> EventAirspace { get; set; }
+    public virtual DbSet<EventBooking> EventBooking { get; set; }
+    public virtual DbSet<DeviceAuthorization> DeviceAuthorization { get; set; }
 
-    public virtual DbSet<Flight> Flight { get; set; } = null!;
+    public virtual DbSet<Flight> Flight { get; set; }
 
-    public virtual DbSet<Airport> Airport { get; set; } = null!;
-    public virtual DbSet<AirportGate> AirportGate { get; set; } = null!;
-    public virtual DbSet<Airway> Airway { get; set; } = null!;
-    public virtual DbSet<AirwayFix> AirwayFix { get; set; } = null!;
-    public virtual DbSet<NdbNavaid> NdbNavaid { get; set; } = null!;
-    public virtual DbSet<PreferredRoute> PreferredRoute { get; set; } = null!;
-    public virtual DbSet<Procedure> Procedure { get; set; } = null!;
-    public virtual DbSet<Runway> Runway { get; set; } = null!;
-    public virtual DbSet<VhfNavaid> VhfNavaid { get; set; } = null!;
-    public virtual DbSet<Waypoint> Waypoint { get; set; } = null!;
+    public virtual DbSet<Airport> Airport { get; set; }
+    public virtual DbSet<AirportGate> AirportGate { get; set; }
+    public virtual DbSet<Airway> Airway { get; set; }
+    public virtual DbSet<AirwayFix> AirwayFix { get; set; }
+    public virtual DbSet<NdbNavaid> NdbNavaid { get; set; }
+    public virtual DbSet<PreferredRoute> PreferredRoute { get; set; }
+    public virtual DbSet<Procedure> Procedure { get; set; }
+    public virtual DbSet<Runway> Runway { get; set; }
+    public virtual DbSet<VhfNavaid> VhfNavaid { get; set; }
+    public virtual DbSet<Waypoint> Waypoint { get; set; }
 
-    public virtual DbSet<UserAtcPermission> UserAtcPermission { get; set; } = null!;
+    public virtual DbSet<UserAtcPermission> UserAtcPermission { get; set; }
 
-    public virtual DbSet<Sheet> Sheet { get; set; } = null!;
-    public virtual DbSet<SheetField> SheetField { get; set; } = null!;
-    public virtual DbSet<SheetFiling> SheetFiling { get; set; } = null!;
-    public virtual DbSet<SheetFilingAnswer> SheetFilingAnswer { get; set; } = null!;
+    public virtual DbSet<Sheet> Sheet { get; set; }
+    public virtual DbSet<SheetField> SheetField { get; set; }
+    public virtual DbSet<SheetFiling> SheetFiling { get; set; }
+    public virtual DbSet<SheetFilingAnswer> SheetFilingAnswer { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseSnakeCaseNamingConvention();
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

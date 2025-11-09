@@ -4,18 +4,18 @@ namespace Net.Vatprc.Uniapi.Models.Sheet;
 
 public class SheetField
 {
-    public string SheetId { get; set; } = default!;
-    public Sheet Sheet { get; set; } = default!;
+    public required string SheetId { get; set; }
+    public Sheet? Sheet { get; set; }
 
-    public string Id { get; set; } = default!;
+    public required string Id { get; set; }
 
-    public uint Sequence { get; set; }
+    public required uint Sequence { get; set; }
 
-    public string NameZh { get; set; } = default!;
+    public required string NameZh { get; set; }
 
-    public string NameEn { get; set; } = default!;
+    public required string NameEn { get; set; }
 
-    public SheetFieldKind Kind { get; set; }
+    public required SheetFieldKind Kind { get; set; }
 
     public IEnumerable<string> SingleChoiceOptions { get; set; } = [];
 

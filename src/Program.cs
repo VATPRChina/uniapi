@@ -114,7 +114,6 @@ var dataSource = new NpgsqlDataSourceBuilder(connectionString)
     .Build();
 builder.Services.AddDbContext<Database>(opt =>
 {
-    opt.UseSnakeCaseNamingConvention();
     opt.UseNpgsql(dataSource);
 });
 

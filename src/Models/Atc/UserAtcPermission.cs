@@ -4,13 +4,13 @@ namespace Net.Vatprc.Uniapi.Models.Atc;
 
 public class UserAtcPermission
 {
-    public Ulid UserId { get; set; }
+    public required Ulid UserId { get; set; }
 
     public User? User { get; set; }
 
-    public string PositionKindId { get; set; } = null!;
+    public required string PositionKindId { get; set; }
 
-    public UserControllerState State { get; set; }
+    public UserControllerState State { get; set; } = UserControllerState.Student;
 
     public DateTimeOffset? SoloExpiresAt { get; set; }
 

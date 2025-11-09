@@ -2,11 +2,11 @@ namespace Net.Vatprc.Uniapi.Models.Atc;
 
 public class AtcPositionKind
 {
-    public string Id { get; set; } = null!;
+    public required string Id { get; set; }
 
-    public string NameZh { get; set; } = null!;
+    public required string NameZh { get; set; }
 
-    public string NameEn { get; set; } = null!;
+    public required string NameEn { get; set; }
 
     public bool IsTrainable { get; set; } = true;
 }

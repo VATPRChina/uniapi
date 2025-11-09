@@ -4,17 +4,17 @@ namespace Net.Vatprc.Uniapi.Models.Sheet;
 
 public class SheetFiling
 {
-    public Ulid Id { get; set; }
+    public required Ulid Id { get; set; }
 
-    public string SheetId { get; set; } = default!;
+    public required string SheetId { get; set; }
     public Sheet? Sheet { get; set; }
 
-    public Ulid UserId { get; set; }
+    public required Ulid UserId { get; set; }
     public User? User { get; set; }
 
-    public DateTimeOffset FiledAt { get; set; }
+    public required DateTimeOffset FiledAt { get; set; }
 
-    public IList<SheetFilingAnswer>? Answers { get; set; }
+    public IList<SheetFilingAnswer> Answers { get; set; } = [];
 
     public class Configuration : IEntityTypeConfiguration<SheetFiling>
     {

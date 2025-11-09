@@ -4,15 +4,15 @@ namespace Net.Vatprc.Uniapi.Models.Sheet;
 
 public class SheetFilingAnswer
 {
-    public string SheetId { get; set; } = default!;
-    public string FieldId { get; set; } = default!;
+    public required string SheetId { get; set; } = default!;
+    public required string FieldId { get; set; } = default!;
 
     public SheetField? Field { get; set; }
 
-    public Ulid FilingId { get; set; }
+    public required Ulid FilingId { get; set; }
     public SheetFiling? Filing { get; set; }
 
-    public string Answer { get; set; } = default!;
+    public required string Answer { get; set; } = default!;
 
     public class Configuration : IEntityTypeConfiguration<SheetFilingAnswer>
     {
