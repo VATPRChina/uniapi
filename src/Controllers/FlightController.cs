@@ -13,7 +13,11 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Flight information.
 /// </summary>
 [ApiController, Route("api/flights")]
-public class FlightController(Database DbContext, ILogger<FlightController> Logger, RouteParseService RouteParse) : ControllerBase
+public class FlightController(
+    Database DbContext,
+    ILogger<FlightController> Logger,
+    RouteParseService RouteParse,
+    UserAccessor userAccessor) : ControllerBase
 {
     public record FlightDto(
         Ulid Id,
@@ -283,7 +287,7 @@ public class FlightController(Database DbContext, ILogger<FlightController> Logg
     [HttpGet("mine")]
     public async Task<FlightDto> GetMyFlight()
     {
-        var user = await this.GetUser();
+        var user = await userAccessor.GetUser();
 
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Cid == user.Cid && f.FinalizedAt == null)
             ?? throw new ApiError.FlightNotFoundForCid(user.Cid);

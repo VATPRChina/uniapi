@@ -10,7 +10,9 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/events/{eid}/slots/{sid}/booking")]
-public class EventSlotBookingController(Database DbContext) : ControllerBase
+public class EventSlotBookingController(
+    Database DbContext,
+    UserAccessor userAccessor) : ControllerBase
 {
     /// <summary>
     /// User-level lock to ensure the booking request for a user is processed sequentially.
@@ -57,11 +59,11 @@ public class EventSlotBookingController(Database DbContext) : ControllerBase
     [ApiError.Has<ApiError.EventNotFound>]
     public async Task<EventBookingDto> Put(Ulid eid, Ulid sid)
     {
-        var lockObject = UserLevelLock.GetOrAdd(this.GetUserId(), new SemaphoreSlim(1, 1));
+        var lockObject = UserLevelLock.GetOrAdd(userAccessor.GetUserId(), new SemaphoreSlim(1, 1));
         await lockObject.WaitAsync();
         try
         {
-            var uid = this.GetUserId();
+            var uid = userAccessor.GetUserId();
             var booking = await LoadAsync(eid, sid);
             if (booking != null) throw new ApiError.EventSlotBooked(eid, sid);
             var eventt = await DbContext.Event.FindAsync(eid) ??
@@ -89,7 +91,7 @@ public class EventSlotBookingController(Database DbContext) : ControllerBase
     [HttpDelete]
     public async Task<EventBookingDto> Delete(Ulid eid, Ulid sid)
     {
-        var lockObject = UserLevelLock.GetOrAdd(this.GetUserId(), new SemaphoreSlim(1, 1));
+        var lockObject = UserLevelLock.GetOrAdd(userAccessor.GetUserId(), new SemaphoreSlim(1, 1));
         await lockObject.WaitAsync();
         try
         {
@@ -98,7 +100,7 @@ public class EventSlotBookingController(Database DbContext) : ControllerBase
             {
                 throw new ApiError.EventNotInBookingTime(eid);
             }
-            if (booking.UserId != this.GetUserId() && !User.IsInRole(UserRoles.Staff))
+            if (booking.UserId != userAccessor.GetUserId() && !User.IsInRole(UserRoles.Staff))
             {
                 throw new ApiError.EventSlotBookedByAnotherUser(eid, sid);
             }

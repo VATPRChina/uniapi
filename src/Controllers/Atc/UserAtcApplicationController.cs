@@ -9,7 +9,8 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/users/me/atc/applications")]
 public class UserAtcApplicationController(
     Database database,
-    SheetService sheetService
+    SheetService sheetService,
+    UserAccessor userAccessor
 ) : Controller
 {
     protected const string ATC_APPLICATION_SHEET_ID = "atc-application";
@@ -18,7 +19,7 @@ public class UserAtcApplicationController(
     [HttpGet]
     public async Task<IEnumerable<AtcApplicationSummaryDto>> List()
     {
-        var curUserId = this.GetUserId();
+        var curUserId = userAccessor.GetUserId();
         return await database.AtcApplication
             .Where(app => app.UserId == curUserId)
             .OrderByDescending(app => app.AppliedAt)
@@ -29,7 +30,7 @@ public class UserAtcApplicationController(
     [HttpGet("{id}")]
     public async Task<AtcApplicationDto> List(Ulid id)
     {
-        var curUserId = this.GetUserId();
+        var curUserId = userAccessor.GetUserId();
         var application = await database.AtcApplication
             .Where(a => a.UserId == curUserId && a.Id == id)
             .Include(a => a.ApplicationFiling)
@@ -56,7 +57,7 @@ public class UserAtcApplicationController(
     [HttpPost]
     public async Task<AtcApplicationSummaryDto> Create(AtcApplicationCreateDto req)
     {
-        var curUserId = this.GetUserId();
+        var curUserId = userAccessor.GetUserId();
 
         var filing = await sheetService.CreateSheetFilingAsync(
             ATC_APPLICATION_SHEET_ID,

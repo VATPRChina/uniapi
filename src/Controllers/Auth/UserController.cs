@@ -12,13 +12,15 @@ namespace Net.Vatprc.Uniapi.Controllers.Auth;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/users")]
-public class UserController(Database DbContext) : ControllerBase
+public class UserController(
+    Database DbContext,
+    UserAccessor userAccessor) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = UserRoles.Volunteer)]
     public async Task<IEnumerable<UserDto>> List()
     {
-        var isStaff = await this.HasCurrentUserRole(UserRoles.Staff);
+        var isStaff = await userAccessor.HasCurrentUserRole(UserRoles.Staff);
         return await DbContext.User.OrderBy(u => u.Cid).Select(x => new UserDto(x, isStaff)).ToListAsync();
     }
 
@@ -29,7 +31,7 @@ public class UserController(Database DbContext) : ControllerBase
     {
         return new UserDto(
             await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id),
-            showFullName: await this.HasCurrentUserRole(UserRoles.Staff));
+            showFullName: await userAccessor.HasCurrentUserRole(UserRoles.Staff));
     }
 
     [HttpPost("by-cid/{cid}")]
@@ -52,7 +54,7 @@ public class UserController(Database DbContext) : ControllerBase
     [Authorize(Roles = UserRoles.Staff)]
     public async Task<UserDto> SetRoles(Ulid id, ISet<string> roles)
     {
-        var currentUser = await this.GetUser();
+        var currentUser = await userAccessor.GetUser();
 
         var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
         var curRoles = UserRoleService.GetRoleClosure(user.Roles);
@@ -148,7 +150,7 @@ public class UserController(Database DbContext) : ControllerBase
     [HttpGet("me/atc/permissions")]
     public async Task<IEnumerable<AtcPermissionDto>> GetAtcPermissions()
     {
-        var user = await this.GetUser();
+        var user = await userAccessor.GetUser();
 
         return await DbContext.UserAtcPermission
             .Where(p => p.UserId == user.Id)

@@ -106,6 +106,7 @@ builder.Services
             throw new ApiError.BadRequest(context.ModelState);
     });
 builder.Services.AddProblemDetails();
+builder.Services.AddHttpContextAccessor();
 
 var connectionString = builder.Configuration.GetConnectionString("VATPRCContext") ??
     throw new Exception("Connection string for VATPRCContext cannot be null");
@@ -187,6 +188,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<RouteParserFactory>();
 SmmsAdapter.ConfigureOn(builder);
 builder.Services.AddScoped<SheetService>();
+builder.Services.AddScoped<UserAccessor>();
 
 var app = builder.Build();
 

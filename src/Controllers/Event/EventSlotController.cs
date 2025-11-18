@@ -9,7 +9,9 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/events/{eid}/slots")]
-public class EventSlotController(Database DbContext) : ControllerBase
+public class EventSlotController(
+    Database DbContext,
+    UserAccessor userAccessor) : ControllerBase
 {
     protected async Task<EventSlot> LoadAsync(Ulid eid, Ulid sid)
     {
@@ -100,7 +102,7 @@ public class EventSlotController(Database DbContext) : ControllerBase
     [ApiError.Has<ApiError.EventSlotNotFound>]
     public async Task<EventSlotDto> GetMine(Ulid eid)
     {
-        var user = await this.GetUser();
+        var user = await userAccessor.GetUser();
 
         var slot = await DbContext.EventSlot
             .Include(x => x.EventAirspace)

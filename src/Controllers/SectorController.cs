@@ -11,7 +11,8 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/sectors")]
 public class SectorController(
     ILogger<SectorController> Logger,
-    VatprcAtcApiAdapter VatprcAtcService) : ControllerBase
+    VatprcAtcApiAdapter VatprcAtcService,
+    UserAccessor userAccessor) : ControllerBase
 {
     public record SectorPermissionResponse(
         bool HasPermission,
@@ -33,7 +34,7 @@ public class SectorController(
     [Produces<SectorPermissionResponse>]
     public async Task<SectorPermissionResponse> GetPermission()
     {
-        var user = await this.GetUser();
+        var user = await userAccessor.GetUser();
 
         var roles = await VatprcAtcService.GetUserRole(user.Cid);
         var flattenRoles = FlattenRoles(roles);
