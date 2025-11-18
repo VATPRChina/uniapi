@@ -13,18 +13,10 @@ public class SectorController(
     ILogger<SectorController> Logger,
     VatprcAtcApiAdapter VatprcAtcService) : ControllerBase
 {
-    public record SectorPermissionResponse
-    {
-        public required bool HasPermission { get; set; }
-        public required string SectorType { get; set; }
-
-        [SetsRequiredMembers]
-        public SectorPermissionResponse(bool hasPermission, string sectorType)
-        {
-            HasPermission = hasPermission;
-            SectorType = sectorType;
-        }
-    }
+    public record SectorPermissionResponse(
+        bool HasPermission,
+        string SectorType
+    );
 
     static readonly IEnumerable<string> AllowedRoles =
     [

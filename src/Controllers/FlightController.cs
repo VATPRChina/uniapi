@@ -15,41 +15,36 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/flights")]
 public class FlightController(Database DbContext, ILogger<FlightController> Logger, RouteParseService RouteParse) : ControllerBase
 {
-    public record FlightDto
+    public record FlightDto(
+        Ulid Id,
+        string Cid,
+        string Callsign,
+        DateTimeOffset LastObservedAt,
+        string Departure,
+        string Arrival,
+        string Equipment,
+        string NavigationPerformance,
+        string Transponder,
+        string RawRoute,
+        string Aircraft,
+        long Altitude,
+        long CruisingLevel)
     {
-        public required Ulid Id { get; init; }
-        public required string Cid { get; init; }
-        public required string Callsign { get; init; }
-        public required DateTimeOffset LastObservedAt { get; init; }
-        public required string Departure { get; init; }
-        public required string Arrival { get; init; }
-        public required string Equipment { get; init; }
-        public required string NavigationPerformance { get; init; }
-        public required string Transponder { get; init; }
-        public required string RawRoute { get; init; }
-        public required string Aircraft { get; init; }
-        public required long Altitude { get; init; }
-        public required long CruisingLevel { get; init; }
-
-        [SetsRequiredMembers]
-        public FlightDto(Flight flight)
-        {
-            Id = flight.Id;
-            Cid = flight.Cid;
-            Callsign = flight.Callsign;
-            LastObservedAt = flight.LastObservedAt;
-            Departure = flight.Departure;
-            Arrival = flight.Arrival;
-            Equipment = flight.Equipment;
-            NavigationPerformance = flight.NavigationPerformance;
-            Transponder = flight.Transponder;
-            RawRoute = flight.RawRoute;
-            Aircraft = flight.Aircraft;
-            Altitude = flight.Altitude;
-            CruisingLevel = flight.CruisingLevel;
-        }
-
-        public FlightDto() { }
+        public FlightDto(Flight flight) : this(
+            flight.Id,
+            flight.Cid,
+            flight.Callsign,
+            flight.LastObservedAt,
+            flight.Departure,
+            flight.Arrival,
+            flight.Equipment,
+            flight.NavigationPerformance,
+            flight.Transponder,
+            flight.RawRoute,
+            flight.Aircraft,
+            flight.Altitude,
+            flight.CruisingLevel)
+        { }
     }
 
     [HttpGet("active")]
@@ -132,19 +127,14 @@ public class FlightController(Database DbContext, ILogger<FlightController> Logg
         cruising_level,
     }
 
-    public record WarningMessage
+    public record WarningMessage(
+        WarningMessageCode MessageCode,
+        string? Parameter,
+        WarningMessageField Field,
+        int? FieldIndex)
     {
-        public required WarningMessageCode MessageCode { get; init; }
-        public string? Parameter { get; init; } = null;
-        public required WarningMessageField Field { get; init; }
-        public int? FieldIndex { get; init; } = null;
-
-        public WarningMessage() { }
-
-        [SetsRequiredMembers]
-        public WarningMessage(ValidationMessage v)
-        {
-            MessageCode = v.Type switch
+        public WarningMessage(ValidationMessage v) : this(
+            MessageCode: v.Type switch
             {
                 ValidationMessage.ViolationType.NoRvsm => WarningMessageCode.no_rvsm,
                 ValidationMessage.ViolationType.NoRnav1 => WarningMessageCode.no_rnav1,
@@ -160,8 +150,8 @@ public class FlightController(Database DbContext, ILogger<FlightController> Logg
                 ValidationMessage.ViolationType.CruisingLevelNotAllowed => WarningMessageCode.cruising_level_not_allowed,
                 ValidationMessage.ViolationType.RouteMatchPreferred => WarningMessageCode.route_match_preferred,
                 _ => throw new InvalidEnumArgumentException($"Unexpected violation type {v.Type}"),
-            };
-            Field = v.Field switch
+            },
+            Field: v.Field switch
             {
                 ValidationMessage.FieldType.Equipment => WarningMessageField.equipment,
                 ValidationMessage.FieldType.Transponder => WarningMessageField.transponder,
@@ -169,10 +159,10 @@ public class FlightController(Database DbContext, ILogger<FlightController> Logg
                 ValidationMessage.FieldType.Route => WarningMessageField.route,
                 ValidationMessage.FieldType.CruisingLevel => WarningMessageField.cruising_level,
                 _ => throw new InvalidEnumArgumentException($"Unexpected violation field {v.Field}"),
-            };
-            Parameter = v.Param;
-            FieldIndex = v.FieldParam;
-        }
+            },
+            Parameter: v.Param,
+            FieldIndex: v.FieldParam)
+        { }
     }
 
     [HttpGet("by-callsign/{callsign}/warnings")]

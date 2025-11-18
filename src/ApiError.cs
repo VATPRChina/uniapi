@@ -284,4 +284,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.BadRequest, "SOLO_EXPIRATION_NOT_PROVIDED", "Solo expiration not provided.")]
     public class SoloExpirationNotProvided() :
         ApiError($"Solo expiration not provided.");
+
+    [Error(HttpStatusCode.NotFound, "ATC_APPLICATION_NOT_FOUND", "Atc application {id} not found.")]
+    public class AtcApplicationNotFound(Ulid id) :
+        ApiError($"Atc application {id} not found.");
 }

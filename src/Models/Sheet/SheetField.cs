@@ -13,7 +13,7 @@ public class SheetField
 
     public required string NameZh { get; set; }
 
-    public required string NameEn { get; set; }
+    public string? NameEn { get; set; }
 
     public required SheetFieldKind Kind { get; set; }
 
