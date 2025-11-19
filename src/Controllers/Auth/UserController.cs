@@ -14,7 +14,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Auth;
 [ApiController, Route("api/users")]
 public class UserController(
     Database DbContext,
-    UserAccessor userAccessor) : ControllerBase
+    IUserAccessor userAccessor) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = UserRoles.Volunteer)]

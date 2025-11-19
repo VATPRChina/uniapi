@@ -17,7 +17,7 @@ public class FlightController(
     Database DbContext,
     ILogger<FlightController> Logger,
     RouteParseService RouteParse,
-    UserAccessor userAccessor) : ControllerBase
+    IUserAccessor userAccessor) : ControllerBase
 {
     public record FlightDto(
         Ulid Id,

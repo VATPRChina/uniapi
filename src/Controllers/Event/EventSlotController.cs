@@ -11,7 +11,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/events/{eid}/slots")]
 public class EventSlotController(
     Database DbContext,
-    UserAccessor userAccessor) : ControllerBase
+    IUserAccessor userAccessor) : ControllerBase
 {
     protected async Task<EventSlot> LoadAsync(Ulid eid, Ulid sid)
     {

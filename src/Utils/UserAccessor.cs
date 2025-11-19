@@ -4,7 +4,14 @@ using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Utils;
 
-public class UserAccessor(IHttpContextAccessor httpContextAccessor, Database dbContext)
+public interface IUserAccessor
+{
+    public Task<User> GetUser();
+    public Ulid GetUserId();
+    public Task<bool> HasCurrentUserRole(string role);
+}
+
+public class UserAccessor(IHttpContextAccessor httpContextAccessor, Database dbContext) : IUserAccessor
 {
     public Ulid GetUserId()
     {

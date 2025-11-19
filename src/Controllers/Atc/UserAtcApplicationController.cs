@@ -10,7 +10,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 public class UserAtcApplicationController(
     Database database,
     SheetService sheetService,
-    UserAccessor userAccessor
+    IUserAccessor userAccessor
 ) : Controller
 {
     protected const string ATC_APPLICATION_SHEET_ID = "atc-application";

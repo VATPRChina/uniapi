@@ -12,7 +12,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 public class SectorController(
     ILogger<SectorController> Logger,
     VatprcAtcApiAdapter VatprcAtcService,
-    UserAccessor userAccessor) : ControllerBase
+    IUserAccessor userAccessor) : ControllerBase
 {
     public record SectorPermissionResponse(
         bool HasPermission,
