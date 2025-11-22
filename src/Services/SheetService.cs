@@ -16,6 +16,27 @@ public class SheetService(
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task<Sheet> EnsureSheetAsync(string sheetId, string sheetName, CancellationToken ct = default)
+    {
+        var sheet = await GetSheetByIdAsync(sheetId, ct);
+        if (sheet != null)
+        {
+            return sheet;
+        }
+
+        sheet = new Sheet
+        {
+            Id = sheetId,
+            Name = sheetName,
+            Fields = [],
+        };
+
+        dbContext.Sheet.Add(sheet);
+        await dbContext.SaveChangesAsync(ct);
+
+        return sheet;
+    }
+
     public async Task<Sheet> SetSheetFieldsAsync(
         string sheetId,
         IEnumerable<SheetField> fields,

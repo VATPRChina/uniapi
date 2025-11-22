@@ -40,6 +40,34 @@ public class SheetServiceTest : TestWithDatabase
     }
 
     [Test]
+    public async Task EnsureSheetAsync_SheetExists_ReturnsExistingSheet()
+    {
+        SetupSheet();
+
+        var result = await sheetService.EnsureSheetAsync("test-sheet", "Should Not Used");
+
+        result.Should().NotBeNull();
+        result.Id.Should().Be("test-sheet");
+        result.Name.Should().Be("Test Sheet");
+        result.Fields.Should().HaveCount(4);
+    }
+
+    [Test]
+    public async Task EnsureSheetAsync_SheetNotExists_CreatesNewSheet()
+    {
+        var result = await sheetService.EnsureSheetAsync("created-sheet", "Created Sheet");
+
+        result.Should().NotBeNull();
+        result.Id.Should().Be("created-sheet");
+        result.Name.Should().Be("Created Sheet");
+        result.Fields.Should().BeEmpty();
+
+        var persisted = dbContext.Sheet.Find(result.Id);
+        persisted.Should().NotBeNull();
+        persisted!.Name.Should().Be("Created Sheet");
+    }
+
+    [Test]
     public async Task SetSheetFieldsAsync_UpdatesField()
     {
         SetupSheet();

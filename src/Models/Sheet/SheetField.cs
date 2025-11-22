@@ -34,6 +34,9 @@ public class SheetField
 
             builder.Property(x => x.IsDeleted)
                 .HasDefaultValue(false);
+
+            builder.Property(x => x.Kind)
+                .HasConversion<string>();
         }
     }
 }

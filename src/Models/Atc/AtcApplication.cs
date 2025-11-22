@@ -18,6 +18,8 @@ public class AtcApplication
 
     public DateTimeOffset AppliedAt { get; set; }
 
+    public AtcApplicationStatus Status { get; set; }
+
     public class AtcApplicationConfiguration : IEntityTypeConfiguration<AtcApplication>
     {
         public void Configure(EntityTypeBuilder<AtcApplication> builder)
@@ -33,6 +35,9 @@ public class AtcApplication
             builder.HasOne(e => e.ReviewFiling)
                 .WithMany()
                 .HasForeignKey(e => e.ReviewFilingId);
+
+            builder.Property(e => e.Status)
+                .HasConversion<string>();
         }
     }
 }

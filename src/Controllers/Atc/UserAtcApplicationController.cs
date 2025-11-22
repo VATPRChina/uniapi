@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Models.Sheet;
@@ -28,7 +29,7 @@ public class UserAtcApplicationController(
     }
 
     [HttpGet("{id}")]
-    public async Task<AtcApplicationDto> List(Ulid id)
+    public async Task<AtcApplicationDto> GetById(Ulid id)
     {
         var curUserId = userAccessor.GetUserId();
         var application = await database.AtcApplication
@@ -62,8 +63,9 @@ public class UserAtcApplicationController(
         var filing = await sheetService.CreateSheetFilingAsync(
             ATC_APPLICATION_SHEET_ID,
             curUserId,
-            req.SheetAnswers,
-            HttpContext.RequestAborted);
+            req.ApplicationFilingAnswers.ToDictionary(
+                answer => answer.Id,
+                answer => answer.Answer));
 
         var application = new AtcApplication
         {
@@ -79,42 +81,63 @@ public class UserAtcApplicationController(
         return new AtcApplicationSummaryDto(application);
     }
 
+    protected static AtcApplicationStatusDto ToDto(AtcApplicationStatus status) => status switch
+    {
+        AtcApplicationStatus.Submitted => AtcApplicationStatusDto.Submitted,
+        AtcApplicationStatus.InWaitlist => AtcApplicationStatusDto.InWaitlist,
+        AtcApplicationStatus.Approved => AtcApplicationStatusDto.Approved,
+        AtcApplicationStatus.Rejected => AtcApplicationStatusDto.Rejected,
+        _ => throw new ArgumentOutOfRangeException(nameof(status), "Unknown application status: " + status),
+    };
+
     public record class AtcApplicationSummaryDto(
         Ulid Id,
         Ulid UserId,
-        DateTimeOffset AppliedAt)
+        DateTimeOffset AppliedAt,
+        AtcApplicationStatusDto Status)
     {
         public AtcApplicationSummaryDto(AtcApplication application) : this(
             application.Id,
             application.UserId,
-            application.AppliedAt)
+            application.AppliedAt,
+            ToDto(application.Status))
         { }
+    }
+
+    public enum AtcApplicationStatusDto
+    {
+        Submitted,
+        InWaitlist,
+        Approved,
+        Rejected,
     }
 
     public record class AtcApplicationDto(
         Ulid Id,
         Ulid UserId,
         DateTimeOffset AppliedAt,
-        IEnumerable<AtcApplicationField> ApplicationFilingAnswers,
-        IEnumerable<AtcApplicationField>? ReviewFilingAnswers = null)
+        AtcApplicationStatusDto Status,
+        IEnumerable<AtcApplicationFieldAnswerDto> ApplicationFilingAnswers,
+        IEnumerable<AtcApplicationFieldAnswerDto>? ReviewFilingAnswers = null)
     {
         public AtcApplicationDto(AtcApplication application) : this(
             application.Id,
             application.UserId,
             application.AppliedAt,
-            application.ApplicationFiling?.Answers.Select(answer => new AtcApplicationField(answer)) ??
+            ToDto(application.Status),
+            application.ApplicationFiling?.Answers.Select(answer => new AtcApplicationFieldAnswerDto(answer)) ??
                 throw new ArgumentNullException(nameof(application), "ApplicationFiling must be loaded"),
-            application.ReviewFiling?.Answers.Select(answer => new AtcApplicationField(answer)))
+            application.ReviewFiling?.Answers.Select(answer => new AtcApplicationFieldAnswerDto(answer)))
         { }
     }
 
-    public record class AtcApplicationField(
-        string Name,
+    public record class AtcApplicationFieldAnswerDto(
+        [property: JsonInclude] AtcApplicationSheetFieldDto Field,
         string Answer)
     {
-        public AtcApplicationField(SheetFilingAnswer answer) : this(
-            answer.Field?.NameZh
-                ?? throw new ArgumentNullException(nameof(answer), "answer.Field must be loaded"),
+        public AtcApplicationFieldAnswerDto(SheetFilingAnswer answer) : this(
+            new AtcApplicationSheetFieldDto(answer.Field ??
+                throw new ArgumentNullException(nameof(answer), "Field must be loaded")),
             answer.Answer)
         { }
     }
@@ -128,7 +151,9 @@ public class UserAtcApplicationController(
         public AtcApplicationSheetDto(Sheet sheet) : this(
             sheet.Id,
             sheet.Name,
-            sheet.Fields.Select(field => new AtcApplicationSheetFieldDto(field)))
+            sheet.Fields
+                .Where(field => !field.IsDeleted)
+                .Select(field => new AtcApplicationSheetFieldDto(field)))
         { }
     }
 
@@ -154,8 +179,14 @@ public class UserAtcApplicationController(
         { }
     }
 
+    public record class AtcApplicationCreateFieldAnswerDto
+    {
+        public required string Id { get; set; }
+        public required string Answer { get; set; }
+    }
+
     public record class AtcApplicationCreateDto
     {
-        public required IDictionary<string, string> SheetAnswers { get; set; }
+        public required IEnumerable<AtcApplicationCreateFieldAnswerDto> ApplicationFilingAnswers { get; set; }
     }
 }

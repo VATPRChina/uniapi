@@ -15,26 +15,82 @@ namespace Net.Vatprc.Uniapi.Test.Controllers.Atc;
 [TestFixture]
 public class UserAtcApplicationControllerTest : TestWithDatabase
 {
+    private const string ATC_APPLICATION_SHEET_ID = "atc-application";
+    private const string ATC_APPLICATION_REVIEW_SHEET_ID = "atc-application-review";
+
     private UserAtcApplicationController controller = null!;
+    private SheetService realSheetService = null!;
     private Mock<SheetService> sheetService = null!;
     private Mock<IUserAccessor> userAccessor = null!;
-    private Ulid user1Id;
+    private Ulid userId;
     private Ulid user2Id;
 
     [SetUp]
-    public void Setup()
+    public async Task Setup()
     {
+        realSheetService = new SheetService(dbContext);
         sheetService = new Mock<SheetService>(dbContext);
         userAccessor = new Mock<IUserAccessor>();
         controller = new UserAtcApplicationController(dbContext, sheetService.Object, userAccessor.Object);
 
-        var u1 = new User { Id = Ulid.NewUlid(), Cid = "100", FullName = "Alice", Email = "alice@example.com", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
-        var u2 = new User { Id = Ulid.NewUlid(), Cid = "101", FullName = "Bob", Email = "bob@example.com", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+        var u1 = new User
+        {
+            Id = Ulid.NewUlid(),
+            Cid = "100",
+            FullName = "Alice",
+            Email = "alice@example.com",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        var u2 = new User
+        {
+            Id = Ulid.NewUlid(),
+            Cid = "101",
+            FullName = "Bob",
+            Email = "bob@example.com",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
         dbContext.User.AddRange(u1, u2);
-        dbContext.SaveChanges();
+        await dbContext.SaveChangesAsync();
 
-        user1Id = u1.Id;
+        userId = u1.Id;
         user2Id = u2.Id;
+        userAccessor.Setup(ua => ua.GetUserId()).Returns(userId);
+
+        await realSheetService.EnsureSheetAsync(ATC_APPLICATION_SHEET_ID, "ATC Application Sheet");
+        await realSheetService.EnsureSheetAsync(ATC_APPLICATION_REVIEW_SHEET_ID, "ATC Application Review Sheet");
+        await realSheetService.SetSheetFieldsAsync(ATC_APPLICATION_SHEET_ID, new[]
+        {
+            new SheetField
+            {
+                Id = "full-name",
+                SheetId = ATC_APPLICATION_SHEET_ID,
+                Sequence = 1,
+                NameZh = "全名",
+                NameEn = "Full Name",
+                Kind = SheetFieldKind.ShortText,
+            },
+            new SheetField
+            {
+                Id = "cid",
+                SheetId = ATC_APPLICATION_SHEET_ID,
+                Sequence = 2,
+                NameZh = "CID",
+                NameEn = "CID",
+                Kind = SheetFieldKind.ShortText,
+                IsDeleted = true,
+            },
+            new SheetField
+            {
+                Id = "experience",
+                SheetId = ATC_APPLICATION_SHEET_ID,
+                Sequence = 3,
+                NameZh = "ATC经验",
+                NameEn = "ATC Experience",
+                Kind = SheetFieldKind.LongText,
+            },
+        });
     }
 
     [TearDown]
@@ -47,16 +103,21 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
     public async Task List_ReturnsOnlyCurrentUserApplications()
     {
         // Arrange
-        var sheet = new Sheet { Id = "atc-application", Name = "ATC Application" };
-        dbContext.Sheet.Add(sheet);
-        var filing = new SheetFiling { Id = Ulid.NewUlid(), SheetId = "atc-application", UserId = user1Id, FiledAt = DateTimeOffset.UtcNow };
-        dbContext.SheetFiling.Add(filing);
-        var app1 = new AtcApplication { Id = Ulid.NewUlid(), UserId = user1Id, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-5), ApplicationFilingId = filing.Id };
+        var filing = await realSheetService.CreateSheetFilingAsync(
+            ATC_APPLICATION_SHEET_ID,
+            userId,
+            new Dictionary<string, string>
+            {
+                { "full-name", "Alice" },
+                { "experience", "I have been an ATC for 2 years." },
+            },
+            CancellationToken.None);
+        var app1 = new AtcApplication { Id = Ulid.NewUlid(), UserId = userId, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-5), ApplicationFilingId = filing.Id };
         var app2 = new AtcApplication { Id = Ulid.NewUlid(), UserId = user2Id, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-1), ApplicationFilingId = filing.Id };
-        var app3 = new AtcApplication { Id = Ulid.NewUlid(), UserId = user1Id, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-2), ApplicationFilingId = filing.Id };
+        var app3 = new AtcApplication { Id = Ulid.NewUlid(), UserId = userId, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-2), ApplicationFilingId = filing.Id };
         dbContext.AtcApplication.AddRange(app1, app2, app3);
         dbContext.SaveChanges();
-        userAccessor.Setup(ua => ua.GetUserId()).Returns(user1Id);
+        userAccessor.Setup(ua => ua.GetUserId()).Returns(userId);
 
         // Act
         var list = (await controller.List()).ToList();
@@ -70,45 +131,39 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
     public async Task GetById_ReturnsApplicationWithAnswers()
     {
         // Arrange
-        var u = new User { Id = Ulid.NewUlid(), Cid = "200", FullName = "Charlie", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
-        dbContext.User.Add(u);
-
-        // create sheet field and filing/answers
-        var field = new SheetField { SheetId = "atc-application", Id = "f1", Sequence = 1, NameZh = "字段", NameEn = "Field", Kind = SheetFieldKind.ShortText };
-        dbContext.SheetField.Add(field);
-        var filing = new SheetFiling { Id = Ulid.NewUlid(), SheetId = "atc-application", UserId = u.Id, FiledAt = DateTimeOffset.UtcNow };
-        dbContext.SheetFiling.Add(filing);
-        var answer = new SheetFilingAnswer { SheetId = "atc-application", FieldId = "f1", FilingId = filing.Id, Field = field, Answer = "Ans" };
-        dbContext.SheetFilingAnswer.Add(answer);
-
-        var app = new AtcApplication { Id = Ulid.NewUlid(), UserId = u.Id, AppliedAt = DateTimeOffset.UtcNow, ApplicationFilingId = filing.Id };
+        var filing = await realSheetService.CreateSheetFilingAsync(
+            ATC_APPLICATION_SHEET_ID,
+            userId,
+            new Dictionary<string, string>
+            {
+                { "full-name", "Alice" },
+                { "experience", "I have been an ATC for 2 years." },
+            },
+            CancellationToken.None);
+        var app = new AtcApplication { Id = Ulid.NewUlid(), UserId = userId, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-5), ApplicationFilingId = filing.Id };
         dbContext.AtcApplication.Add(app);
-
-        dbContext.SaveChanges();
+        await dbContext.SaveChangesAsync();
 
         // Act
-        var dto = await controller.List(app.Id);
+        var dto = await controller.GetById(app.Id);
 
         // Assert
         dto.Id.Should().Be(app.Id);
-        dto.ApplicationFilingAnswers.Should().HaveCount(1);
-        dto.ApplicationFilingAnswers.First().Answer.Should().Be("Ans");
+        dto.ApplicationFilingAnswers.Should().HaveCount(2);
+        var name = dto.ApplicationFilingAnswers.First(a => a.Field.Id == "full-name");
+        name.Answer.Should().Be("Alice");
+        var experience = dto.ApplicationFilingAnswers.First(a => a.Field.Id == "experience");
+        experience.Answer.Should().Be("I have been an ATC for 2 years.");
     }
 
     [Test]
     public async Task GetSheet_ReturnsSheetDto()
     {
-        // Arrange
-        var field1 = new SheetField { SheetId = "atc-application", Id = "s1", Sequence = 1, NameZh = "字段一", Kind = SheetFieldKind.ShortText };
-        var field2 = new SheetField { SheetId = "atc-application", Id = "s2", Sequence = 2, NameZh = "字段二", Kind = SheetFieldKind.ShortText };
-        dbContext.Sheet.Add(new Sheet { Id = "atc-application", Name = "ATC Application", Fields = new List<SheetField> { field1, field2 } });
-        dbContext.SaveChanges();
-
         // Act
         var sheetDto = await controller.GetSheet();
 
         // Assert
-        sheetDto.Id.Should().Be("atc-application");
+        sheetDto.Id.Should().Be(ATC_APPLICATION_SHEET_ID);
         sheetDto.Fields.Should().HaveCount(2);
     }
 
@@ -116,28 +171,19 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
     public async Task Create_CreatesApplicationAndFiling()
     {
         // Arrange
-        var u = new User { Id = Ulid.NewUlid(), Cid = "400", FullName = "Eve", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
-        dbContext.User.Add(u);
-
-        var field1 = new SheetField { SheetId = "atc-application", Id = "fa", Sequence = 1, NameZh = "A", Kind = SheetFieldKind.ShortText };
-        var field2 = new SheetField { SheetId = "atc-application", Id = "fb", Sequence = 2, NameZh = "B", Kind = SheetFieldKind.ShortText };
-        dbContext.Sheet.Add(new Sheet { Id = "atc-application", Name = "ATC Application", Fields = new List<SheetField> { field1, field2 } });
-        dbContext.SaveChanges();
-
         var req = new UserAtcApplicationController.AtcApplicationCreateDto
         {
-            SheetAnswers = new Dictionary<string, string>
-            {
-                { "fa", "hello" },
-                { "fb", "world" },
-            }
+            ApplicationFilingAnswers = [
+                new () { Id = "full-name", Answer = "Answer A" },
+                new () { Id = "experience", Answer = "Answer B" },
+            ],
         };
 
         // Act
         var summary = await controller.Create(req);
 
         // Assert
-        summary.UserId.Should().Be(u.Id);
+        summary.UserId.Should().Be(userId);
 
         var stored = dbContext.AtcApplication.Find(summary.Id);
         stored.Should().NotBeNull();
