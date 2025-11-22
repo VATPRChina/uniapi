@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
+using Net.Vatprc.Uniapi.Models.Event;
 using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;
@@ -59,12 +60,12 @@ public class EventSlotController(
     public async Task<IEnumerable<EventSlotDto>> List(Ulid eid)
     {
         var eventt = await DbContext.Event
-            .Include(x => x.Airspaces)
+            .Include(x => x.Airspaces!)
             .ThenInclude(x => x.Slots)
             .ThenInclude(x => x.Booking)
             .SingleOrDefaultAsync(x => x.Id == eid)
             ?? throw new ApiError.EventNotFound(eid);
-        return eventt.Airspaces
+        return eventt.Airspaces!
             .SelectMany(x => x.Slots)
             .OrderBy(x => x.EnterAt)
             .ThenBy(x => x.LeaveAt)

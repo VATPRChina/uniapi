@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Net.Vatprc.Uniapi.Models;
+namespace Net.Vatprc.Uniapi.Models.Event;
 
 public class EventSlot
 {

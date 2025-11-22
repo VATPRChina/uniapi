@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
+using Net.Vatprc.Uniapi.Models.Event;
 using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;

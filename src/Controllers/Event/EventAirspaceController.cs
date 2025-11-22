@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
+using Net.Vatprc.Uniapi.Models.Event;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -48,7 +49,7 @@ public class EventAirspaceController(Database DbContext) : ControllerBase
         var eventt = await DbContext.Event.SingleOrDefaultAsync(x => x.Id == eid)
             ?? throw new ApiError.EventNotFound(eid);
         return await DbContext.Entry(eventt)
-            .Collection(x => x.Airspaces)
+            .Collection(x => x.Airspaces!)
             .Query()
             .OrderBy(x => x.Name)
             .Select(x => new EventAirspaceDto(x)).ToListAsync();

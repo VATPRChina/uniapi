@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Net.Vatprc.Uniapi.Models;
+namespace Net.Vatprc.Uniapi.Models.Event;
 
 public class Event
 {
@@ -25,7 +25,9 @@ public class Event
 
     public string? ImageUrl { get; set; }
 
-    public IEnumerable<EventAirspace> Airspaces { get; set; } = null!;
+    public IEnumerable<EventAirspace>? Airspaces { get; set; }
+
+    public IEnumerable<EventAtcPosition>? AtcPositions { get; set; }
 
     [JsonIgnore]
     public bool IsInBookingPeriod

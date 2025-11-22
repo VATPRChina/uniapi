@@ -1,6 +1,7 @@
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Models.Atc;
+using Net.Vatprc.Uniapi.Models.Event;
 using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Utils;
@@ -11,12 +12,13 @@ public class Database(DbContextOptions<Database> options) : DbContext(options)
 {
     public virtual DbSet<User> User { get; set; }
     public virtual DbSet<RefreshToken> Session { get; set; }
+    public virtual DbSet<DeviceAuthorization> DeviceAuthorization { get; set; }
 
     public virtual DbSet<Event> Event { get; set; }
     public virtual DbSet<EventSlot> EventSlot { get; set; }
     public virtual DbSet<EventAirspace> EventAirspace { get; set; }
     public virtual DbSet<EventBooking> EventBooking { get; set; }
-    public virtual DbSet<DeviceAuthorization> DeviceAuthorization { get; set; }
+    public virtual DbSet<EventAtcPosition> EventAtcPosition { get; set; }
 
     public virtual DbSet<Flight> Flight { get; set; }
 
