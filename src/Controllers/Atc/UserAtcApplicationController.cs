@@ -4,6 +4,7 @@ using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
+using static Net.Vatprc.Uniapi.Controllers.Auth.UserController;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -15,7 +16,6 @@ public class UserAtcApplicationController(
 ) : Controller
 {
     protected const string ATC_APPLICATION_SHEET_ID = "atc-application";
-    protected const string ATC_APPLICATION_REVIEW_SHEET_ID = "atc-application-review";
 
     [HttpGet]
     public async Task<IEnumerable<AtcApplicationSummaryDto>> List()
@@ -23,6 +23,7 @@ public class UserAtcApplicationController(
         var curUserId = userAccessor.GetUserId();
         return await database.AtcApplication
             .Where(app => app.UserId == curUserId)
+            .Include(a => a.User)
             .OrderByDescending(app => app.AppliedAt)
             .Select(app => new AtcApplicationSummaryDto(app))
             .ToListAsync();
@@ -34,12 +35,14 @@ public class UserAtcApplicationController(
         var curUserId = userAccessor.GetUserId();
         var application = await database.AtcApplication
             .Where(a => a.UserId == curUserId && a.Id == id)
+            .Include(a => a.User)
             .Include(a => a.ApplicationFiling)
                 .ThenInclude(af => af!.Answers)
                     .ThenInclude(ans => ans.Field)
             .Include(a => a.ReviewFiling)
                 .ThenInclude(rf => rf!.Answers)
                     .ThenInclude(ans => ans.Field)
+            .OrderByDescending(a => a.AppliedAt)
             .Select(a => new AtcApplicationDto(a))
             .SingleOrDefaultAsync() ??
             throw new ApiError.AtcApplicationNotFound(id);
@@ -50,18 +53,20 @@ public class UserAtcApplicationController(
     [HttpGet("sheet")]
     public async Task<AtcApplicationSheetDto> GetSheet()
     {
+        await sheetService.EnsureSheetAsync(ATC_APPLICATION_SHEET_ID, "ATC Application Sheet");
         var sheet = await sheetService.GetSheetByIdAsync(ATC_APPLICATION_SHEET_ID)
             ?? throw new InvalidOperationException("ATC application sheet is not configured.");
         return new AtcApplicationSheetDto(sheet);
     }
 
     [HttpPost]
-    public async Task<AtcApplicationSummaryDto> Create(AtcApplicationCreateDto req)
+    public async Task<AtcApplicationDto> Create(AtcApplicationCreateDto req)
     {
         var curUserId = userAccessor.GetUserId();
 
-        var filing = await sheetService.CreateSheetFilingAsync(
+        var filing = await sheetService.SetSheetFilingAsync(
             ATC_APPLICATION_SHEET_ID,
+            null,
             curUserId,
             req.ApplicationFilingAnswers.ToDictionary(
                 answer => answer.Id,
@@ -78,7 +83,28 @@ public class UserAtcApplicationController(
         database.AtcApplication.Add(application);
         await database.SaveChangesAsync();
 
-        return new AtcApplicationSummaryDto(application);
+        return new AtcApplicationDto(application);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<AtcApplicationDto> Update(Ulid id, AtcApplicationCreateDto req)
+    {
+        var curUserId = userAccessor.GetUserId();
+
+        var application = await database.AtcApplication
+            .Where(a => a.Id == id && a.UserId == curUserId)
+            .SingleOrDefaultAsync() ??
+            throw new ApiError.AtcApplicationNotFound(id);
+
+        var filing = await sheetService.SetSheetFilingAsync(
+            ATC_APPLICATION_SHEET_ID,
+            application.ApplicationFilingId,
+            curUserId,
+            req.ApplicationFilingAnswers.ToDictionary(
+                answer => answer.Id,
+                answer => answer.Answer));
+
+        return new AtcApplicationDto(application);
     }
 
     protected static AtcApplicationStatusDto ToDto(AtcApplicationStatus status) => status switch
@@ -93,12 +119,14 @@ public class UserAtcApplicationController(
     public record class AtcApplicationSummaryDto(
         Ulid Id,
         Ulid UserId,
+        UserDto User,
         DateTimeOffset AppliedAt,
         AtcApplicationStatusDto Status)
     {
         public AtcApplicationSummaryDto(AtcApplication application) : this(
             application.Id,
             application.UserId,
+            new(application.User ?? throw new ArgumentNullException(nameof(application), "User must be loaded")),
             application.AppliedAt,
             ToDto(application.Status))
         { }
@@ -115,6 +143,7 @@ public class UserAtcApplicationController(
     public record class AtcApplicationDto(
         Ulid Id,
         Ulid UserId,
+        UserDto User,
         DateTimeOffset AppliedAt,
         AtcApplicationStatusDto Status,
         IEnumerable<AtcApplicationFieldAnswerDto> ApplicationFilingAnswers,
@@ -123,6 +152,7 @@ public class UserAtcApplicationController(
         public AtcApplicationDto(AtcApplication application) : this(
             application.Id,
             application.UserId,
+            new(application.User ?? throw new ArgumentNullException(nameof(application), "User must be loaded")),
             application.AppliedAt,
             ToDto(application.Status),
             application.ApplicationFiling?.Answers.Select(answer => new AtcApplicationFieldAnswerDto(answer)) ??

@@ -103,8 +103,9 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
     public async Task List_ReturnsOnlyCurrentUserApplications()
     {
         // Arrange
-        var filing = await realSheetService.CreateSheetFilingAsync(
+        var filing = await realSheetService.SetSheetFilingAsync(
             ATC_APPLICATION_SHEET_ID,
+            null,
             userId,
             new Dictionary<string, string>
             {
@@ -131,8 +132,9 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
     public async Task GetById_ReturnsApplicationWithAnswers()
     {
         // Arrange
-        var filing = await realSheetService.CreateSheetFilingAsync(
+        var filing = await realSheetService.SetSheetFilingAsync(
             ATC_APPLICATION_SHEET_ID,
+            null,
             userId,
             new Dictionary<string, string>
             {
@@ -190,5 +192,50 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
         var filing = dbContext.SheetFiling.Find(stored!.ApplicationFilingId);
         filing.Should().NotBeNull();
         dbContext.SheetFilingAnswer.Where(a => a.FilingId == filing!.Id).Should().HaveCount(2);
+    }
+
+    [Test]
+    public async Task Update_UpdatesExistingFiling()
+    {
+        // Arrange
+        var initialFiling = await realSheetService.SetSheetFilingAsync(
+            ATC_APPLICATION_SHEET_ID,
+            null,
+            userId,
+            new Dictionary<string, string>
+            {
+                { "full-name", "Initial Name" },
+                { "experience", "Initial Experience" },
+            },
+            CancellationToken.None);
+        var application = new AtcApplication
+        {
+            Id = Ulid.NewUlid(),
+            UserId = userId,
+            AppliedAt = DateTimeOffset.UtcNow,
+            ApplicationFilingId = initialFiling.Id,
+        };
+        dbContext.AtcApplication.Add(application);
+        await dbContext.SaveChangesAsync();
+
+        var req = new UserAtcApplicationController.AtcApplicationCreateDto
+        {
+            ApplicationFilingAnswers = [
+                new () { Id = "full-name", Answer = "Updated Name" },
+                new () { Id = "experience", Answer = "Updated Experience" },
+            ],
+        };
+
+        // Act
+        var dto = await controller.Update(application.Id, req);
+
+        // Assert
+        dto.Id.Should().Be(application.Id);
+
+        var updatedFiling = await realSheetService.GetSheetFilingByIdAsync(initialFiling.Id);
+        updatedFiling.Should().NotBeNull();
+        var answers = updatedFiling!.Answers.ToDictionary(a => a.FieldId, a => a);
+        answers["full-name"].Answer.Should().Be("Updated Name");
+        answers["experience"].Answer.Should().Be("Updated Experience");
     }
 }

@@ -224,7 +224,7 @@ public class SheetServiceTest : TestWithDatabase
             { "field-three", "Option A" },
             {"field-four", "Should be ignored"}
         };
-        var result = await sheetService.CreateSheetFilingAsync("test-sheet", user!.Id, answers);
+        var result = await sheetService.SetSheetFilingAsync("test-sheet", null, user!.Id, answers);
 
         result.Should().NotBeNull();
         result.SheetId.Should().Be("test-sheet");
@@ -250,7 +250,7 @@ public class SheetServiceTest : TestWithDatabase
             { "field-two", "Test Answer 2" },
             { "field-three", "Option A" },
         };
-        var result = await sheetService.CreateSheetFilingAsync("test-sheet", user!.Id, answers);
+        var result = await sheetService.SetSheetFilingAsync("test-sheet", null, user!.Id, answers);
 
         result.Should().NotBeNull();
         result.SheetId.Should().Be("test-sheet");
@@ -276,7 +276,7 @@ public class SheetServiceTest : TestWithDatabase
             // Missing field-two
             { "field-three", "Option A" },
         };
-        Func<Task> act = async () => await sheetService.CreateSheetFilingAsync("test-sheet", user!.Id, answers);
+        Func<Task> act = async () => await sheetService.SetSheetFilingAsync("test-sheet", null, user!.Id, answers);
 
         await act.Should().ThrowAsync<RequiredFieldMissingException>()
             .WithMessage("Required field field-two is missing or empty for sheet test-sheet (Parameter 'answers')")
@@ -295,7 +295,7 @@ public class SheetServiceTest : TestWithDatabase
             { "field-two", "   " }, // Empty answer
             { "field-three", "Option A" },
         };
-        Func<Task> act = async () => await sheetService.CreateSheetFilingAsync("test-sheet", user!.Id, answers);
+        Func<Task> act = async () => await sheetService.SetSheetFilingAsync("test-sheet", null, user!.Id, answers);
 
         await act.Should().ThrowAsync<RequiredFieldMissingException>()
             .WithMessage("Required field field-two is missing or empty for sheet test-sheet (Parameter 'answers')")
@@ -315,7 +315,7 @@ public class SheetServiceTest : TestWithDatabase
             { "field-three", "Option A" },
             { "non-existent-field", "Some Answer" },
         };
-        Func<Task> act = async () => await sheetService.CreateSheetFilingAsync("test-sheet", user!.Id, answers);
+        Func<Task> act = async () => await sheetService.SetSheetFilingAsync("test-sheet", null, user!.Id, answers);
 
         await act.Should().ThrowAsync<FieldNotFoundException>()
             .WithMessage("Field non-existent-field not found in sheet test-sheet (Parameter 'answers')")
@@ -333,11 +333,52 @@ public class SheetServiceTest : TestWithDatabase
             { "field-two", "Test Answer 2" },
             { "field-three", "Option A" },
         };
-        Func<Task> act = async () => await sheetService.CreateSheetFilingAsync("non-existent-sheet", user!.Id, answers);
+        Func<Task> act = async () => await sheetService.SetSheetFilingAsync("non-existent-sheet", null, user!.Id, answers);
 
         await act.Should().ThrowAsync<SheetNotFoundException>()
             .WithMessage("Sheet not found (Parameter 'sheetId')")
             .Where(e => e.ParamName == "sheetId");
+    }
+
+    [Test]
+    public async Task SetSheetFilingAsync_UpdateExistingFiling_UpdatesAnswers()
+    {
+        SetupSheet();
+        SetupUser();
+        var filingId = SetupSheetFiling();
+
+        // Initial answers
+        var initialAnswers = new Dictionary<string, string>
+        {
+            { "field-one", "Initial Answer 1" },
+            { "field-two", "Initial Answer 2" },
+            { "field-three", "Option B" },
+        };
+        var filing1 = await sheetService.SetSheetFilingAsync("test-sheet", filingId, user!.Id, initialAnswers);
+        filing1.Answers.Should().HaveCount(3);
+        filing1.Answers.ElementAt(0).FieldId.Should().Be("field-one");
+        filing1.Answers.ElementAt(0).Answer.Should().Be("Initial Answer 1");
+        filing1.Answers.ElementAt(1).FieldId.Should().Be("field-two");
+        filing1.Answers.ElementAt(1).Answer.Should().Be("Initial Answer 2");
+        filing1.Answers.ElementAt(2).FieldId.Should().Be("field-three");
+        filing1.Answers.ElementAt(2).Answer.Should().Be("Option B");
+
+        // Updated answers
+        var updatedAnswers = new Dictionary<string, string>
+        {
+            { "field-one", "Updated Answer 1" },
+            { "field-two", "Updated Answer 2" },
+            { "field-three", "Option C" },
+        };
+        var filing2 = await sheetService.SetSheetFilingAsync("test-sheet", filingId, user!.Id, updatedAnswers);
+
+        filing2.Answers.Should().HaveCount(3);
+        filing2.Answers.ElementAt(0).FieldId.Should().Be("field-one");
+        filing2.Answers.ElementAt(0).Answer.Should().Be("Updated Answer 1");
+        filing2.Answers.ElementAt(1).FieldId.Should().Be("field-two");
+        filing2.Answers.ElementAt(1).Answer.Should().Be("Updated Answer 2");
+        filing2.Answers.ElementAt(2).FieldId.Should().Be("field-three");
+        filing2.Answers.ElementAt(2).Answer.Should().Be("Option C");
     }
 
     private void SetupSheet()
@@ -403,11 +444,12 @@ public class SheetServiceTest : TestWithDatabase
         dbContext.SaveChanges();
     }
 
-    private void SetupSheetFiling()
+    private Ulid SetupSheetFiling()
     {
+        var id = Ulid.NewUlid();
         var testSheetFiling = new SheetFiling
         {
-            Id = Ulid.NewUlid(),
+            Id = id,
             SheetId = "test-sheet",
             UserId = user!.Id,
             FiledAt = DateTimeOffset.UtcNow,
@@ -415,5 +457,7 @@ public class SheetServiceTest : TestWithDatabase
         dbContext.SheetFiling.Add(testSheetFiling);
 
         dbContext.SaveChanges();
+
+        return id;
     }
 }

@@ -100,8 +100,9 @@ public class SheetService(
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<SheetFiling> CreateSheetFilingAsync(
+    public async Task<SheetFiling> SetSheetFilingAsync(
         string sheetId,
+        Ulid? sheetFilingId,
         Ulid userId,
         IDictionary<string, string> answers,
         CancellationToken ct = default)
@@ -118,14 +119,26 @@ public class SheetService(
             }
         }
 
-        var sheetFiling = new SheetFiling
+        SheetFiling sheetFiling;
+        if (sheetFilingId == null)
         {
-            Id = Ulid.NewUlid(),
-            SheetId = sheetId,
-            UserId = userId,
-            FiledAt = DateTime.UtcNow,
-            Answers = [],
-        };
+            sheetFiling = new SheetFiling
+            {
+                Id = Ulid.NewUlid(),
+                SheetId = sheetId,
+                UserId = userId,
+                FiledAt = DateTime.UtcNow,
+                Answers = [],
+            };
+            dbContext.SheetFiling.Add(sheetFiling);
+        }
+        else
+        {
+            sheetFiling = await GetSheetFilingByIdAsync(sheetFilingId.Value, ct)
+                ?? throw new SheetFilingNotFoundException(sheetFilingId.Value, nameof(sheetFilingId));
+        }
+
+        var existingAnswers = sheetFiling.Answers.ToDictionary(a => a.FieldId, a => a);
 
         foreach (var field in sheet.Fields)
         {
@@ -139,18 +152,22 @@ public class SheetService(
                 throw new RequiredFieldMissingException(field.Id, sheetId, nameof(answers));
             }
 
-            var filingAnswer = new SheetFilingAnswer
+            if (existingAnswers.TryGetValue(field.Id, out var existingAnswer))
             {
-                FilingId = sheetFiling.Id,
-                SheetId = sheetId,
-                FieldId = field.Id,
-                Answer = value,
-            };
-
-            sheetFiling.Answers.Add(filingAnswer);
+                existingAnswer.Answer = value;
+            }
+            else
+            {
+                var filingAnswer = new SheetFilingAnswer
+                {
+                    FilingId = sheetFiling.Id,
+                    SheetId = sheetId,
+                    FieldId = field.Id,
+                    Answer = value,
+                };
+                sheetFiling.Answers.Add(filingAnswer);
+            }
         }
-
-        dbContext.SheetFiling.Add(sheetFiling);
 
         await dbContext.SaveChangesAsync(ct);
 
@@ -174,6 +191,11 @@ public class SheetService(
 
     public class RequiredFieldMissingException(string fieldId, string sheetId, string paramName) :
         ArgumentException($"Required field {fieldId} is missing or empty for sheet {sheetId}", paramName)
+    {
+    }
+
+    public class SheetFilingNotFoundException(Ulid filingId, string paramName) :
+        ArgumentException($"Sheet filing {filingId} not found", paramName)
     {
     }
 }
