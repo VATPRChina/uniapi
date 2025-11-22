@@ -1,9 +1,7 @@
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Atc;
-using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
 using static Net.Vatprc.Uniapi.Controllers.UserAtcApplicationController;
@@ -15,7 +13,8 @@ namespace Net.Vatprc.Uniapi.Controllers.Atc;
 [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
 public class AtcApplicationController(
     Database database,
-    SheetService sheetService
+    SheetService sheetService,
+    IUserAccessor userAccessor
 ) : Controller
 {
     protected const string ATC_APPLICATION_REVIEW_SHEET_ID = "atc-application-review";
@@ -57,5 +56,79 @@ public class AtcApplicationController(
         var sheet = await sheetService.GetSheetByIdAsync(ATC_APPLICATION_REVIEW_SHEET_ID)
             ?? throw new InvalidOperationException("ATC application review sheet is not configured.");
         return new AtcApplicationSheetDto(sheet);
+    }
+
+    [HttpPut("{id}/review")]
+    public async Task<AtcApplicationDto> ReviewApplication(
+        Ulid id,
+        [FromBody] AtcApplicationReviewDto reviewDto)
+    {
+        var userId = userAccessor.GetUserId();
+        var application = await database.AtcApplication
+            .Where(a => a.Id == id)
+            .Include(a => a.User)
+            .Include(a => a.ReviewFiling)
+                .ThenInclude(rf => rf!.Answers)
+                    .ThenInclude(ans => ans.Field)
+            .SingleOrDefaultAsync() ??
+            throw new ApiError.AtcApplicationNotFound(id);
+
+        var reviewFiling = await sheetService.SetSheetFilingAsync(
+            ATC_APPLICATION_REVIEW_SHEET_ID,
+            application.ReviewFiling?.Id,
+            userId,
+            reviewDto.Answers.ToDictionary(kv => kv.Id, kv => kv.Answer),
+            CancellationToken.None);
+
+        application.ReviewFilingId = reviewFiling.Id;
+
+        await database.SaveChangesAsync();
+
+        return new AtcApplicationDto(application);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<AtcApplicationDto> UpdateStatus(
+        Ulid id,
+        [FromBody] AtcApplicationUpdateDto updateDto)
+    {
+        var application = await database.AtcApplication
+            .Where(a => a.Id == id)
+            .Include(a => a.User)
+            .Include(a => a.ApplicationFiling)
+                .ThenInclude(af => af!.Answers)
+                    .ThenInclude(ans => ans.Field)
+            .Include(a => a.ReviewFiling)
+                .ThenInclude(rf => rf!.Answers)
+                    .ThenInclude(ans => ans.Field)
+            .SingleOrDefaultAsync() ??
+            throw new ApiError.AtcApplicationNotFound(id);
+
+        application.Status = updateDto.Status switch
+        {
+            AtcApplicationStatusDto.Submitted => AtcApplicationStatus.Submitted,
+            AtcApplicationStatusDto.InWaitlist => AtcApplicationStatus.InWaitlist,
+            AtcApplicationStatusDto.Approved => AtcApplicationStatus.Approved,
+            AtcApplicationStatusDto.Rejected => AtcApplicationStatus.Rejected,
+            _ => throw new ArgumentOutOfRangeException(nameof(updateDto.Status), "Invalid application status."),
+        };
+        await database.SaveChangesAsync();
+        return new AtcApplicationDto(application);
+    }
+
+    public record class AtcApplicationReviewAnswerDto
+    {
+        public required string Id { get; set; }
+        public required string Answer { get; set; }
+    }
+
+    public record class AtcApplicationReviewDto
+    {
+        public required IEnumerable<AtcApplicationReviewAnswerDto> Answers { get; set; }
+    }
+
+    public record class AtcApplicationUpdateDto
+    {
+        public required AtcApplicationStatusDto Status { get; set; }
     }
 }

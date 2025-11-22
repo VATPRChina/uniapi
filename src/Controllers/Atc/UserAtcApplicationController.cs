@@ -96,6 +96,11 @@ public class UserAtcApplicationController(
             .SingleOrDefaultAsync() ??
             throw new ApiError.AtcApplicationNotFound(id);
 
+        if (application.Status != AtcApplicationStatus.Submitted)
+        {
+            throw new ApiError.AtcApplicationCannotUpdate(id, application.Status);
+        }
+
         var filing = await sheetService.SetSheetFilingAsync(
             ATC_APPLICATION_SHEET_ID,
             application.ApplicationFilingId,

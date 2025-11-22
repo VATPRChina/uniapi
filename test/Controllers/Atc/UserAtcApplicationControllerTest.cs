@@ -238,4 +238,44 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
         answers["full-name"].Answer.Should().Be("Updated Name");
         answers["experience"].Answer.Should().Be("Updated Experience");
     }
+
+    [Test]
+    public async Task Update_NonSubmittedApplication_ThrowsApiError()
+    {
+        // Arrange
+        var initialFiling = await realSheetService.SetSheetFilingAsync(
+            ATC_APPLICATION_SHEET_ID,
+            null,
+            userId,
+            new Dictionary<string, string>
+            {
+                { "full-name", "Initial Name" },
+                { "experience", "Initial Experience" },
+            },
+            CancellationToken.None);
+        var application = new AtcApplication
+        {
+            Id = Ulid.NewUlid(),
+            UserId = userId,
+            AppliedAt = DateTimeOffset.UtcNow,
+            ApplicationFilingId = initialFiling.Id,
+            Status = AtcApplicationStatus.Approved,
+        };
+        dbContext.AtcApplication.Add(application);
+        await dbContext.SaveChangesAsync();
+
+        var req = new UserAtcApplicationController.AtcApplicationCreateDto
+        {
+            ApplicationFilingAnswers = [
+                new () { Id = "full-name", Answer = "Updated Name" },
+                new () { Id = "experience", Answer = "Updated Experience" },
+            ],
+        };
+
+        // Act
+        Func<Task> act = async () => await controller.Update(application.Id, req);
+
+        // Assert
+        await act.Should().ThrowAsync<ApiError.AtcApplicationCannotUpdate>();
+    }
 }

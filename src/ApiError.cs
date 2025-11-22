@@ -3,6 +3,7 @@ using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Net.Vatprc.Uniapi.Models.Atc;
 
 namespace Net.Vatprc.Uniapi;
 
@@ -288,4 +289,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.NotFound, "ATC_APPLICATION_NOT_FOUND", "Atc application {id} not found.")]
     public class AtcApplicationNotFound(Ulid id) :
         ApiError($"Atc application {id} not found.");
+
+    [Error(HttpStatusCode.Forbidden, "ATC_APPLICATION_CANNOT_UPDATE", "Atc application {id} in status {status} cannot be updated.")]
+    public class AtcApplicationCannotUpdate(Ulid id, AtcApplicationStatus status) :
+        ApiError($"Atc application {id} in status {status} cannot be updated.");
 }
