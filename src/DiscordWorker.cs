@@ -76,7 +76,7 @@ public class DiscordWorker(
                     Logger.LogError("Error occurred executing interaction {Error} - {ErrorReason}",
                         result.Error, result.ErrorReason);
                 }
-                if (!context.Interaction.HasResponded)
+                if (!context.Interaction.HasResponded && result.Error != InteractionCommandError.UnknownCommand)
                 {
                     await context.Interaction.RespondAsync($"Error: {result.ErrorReason}", ephemeral: true);
                 }
