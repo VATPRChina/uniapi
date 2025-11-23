@@ -1,0 +1,113 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Models;
+using Net.Vatprc.Uniapi.Models.Atc;
+using Net.Vatprc.Uniapi.Utils;
+
+namespace Net.Vatprc.Uniapi.Controllers.Atc;
+
+public class UserAtcPermissionController(
+    Database DbContext,
+    IUserAccessor userAccessor) : Controller
+{
+
+    [HttpGet("me/atc/permissions")]
+    public async Task<IEnumerable<AtcPermissionDto>> GetAtcPermissions()
+    {
+        var user = await userAccessor.GetUser();
+
+        return await DbContext.UserAtcPermission
+            .Where(p => p.UserId == user.Id)
+            .Select(p => new AtcPermissionDto(p))
+            .ToListAsync();
+    }
+
+    [HttpGet("{id}/atc/permissions")]
+    [Authorize(Roles = UserRoles.ControllerTrainingMentor)]
+    public async Task<IEnumerable<AtcPermissionDto>> GetAtcPermissions(Ulid id)
+    {
+        var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
+
+        return await DbContext.UserAtcPermission
+            .Where(p => p.UserId == user.Id)
+            .Select(p => new AtcPermissionDto(p))
+            .ToListAsync();
+    }
+
+    [HttpGet("{id}/atc/permissions/{kind}")]
+    [Authorize(Roles = UserRoles.ControllerTrainingMentor)]
+    public async Task<AtcPermissionDto> GetAtcPermissionForKind(Ulid id, string kind)
+    {
+        var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
+
+        return await DbContext.UserAtcPermission
+            .Where(p => p.UserId == user.Id && p.PositionKindId == kind)
+            .Select(p => new AtcPermissionDto(p))
+            .FirstOrDefaultAsync() ?? throw new ApiError.UserAtcPermissionNotFound(id, kind);
+    }
+
+    [HttpPut("{id}/atc/permissions/{kind}")]
+    [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
+    public async Task<AtcPermissionDto> SetAtcPermissionForKind(Ulid id, string kind, SetAtcPermissionDto req)
+    {
+        if (req.State == UserAtcPermission.UserControllerState.Solo && req.SoloExpiresAt == null)
+        {
+            throw new ApiError.SoloExpirationNotProvided();
+        }
+
+        var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
+        var atcPermission = await DbContext.UserAtcPermission
+            .Where(p => p.UserId == user.Id && p.PositionKindId == kind)
+            .FirstOrDefaultAsync();
+        if (atcPermission == null)
+        {
+            atcPermission = new UserAtcPermission
+            {
+                UserId = user.Id,
+                PositionKindId = kind,
+            };
+            DbContext.UserAtcPermission.Add(atcPermission);
+        }
+
+        atcPermission.State = req.State;
+        atcPermission.SoloExpiresAt = req.SoloExpiresAt;
+
+        await DbContext.SaveChangesAsync();
+        return new AtcPermissionDto(atcPermission);
+    }
+
+    [HttpDelete("{id}/atc/permissions/{kind}")]
+    [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
+    public async Task<IActionResult> DeleteAtcPermissionForKind(Ulid id, string kind)
+    {
+        var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
+        var atcPermission = await DbContext.UserAtcPermission
+            .Where(p => p.UserId == user.Id && p.PositionKindId == kind)
+            .FirstOrDefaultAsync() ?? throw new ApiError.UserAtcPermissionNotFound(id, kind);
+
+        DbContext.UserAtcPermission.Remove(atcPermission);
+        await DbContext.SaveChangesAsync();
+        return NoContent();
+    }
+
+
+    public record SetAtcPermissionDto
+    {
+        public required UserAtcPermission.UserControllerState State { get; set; }
+        public DateTimeOffset? SoloExpiresAt { get; set; }
+    }
+
+    public record AtcPermissionDto(
+        string PositionKindId,
+        UserAtcPermission.UserControllerState State,
+        DateTimeOffset? SoloExpiresAt
+    )
+    {
+        public AtcPermissionDto(UserAtcPermission permission) : this(
+            permission.PositionKindId,
+            permission.State,
+            permission.SoloExpiresAt)
+        {
+        }
+    }
+}
