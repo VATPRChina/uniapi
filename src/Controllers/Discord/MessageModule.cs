@@ -10,7 +10,7 @@ public class MessageModule : InteractionModuleBase
     protected const string MESSAGE_MODAL_ID = "edit_message_modal";
 
     [CommandContextType([InteractionContextType.Guild, InteractionContextType.PrivateChannel])]
-    [DefaultMemberPermissions(GuildPermission.Administrator)]
+    [DefaultMemberPermissions(GuildPermission.ManageMessages)]
     [SlashCommand("post", "Post message in current channel")]
     public async Task SendMessage()
     {
@@ -21,7 +21,7 @@ public class MessageModule : InteractionModuleBase
     }
 
     [CommandContextType([InteractionContextType.Guild, InteractionContextType.PrivateChannel])]
-    [DefaultMemberPermissions(GuildPermission.Administrator)]
+    [DefaultMemberPermissions(GuildPermission.ManageMessages)]
     [MessageCommand("Edit Message")]
     public async Task EditMessage(IMessage message)
     {
@@ -34,6 +34,7 @@ public class MessageModule : InteractionModuleBase
         {
             modal.UpdateTextInput("channel_id", Context.Channel.Id.ToString());
             modal.UpdateTextInput("message_id", message.Id.ToString());
+            modal.UpdateTextInput("message", message.Content);
         });
     }
 
