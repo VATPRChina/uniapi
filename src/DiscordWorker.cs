@@ -66,10 +66,12 @@ public class DiscordWorker(
             using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.InteractionExecuted", ActivityKind.Consumer);
             if (!result.IsSuccess)
             {
+                string message = result.ErrorReason;
                 if (result is ExecuteResult executeResult &&
                    executeResult.Exception != null)
                 {
                     Logger.LogError(executeResult.Exception, "Error occurred executing interaction");
+                    message = executeResult.Exception.Message;
                 }
                 else
                 {
@@ -78,7 +80,7 @@ public class DiscordWorker(
                 }
                 if (!context.Interaction.HasResponded && result.Error != InteractionCommandError.UnknownCommand)
                 {
-                    await context.Interaction.RespondAsync($"Error: {result.ErrorReason}", ephemeral: true);
+                    await context.Interaction.RespondAsync($"Error: {message}", ephemeral: true);
                 }
             }
         };
