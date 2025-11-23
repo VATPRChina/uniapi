@@ -293,4 +293,34 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.Forbidden, "ATC_APPLICATION_CANNOT_UPDATE", "Atc application {id} in status {status} cannot be updated.")]
     public class AtcApplicationCannotUpdate(Ulid id, AtcApplicationStatus status) :
         ApiError($"Atc application {id} in status {status} cannot be updated.");
+
+    [Error(HttpStatusCode.NotFound, "EVENT_ATC_POSITION_NOT_FOUND", "Event {event_id}'s ATC position {position_id} not found.")]
+    public class EventAtcPositionNotFound(Ulid event_id, Ulid position_id) :
+        ApiError($"Event {event_id}'s slot {position_id} not found.");
+
+    [Error(HttpStatusCode.BadRequest, "INVALID_ATC_POSITION_KIND", "ATC position kind {positionKindId} is invalid.")]
+    public class InvalidAtcPositionKind(string positionKindId) :
+        ApiError($"ATC position kind {positionKindId} is invalid.");
+
+    [Error(HttpStatusCode.Forbidden, "INSUFFICIENT_ATC_PERMISSION",
+        "ATC permission on {positionKindId} of {currentPermission} does not satisify {requiredPermission}.")]
+    public class InsufficientAtcPermission(
+        string positionKindId,
+        UserAtcPermission.UserControllerState? currentPermission,
+        UserAtcPermission.UserControllerState requiredPermission) :
+        ApiError($"ATC permission on {positionKindId} of {currentPermission} does not satisify {requiredPermission}.");
+
+
+    [Error(HttpStatusCode.NotFound, "EVENT_POSITION_NOT_BOOKED", "Event {event_id}'s ATC position {slot_id} has not been booked.")]
+    public class EventPositionNotBooked(Ulid event_id, Ulid slot_id) :
+        ApiError($"Event {event_id}'s ATC position {slot_id} has not been booked.");
+
+    [Error(HttpStatusCode.Conflict, "EVENT_POSITION_BOOKED", "Event {event_id}'s ATC position {slot_id} has been booked.")]
+    public class EventPositionBooked(Ulid event_id, Ulid slot_id) :
+        ApiError($"Event {event_id}'s ATC position {slot_id} has been booked.");
+
+
+    [Error(HttpStatusCode.Forbidden, "EVENT_POSITION_BOOKED_BY_ANOTHER_USER", "Event {event_id}'s ATC position {slot_id} has been booked by another user.")]
+    public class EventPositionBookedByAnotherUser(Ulid event_id, Ulid slot_id) :
+        ApiError($"Event {event_id}'s ATC position {slot_id} has been booked by another user.");
 }

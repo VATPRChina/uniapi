@@ -189,6 +189,8 @@ builder.Services.AddSingleton<RouteParserFactory>();
 SmmsAdapter.ConfigureOn(builder);
 builder.Services.AddScoped<SheetService>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
+builder.Services.AddSingleton<AtcPositionKindService>();
+builder.Services.AddSingleton<AtcPositionStatusService>();
 
 var app = builder.Build();
 

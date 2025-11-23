@@ -19,6 +19,7 @@ public class Database(DbContextOptions<Database> options) : DbContext(options)
     public virtual DbSet<EventAirspace> EventAirspace { get; set; }
     public virtual DbSet<EventBooking> EventBooking { get; set; }
     public virtual DbSet<EventAtcPosition> EventAtcPosition { get; set; }
+    public virtual DbSet<EventAtcPositionBooking> EventAtcPositionBooking { get; set; }
 
     public virtual DbSet<Flight> Flight { get; set; }
 
