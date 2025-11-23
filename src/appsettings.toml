@@ -51,6 +51,7 @@ PublicKey = """
 
 [Discourse]
 Endpoint = "https://community.vatprc.net"
+ApiKey = ""
 
 [Worker.Flight]
 Enabled = false

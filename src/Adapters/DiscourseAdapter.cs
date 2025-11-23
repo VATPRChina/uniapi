@@ -19,6 +19,7 @@ public class DiscourseAdapter(IOptions<DiscourseAdapter.Option> Options)
         public const string LOCATION = "Discourse";
 
         public required string Endpoint { get; set; }
+        public required string ApiKey { get; set; }
     }
 
     public string Endpoint = Options.Value.Endpoint;
