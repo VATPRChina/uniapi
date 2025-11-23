@@ -363,3 +363,12 @@ public class UserInfo
     [JsonPropertyName("lastratingchange")]
     public DateTimeOffset? Lastratingchange { get; set; }
 }
+
+public class DiscordUser
+{
+    [JsonPropertyName("id")]
+    public string DiscordUserId { get; set; }
+
+    [JsonPropertyName("user_id")]
+    public string Cid { get; set; }
+}

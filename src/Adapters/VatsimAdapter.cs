@@ -65,4 +65,20 @@ public class VatsimAdapter
         }) ?? throw new Exception("Unexpected null on fetch vatprc data");
         return result;
     }
+
+    public async Task<string?> GetCidByDiscordUserId(string discordUserId, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = await "https://api.vatsim.net/v2/members/discord/"
+                .AppendPathSegment(discordUserId)
+                .WithHeader("User-Agent", UniapiUserAgent)
+                .GetJsonAsync<DiscordUser>(cancellationToken: ct);
+            return user.Cid;
+        }
+        catch (FlurlHttpException ex) when (ex.Call.Response?.StatusCode == 404)
+        {
+            return null;
+        }
+    }
 }

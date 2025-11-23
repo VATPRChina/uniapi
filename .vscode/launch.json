@@ -6,9 +6,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/Net.Vatprc.Uniapi/bin/Debug/net9.0/Net.Vatprc.Uniapi.dll",
+      "program": "${workspaceFolder}/src/bin/Debug/net9.0/Net.Vatprc.Uniapi.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/Net.Vatprc.Uniapi",
+      "cwd": "${workspaceFolder}/src",
       "stopAtEntry": false,
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development"

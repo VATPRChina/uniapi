@@ -39,6 +39,7 @@ public class DiscordWorker(
         };
         Client.Log += (message) =>
         {
+            if (message.Message == null) return Task.CompletedTask;
             ClientLogger.Log(message.Severity switch
             {
                 LogSeverity.Critical => LogLevel.Critical,
@@ -57,7 +58,29 @@ public class DiscordWorker(
         {
             using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.InteractionCreated", ActivityKind.Consumer);
             var ctx = new SocketInteractionContext(Client, x);
-            await Interaction.ExecuteCommandAsync(ctx, ServiceProvider);
+            var result = await Interaction.ExecuteCommandAsync(ctx, ServiceProvider);
+        };
+
+        Interaction.InteractionExecuted += async (commandInfo, context, result) =>
+        {
+            using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.InteractionExecuted", ActivityKind.Consumer);
+            if (!result.IsSuccess)
+            {
+                if (result is ExecuteResult executeResult &&
+                   executeResult.Exception != null)
+                {
+                    Logger.LogError(executeResult.Exception, "Error occurred executing interaction");
+                }
+                else
+                {
+                    Logger.LogError("Error occurred executing interaction {Error} - {ErrorReason}",
+                        result.Error, result.ErrorReason);
+                }
+                if (!context.Interaction.HasResponded)
+                {
+                    await context.Interaction.RespondAsync($"Error: {result.ErrorReason}", ephemeral: true);
+                }
+            }
         };
 
         if (string.IsNullOrEmpty(Options.CurrentValue.Token))
