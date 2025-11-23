@@ -30,8 +30,7 @@ public class EventSlot
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             builder.Property(x => x.UpdatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .ValueGeneratedOnAddOrUpdate();
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             builder.HasOne(x => x.EventAirspace)
                 .WithMany(x => x.Slots)

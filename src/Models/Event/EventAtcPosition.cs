@@ -21,10 +21,7 @@ public class EventAtcPosition
     public required string PositionKindId { get; set; }
     public required UserControllerState MinimumControllerState { get; set; }
 
-    public Ulid? BookingUserId { get; set; }
-    public User? BookingUser { get; set; }
-
-    public DateTimeOffset? BookedAt { get; set; }
+    public EventAtcPositionBooking? Booking { get; set; }
 
     public class EventAtcPositionConfiguration : IEntityTypeConfiguration<EventAtcPosition>
     {
@@ -37,11 +34,6 @@ public class EventAtcPosition
                 .WithMany(x => x.AtcPositions)
                 .HasForeignKey(x => x.EventId)
                 .IsRequired();
-
-            builder.HasOne(x => x.BookingUser)
-                .WithMany()
-                .HasForeignKey(x => x.BookingUserId)
-                .IsRequired(false);
         }
     }
 }
