@@ -28,7 +28,7 @@ public class RoleModule(
             var components = new ComponentBuilder()
                     .WithButton(label: "Link VATSIM Account", style: ButtonStyle.Link, url: "https://community.vatsim.net/")
                     .Build();
-            await RespondAsync($"No VATSIM CID linked to Discord user {discordUser.Username}",
+            await RespondAsync($"No VATSIM CID linked to Discord user <@{discordUser.Id}>.",
                 components: components);
             return;
         }
@@ -36,12 +36,18 @@ public class RoleModule(
         var user = await db.User.SingleOrDefaultAsync(u => u.Cid == cid);
         if (user == null)
         {
-            await RespondAsync($"No user found for VATSIM CID {cid}.");
+            await RespondAsync($"No user found for VATSIM CID {cid} for Discord user <@{discordUser.Id}>.");
             return;
         }
 
         var roles = UserRoleService.GetRoleClosure(user.Roles);
 
-        await RespondAsync($"VATPRC Roles: {string.Join(", ", roles)}");
+        await RespondAsync($"""
+            <@{discordUser.Id}>'s roles in VATPRC:
+            {string.Join("\n", roles.Select(r => $"- {r}"))}
+
+            Assigned roles:
+            {string.Join("\n", user.Roles.Select(r => $"- {r}"))}
+            """);
     }
 }
