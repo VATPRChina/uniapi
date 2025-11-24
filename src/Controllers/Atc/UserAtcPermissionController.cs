@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Utils;
@@ -48,7 +49,7 @@ public class UserAtcPermissionController(
 
     [HttpPut("{id}/atc/permissions/{kind}")]
     [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
-    public async Task<AtcPermissionDto> SetAtcPermissionForKind(Ulid id, string kind, SetAtcPermissionDto req)
+    public async Task<AtcPermissionDto> SetAtcPermissionForKind(Ulid id, string kind, AtcPermissionSetRequest req)
     {
         if (req.State == UserAtcPermission.UserControllerState.Solo && req.SoloExpiresAt == null)
         {
@@ -88,26 +89,5 @@ public class UserAtcPermissionController(
         DbContext.UserAtcPermission.Remove(atcPermission);
         await DbContext.SaveChangesAsync();
         return NoContent();
-    }
-
-
-    public record SetAtcPermissionDto
-    {
-        public required UserAtcPermission.UserControllerState State { get; set; }
-        public DateTimeOffset? SoloExpiresAt { get; set; }
-    }
-
-    public record AtcPermissionDto(
-        string PositionKindId,
-        UserAtcPermission.UserControllerState State,
-        DateTimeOffset? SoloExpiresAt
-    )
-    {
-        public AtcPermissionDto(UserAtcPermission permission) : this(
-            permission.PositionKindId,
-            permission.State,
-            permission.SoloExpiresAt)
-        {
-        }
     }
 }

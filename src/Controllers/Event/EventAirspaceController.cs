@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Event;
 
@@ -18,28 +19,6 @@ public class EventAirspaceController(Database DbContext) : ControllerBase
             .SingleOrDefaultAsync(a => a.Id == aid && a.EventId == eid)
             ?? throw new ApiError.EventAirspaceNotFound(eid, aid);
         return airspace;
-    }
-
-    public record EventAirspaceDto
-    {
-        public Ulid Id { get; init; }
-        public Ulid EventId { get; init; }
-        public string Name { get; init; }
-        public DateTimeOffset CreatedAt { get; init; }
-        public DateTimeOffset UpdatedAt { get; init; }
-        public IEnumerable<string> IcaoCodes { get; init; }
-        public string Description { get; set; }
-
-        public EventAirspaceDto(EventAirspace airspace)
-        {
-            Id = airspace.Id;
-            EventId = airspace.EventId;
-            Name = airspace.Name;
-            CreatedAt = airspace.CreatedAt;
-            UpdatedAt = airspace.UpdatedAt;
-            IcaoCodes = airspace.IcaoCodes;
-            Description = airspace.Description;
-        }
     }
 
     [HttpGet]
@@ -65,16 +44,9 @@ public class EventAirspaceController(Database DbContext) : ControllerBase
         return new(airspace);
     }
 
-    public record CreateEventAirspaceDto
-    {
-        public required string Name { get; set; }
-        public required IEnumerable<string> IcaoCodes { get; set; }
-        public required string Description { get; set; }
-    }
-
     [HttpPost]
     [Authorize(Roles = UserRoles.EventCoordinator)]
-    public async Task<EventAirspaceDto> Create(Ulid eid, CreateEventAirspaceDto dto)
+    public async Task<EventAirspaceDto> Create(Ulid eid, EventAirspaceSaveRequest dto)
     {
         var airspace = new EventAirspace()
         {
@@ -88,16 +60,9 @@ public class EventAirspaceController(Database DbContext) : ControllerBase
         return new(airspace);
     }
 
-    public record UpdateEventAirspaceDto
-    {
-        public required string Name { get; set; }
-        public required IEnumerable<string> IcaoCodes { get; set; }
-        public required string Description { get; set; }
-    }
-
     [HttpPut("{aid}")]
     [Authorize(Roles = UserRoles.EventCoordinator)]
-    public async Task<EventAirspaceDto> Update(Ulid eid, Ulid aid, UpdateEventAirspaceDto dto)
+    public async Task<EventAirspaceDto> Update(Ulid eid, Ulid aid, EventAirspaceSaveRequest dto)
     {
         var airspace = await LoadAsync(eid, aid);
         airspace.Name = dto.Name;

@@ -1,9 +1,6 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Net.Vatprc.Uniapi.Controllers;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Models.Sheet;
@@ -173,7 +170,7 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
     public async Task Create_CreatesApplicationAndFiling()
     {
         // Arrange
-        var req = new UserAtcApplicationController.AtcApplicationCreateDto
+        var req = new AtcApplicationRequest
         {
             ApplicationFilingAnswers = [
                 new () { Id = "full-name", Answer = "Answer A" },
@@ -218,7 +215,7 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
         dbContext.AtcApplication.Add(application);
         await dbContext.SaveChangesAsync();
 
-        var req = new UserAtcApplicationController.AtcApplicationCreateDto
+        var req = new AtcApplicationRequest
         {
             ApplicationFilingAnswers = [
                 new () { Id = "full-name", Answer = "Updated Name" },
@@ -264,7 +261,7 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
         dbContext.AtcApplication.Add(application);
         await dbContext.SaveChangesAsync();
 
-        var req = new UserAtcApplicationController.AtcApplicationCreateDto
+        var req = new AtcApplicationRequest
         {
             ApplicationFilingAnswers = [
                 new () { Id = "full-name", Answer = "Updated Name" },

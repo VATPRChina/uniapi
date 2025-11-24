@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Event;
 using Net.Vatprc.Uniapi.Utils;
@@ -23,36 +24,6 @@ public class EventSlotController(
             .SingleOrDefaultAsync(x => x.Id == sid && x.EventAirspace.EventId == eid)
             ?? throw new ApiError.EventSlotNotFound(eid, sid);
         return slot;
-    }
-
-    public record EventSlotDto
-    {
-        public Ulid Id { get; set; }
-        public Ulid EventId { get; set; }
-        public Ulid AirspaceId { get; set; }
-        public EventAirspaceController.EventAirspaceDto Airspace { get; set; }
-        public DateTimeOffset EnterAt { get; set; }
-        public DateTimeOffset? LeaveAt { get; set; }
-        public DateTimeOffset CreatedAt { get; set; }
-        public DateTimeOffset UpdatedAt { get; set; }
-        public EventSlotBookingController.EventBookingDto? Booking { get; set; }
-        public string? Callsign { get; set; }
-        public string? AircraftTypeIcao { get; set; }
-
-        public EventSlotDto(EventSlot slot)
-        {
-            Id = slot.Id;
-            EventId = slot.EventAirspace.EventId;
-            AirspaceId = slot.EventAirspaceId;
-            Airspace = new(slot.EventAirspace);
-            EnterAt = slot.EnterAt;
-            CreatedAt = slot.CreatedAt;
-            UpdatedAt = slot.UpdatedAt;
-            LeaveAt = slot.LeaveAt;
-            if (slot.Booking != null) Booking = new(slot.Booking);
-            Callsign = slot.Callsign;
-            AircraftTypeIcao = slot.AircraftTypeIcao;
-        }
     }
 
     [HttpGet]
@@ -114,19 +85,10 @@ public class EventSlotController(
         return new EventSlotDto(slot);
     }
 
-    public record CreateEventSlotDto
-    {
-        public required Ulid AirspaceId { get; set; }
-        public required DateTimeOffset EnterAt { get; set; }
-        public DateTimeOffset? LeaveAt { get; set; }
-        public string? Callsign { get; set; }
-        public string? AircraftTypeIcao { get; set; }
-    }
-
     [HttpPost]
     [Authorize(Roles = UserRoles.EventCoordinator)]
     [ApiError.Has<ApiError.EventAirspaceNotFound>]
-    public async Task<EventSlotDto> Create(Ulid eid, CreateEventSlotDto dto)
+    public async Task<EventSlotDto> Create(Ulid eid, EventSlotSaveRequest dto)
     {
         var airspace = await DbContext.EventAirspace.FindAsync(dto.AirspaceId)
             ?? throw new ApiError.EventAirspaceNotFound(eid, dto.AirspaceId);
@@ -143,17 +105,9 @@ public class EventSlotController(
         return new(slot);
     }
 
-    public record UpdateEventSlotDto
-    {
-        public required DateTimeOffset EnterAt { get; set; }
-        public DateTimeOffset? LeaveAt { get; set; }
-        public string? Callsign { get; set; }
-        public string? AircraftTypeIcao { get; set; }
-    }
-
     [HttpPut("{sid}")]
     [Authorize(Roles = UserRoles.EventCoordinator)]
-    public async Task<EventSlotDto> Update(Ulid eid, Ulid sid, UpdateEventSlotDto dto)
+    public async Task<EventSlotDto> Update(Ulid eid, Ulid sid, EventSlotSaveRequest dto)
     {
         var slot = await LoadAsync(eid, sid);
         slot.EnterAt = dto.EnterAt;

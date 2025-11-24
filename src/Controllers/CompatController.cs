@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Adapters;
-using Net.Vatprc.Uniapi.Services;
+using Net.Vatprc.Uniapi.Dto;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -17,42 +17,6 @@ public partial class CompatController(
     MetarAdapter MetarService,
     TrackAudioAdapter TrackAudioService) : ControllerBase
 {
-    public class ControllerDto
-    {
-        public required int Cid { get; set; }
-        public required string Name { get; set; }
-        public required string Callsign { get; set; }
-        public required string Frequency { get; set; }
-    }
-
-    public class FutureControllerDto
-    {
-        public required string Callsign { get; set; }
-        public required string Name { get; set; }
-        public required string Start { get; set; }
-        public required DateTimeOffset StartUtc { get; set; }
-        public required string End { get; set; }
-        public required DateTimeOffset EndUtc { get; set; }
-    }
-
-    public class PilotDto
-    {
-        public required int Cid { get; set; }
-        public required string Name { get; set; }
-        public required string Callsign { get; set; }
-        public required string? Departure { get; set; }
-        public required string? Arrival { get; set; }
-        public required string? Aircraft { get; set; }
-    }
-
-    public class VatprcStatusDto
-    {
-        public required DateTimeOffset LastUpdated { get; set; }
-        public required IEnumerable<PilotDto> Pilots { get; set; }
-        public required IEnumerable<ControllerDto> Controllers { get; set; }
-        public required IEnumerable<FutureControllerDto> FutureControllers { get; set; }
-    }
-
 
     [GeneratedRegex("^(Z[BSGUHWJPLYM][A-Z0-9]{2}(_[A-Z0-9]*)?_(DEL|GND|TWR|APP|DEP|CTR))|(PRC_FSS)$")]
     protected static partial Regex vatprcControllerRegexp();
@@ -60,18 +24,18 @@ public partial class CompatController(
     protected static partial Regex vatprcAirportRegexp();
 
     [HttpGet("online-status")]
-    public async Task<VatprcStatusDto> Status()
+    public async Task<CompatVatprcStatusDto> Status()
     {
         var vatsimData = await VatsimService.GetOnlineData();
         var atcSchedule = await VatsimService.GetAtcSchedule();
-        return new VatprcStatusDto
+        return new CompatVatprcStatusDto
         {
             LastUpdated = vatsimData.General.UpdateTimestamp,
             Pilots = vatsimData.Pilots
                 .Where(x =>
                     (x.FlightPlan?.Departure != null && vatprcAirportRegexp().IsMatch(x.FlightPlan?.Departure!)) ||
                     (x.FlightPlan?.Arrival != null && vatprcAirportRegexp().IsMatch(x.FlightPlan?.Arrival!)))
-                .Select(x => new PilotDto
+                .Select(x => new CompatPilotDto
                 {
                     Cid = Convert.ToInt32(x.Cid),
                     Name = x.Name,
@@ -83,14 +47,14 @@ public partial class CompatController(
             Controllers = vatsimData.Controllers
                 .Where(x => vatprcControllerRegexp().IsMatch(x.Callsign))
                 .Where(x => x.Facility > 0)
-                .Select(x => new ControllerDto
+                .Select(x => new CompatControllerDto
                 {
                     Cid = Convert.ToInt32(x.Cid),
                     Name = x.Name,
                     Callsign = x.Callsign,
                     Frequency = x.Frequency,
                 }),
-            FutureControllers = atcSchedule.Select(x => new FutureControllerDto
+            FutureControllers = atcSchedule.Select(x => new CompatFutureControllerDto
             {
                 Name = $"{x.User.FirstName} {x.User.LastName}",
                 Callsign = x.Callsign,

@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Utils;

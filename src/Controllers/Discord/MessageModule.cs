@@ -1,7 +1,5 @@
 using Discord;
 using Discord.Interactions;
-using Net.Vatprc.Uniapi.Adapters;
-using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Controllers.Discord;
 

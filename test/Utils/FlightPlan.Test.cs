@@ -1,5 +1,3 @@
-using NUnit.Framework;
-
 namespace Net.Vatprc.Uniapi.Utils;
 
 [TestFixture]

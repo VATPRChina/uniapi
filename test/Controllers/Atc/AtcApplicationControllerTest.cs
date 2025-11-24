@@ -1,18 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Moq;
 using Net.Vatprc.Uniapi.Controllers.Atc;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Test;
 using Net.Vatprc.Uniapi.Utils;
-using static Net.Vatprc.Uniapi.Controllers.UserAtcApplicationController;
 namespace Net.Vatprc.Uniapi.Tests.Controllers.Atc;
 
 [TestFixture]
@@ -283,10 +277,10 @@ public class AtcApplicationControllerTest : TestWithDatabase
         dbContext.AtcApplication.Add(application);
         await dbContext.SaveChangesAsync();
 
-        var reviewDto = new AtcApplicationController.AtcApplicationReviewDto
+        var reviewDto = new AtcApplicationReviewRequest
         {
             Answers = [
-                new AtcApplicationController.AtcApplicationReviewAnswerDto
+                new AtcApplicationReviewRequestAnswer
                 {
                     Id = "review",
                     Answer = "Strong candidate.",
@@ -309,10 +303,10 @@ public class AtcApplicationControllerTest : TestWithDatabase
     {
         // Arrange
         var nonExistentId = Ulid.NewUlid();
-        var reviewDto = new AtcApplicationController.AtcApplicationReviewDto
+        var reviewDto = new AtcApplicationReviewRequest
         {
             Answers = [
-                new AtcApplicationController.AtcApplicationReviewAnswerDto
+                new AtcApplicationReviewRequestAnswer
                 {
                     Id = "review",
                     Answer = "Strong candidate.",

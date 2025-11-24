@@ -1,5 +1,4 @@
 using Moq;
-using Net.Vatprc.Uniapi.Models.Navdata;
 
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Lexing.TokenHandlers;
 

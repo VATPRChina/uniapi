@@ -1,7 +1,7 @@
 using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Validating;
@@ -19,38 +19,6 @@ public class FlightController(
     RouteParseService RouteParse,
     IUserAccessor userAccessor) : ControllerBase
 {
-    public record FlightDto(
-        Ulid Id,
-        string Cid,
-        string Callsign,
-        DateTimeOffset LastObservedAt,
-        string Departure,
-        string Arrival,
-        string Equipment,
-        string NavigationPerformance,
-        string Transponder,
-        string RawRoute,
-        string Aircraft,
-        long Altitude,
-        long CruisingLevel)
-    {
-        public FlightDto(Flight flight) : this(
-            flight.Id,
-            flight.Cid,
-            flight.Callsign,
-            flight.LastObservedAt,
-            flight.Departure,
-            flight.Arrival,
-            flight.Equipment,
-            flight.NavigationPerformance,
-            flight.Transponder,
-            flight.RawRoute,
-            flight.Aircraft,
-            flight.Altitude,
-            flight.CruisingLevel)
-        { }
-    }
-
     [HttpGet("active")]
     [AllowAnonymous]
     public async Task<IEnumerable<FlightDto>> GetActive()

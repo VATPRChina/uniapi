@@ -1,10 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
-using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
-using static Net.Vatprc.Uniapi.Controllers.UserAtcApplicationController;
 
 namespace Net.Vatprc.Uniapi.Controllers.Atc;
 
@@ -61,7 +60,7 @@ public class AtcApplicationController(
     [HttpPut("{id}/review")]
     public async Task<AtcApplicationDto> ReviewApplication(
         Ulid id,
-        [FromBody] AtcApplicationReviewDto reviewDto)
+        [FromBody] AtcApplicationReviewRequest reviewDto)
     {
         var userId = userAccessor.GetUserId();
         var application = await database.AtcApplication
@@ -90,7 +89,7 @@ public class AtcApplicationController(
     [HttpPut("{id}")]
     public async Task<AtcApplicationDto> UpdateStatus(
         Ulid id,
-        [FromBody] AtcApplicationUpdateDto updateDto)
+        [FromBody] AtcApplicationUpdateRequest updateDto)
     {
         var application = await database.AtcApplication
             .Where(a => a.Id == id)
@@ -104,31 +103,8 @@ public class AtcApplicationController(
             .SingleOrDefaultAsync() ??
             throw new ApiError.AtcApplicationNotFound(id);
 
-        application.Status = updateDto.Status switch
-        {
-            AtcApplicationStatusDto.Submitted => AtcApplicationStatus.Submitted,
-            AtcApplicationStatusDto.InWaitlist => AtcApplicationStatus.InWaitlist,
-            AtcApplicationStatusDto.Approved => AtcApplicationStatus.Approved,
-            AtcApplicationStatusDto.Rejected => AtcApplicationStatus.Rejected,
-            _ => throw new ArgumentOutOfRangeException(nameof(updateDto.Status), "Invalid application status."),
-        };
+        application.Status = updateDto.Status;
         await database.SaveChangesAsync();
         return new AtcApplicationDto(application);
-    }
-
-    public record class AtcApplicationReviewAnswerDto
-    {
-        public required string Id { get; set; }
-        public required string Answer { get; set; }
-    }
-
-    public record class AtcApplicationReviewDto
-    {
-        public required IEnumerable<AtcApplicationReviewAnswerDto> Answers { get; set; }
-    }
-
-    public record class AtcApplicationUpdateDto
-    {
-        public required AtcApplicationStatusDto Status { get; set; }
     }
 }

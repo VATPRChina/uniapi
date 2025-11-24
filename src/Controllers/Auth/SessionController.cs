@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Dto;
 
 namespace Net.Vatprc.Uniapi.Controllers.Auth;
 
@@ -12,12 +13,6 @@ public class SessionController(
     Database DbContext
 ) : ControllerBase
 {
-    public record TokenDto(
-        UserController.UserDto User,
-        DateTimeOffset IssuedAt,
-        DateTimeOffset ExpiresAt
-    );
-
     /// <summary>Get Current</summary>
     /// <returns></returns>
     [HttpGet]

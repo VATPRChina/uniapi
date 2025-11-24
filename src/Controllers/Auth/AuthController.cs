@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Net.Vatprc.Uniapi.Adapters;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
 
@@ -564,37 +565,6 @@ public class AuthController(
         /// </summary>
         public required string Scope { get; set; }
     };
-
-    public record TokenErrorDto
-    {
-        /// <summary>
-        /// REQUIRED.  A single ASCII [USASCII] error code.
-        /// </summary>
-        public string Error { get; set; } = string.Empty;
-        /// <summary>
-        /// OPTIONAL.  Human-readable ASCII [USASCII] text providing
-        /// additional information, used to assist the client developer in
-        /// understanding the error that occurred.
-        /// Values for the "error_description" parameter MUST NOT include
-        /// characters outside the set %x20-21 / %x23-5B / %x5D-7E.
-        /// </summary>
-        public string? ErrorDescription { get; set; }
-        /// <summary>
-        /// OPTIONAL.  A URI identifying a human-readable web page with
-        /// information about the error, used to provide the client
-        /// developer with additional information about the error.
-        /// Values for the "error_uri" parameter MUST conform to the
-        /// URI-reference syntax and thus MUST NOT include characters
-        /// outside the set %x21 / %x23-5B / %x5D-7E.
-        /// </summary>
-        public string? ErrorUri { get; set; }
-        /// <summary>
-        /// REQUIRED if a "state" parameter was present in the client
-        /// authorization request.  The exact value received from the
-        /// client.
-        /// </summary>
-        public string? State { get; set; }
-    }
 
     /// <summary>
     /// Get token

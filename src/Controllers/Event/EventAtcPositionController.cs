@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Event;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
-using static Net.Vatprc.Uniapi.Models.Atc.UserAtcPermission;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
@@ -65,7 +65,7 @@ public class EventAtcPositionController(
 
     [HttpPut("{positionId}")]
     [Authorize(Roles = EDIT_ROLES)]
-    public async Task<EventAtcPositionDto> UpdateEventAtcPositionAsync(Ulid eventId, Ulid positionId, CreateEventAtcPositionDto dto)
+    public async Task<EventAtcPositionDto> UpdateEventAtcPositionAsync(Ulid eventId, Ulid positionId, EventAtcPositionSaveRequest dto)
     {
         var position = await LoadAsync(eventId, positionId);
 
@@ -145,49 +145,5 @@ public class EventAtcPositionController(
         await DbContext.SaveChangesAsync();
 
         return new EventAtcPositionBookingDto(position.Booking);
-    }
-
-    public record EventAtcPositionDto(
-        string Callsign,
-        DateTimeOffset StartAt,
-        DateTimeOffset EndAt,
-        string? Remarks,
-        string PositionKindId,
-        UserControllerState MinimumControllerState,
-        EventAtcPositionBookingDto? Booking
-    )
-    {
-        public EventAtcPositionDto(EventAtcPosition position) : this(
-            position.Callsign,
-            position.StartAt,
-            position.EndAt,
-            position.Remarks,
-            position.PositionKindId,
-            position.MinimumControllerState,
-            position.Booking != null ? new EventAtcPositionBookingDto(position.Booking) : null)
-        {
-        }
-    }
-
-    public record CreateEventAtcPositionDto
-    {
-        public required string Callsign { get; set; }
-        public required DateTimeOffset StartAt { get; set; }
-        public required DateTimeOffset EndAt { get; set; }
-        public string? Remarks { get; set; }
-        public required string PositionKindId { get; set; }
-        public required UserControllerState MinimumControllerState { get; set; }
-    }
-
-    public record EventAtcPositionBookingDto(
-        Ulid UserId,
-        DateTimeOffset BookedAt
-    )
-    {
-        public EventAtcPositionBookingDto(EventAtcPositionBooking booking) : this(
-            booking.UserId,
-            booking.CreatedAt)
-        {
-        }
     }
 }

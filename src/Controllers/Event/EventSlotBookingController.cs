@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Event;
 using Net.Vatprc.Uniapi.Utils;
@@ -30,22 +31,6 @@ public class EventSlotBookingController(
             .SingleOrDefaultAsync(x => x.Id == sid && x.EventAirspace.EventId == eid)
             ?? throw new ApiError.EventSlotNotFound(eid, sid);
         return slot.Booking;
-    }
-
-    public record EventBookingDto
-    {
-        public Ulid Id { get; set; }
-        public Ulid UserId { get; set; }
-        public DateTimeOffset CreatedAt { get; set; }
-        public DateTimeOffset UpdatedAt { get; set; }
-
-        public EventBookingDto(EventBooking booking)
-        {
-            Id = booking.Id;
-            UserId = booking.UserId;
-            CreatedAt = booking.CreatedAt;
-            UpdatedAt = booking.UpdatedAt;
-        }
     }
 
     [HttpGet]

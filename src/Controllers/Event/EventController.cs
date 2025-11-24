@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Net.Vatprc.Uniapi.Adapters;
+using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Event;
 
@@ -12,34 +12,6 @@ namespace Net.Vatprc.Uniapi.Controllers;
 [ApiController, Route("api/events")]
 public class EventController(Database DbContext) : ControllerBase
 {
-    public record EventDto
-    {
-        public Ulid Id { get; init; }
-        public DateTimeOffset CreatedAt { get; init; }
-        public DateTimeOffset UpdatedAt { get; init; }
-        public string Title { get; init; }
-        public DateTimeOffset StartAt { get; init; }
-        public DateTimeOffset EndAt { get; init; }
-        public DateTimeOffset StartBookingAt { get; init; }
-        public DateTimeOffset EndBookingAt { get; init; }
-        public string? ImageUrl { get; set; }
-        public string Description { get; set; }
-
-        public EventDto(Event eventt)
-        {
-            Id = eventt.Id;
-            CreatedAt = eventt.CreatedAt;
-            UpdatedAt = eventt.UpdatedAt;
-            Title = eventt.Title;
-            StartAt = eventt.StartAt;
-            EndAt = eventt.EndAt;
-            StartBookingAt = eventt.StartBookingAt;
-            EndBookingAt = eventt.EndBookingAt;
-            ImageUrl = eventt.ImageUrl;
-            Description = eventt.Description;
-        }
-    }
-
     [HttpGet]
     [AllowAnonymous]
     public async Task<IEnumerable<EventDto>> List()
@@ -64,20 +36,9 @@ public class EventController(Database DbContext) : ControllerBase
         return new EventDto(await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid));
     }
 
-    public record CreateEventDto
-    {
-        public required string Title { get; set; }
-        public required DateTimeOffset StartAt { get; set; }
-        public required DateTimeOffset EndAt { get; set; }
-        public required DateTimeOffset StartBookingAt { get; init; }
-        public required DateTimeOffset EndBookingAt { get; init; }
-        public string? ImageUrl { get; init; }
-        public required string Description { get; set; }
-    }
-
     [HttpPost]
     [Authorize(Roles = UserRoles.EventCoordinator)]
-    public async Task<EventDto> Create(CreateEventDto dto)
+    public async Task<EventDto> Create(EventSaveRequest dto)
     {
         var eventt = new Event()
         {
@@ -94,20 +55,9 @@ public class EventController(Database DbContext) : ControllerBase
         return new(eventt);
     }
 
-    public record UpdateEventDto
-    {
-        public required string Title { get; set; }
-        public required DateTimeOffset StartAt { get; set; }
-        public required DateTimeOffset EndAt { get; set; }
-        public required DateTimeOffset StartBookingAt { get; init; }
-        public required DateTimeOffset EndBookingAt { get; init; }
-        public string? ImageUrl { get; init; }
-        public required string Description { get; init; }
-    }
-
     [HttpPost("{eid}")]
     [Authorize(Roles = UserRoles.EventCoordinator)]
-    public async Task<EventDto> Update(Ulid eid, UpdateEventDto dto)
+    public async Task<EventDto> Update(Ulid eid, EventSaveRequest dto)
     {
         var eventt = await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid);
         eventt.Title = dto.Title;
