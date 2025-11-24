@@ -13,7 +13,8 @@ namespace Net.Vatprc.Uniapi.Controllers.Atc;
 public class AtcApplicationController(
     Database database,
     SheetService sheetService,
-    IUserAccessor userAccessor
+    IUserAccessor userAccessor,
+    AtcApplicationService atcApplicationService
 ) : Controller
 {
     protected const string ATC_APPLICATION_REVIEW_SHEET_ID = "atc-application-review";
@@ -21,31 +22,22 @@ public class AtcApplicationController(
     [HttpGet]
     public async Task<IEnumerable<AtcApplicationSummaryDto>> List()
     {
-        return await database.AtcApplication
-            .Include(a => a.User)
-            .OrderByDescending(app => app.AppliedAt)
-            .Select(app => new AtcApplicationSummaryDto(app))
-            .ToListAsync();
+        var applications = await atcApplicationService.GetApplications();
+        return applications.Select(app => new AtcApplicationSummaryDto(app));
     }
 
     [HttpGet("{id}")]
+    [ApiError.Has<ApiError.AtcApplicationNotFound>]
     public async Task<AtcApplicationDto> GetById(Ulid id)
     {
-        var application = await database.AtcApplication
-            .Where(a => a.Id == id)
-            .Include(a => a.User)
-            .Include(a => a.ApplicationFiling)
-                .ThenInclude(af => af!.Answers)
-                    .ThenInclude(ans => ans.Field)
-            .Include(a => a.ReviewFiling)
-                .ThenInclude(rf => rf!.Answers)
-                    .ThenInclude(ans => ans.Field)
-            .OrderByDescending(a => a.AppliedAt)
-            .Select(a => new AtcApplicationDto(a))
-            .SingleOrDefaultAsync() ??
-            throw new ApiError.AtcApplicationNotFound(id);
+        var application = await atcApplicationService.GetApplication(id);
 
-        return application;
+        if (application == null)
+        {
+            throw new ApiError.AtcApplicationNotFound(id);
+        }
+
+        return new(application);
     }
 
     [HttpGet("review-sheet")]
@@ -63,14 +55,12 @@ public class AtcApplicationController(
         AtcApplicationReviewRequest reviewDto)
     {
         var userId = userAccessor.GetUserId();
-        var application = await database.AtcApplication
-            .Where(a => a.Id == id)
-            .Include(a => a.User)
-            .Include(a => a.ReviewFiling)
-                .ThenInclude(rf => rf!.Answers)
-                    .ThenInclude(ans => ans.Field)
-            .SingleOrDefaultAsync() ??
+        var application = await atcApplicationService.GetApplication(id);
+
+        if (application == null)
+        {
             throw new ApiError.AtcApplicationNotFound(id);
+        }
 
         var reviewFiling = await sheetService.SetSheetFilingAsync(
             ATC_APPLICATION_REVIEW_SHEET_ID,
@@ -91,17 +81,12 @@ public class AtcApplicationController(
         Ulid id,
         [FromBody] AtcApplicationUpdateRequest updateDto)
     {
-        var application = await database.AtcApplication
-            .Where(a => a.Id == id)
-            .Include(a => a.User)
-            .Include(a => a.ApplicationFiling)
-                .ThenInclude(af => af!.Answers)
-                    .ThenInclude(ans => ans.Field)
-            .Include(a => a.ReviewFiling)
-                .ThenInclude(rf => rf!.Answers)
-                    .ThenInclude(ans => ans.Field)
-            .SingleOrDefaultAsync() ??
+        var application = await atcApplicationService.GetApplication(id);
+
+        if (application == null)
+        {
             throw new ApiError.AtcApplicationNotFound(id);
+        }
 
         application.Status = updateDto.Status;
         await database.SaveChangesAsync();

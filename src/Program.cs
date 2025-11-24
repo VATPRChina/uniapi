@@ -191,6 +191,7 @@ builder.Services.AddScoped<SheetService>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddSingleton<AtcPositionKindService>();
 builder.Services.AddSingleton<AtcPositionStatusService>();
+builder.Services.AddScoped<AtcApplicationService>();
 
 var app = builder.Build();
 

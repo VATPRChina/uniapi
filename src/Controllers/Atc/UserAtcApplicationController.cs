@@ -6,11 +6,13 @@ using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;
 
-[ApiController, Route("api/users/me/atc/applications")]
+[ApiController]
+[Route("api/users/me/atc/applications")]
 public class UserAtcApplicationController(
     Database database,
     SheetService sheetService,
-    IUserAccessor userAccessor
+    IUserAccessor userAccessor,
+    AtcApplicationService atcApplicationService
 ) : Controller
 {
     protected const string ATC_APPLICATION_SHEET_ID = "atc-application";
@@ -19,33 +21,24 @@ public class UserAtcApplicationController(
     public async Task<IEnumerable<AtcApplicationSummaryDto>> List()
     {
         var curUserId = userAccessor.GetUserId();
-        return await database.AtcApplication
-            .Where(app => app.UserId == curUserId)
-            .Include(a => a.User)
-            .OrderByDescending(app => app.AppliedAt)
-            .Select(app => new AtcApplicationSummaryDto(app))
-            .ToListAsync();
+        var applications = await atcApplicationService.GetApplications(curUserId);
+        return applications.Select(app => new AtcApplicationSummaryDto(app));
     }
 
     [HttpGet("{id}")]
+    [ApiError.Has<ApiError.AtcApplicationNotFound>]
     public async Task<AtcApplicationDto> GetById(Ulid id)
     {
         var curUserId = userAccessor.GetUserId();
-        var application = await database.AtcApplication
-            .Where(a => a.UserId == curUserId && a.Id == id)
-            .Include(a => a.User)
-            .Include(a => a.ApplicationFiling)
-                .ThenInclude(af => af!.Answers)
-                    .ThenInclude(ans => ans.Field)
-            .Include(a => a.ReviewFiling)
-                .ThenInclude(rf => rf!.Answers)
-                    .ThenInclude(ans => ans.Field)
-            .OrderByDescending(a => a.AppliedAt)
-            .Select(a => new AtcApplicationDto(a))
-            .SingleOrDefaultAsync() ??
+        var application = await atcApplicationService.GetApplication(id) ??
             throw new ApiError.AtcApplicationNotFound(id);
 
-        return application;
+        if (application.UserId != curUserId)
+        {
+            throw new ApiError.AtcApplicationNotFound(id);
+        }
+
+        return new(application);
     }
 
     [HttpGet("sheet")]
@@ -58,7 +51,7 @@ public class UserAtcApplicationController(
     }
 
     [HttpPost]
-    public async Task<AtcApplicationDto> Create(AtcApplicationRequest req)
+    public async Task<AtcApplicationSummaryDto> Create(AtcApplicationRequest req)
     {
         var curUserId = userAccessor.GetUserId();
 
@@ -81,10 +74,12 @@ public class UserAtcApplicationController(
         database.AtcApplication.Add(application);
         await database.SaveChangesAsync();
 
-        return new AtcApplicationDto(application);
+        return new AtcApplicationSummaryDto(application);
     }
 
     [HttpPut("{id}")]
+    [ApiError.Has<ApiError.AtcApplicationNotFound>]
+    [ApiError.Has<ApiError.AtcApplicationCannotUpdate>]
     public async Task<AtcApplicationDto> Update(Ulid id, AtcApplicationRequest req)
     {
         var curUserId = userAccessor.GetUserId();

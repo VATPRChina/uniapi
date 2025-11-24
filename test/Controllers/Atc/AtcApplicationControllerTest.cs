@@ -19,6 +19,7 @@ public class AtcApplicationControllerTest : TestWithDatabase
     private SheetService realSheetService = null!;
     private Mock<SheetService> sheetService = null!;
     private Mock<IUserAccessor> userAccessor = null!;
+    private AtcApplicationService atcApplicationService = null!;
     private Ulid applicantUserId;
     private Ulid adminUserId;
 
@@ -28,7 +29,12 @@ public class AtcApplicationControllerTest : TestWithDatabase
         realSheetService = new SheetService(dbContext);
         sheetService = new Mock<SheetService>(dbContext);
         userAccessor = new Mock<IUserAccessor>();
-        controller = new AtcApplicationController(dbContext, sheetService.Object, userAccessor.Object);
+        atcApplicationService = new AtcApplicationService(dbContext);
+        controller = new AtcApplicationController(
+            dbContext,
+            sheetService.Object,
+            userAccessor.Object,
+            atcApplicationService);
 
         var u1 = new User
         {
