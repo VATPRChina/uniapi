@@ -2,7 +2,7 @@ using Net.Vatprc.Uniapi.Models.Sheet;
 
 namespace Net.Vatprc.Uniapi.Dto;
 
-public record AtcApplicationSheetFieldDto(
+public record SheetFieldDto(
     string SheetId,
     string Id,
     uint Sequence,
@@ -12,7 +12,7 @@ public record AtcApplicationSheetFieldDto(
     IEnumerable<string> SingleChoiceOptions,
     bool IsDeleted)
 {
-    public AtcApplicationSheetFieldDto(SheetField field) : this(
+    public SheetFieldDto(SheetField field) : this(
         field.SheetId,
         field.Id,
         field.Sequence,

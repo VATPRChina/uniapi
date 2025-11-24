@@ -49,12 +49,12 @@ public class UserAtcApplicationController(
     }
 
     [HttpGet("sheet")]
-    public async Task<AtcApplicationSheetDto> GetSheet()
+    public async Task<SheetDto> GetSheet()
     {
         await sheetService.EnsureSheetAsync(ATC_APPLICATION_SHEET_ID, "ATC Application Sheet");
         var sheet = await sheetService.GetSheetByIdAsync(ATC_APPLICATION_SHEET_ID)
             ?? throw new InvalidOperationException("ATC application sheet is not configured.");
-        return new AtcApplicationSheetDto(sheet);
+        return new SheetDto(sheet);
     }
 
     [HttpPost]
@@ -66,7 +66,7 @@ public class UserAtcApplicationController(
             ATC_APPLICATION_SHEET_ID,
             null,
             curUserId,
-            req.ApplicationFilingAnswers.ToDictionary(
+            req.RequestAnswers.ToDictionary(
                 answer => answer.Id,
                 answer => answer.Answer));
 
@@ -103,7 +103,7 @@ public class UserAtcApplicationController(
             ATC_APPLICATION_SHEET_ID,
             application.ApplicationFilingId,
             curUserId,
-            req.ApplicationFilingAnswers.ToDictionary(
+            req.RequestAnswers.ToDictionary(
                 answer => answer.Id,
                 answer => answer.Answer));
 

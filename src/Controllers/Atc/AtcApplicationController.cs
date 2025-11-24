@@ -49,18 +49,18 @@ public class AtcApplicationController(
     }
 
     [HttpGet("review-sheet")]
-    public async Task<AtcApplicationSheetDto> GetSheet()
+    public async Task<SheetDto> GetSheet()
     {
         await sheetService.EnsureSheetAsync(ATC_APPLICATION_REVIEW_SHEET_ID, "ATC Application Review Sheet");
         var sheet = await sheetService.GetSheetByIdAsync(ATC_APPLICATION_REVIEW_SHEET_ID)
             ?? throw new InvalidOperationException("ATC application review sheet is not configured.");
-        return new AtcApplicationSheetDto(sheet);
+        return new SheetDto(sheet);
     }
 
     [HttpPut("{id}/review")]
     public async Task<AtcApplicationDto> ReviewApplication(
         Ulid id,
-        [FromBody] AtcApplicationReviewRequest reviewDto)
+        AtcApplicationReviewRequest reviewDto)
     {
         var userId = userAccessor.GetUserId();
         var application = await database.AtcApplication
@@ -76,7 +76,7 @@ public class AtcApplicationController(
             ATC_APPLICATION_REVIEW_SHEET_ID,
             application.ReviewFiling?.Id,
             userId,
-            reviewDto.Answers.ToDictionary(kv => kv.Id, kv => kv.Answer),
+            reviewDto.ReviewAnswers.ToDictionary(kv => kv.Id, kv => kv.Answer),
             CancellationToken.None);
 
         application.ReviewFilingId = reviewFiling.Id;

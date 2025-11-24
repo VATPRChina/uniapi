@@ -2,16 +2,16 @@ using Net.Vatprc.Uniapi.Models.Sheet;
 
 namespace Net.Vatprc.Uniapi.Dto;
 
-public record AtcApplicationSheetDto(
+public record SheetDto(
     string Id,
     string Name,
-    IEnumerable<AtcApplicationSheetFieldDto> Fields)
+    IEnumerable<SheetFieldDto> Fields)
 {
-    public AtcApplicationSheetDto(Sheet sheet) : this(
+    public SheetDto(Sheet sheet) : this(
         sheet.Id,
         sheet.Name,
         sheet.Fields
             .Where(field => !field.IsDeleted)
-            .Select(field => new AtcApplicationSheetFieldDto(field)))
+            .Select(field => new SheetFieldDto(field)))
     { }
 }

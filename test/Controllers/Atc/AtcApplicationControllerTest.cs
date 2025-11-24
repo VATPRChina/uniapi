@@ -279,7 +279,7 @@ public class AtcApplicationControllerTest : TestWithDatabase
 
         var reviewDto = new AtcApplicationReviewRequest
         {
-            Answers = [
+            ReviewAnswers = [
                 new AtcApplicationReviewRequestAnswer
                 {
                     Id = "review",
@@ -305,7 +305,7 @@ public class AtcApplicationControllerTest : TestWithDatabase
         var nonExistentId = Ulid.NewUlid();
         var reviewDto = new AtcApplicationReviewRequest
         {
-            Answers = [
+            ReviewAnswers = [
                 new AtcApplicationReviewRequestAnswer
                 {
                     Id = "review",
@@ -346,10 +346,10 @@ public class AtcApplicationControllerTest : TestWithDatabase
         // Act
         var updatedAppDto = await controller.UpdateStatus(application.Id, new()
         {
-            Status = AtcApplicationStatusDto.Approved,
+            Status = AtcApplicationStatus.Approved,
         });
 
         // Assert
-        updatedAppDto.Status.Should().Be(AtcApplicationStatusDto.Approved);
+        updatedAppDto.Status.Should().Be(AtcApplicationStatus.Approved);
     }
 }

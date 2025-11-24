@@ -172,7 +172,7 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
         // Arrange
         var req = new AtcApplicationRequest
         {
-            ApplicationFilingAnswers = [
+            RequestAnswers = [
                 new () { Id = "full-name", Answer = "Answer A" },
                 new () { Id = "experience", Answer = "Answer B" },
             ],
@@ -217,7 +217,7 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
 
         var req = new AtcApplicationRequest
         {
-            ApplicationFilingAnswers = [
+            RequestAnswers = [
                 new () { Id = "full-name", Answer = "Updated Name" },
                 new () { Id = "experience", Answer = "Updated Experience" },
             ],
@@ -263,7 +263,7 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
 
         var req = new AtcApplicationRequest
         {
-            ApplicationFilingAnswers = [
+            RequestAnswers = [
                 new () { Id = "full-name", Answer = "Updated Name" },
                 new () { Id = "experience", Answer = "Updated Experience" },
             ],
