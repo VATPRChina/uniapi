@@ -29,14 +29,7 @@ public class UserAtcApplicationController(
     [ApiError.Has<ApiError.AtcApplicationNotFound>]
     public async Task<AtcApplicationDto> GetById(Ulid id)
     {
-        var curUserId = userAccessor.GetUserId();
-        var application = await atcApplicationService.GetApplication(id) ??
-            throw new ApiError.AtcApplicationNotFound(id);
-
-        if (application.UserId != curUserId)
-        {
-            throw new ApiError.AtcApplicationNotFound(id);
-        }
+        var application = await GetApplication(id);
 
         return new(application);
     }
@@ -84,10 +77,7 @@ public class UserAtcApplicationController(
     {
         var curUserId = userAccessor.GetUserId();
 
-        var application = await database.AtcApplication
-            .Where(a => a.Id == id && a.UserId == curUserId)
-            .SingleOrDefaultAsync() ??
-            throw new ApiError.AtcApplicationNotFound(id);
+        var application = await GetApplication(id);
 
         if (application.Status != AtcApplicationStatus.Submitted)
         {
@@ -103,5 +93,19 @@ public class UserAtcApplicationController(
                 answer => answer.Answer));
 
         return new AtcApplicationDto(application);
+    }
+
+    protected async Task<AtcApplication> GetApplication(Ulid id)
+    {
+        var curUserId = userAccessor.GetUserId();
+        var application = await atcApplicationService.GetApplication(id) ??
+            throw new ApiError.AtcApplicationNotFound(id);
+
+        if (application.UserId != curUserId)
+        {
+            throw new ApiError.AtcApplicationNotFound(id);
+        }
+
+        return application;
     }
 }

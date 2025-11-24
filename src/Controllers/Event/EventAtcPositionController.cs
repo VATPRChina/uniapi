@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
+using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Models.Event;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
@@ -120,6 +121,17 @@ public class EventAtcPositionController(
             CreatedAt = DateTimeOffset.UtcNow,
         };
 
+        var atcBooking = new AtcBooking
+        {
+            Id = Ulid.NewUlid(),
+            UserId = user.Id,
+            Callsign = position.Callsign,
+            BookedAt = DateTimeOffset.UtcNow,
+            StartAt = position.StartAt,
+            EndAt = position.EndAt,
+        };
+        DbContext.AtcBooking.Add(atcBooking);
+
         await DbContext.SaveChangesAsync();
         return new EventAtcPositionBookingDto(position.Booking);
     }
@@ -139,6 +151,17 @@ public class EventAtcPositionController(
         if (position.Booking.UserId != user.Id)
         {
             throw new ApiError.EventPositionBookedByAnotherUser(eventId, positionId);
+        }
+
+        var atcBooking = await DbContext.AtcBooking
+            .SingleOrDefaultAsync(
+                x => x.UserId == user.Id
+                && x.Callsign == position.Callsign
+                && x.StartAt == position.StartAt
+                && x.EndAt == position.EndAt);
+        if (atcBooking != null)
+        {
+            DbContext.AtcBooking.Remove(atcBooking);
         }
 
         DbContext.EventAtcPositionBooking.Remove(position.Booking);

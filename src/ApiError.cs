@@ -319,8 +319,16 @@ public abstract class ApiError : Exception
     public class EventPositionBooked(Ulid event_id, Ulid slot_id) :
         ApiError($"Event {event_id}'s ATC position {slot_id} has been booked.");
 
-
     [Error(HttpStatusCode.Forbidden, "EVENT_POSITION_BOOKED_BY_ANOTHER_USER", "Event {event_id}'s ATC position {slot_id} has been booked by another user.")]
     public class EventPositionBookedByAnotherUser(Ulid event_id, Ulid slot_id) :
         ApiError($"Event {event_id}'s ATC position {slot_id} has been booked by another user.");
+
+    [Error(HttpStatusCode.NotFound, "ATC_BOOKING_NOT_FOUND", "Atc booking {id} not found.")]
+    public class AtcBookingNotFound(Ulid id) : ApiError($"Atc booking {id} not found.");
+
+    [Error(HttpStatusCode.BadRequest, "START_MUST_BE_BEFORE_END", "Start date field {start} must be before end date field {end}.")]
+    public class StartMustBeBeforeEnd(string start, string end) : ApiError($"Start date field {start} must be before end date field {end}.");
+
+    [Error(HttpStatusCode.Forbidden, "ATC_BOOKING_FORBIDDEN", "Atc booking {id} owned by user {ownerId} cannot be accessed by current user.")]
+    public class AtcBookingForbidden(Ulid id, Ulid ownerId) : ApiError($"Atc booking {id} owned by user {ownerId} cannot be accessed by current user.");
 }
