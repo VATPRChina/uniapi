@@ -29,7 +29,7 @@ public class DiscordWorker(
 
         Client.Ready += async () =>
         {
-            using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.Ready", ActivityKind.Consumer);
+            using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.Ready", ActivityKind.Internal);
             Logger.LogInformation("Discord bot is connected.");
             try
             {
@@ -65,6 +65,7 @@ public class DiscordWorker(
         {
             _ = Task.Run(async () =>
             {
+                Activity.Current = null;
                 using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.InteractionCreated", ActivityKind.Server);
                 var ctx = new SocketInteractionContext(Client, x);
                 try
@@ -77,6 +78,7 @@ public class DiscordWorker(
                         {
                             Logger.LogError(executeResult.Exception, "Error occurred executing interaction");
                             message = executeResult.Exception.Message;
+                            activity?.AddException(executeResult.Exception);
                         }
                         else
                         {
@@ -94,6 +96,7 @@ public class DiscordWorker(
                 {
                     Logger.LogError(e, "Failed to execute interaction command");
                     activity?.SetStatus(ActivityStatusCode.Error, e.Message);
+                    activity?.AddException(e);
                 }
             }).ConfigureAwait(false);
         };
