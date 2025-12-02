@@ -62,11 +62,13 @@ builder.Services.AddOpenTelemetry()
         serviceNamespace: "vatprc",
         serviceVersion: Assembly.GetExecutingAssembly().GetName().Version?.ToString()))
     .WithTracing(tracing => tracing
+        .AddSource("Net.Vatprc.Uniapi.*")
         .AddAspNetCoreInstrumentation()
         .AddEntityFrameworkCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddOtlpExporter("Tracing", configure: null))
     .WithMetrics(metrics => metrics
+        .AddMeter("Net.Vatprc.Uniapi.*")
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddOtlpExporter("Metrics", configure: null));

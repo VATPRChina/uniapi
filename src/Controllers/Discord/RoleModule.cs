@@ -7,7 +7,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Discord;
 
 public class RoleModule(
     VatsimAdapter vatsimAdapter,
-    IServiceProvider serviceProvider,
+    Database db,
     ILogger<RoleModule> Logger) : InteractionModuleBase
 {
     [CommandContextType([InteractionContextType.Guild, InteractionContextType.PrivateChannel])]
@@ -15,8 +15,6 @@ public class RoleModule(
     [SlashCommand("role", "Get VATPRC role information for a user")]
     public async Task GetRoleAsync(IUser discordUser)
     {
-        var scope = serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<Database>();
         Logger.LogInformation("Role information requested for user {DiscordUserId}", discordUser.Id);
 
         var cid = await vatsimAdapter.GetCidByDiscordUserId(discordUser.Id.ToString());

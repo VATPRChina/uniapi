@@ -15,7 +15,11 @@ public class DiscordWorker(
     IServiceProvider ServiceProvider
 ) : IHostedService
 {
-    protected InteractionService Interaction { get; init; } = new(Client.Rest);
+    protected InteractionService Interaction { get; init; } = new(Client.Rest, new InteractionServiceConfig
+    {
+        DefaultRunMode = RunMode.Sync,
+        AutoServiceScopes = true,
+    });
     protected readonly static ActivitySource ActivitySource =
         new(typeof(DiscordWorker).FullName ?? throw new ArgumentNullException());
 
@@ -52,37 +56,46 @@ public class DiscordWorker(
             }, "{Message}", message.Message);
             return Task.CompletedTask;
         };
-        await Interaction.AddModulesAsync(assembly: Assembly.GetEntryAssembly(), services: ServiceProvider);
+        using (var scope = ServiceProvider.CreateScope())
+        {
+            await Interaction.AddModulesAsync(assembly: Assembly.GetEntryAssembly(), services: scope.ServiceProvider);
+        }
 
         Client.InteractionCreated += async (x) =>
         {
-            using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.InteractionCreated", ActivityKind.Consumer);
-            var ctx = new SocketInteractionContext(Client, x);
-            var result = await Interaction.ExecuteCommandAsync(ctx, ServiceProvider);
-        };
-
-        Interaction.InteractionExecuted += async (commandInfo, context, result) =>
-        {
-            using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.InteractionExecuted", ActivityKind.Consumer);
-            if (!result.IsSuccess)
+            _ = Task.Run(async () =>
             {
-                string message = result.ErrorReason;
-                if (result is ExecuteResult executeResult &&
-                   executeResult.Exception != null)
+                using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.InteractionCreated", ActivityKind.Server);
+                var ctx = new SocketInteractionContext(Client, x);
+                try
                 {
-                    Logger.LogError(executeResult.Exception, "Error occurred executing interaction");
-                    message = executeResult.Exception.Message;
+                    var result = await Interaction.ExecuteCommandAsync(ctx, ServiceProvider);
+                    if (!result.IsSuccess)
+                    {
+                        string message = result.ErrorReason;
+                        if (result is ExecuteResult executeResult && executeResult.Exception != null)
+                        {
+                            Logger.LogError(executeResult.Exception, "Error occurred executing interaction");
+                            message = executeResult.Exception.Message;
+                        }
+                        else
+                        {
+                            Logger.LogError("Error occurred executing interaction {Error} - {ErrorReason}",
+                                result.Error, result.ErrorReason);
+                        }
+                        activity?.SetStatus(ActivityStatusCode.Error, message);
+                        if (!ctx.Interaction.HasResponded && result.Error != InteractionCommandError.UnknownCommand)
+                        {
+                            await ctx.Interaction.RespondAsync($"Error: Internal error: {message}", ephemeral: true);
+                        }
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    Logger.LogError("Error occurred executing interaction {Error} - {ErrorReason}",
-                        result.Error, result.ErrorReason);
+                    Logger.LogError(e, "Failed to execute interaction command");
+                    activity?.SetStatus(ActivityStatusCode.Error, e.Message);
                 }
-                if (!context.Interaction.HasResponded && result.Error != InteractionCommandError.UnknownCommand)
-                {
-                    await context.Interaction.RespondAsync($"Error: {message}", ephemeral: true);
-                }
-            }
+            }).ConfigureAwait(false);
         };
 
         if (string.IsNullOrEmpty(Options.CurrentValue.Token))
