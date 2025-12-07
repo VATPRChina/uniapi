@@ -15,6 +15,8 @@ public class PreferredRoute
     public IEnumerable<int> AllowedAltitudes { get; set; } = [];
     public int MinimalAltitude { get; set; } = 0;
     public string Remarks { get; set; } = string.Empty;
+    public DateTimeOffset? ValidFrom { get; set; }
+    public DateTimeOffset? ValidUntil { get; set; }
 
     public enum LevelRestrictionType
     {

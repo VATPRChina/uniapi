@@ -111,6 +111,8 @@ public class DbNavdataAdapter(Database dbContext) : INavdataProvider
     {
         var recommendedRoute = await DbContext.PreferredRoute
             .Where(r => r.Departure == dep && r.Arrival == arr)
+            .Where(r => r.ValidFrom == null || r.ValidFrom <= DateTimeOffset.UtcNow)
+            .Where(r => r.ValidUntil == null || r.ValidUntil >= DateTimeOffset.UtcNow)
             .ToArrayAsync();
 
         return recommendedRoute;
