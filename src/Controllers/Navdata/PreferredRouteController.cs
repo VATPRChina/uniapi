@@ -20,6 +20,15 @@ public class PreferredRouteController(
             .ToListAsync();
     }
 
+    [HttpGet("{id}")]
+    public async Task<PreferredRouteDto> GetById(Ulid id)
+    {
+        return await database.PreferredRoute
+            .Where(r => r.Id == id)
+            .Select(r => PreferredRouteDto.FromModel(r))
+            .SingleAsync();
+    }
+
     [HttpPost]
     [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<PreferredRouteDto> CreatePreferredRoute(PreferredRouteSaveRequest dto)
