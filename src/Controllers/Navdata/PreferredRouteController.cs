@@ -7,7 +7,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Navdata;
 
 [ApiController]
 [Route("api/navdata/preferred-routes")]
-[Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
+[Authorize(Roles = UserRoles.Volunteer)]
 public class PreferredRouteController(
     Database database
 ) : Controller
@@ -21,6 +21,7 @@ public class PreferredRouteController(
     }
 
     [HttpPost]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<PreferredRouteDto> CreatePreferredRoute(PreferredRouteSaveRequest dto)
     {
         var route = new Models.Navdata.PreferredRoute
@@ -43,6 +44,7 @@ public class PreferredRouteController(
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<PreferredRouteDto> UpdatePreferredRoute(Ulid id, PreferredRouteSaveRequest dto)
     {
         var route = await database.PreferredRoute.FindAsync(id)
@@ -64,6 +66,7 @@ public class PreferredRouteController(
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<PreferredRouteDto> DeletePreferredRoute(Ulid id)
     {
         var route = await database.PreferredRoute.FindAsync(id)
