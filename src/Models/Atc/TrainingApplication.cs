@@ -1,0 +1,40 @@
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Net.Vatprc.Uniapi.Models.Atc;
+
+public class TrainingApplication
+{
+    public required Ulid Id { get; set; }
+
+    public required Ulid TraineeId { get; set; }
+    public User? Trainee { get; set; }
+
+    public required string Name { get; set; }
+
+    public Ulid? TrainId { get; set; }
+    public Training? Train { get; set; }
+
+    public required DateTimeOffset StartAt;
+
+    public required DateTimeOffset EndAt;
+
+    public required DateTimeOffset CreatedAt;
+
+    public required DateTimeOffset UpdatedAt;
+
+    public class TrainApplicationConfiguration : IEntityTypeConfiguration<TrainingApplication>
+    {
+        public void Configure(EntityTypeBuilder<TrainingApplication> builder)
+        {
+            builder.HasKey(b => b.Id);
+
+            builder.HasOne(b => b.Trainee)
+                .WithMany()
+                .HasForeignKey(b => b.TraineeId);
+
+            builder.HasOne(b => b.Train)
+                .WithOne()
+                .HasForeignKey<TrainingApplication>(b => b.TrainId);
+        }
+    }
+}
