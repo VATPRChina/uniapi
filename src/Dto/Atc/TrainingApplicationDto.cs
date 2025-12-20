@@ -7,6 +7,7 @@ public record TrainingApplicationDto
     public required Ulid Id { get; init; }
     public required Ulid TraineeId { get; init; }
     public required UserDto Trainee { get; init; }
+    public required TrainingApplicationStatus Status { get; init; }
     public required string Name { get; init; }
     public Ulid? TrainId { get; init; }
     public TrainingDto? Train { get; init; }
@@ -22,11 +23,29 @@ public record TrainingApplicationDto
             throw new ArgumentException("TrainingApplication.Trainee is null", nameof(app));
         }
 
+        TrainingApplicationStatus status;
+        if (app.TrainId != null)
+        {
+            status = TrainingApplicationStatus.Accepted;
+        }
+        else
+        {
+            if (app.EndAt < DateTimeOffset.UtcNow)
+            {
+                status = TrainingApplicationStatus.Rejected;
+            }
+            else
+            {
+                status = TrainingApplicationStatus.Accepted;
+            }
+        }
+
         return new TrainingApplicationDto
         {
             Id = app.Id,
             TraineeId = app.TraineeId,
             Trainee = new UserDto(app.Trainee, true),
+            Status = status,
             Name = app.Name,
             TrainId = app.TrainId,
             Train = app.Train != null ? TrainingDto.From(app.Train) : null,
