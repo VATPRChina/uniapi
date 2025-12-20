@@ -331,4 +331,7 @@ public abstract class ApiError : Exception
 
     [Error(HttpStatusCode.Forbidden, "ATC_BOOKING_FORBIDDEN", "Atc booking {id} owned by user {ownerId} cannot be accessed by current user.")]
     public class AtcBookingForbidden(Ulid id, Ulid ownerId) : ApiError($"Atc booking {id} owned by user {ownerId} cannot be accessed by current user.");
+
+    [Error(HttpStatusCode.BadRequest, "EVENT_LIST_QUERY_DATE_RANGE_TOO_LARGE", "Date range too large, max 180 days.")]
+    public class EventListQueryDateRangeTooLarge() : ApiError("Date range too large, max 180 days.");
 }

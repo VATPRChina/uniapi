@@ -28,6 +28,23 @@ public class EventController(Database DbContext) : ControllerBase
             .Select(x => new EventDto(x)).ToListAsync();
     }
 
+    [HttpGet("past")]
+    [AllowAnonymous]
+    public async Task<IEnumerable<EventDto>> ListPast(string from, string to)
+    {
+        var fromDt = DateTimeOffset.Parse(from).ToUniversalTime();
+        var toDt = DateTimeOffset.Parse(to).ToUniversalTime();
+        if (toDt - fromDt > TimeSpan.FromDays(180))
+        {
+            throw new ApiError.EventListQueryDateRangeTooLarge();
+        }
+        var query = DbContext.Event.AsQueryable()
+            .Where(x => x.EndAt >= fromDt && x.EndAt <= toDt)
+            .OrderByDescending(x => x.StartAt)
+            .Select(x => new EventDto(x));
+        return await query.ToListAsync();
+    }
+
     [HttpGet("{eid}")]
     [AllowAnonymous]
     [ApiError.Has<ApiError.EventNotFound>]
