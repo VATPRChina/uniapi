@@ -30,16 +30,11 @@ public class EventController(Database DbContext) : ControllerBase
 
     [HttpGet("past")]
     [AllowAnonymous]
-    public async Task<IEnumerable<EventDto>> ListPast(string from, string to)
+    public async Task<IEnumerable<EventDto>> ListPast(DateTimeOffset? until = null)
     {
-        var fromDt = DateTimeOffset.Parse(from).ToUniversalTime();
-        var toDt = DateTimeOffset.Parse(to).ToUniversalTime();
-        if (toDt - fromDt > TimeSpan.FromDays(180))
-        {
-            throw new ApiError.EventListQueryDateRangeTooLarge();
-        }
         var query = DbContext.Event.AsQueryable()
-            .Where(x => x.EndAt >= fromDt && x.EndAt <= toDt)
+            .Where(x => x.StartAt < DateTimeOffset.UtcNow
+                && (until == null || x.StartAt <= until))
             .OrderByDescending(x => x.StartAt)
             .Select(x => new EventDto(x));
         return await query.ToListAsync();
