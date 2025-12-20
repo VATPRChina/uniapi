@@ -7,6 +7,8 @@ using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers.Atc;
 
+[ApiController]
+[Route("api/users")]
 public class UserAtcPermissionController(
     Database DbContext,
     IUserAccessor userAccessor) : Controller
