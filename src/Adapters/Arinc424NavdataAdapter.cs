@@ -47,7 +47,7 @@ public class Arinc424NavdataAdapter : INavdataProvider
 
     public Task<NdbNavaid?> FindNdbNavaid(string ident, double lat, double lon)
     {
-        var ndb = Data.Nondirectionals
+        var ndb = Data.Nondirects
             .Where(n => n.Identifier == ident)
             .OrderBy(n => Geography.DistanceBetweenPoints(n.Coordinates.Latitude, n.Coordinates.Longitude, lat, lon))
             .FirstOrDefault();

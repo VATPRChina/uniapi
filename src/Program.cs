@@ -41,7 +41,8 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     foreach (var knownNetwork in builder.Configuration
         .GetSection("ForwardedHeadersOptions:KnownNetworks").GetChildren())
     {
-        options.KnownNetworks.Add(IPNetwork.Parse(knownNetwork.Value));
+        if (knownNetwork.Value is null) continue;
+        options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(knownNetwork.Value));
     }
 });
 
@@ -127,7 +128,6 @@ builder.Services.AddOpenApi(opts =>
 {
     opts.AddDocumentTransformer(OpenApiTransformers.TransformDocument);
     opts.AddSchemaTransformer(OpenApiTransformers.AddUlid);
-    opts.AddSchemaTransformer(OpenApiTransformers.EnforceNotNull);
     opts.AddOperationTransformer(OpenApiTransformers.AllowAnonymous);
     opts.AddOperationTransformer(OpenApiTransformers.AddErrorResponse);
 });

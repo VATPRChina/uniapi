@@ -1,9 +1,11 @@
+#nullable disable
+
 using System.Collections.Frozen;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.OpenApi;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Net.Vatprc.Uniapi.Controllers.Auth;
 using static Net.Vatprc.Uniapi.ApiError;
 
@@ -38,6 +40,7 @@ public static class OpenApiTransformers
             Description = "Production server"
         });
         document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
         document.Components.SecuritySchemes.Add("oauth2", new OpenApiSecurityScheme
         {
             Type = SecuritySchemeType.OAuth2,
@@ -59,14 +62,11 @@ public static class OpenApiTransformers
                 },
             },
         });
-        document.SecurityRequirements.Add(new OpenApiSecurityRequirement
+        document.Security ??= new List<OpenApiSecurityRequirement>();
+        document.Security.Add(new OpenApiSecurityRequirement
         {
             {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference { Id = "oauth2", Type = ReferenceType.SecurityScheme },
-                },
-                []
+                new OpenApiSecuritySchemeReference("oauth2"), []
             }
         });
         return Task.CompletedTask;
@@ -76,29 +76,9 @@ public static class OpenApiTransformers
     {
         if (context.JsonTypeInfo.Type == typeof(Ulid) && schema.Type == null)
         {
-            schema.Type = "string";
+            schema.Type = JsonSchemaType.String;
             schema.Description = "ULID";
         }
-        return Task.CompletedTask;
-    }
-
-    public static Task EnforceNotNull(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
-    {
-        if (schema.Properties == null)
-        {
-            return Task.CompletedTask;
-        }
-
-        var notNullableProperties = schema
-              .Properties
-              .Where(x => !x.Value.Nullable && x.Value.Default == default && !schema.Required.Contains(x.Key))
-              .ToList();
-
-        foreach (var property in notNullableProperties)
-        {
-            schema.Required.Add(property.Key);
-        }
-
         return Task.CompletedTask;
     }
 
@@ -146,7 +126,7 @@ public static class OpenApiTransformers
             {
                 typeof(InternalServerError),
                 // if the security is empty, the operation uses the global policy (aka. required auth)
-                operation.Security.Count == 0 ? typeof(InvalidToken) : null!,
+                operation.Security?.Count == 0 ? typeof(InvalidToken) : null!,
             }.Where(x => x != null))
             .Select(GetErrorAttribute)
             .GroupBy(x => x.StatusCode)
@@ -164,42 +144,42 @@ public static class OpenApiTransformers
                         {
                             AnyOf = exception.Value.Select(x =>
                             {
-                                var properties = new Dictionary<string, OpenApiSchema>
+                                var properties = new Dictionary<string, IOpenApiSchema>
                                 {
                                     ["error_code"] = new OpenApiSchema
                                     {
-                                        Type = "string",
-                                        Enum = [new OpenApiString(x.ErrorCode)],
+                                        Type = JsonSchemaType.String,
+                                        Enum = [JsonValue.Create(x.ErrorCode)],
                                         Description = x.ErrorCode
                                     },
                                     ["message"] = new OpenApiSchema
                                     {
-                                        Type = "string",
-                                        Example = new OpenApiString(x.MessageExample),
+                                        Type = JsonSchemaType.String,
+                                        Example = JsonValue.Create(x.MessageExample),
                                         Description = x.MessageExample
                                     },
                                     ["type"] = new OpenApiSchema
                                     {
-                                        Type = "string",
-                                        Enum = [new OpenApiString($"urn:vatprc-uniapi-error:{x.ErrorCode.ToLowerInvariant().Replace('_', '-')}")],
+                                        Type = JsonSchemaType.String,
+                                        Enum = [JsonValue.Create($"urn:vatprc-uniapi-error:{x.ErrorCode.ToLowerInvariant().Replace('_', '-')}")],
                                         Description = x.ErrorCode
                                     },
                                     ["title"] = new OpenApiSchema
                                     {
-                                        Type = "string",
-                                        Example = new OpenApiString(x.MessageExample),
+                                        Type = JsonSchemaType.String,
+                                        Example = JsonValue.Create(x.MessageExample),
                                         Description = x.MessageExample
                                     },
                                     ["detail"] = new OpenApiSchema
                                     {
-                                        Type = "string",
-                                        Example = new OpenApiString(x.MessageExample),
+                                        Type = JsonSchemaType.String,
+                                        Example = JsonValue.Create(x.MessageExample),
                                         Description = x.MessageExample
                                     },
                                 };
-                                return new OpenApiSchema
+                                return (IOpenApiSchema)new OpenApiSchema
                                 {
-                                    Type = "object",
+                                    Type = JsonSchemaType.Object,
                                     Properties = properties,
                                     Required = properties.Keys.ToFrozenSet(),
                                     Description = "Error object compliant with RFC 7807",

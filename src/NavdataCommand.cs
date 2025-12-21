@@ -248,7 +248,7 @@ public class NavdataCommand : Command
             }
         }
 
-        foreach (var ndbData in arinc.Nondirectionals)
+        foreach (var ndbData in arinc.Nondirects)
         {
             var ndbNavaid = new NdbNavaid
             {
@@ -261,7 +261,7 @@ public class NavdataCommand : Command
             ndbNavaids.Add(ndbNavaid);
         }
 
-        foreach (var vhfData in arinc.Omnidirectionals)
+        foreach (var vhfData in arinc.Omnidirects)
         {
             var vhfNavaid = new VhfNavaid
             {

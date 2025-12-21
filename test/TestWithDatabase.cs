@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Net.Vatprc.Uniapi.Test;
 
-public class TestWithDatabase
+public abstract class TestWithDatabase
 {
     protected Database dbContext;
 
