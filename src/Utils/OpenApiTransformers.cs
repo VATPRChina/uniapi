@@ -87,6 +87,11 @@ public static class OpenApiTransformers
             {
                 schema.Required.Add(name);
             }
+            if (propertySchema.Enum != null
+                && !propertySchema.Enum.Any(x => x == null || x.GetValueKind() == System.Text.Json.JsonValueKind.Null))
+            {
+                schema.Required.Add(name);
+            }
         }
 
         return Task.CompletedTask;
