@@ -1,5 +1,3 @@
-#nullable disable
-
 using System.Collections.Frozen;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authorization;
@@ -34,6 +32,7 @@ public static class OpenApiTransformers
         For details, see the examples on each API endpoint. The additional fields is denoted like `{field}` in the
         error message example.
         """;
+        document.Servers ??= [];
         document.Servers.Add(new OpenApiServer
         {
             Url = "https://uniapi.vatprc.net",
@@ -69,17 +68,52 @@ public static class OpenApiTransformers
                 new OpenApiSecuritySchemeReference("oauth2"), []
             }
         });
+        document.SetReferenceHostDocument();
         return Task.CompletedTask;
     }
 
-    public static Task AddUlid(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
+    public static Task EnforceNotNull(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
     {
-        if (context.JsonTypeInfo.Type == typeof(Ulid) && schema.Type == null)
+        if (schema.Properties == null)
         {
-            schema.Type = JsonSchemaType.String;
-            schema.Description = "ULID";
+            return Task.CompletedTask;
         }
+
+        schema.Required ??= new HashSet<string>();
+
+        foreach (var (name, propertySchema) in schema.Properties.Select(kv => (kv.Key, kv.Value)))
+        {
+            if (propertySchema.Type != null && !propertySchema.Type.Value.HasFlag(JsonSchemaType.Null))
+            {
+                schema.Required.Add(name);
+            }
+        }
+
         return Task.CompletedTask;
+    }
+
+    public static async Task AnnotateUlid(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
+    {
+        if (context.JsonTypeInfo.Type != typeof(Ulid))
+        {
+            return;
+        }
+
+        schema.Type = JsonSchemaType.String;
+    }
+
+    // Two-pass of adding ulid is required as the schema is overridden by other schema generation process
+    public static async Task AddUlid(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken ct)
+    {
+        var schema = await context.GetOrCreateSchemaAsync(typeof(Ulid), null, ct);
+        schema.Type = JsonSchemaType.String;
+        schema.Format = "ulid";
+        schema.Description = "A Universally Unique Lexicographically Sortable Identifier (ULID)";
+        if (document.Components?.Schemas == null)
+        {
+            throw new InvalidOperationException("Components.Schemas is null");
+        }
+        document.Components.Schemas[nameof(Ulid)] = schema;
     }
 
     public static Task AllowAnonymous(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken ct)
@@ -126,14 +160,14 @@ public static class OpenApiTransformers
             {
                 typeof(InternalServerError),
                 // if the security is empty, the operation uses the global policy (aka. required auth)
-                operation.Security?.Count == 0 ? typeof(InvalidToken) : null!,
+                (operation.Security?.Count ?? 0) == 0 ? typeof(InvalidToken) : null!,
             }.Where(x => x != null))
             .Select(GetErrorAttribute)
             .GroupBy(x => x.StatusCode)
             .ToDictionary(x => x.Key, x => x.AsEnumerable());
         foreach (var exception in exceptions)
         {
-            operation.Responses.Add(((int)exception.Key).ToString(), new OpenApiResponse
+            operation.Responses?.Add(((int)exception.Key).ToString(), new OpenApiResponse
             {
                 Description = string.Join(", ", exception.Value.Select(x => x.ErrorCode)),
                 Content = new Dictionary<string, OpenApiMediaType>()

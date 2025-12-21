@@ -127,7 +127,9 @@ builder.Services.AddDbContext<Database>(opt =>
 builder.Services.AddOpenApi(opts =>
 {
     opts.AddDocumentTransformer(OpenApiTransformers.TransformDocument);
-    opts.AddSchemaTransformer(OpenApiTransformers.AddUlid);
+    opts.AddDocumentTransformer(OpenApiTransformers.AddUlid);
+    opts.AddSchemaTransformer(OpenApiTransformers.AnnotateUlid);
+    opts.AddSchemaTransformer(OpenApiTransformers.EnforceNotNull);
     opts.AddOperationTransformer(OpenApiTransformers.AllowAnonymous);
     opts.AddOperationTransformer(OpenApiTransformers.AddErrorResponse);
 });
