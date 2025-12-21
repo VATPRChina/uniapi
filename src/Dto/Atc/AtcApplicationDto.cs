@@ -11,10 +11,11 @@ public record AtcApplicationDto(
     IEnumerable<AtcApplicationFieldAnswerDto> ApplicationFilingAnswers,
     IEnumerable<AtcApplicationFieldAnswerDto>? ReviewFilingAnswers = null)
 {
-    public AtcApplicationDto(AtcApplication application) : this(
+    public AtcApplicationDto(AtcApplication application, bool isAdmin, Ulid currentUserId) : this(
         application.Id,
         application.UserId,
-        new(application.User ?? throw new ArgumentNullException(nameof(application), "User must be loaded")),
+        new(application.User ?? throw new ArgumentNullException(nameof(application), "User must be loaded"),
+            isAdmin || application.UserId == currentUserId),
         application.AppliedAt,
         application.Status,
         application.ApplicationFiling?.Answers.Select(answer => new AtcApplicationFieldAnswerDto(answer)) ??

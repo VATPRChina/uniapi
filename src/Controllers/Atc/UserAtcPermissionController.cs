@@ -26,7 +26,7 @@ public class UserAtcPermissionController(
     }
 
     [HttpGet("{id}/atc/permissions")]
-    [Authorize(Roles = UserRoles.ControllerTrainingMentor)]
+    [Authorize(Roles = $"{UserRoles.ControllerTrainingMentor},{UserRoles.ControllerTrainingDirectorAssistant}")]
     public async Task<IEnumerable<AtcPermissionDto>> GetAtcPermissions(Ulid id)
     {
         var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
@@ -38,7 +38,7 @@ public class UserAtcPermissionController(
     }
 
     [HttpGet("{id}/atc/permissions/{kind}")]
-    [Authorize(Roles = UserRoles.ControllerTrainingMentor)]
+    [Authorize(Roles = $"{UserRoles.ControllerTrainingMentor},{UserRoles.ControllerTrainingDirectorAssistant}")]
     public async Task<AtcPermissionDto> GetAtcPermissionForKind(Ulid id, string kind)
     {
         var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);

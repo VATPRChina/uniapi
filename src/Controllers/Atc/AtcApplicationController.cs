@@ -9,7 +9,6 @@ namespace Net.Vatprc.Uniapi.Controllers.Atc;
 
 [ApiController]
 [Route("api/atc/applications")]
-[Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
 public class AtcApplicationController(
     Database database,
     SheetService sheetService,
@@ -22,25 +21,34 @@ public class AtcApplicationController(
     [HttpGet]
     public async Task<IEnumerable<AtcApplicationSummaryDto>> List()
     {
+        var isAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant);
         var applications = await atcApplicationService.GetApplications();
-        return applications.Select(app => new AtcApplicationSummaryDto(app));
+        return applications
+            .Where(app => isAdmin || app.UserId == userAccessor.GetUserId())
+            .Select(app => new AtcApplicationSummaryDto(app, isAdmin, userAccessor.GetUserId()));
     }
 
     [HttpGet("{id}")]
     [ApiError.Has<ApiError.AtcApplicationNotFound>]
     public async Task<AtcApplicationDto> GetById(Ulid id)
     {
+        var isAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant);
         var application = await atcApplicationService.GetApplication(id);
 
         if (application == null)
         {
             throw new ApiError.AtcApplicationNotFound(id);
         }
+        if (!isAdmin && application.UserId != userAccessor.GetUserId())
+        {
+            throw new ApiError.AtcApplicationNotFound(id);
+        }
 
-        return new(application);
+        return new(application, isAdmin, userAccessor.GetUserId());
     }
 
     [HttpGet("review-sheet")]
+    [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
     public async Task<SheetDto> GetSheet()
     {
         await sheetService.EnsureSheetAsync(ATC_APPLICATION_REVIEW_SHEET_ID, "ATC Application Review Sheet");
@@ -50,6 +58,7 @@ public class AtcApplicationController(
     }
 
     [HttpPut("{id}/review")]
+    [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
     public async Task<AtcApplicationDto> ReviewApplication(
         Ulid id,
         AtcApplicationReviewRequest reviewDto)
@@ -73,10 +82,11 @@ public class AtcApplicationController(
 
         await database.SaveChangesAsync();
 
-        return new AtcApplicationDto(application);
+        return new AtcApplicationDto(application, true, userId);
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
     public async Task<AtcApplicationDto> UpdateStatus(
         Ulid id,
         [FromBody] AtcApplicationUpdateRequest updateDto)
@@ -90,6 +100,6 @@ public class AtcApplicationController(
 
         application.Status = updateDto.Status;
         await database.SaveChangesAsync();
-        return new AtcApplicationDto(application);
+        return new AtcApplicationDto(application, true, userAccessor.GetUserId());
     }
 }

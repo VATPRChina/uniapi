@@ -17,23 +17,6 @@ public class UserAtcApplicationController(
 {
     public const string ATC_APPLICATION_SHEET_ID = "atc-application";
 
-    [HttpGet]
-    public async Task<IEnumerable<AtcApplicationSummaryDto>> List()
-    {
-        var curUserId = userAccessor.GetUserId();
-        var applications = await atcApplicationService.GetApplications(curUserId);
-        return applications.Select(app => new AtcApplicationSummaryDto(app));
-    }
-
-    [HttpGet("{id}")]
-    [ApiError.Has<ApiError.AtcApplicationNotFound>]
-    public async Task<AtcApplicationDto> GetById(Ulid id)
-    {
-        var application = await GetApplication(id);
-
-        return new(application);
-    }
-
     [HttpGet("sheet")]
     public async Task<SheetDto> GetSheet()
     {
@@ -67,7 +50,7 @@ public class UserAtcApplicationController(
         database.AtcApplication.Add(application);
         await database.SaveChangesAsync();
 
-        return new AtcApplicationSummaryDto(application);
+        return new AtcApplicationSummaryDto(application, false, curUserId);
     }
 
     [HttpPut("{id}")]
@@ -92,7 +75,7 @@ public class UserAtcApplicationController(
                 answer => answer.Id,
                 answer => answer.Answer));
 
-        return new AtcApplicationDto(application);
+        return new AtcApplicationDto(application, false, curUserId);
     }
 
     protected async Task<AtcApplication> GetApplication(Ulid id)
