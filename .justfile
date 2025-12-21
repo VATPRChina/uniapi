@@ -4,8 +4,8 @@ default: watch
 
 build:
   dotnet build
-run NAME="":
-  dotnet run --project src {{NAME}}
+run:
+  dotnet run --project src
 watch:
   dotnet watch run --project src
 test:
