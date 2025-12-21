@@ -19,6 +19,10 @@ public class SheetField
 
     public IEnumerable<string> SingleChoiceOptions { get; set; } = [];
 
+    public string? DescriptionZh { get; set; }
+
+    public string? DescriptionEn { get; set; }
+
     public bool IsDeleted { get; set; } = false;
 
     public class Configuration : IEntityTypeConfiguration<SheetField>

@@ -293,6 +293,8 @@ migrateCommand.SetHandler(async () =>
                 Sequence = 4,
                 NameZh = "虚拟管制经验",
                 NameEn = "Virtual ATC Experience",
+                DescriptionZh = "是否有过虚拟平台的管制经验？",
+                DescriptionEn = "Do you have experience as a virtual air traffic controller?",
             },
             new SheetField
             {
@@ -302,6 +304,8 @@ migrateCommand.SetHandler(async () =>
                 Sequence = 5,
                 NameZh = "每周可服务小时数",
                 NameEn = "Weekly Available Hours",
+                DescriptionZh = "自评每周可以提供管制服务的小时数",
+                DescriptionEn = "Estimate the number of hours you can provide ATC services per week",
             },
             new SheetField
             {
@@ -319,6 +323,8 @@ migrateCommand.SetHandler(async () =>
                 Sequence = 6,
                 NameZh = "英语水平",
                 NameEn = "English Proficiency",
+                DescriptionZh = "你的英语水平如何？",
+                DescriptionEn = "How would you rate your English proficiency?",
             },
             new SheetField
             {
@@ -328,6 +334,8 @@ migrateCommand.SetHandler(async () =>
                 Sequence = 7,
                 NameZh = "个人模拟飞行经历简介",
                 NameEn = "Flight Simulation Experience",
+                DescriptionZh = "可用一段话简单介绍自己和模拟飞行/VATSIM相关的经历，对不同模拟飞行平台的了解等，建议约50字左右。请详细列写参加过的活动名称与对应的机组呼号，相关职员将对其进行检查。",
+                DescriptionEn = "You can use a paragraph to briefly introduce yourself and your experience related to flight simulation/VATSIM, as well as your understanding of different flight simulation platforms. It is recommended to keep it around 50 words. Please list the names of the events you have participated in along with the corresponding callsigns, as the relevant staff will check them.",
             },
             new SheetField
             {
@@ -337,6 +345,8 @@ migrateCommand.SetHandler(async () =>
                 Sequence = 8,
                 NameZh = "期望收获",
                 NameEn = "Expectations",
+                DescriptionZh = "可用一段话简单介绍自己申请成为管制员的原因和期望收获，建议约50字左右。",
+                DescriptionEn = "You can use a paragraph to briefly introduce your reasons for applying to become an air traffic controller and your expectations, recommended to be around 50 words.",
             },
         ]);
     await sheetService.SetSheetFieldsAsync(AtcApplicationController.ATC_APPLICATION_REVIEW_SHEET_ID,

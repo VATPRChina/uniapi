@@ -10,6 +10,8 @@ public record SheetFieldDto(
     string? NameEn,
     SheetFieldKind Kind,
     IEnumerable<string> SingleChoiceOptions,
+    string? DescriptionZh,
+    string? DescriptionEn,
     bool IsDeleted)
 {
     public SheetFieldDto(SheetField field) : this(
@@ -20,6 +22,8 @@ public record SheetFieldDto(
         field.NameEn,
         field.Kind,
         field.SingleChoiceOptions,
+        field.DescriptionZh,
+        field.DescriptionEn,
         field.IsDeleted)
     { }
 }
