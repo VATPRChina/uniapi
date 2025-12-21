@@ -76,6 +76,6 @@ public class UserController(
         var subject = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var userId = Ulid.Parse(subject);
         var user = await DbContext.User.FindAsync(userId);
-        return new UserDto(user ?? throw new ApiError.UserNotFound(userId));
+        return new UserDto(user ?? throw new ApiError.UserNotFound(userId), true);
     }
 }
