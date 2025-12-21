@@ -139,6 +139,9 @@ public class AtcApplicationControllerTest : TestWithDatabase
         dbContext.AtcApplication.Add(application);
         await dbContext.SaveChangesAsync();
 
+        userAccessor.Setup(ua => ua.GetUserId()).Returns(adminUserId);
+        userAccessor.Setup(ua => ua.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant)).ReturnsAsync(true);
+
         // Act
         var result = await controller.List();
 
@@ -147,6 +150,35 @@ public class AtcApplicationControllerTest : TestWithDatabase
         result.Count().Should().Be(1);
         appDto.Id.Should().Be(application.Id);
         appDto.UserId.Should().Be(applicantUserId);
+    }
+
+    [Test]
+    public async Task List_NotAdmin_ReturnsOnlyCurrentUserApplications()
+    {
+        // Arrange
+        var filing = await realSheetService.SetSheetFilingAsync(
+            ATC_APPLICATION_SHEET_ID,
+            null,
+            applicantUserId,
+            new Dictionary<string, string>
+            {
+                { "full-name", "Alice" },
+                { "experience", "I have been an ATC for 2 years." },
+            },
+            CancellationToken.None);
+        var app1 = new AtcApplication { Id = Ulid.NewUlid(), UserId = applicantUserId, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-5), ApplicationFilingId = filing.Id };
+        var app2 = new AtcApplication { Id = Ulid.NewUlid(), UserId = adminUserId, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-1), ApplicationFilingId = filing.Id };
+        var app3 = new AtcApplication { Id = Ulid.NewUlid(), UserId = applicantUserId, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-2), ApplicationFilingId = filing.Id };
+        dbContext.AtcApplication.AddRange(app1, app2, app3);
+        dbContext.SaveChanges();
+        userAccessor.Setup(ua => ua.GetUserId()).Returns(applicantUserId);
+
+        // Act
+        var list = (await controller.List()).ToList();
+
+        // Assert
+        list.Should().HaveCount(2);
+        list.Select(x => x.Id).Should().Contain([app1.Id, app3.Id]);
     }
 
     [Test]
@@ -173,6 +205,8 @@ public class AtcApplicationControllerTest : TestWithDatabase
 
         dbContext.AtcApplication.Add(application);
         await dbContext.SaveChangesAsync();
+
+        userAccessor.Setup(ua => ua.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant)).ReturnsAsync(true);
 
         // Act
         var appDto = await controller.GetById(application.Id);
@@ -221,6 +255,8 @@ public class AtcApplicationControllerTest : TestWithDatabase
 
         dbContext.AtcApplication.Add(application);
         await dbContext.SaveChangesAsync();
+
+        userAccessor.Setup(ua => ua.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant)).ReturnsAsync(true);
 
         // Act
         var appDto = await controller.GetById(application.Id);

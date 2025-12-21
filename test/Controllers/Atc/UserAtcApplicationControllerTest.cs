@@ -103,65 +103,6 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
     }
 
     [Test]
-    public async Task List_ReturnsOnlyCurrentUserApplications()
-    {
-        // Arrange
-        var filing = await realSheetService.SetSheetFilingAsync(
-            ATC_APPLICATION_SHEET_ID,
-            null,
-            userId,
-            new Dictionary<string, string>
-            {
-                { "full-name", "Alice" },
-                { "experience", "I have been an ATC for 2 years." },
-            },
-            CancellationToken.None);
-        var app1 = new AtcApplication { Id = Ulid.NewUlid(), UserId = userId, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-5), ApplicationFilingId = filing.Id };
-        var app2 = new AtcApplication { Id = Ulid.NewUlid(), UserId = user2Id, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-1), ApplicationFilingId = filing.Id };
-        var app3 = new AtcApplication { Id = Ulid.NewUlid(), UserId = userId, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-2), ApplicationFilingId = filing.Id };
-        dbContext.AtcApplication.AddRange(app1, app2, app3);
-        dbContext.SaveChanges();
-        userAccessor.Setup(ua => ua.GetUserId()).Returns(userId);
-
-        // Act
-        var list = (await controller.List()).ToList();
-
-        // Assert
-        list.Should().HaveCount(2);
-        list.Select(x => x.Id).Should().Contain([app1.Id, app3.Id]);
-    }
-
-    [Test]
-    public async Task GetById_ReturnsApplicationWithAnswers()
-    {
-        // Arrange
-        var filing = await realSheetService.SetSheetFilingAsync(
-            ATC_APPLICATION_SHEET_ID,
-            null,
-            userId,
-            new Dictionary<string, string>
-            {
-                { "full-name", "Alice" },
-                { "experience", "I have been an ATC for 2 years." },
-            },
-            CancellationToken.None);
-        var app = new AtcApplication { Id = Ulid.NewUlid(), UserId = userId, AppliedAt = DateTimeOffset.UtcNow.AddMinutes(-5), ApplicationFilingId = filing.Id };
-        dbContext.AtcApplication.Add(app);
-        await dbContext.SaveChangesAsync();
-
-        // Act
-        var dto = await controller.GetById(app.Id);
-
-        // Assert
-        dto.Id.Should().Be(app.Id);
-        dto.ApplicationFilingAnswers.Should().HaveCount(2);
-        var name = dto.ApplicationFilingAnswers.First(a => a.Field.Id == "full-name");
-        name.Answer.Should().Be("Alice");
-        var experience = dto.ApplicationFilingAnswers.First(a => a.Field.Id == "experience");
-        experience.Answer.Should().Be("I have been an ATC for 2 years.");
-    }
-
-    [Test]
     public async Task GetSheet_ReturnsSheetDto()
     {
         // Act
