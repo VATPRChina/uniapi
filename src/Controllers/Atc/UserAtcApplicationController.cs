@@ -15,7 +15,7 @@ public class UserAtcApplicationController(
     AtcApplicationService atcApplicationService
 ) : Controller
 {
-    protected const string ATC_APPLICATION_SHEET_ID = "atc-application";
+    public const string ATC_APPLICATION_SHEET_ID = "atc-application";
 
     [HttpGet]
     public async Task<IEnumerable<AtcApplicationSummaryDto>> List()

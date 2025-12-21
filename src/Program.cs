@@ -12,6 +12,9 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.IdentityModel.Tokens;
 using Net.Vatprc.Uniapi.Adapters;
+using Net.Vatprc.Uniapi.Controllers;
+using Net.Vatprc.Uniapi.Controllers.Atc;
+using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Utils;
@@ -247,6 +250,108 @@ migrateCommand.SetHandler(async () =>
 {
     using var scope = app.Services.CreateScope();
     using var db = scope.ServiceProvider.GetRequiredService<Database>();
+    var sheetService = scope.ServiceProvider.GetRequiredService<SheetService>();
+
+    await sheetService.SetSheetFieldsAsync(UserAtcApplicationController.ATC_APPLICATION_SHEET_ID,
+        [
+            new SheetField
+            {
+                SheetId = UserAtcApplicationController.ATC_APPLICATION_SHEET_ID,
+                Id = "age",
+                Kind = SheetFieldKind.ShortText,
+                Sequence = 1,
+                NameZh = "年龄",
+                NameEn = "Age",
+            },
+            new SheetField
+            {
+                SheetId = UserAtcApplicationController.ATC_APPLICATION_SHEET_ID,
+                Id = "occupation",
+                Kind = SheetFieldKind.ShortText,
+                Sequence = 2,
+                NameZh = "职业",
+                NameEn = "Occupation",
+            },
+            new SheetField
+            {
+                SheetId = UserAtcApplicationController.ATC_APPLICATION_SHEET_ID,
+                Id = "location",
+                Kind = SheetFieldKind.ShortText,
+                Sequence = 3,
+                NameZh = "现居城市",
+                NameEn = "City of Residence",
+            },
+            new SheetField
+            {
+                SheetId = UserAtcApplicationController.ATC_APPLICATION_SHEET_ID,
+                Id = "previous_experience",
+                Kind = SheetFieldKind.SingleChoice,
+                SingleChoiceOptions = [
+                    "有（如果可能，请在下方的简介中描述）",
+                    "无",
+                ],
+                Sequence = 4,
+                NameZh = "虚拟管制经验",
+                NameEn = "Virtual ATC Experience",
+            },
+            new SheetField
+            {
+                SheetId = UserAtcApplicationController.ATC_APPLICATION_SHEET_ID,
+                Id = "weekly_hours",
+                Kind = SheetFieldKind.ShortText,
+                Sequence = 5,
+                NameZh = "每周可服务小时数",
+                NameEn = "Weekly Available Hours",
+            },
+            new SheetField
+            {
+                SheetId = UserAtcApplicationController.ATC_APPLICATION_SHEET_ID,
+                Id = "english_level",
+                Kind = SheetFieldKind.SingleChoice,
+                SingleChoiceOptions = [
+                    "不懂英文或几乎不懂英文",
+                    "粗通英文，可以借助文字和翻译器进行英文陆空对话",
+                    "勉强能听懂和进行陆空对话",
+                    "能听懂大多数场景下的陆空对话，能用语音进行流利的英语对话",
+                    "除了熟练运用陆空对话外，还能用英文处理一些非常规情景的对话。",
+                    "英文交流基本无任何障碍",
+                ],
+                Sequence = 6,
+                NameZh = "英语水平",
+                NameEn = "English Proficiency",
+            },
+            new SheetField
+            {
+                SheetId = UserAtcApplicationController.ATC_APPLICATION_SHEET_ID,
+                Id = "self_introduction",
+                Kind = SheetFieldKind.LongText,
+                Sequence = 7,
+                NameZh = "个人模拟飞行经历简介",
+                NameEn = "Flight Simulation Experience",
+            },
+            new SheetField
+            {
+                SheetId = UserAtcApplicationController.ATC_APPLICATION_SHEET_ID,
+                Id = "expectation",
+                Kind = SheetFieldKind.LongText,
+                Sequence = 8,
+                NameZh = "期望收获",
+                NameEn = "Expectations",
+            },
+        ]);
+    await sheetService.SetSheetFieldsAsync(AtcApplicationController.ATC_APPLICATION_REVIEW_SHEET_ID,
+        [
+            new SheetField
+            {
+                SheetId = AtcApplicationController.ATC_APPLICATION_REVIEW_SHEET_ID,
+                Id = "review",
+                Kind = SheetFieldKind.LongText,
+                Sequence = 1,
+                NameZh = "面试评价",
+                NameEn = "Review Comments",
+            },
+        ]);
+
     await db.Database.MigrateAsync();
 });
 rootCommand.Add(new NavdataCommand(app));
