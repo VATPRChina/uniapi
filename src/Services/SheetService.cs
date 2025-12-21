@@ -75,6 +75,8 @@ public class SheetService(
                 existingField.NameEn = field.NameEn;
                 existingField.Kind = field.Kind;
                 existingField.SingleChoiceOptions = field.SingleChoiceOptions;
+                existingField.DescriptionZh = field.DescriptionZh;
+                existingField.DescriptionEn = field.DescriptionEn;
                 existingField.IsDeleted = false;
             }
         }
