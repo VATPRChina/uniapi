@@ -252,6 +252,8 @@ migrateCommand.SetHandler(async () =>
     using var db = scope.ServiceProvider.GetRequiredService<Database>();
     var sheetService = scope.ServiceProvider.GetRequiredService<SheetService>();
 
+    await db.Database.MigrateAsync();
+
     await sheetService.SetSheetFieldsAsync(UserAtcApplicationController.ATC_APPLICATION_SHEET_ID,
         [
             new SheetField
@@ -361,8 +363,6 @@ migrateCommand.SetHandler(async () =>
                 NameEn = "Review Comments",
             },
         ]);
-
-    await db.Database.MigrateAsync();
 });
 rootCommand.Add(new NavdataCommand(app));
 
