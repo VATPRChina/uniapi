@@ -48,7 +48,6 @@ public class AtcApplicationController(
     }
 
     [HttpGet("review-sheet")]
-    [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
     public async Task<SheetDto> GetSheet()
     {
         await sheetService.EnsureSheetAsync(ATC_APPLICATION_REVIEW_SHEET_ID, "ATC Application Review Sheet");
