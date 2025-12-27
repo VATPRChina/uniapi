@@ -26,6 +26,7 @@ public class EventAtcPositionController(
         var slot = await DbContext.EventAtcPosition
             .Include(x => x.Event)
             .Include(x => x.Booking)
+                .ThenInclude(x => x!.User)
             .SingleOrDefaultAsync(x => x.Id == controllerId && x.EventId == eventId)
             ?? throw new ApiError.EventAtcPositionNotFound(eventId, controllerId);
         return slot;
@@ -38,6 +39,7 @@ public class EventAtcPositionController(
             .Where(x => x.EventId == eventId)
             .Include(x => x.Event)
             .Include(x => x.Booking)
+                .ThenInclude(x => x!.User)
             .Select(x => EventAtcPositionDto.From(x))
             .ToListAsync();
         return positions;
@@ -65,6 +67,11 @@ public class EventAtcPositionController(
         DbContext.EventAtcPosition.Add(position);
         await DbContext.SaveChangesAsync();
         await DbContext.Entry(position).Reference(x => x.Event).LoadAsync();
+        await DbContext.Entry(position).Reference(x => x.Booking).LoadAsync();
+        if (position.Booking != null)
+        {
+            await DbContext.Entry(position.Booking).Reference(x => x.User).LoadAsync();
+        }
         return EventAtcPositionDto.From(position);
     }
 
@@ -88,6 +95,11 @@ public class EventAtcPositionController(
 
         await DbContext.SaveChangesAsync();
         await DbContext.Entry(position).Reference(x => x.Event).LoadAsync();
+        await DbContext.Entry(position).Reference(x => x.Booking).LoadAsync();
+        if (position.Booking != null)
+        {
+            await DbContext.Entry(position.Booking).Reference(x => x.User).LoadAsync();
+        }
         return EventAtcPositionDto.From(position);
     }
 
