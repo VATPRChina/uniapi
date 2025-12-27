@@ -44,7 +44,7 @@ public class EventAtcPositionController(
 
     [HttpPost]
     [Authorize(Roles = EDIT_ROLES)]
-    public async Task<EventAtcPositionDto> CreateEventAtcPositionAsync(Ulid eventId, EventAtcPositionDto dto)
+    public async Task<EventAtcPositionDto> CreateEventAtcPositionAsync(Ulid eventId, EventAtcPositionSaveRequest dto)
     {
         if (positionKindService.GetById(dto.PositionKindId) == null)
         {
