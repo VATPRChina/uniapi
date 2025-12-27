@@ -37,6 +37,7 @@ public class EventAtcPositionController(
         var positions = await DbContext.EventAtcPosition
             .Where(x => x.EventId == eventId)
             .Include(x => x.Event)
+            .Include(x => x.Booking)
             .Select(x => EventAtcPositionDto.From(x))
             .ToListAsync();
         return positions;
