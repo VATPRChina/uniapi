@@ -36,6 +36,7 @@ public class EventAtcPositionController(
     {
         var positions = await DbContext.EventAtcPosition
             .Where(x => x.EventId == eventId)
+            .Include(x => x.Event)
             .Select(x => EventAtcPositionDto.From(x))
             .ToListAsync();
         return positions;
@@ -61,6 +62,7 @@ public class EventAtcPositionController(
         };
         DbContext.EventAtcPosition.Add(position);
         await DbContext.SaveChangesAsync();
+        await DbContext.Entry(position).Reference(x => x.Event).LoadAsync();
         return EventAtcPositionDto.From(position);
     }
 
@@ -83,6 +85,7 @@ public class EventAtcPositionController(
         position.MinimumControllerState = dto.MinimumControllerState;
 
         await DbContext.SaveChangesAsync();
+        await DbContext.Entry(position).Reference(x => x.Event).LoadAsync();
         return EventAtcPositionDto.From(position);
     }
 
