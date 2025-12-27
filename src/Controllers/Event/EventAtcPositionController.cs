@@ -52,6 +52,7 @@ public class EventAtcPositionController(
         }
         var position = new EventAtcPosition
         {
+            Id = Ulid.NewUlid(),
             EventId = eventId,
             Callsign = dto.Callsign,
             StartAt = dto.StartAt,

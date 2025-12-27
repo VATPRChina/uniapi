@@ -5,9 +5,9 @@ namespace Net.Vatprc.Uniapi.Models.Event;
 
 public class EventAtcPosition
 {
-    public Ulid Id { get; set; }
+    public required Ulid Id { get; set; }
 
-    public Ulid EventId { get; set; }
+    public required Ulid EventId { get; set; }
     public Event? Event { get; set; }
 
     public required string Callsign { get; set; }
