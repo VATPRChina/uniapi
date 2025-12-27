@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Dto;
+using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Controllers.Auth;
 
@@ -23,9 +24,11 @@ public class SessionController(
         var subject = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var userId = Ulid.Parse(subject);
         var user = await DbContext.User.FindAsync(userId);
+        var identity = HttpContext.User.Identity as ClaimsIdentity;
+        var roles = identity?.FindAll(ClaimTypes.Role).Select(x => x.Value).ToHashSet();
         return new()
         {
-            User = UserDto.From(user!, showFullName: true),
+            User = UserDto.From(user!, showFullName: true, roles: roles),
             IssuedAt = DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(issued)),
             ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(expires)),
         };

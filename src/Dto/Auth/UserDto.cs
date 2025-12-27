@@ -13,7 +13,7 @@ public record UserDto
     public required ISet<UserRoleDto> Roles { get; init; }
     public required ISet<UserRoleDto> DirectRoles { get; init; }
 
-    public static UserDto From(User user, bool showFullName = false)
+    public static UserDto From(User user, bool showFullName = false, IEnumerable<string>? roles = null)
     {
         return new()
         {
@@ -23,7 +23,7 @@ public record UserDto
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt,
             DirectRoles = user.Roles.Select(ConvertRole).ToHashSet(),
-            Roles = UserRoleService.GetRoleClosure(user.Roles).Select(ConvertRole).ToHashSet(),
+            Roles = (roles ?? UserRoleService.GetRoleClosure(user.Roles)).Select(ConvertRole).ToHashSet(),
         };
     }
 
