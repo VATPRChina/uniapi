@@ -31,6 +31,13 @@ public class UserAtcApplicationController(
     {
         var curUserId = userAccessor.GetUserId();
 
+        var existingApplicationCount = await database.AtcApplication
+            .CountAsync(app => app.UserId == curUserId && app.Status != AtcApplicationStatus.Rejected);
+        if (existingApplicationCount > 0)
+        {
+            throw new ApiError.AtcApplicationAlreadyExists();
+        }
+
         var filing = await sheetService.SetSheetFilingAsync(
             ATC_APPLICATION_SHEET_ID,
             null,

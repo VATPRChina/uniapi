@@ -339,4 +339,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.Forbidden, "NOT_OWNED", "The requested resource {resource}/{resourceId} is not owned by the current user {userId}.")]
     public class NotOwned(string resource, Ulid resourceId, Ulid userId) :
         ApiError($"The requested resource {resource}/{resourceId} is not owned by the current user {userId}.");
+
+    [Error(HttpStatusCode.Conflict, "ATC_APPLICATION_ALREADY_EXISTS", "The current user already has an existing ongoing ATC application.")]
+    public class AtcApplicationAlreadyExists() :
+        ApiError($"The current user already has an existing ongoing ATC application.");
 }
