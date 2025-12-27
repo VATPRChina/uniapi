@@ -5,6 +5,8 @@ namespace Net.Vatprc.Uniapi.Dto;
 
 public record EventAtcPositionDto
 {
+    public required Ulid Id { get; init; }
+    public required EventDto Event { get; init; }
     public required string Callsign { get; init; }
     public required DateTimeOffset StartAt { get; init; }
     public required DateTimeOffset EndAt { get; init; }
@@ -15,8 +17,12 @@ public record EventAtcPositionDto
 
     public static EventAtcPositionDto From(EventAtcPosition position)
     {
+        if (position.Event == null) throw new ArgumentNullException(nameof(position), "Event must be loaded");
+
         return new()
         {
+            Id = position.Id,
+            Event = EventDto.From(position.Event),
             Callsign = position.Callsign,
             StartAt = position.StartAt,
             EndAt = position.EndAt,
