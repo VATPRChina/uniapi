@@ -2,13 +2,18 @@ using Net.Vatprc.Uniapi.Models.Sheet;
 
 namespace Net.Vatprc.Uniapi.Dto;
 
-public record AtcApplicationFieldAnswerDto(
-    SheetFieldDto Field,
-    string Answer)
+public record AtcApplicationFieldAnswerDto
 {
-    public AtcApplicationFieldAnswerDto(SheetFilingAnswer answer) : this(
-        new SheetFieldDto(answer.Field ??
-            throw new ArgumentNullException(nameof(answer), "Field must be loaded")),
-        answer.Answer)
-    { }
+    public required SheetFieldDto Field { get; init; }
+    public required string Answer { get; init; }
+
+    public static AtcApplicationFieldAnswerDto From(SheetFilingAnswer answer)
+    {
+        return new()
+        {
+            Field = SheetFieldDto.From(answer.Field ??
+                throw new ArgumentNullException(nameof(answer), "Field must be loaded")),
+            Answer = answer.Answer,
+        };
+    }
 }

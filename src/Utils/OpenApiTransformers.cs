@@ -72,31 +72,6 @@ public static class OpenApiTransformers
         return Task.CompletedTask;
     }
 
-    public static Task EnforceNotNull(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
-    {
-        if (schema.Properties == null)
-        {
-            return Task.CompletedTask;
-        }
-
-        schema.Required ??= new HashSet<string>();
-
-        foreach (var (name, propertySchema) in schema.Properties.Select(kv => (kv.Key, kv.Value)))
-        {
-            if (propertySchema.Type != null && !propertySchema.Type.Value.HasFlag(JsonSchemaType.Null))
-            {
-                schema.Required.Add(name);
-            }
-            if (propertySchema.Enum != null
-                && !propertySchema.Enum.Any(x => x == null || x.GetValueKind() == System.Text.Json.JsonValueKind.Null))
-            {
-                schema.Required.Add(name);
-            }
-        }
-
-        return Task.CompletedTask;
-    }
-
     public static async Task AnnotateUlid(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken ct)
     {
         if (context.JsonTypeInfo.Type != typeof(Ulid))

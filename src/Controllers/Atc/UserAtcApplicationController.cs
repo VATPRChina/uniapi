@@ -23,7 +23,7 @@ public class UserAtcApplicationController(
         await sheetService.EnsureSheetAsync(ATC_APPLICATION_SHEET_ID, "ATC Application Sheet");
         var sheet = await sheetService.GetSheetByIdAsync(ATC_APPLICATION_SHEET_ID)
             ?? throw new InvalidOperationException("ATC application sheet is not configured.");
-        return new SheetDto(sheet);
+        return SheetDto.From(sheet);
     }
 
     [HttpPost]
@@ -50,7 +50,7 @@ public class UserAtcApplicationController(
         database.AtcApplication.Add(application);
         await database.SaveChangesAsync();
 
-        return new AtcApplicationSummaryDto(application, false, curUserId);
+        return AtcApplicationSummaryDto.From(application, false, curUserId);
     }
 
     [HttpPut("{id}")]
@@ -75,7 +75,7 @@ public class UserAtcApplicationController(
                 answer => answer.Id,
                 answer => answer.Answer));
 
-        return new AtcApplicationDto(application, false, curUserId);
+        return AtcApplicationDto.From(application, false, curUserId);
     }
 
     protected async Task<AtcApplication> GetApplication(Ulid id)

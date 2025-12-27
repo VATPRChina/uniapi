@@ -40,7 +40,7 @@ public class EventSlotController(
             .SelectMany(x => x.Slots)
             .OrderBy(x => x.EnterAt)
             .ThenBy(x => x.LeaveAt)
-            .Select(x => new EventSlotDto(x))
+            .Select(x => EventSlotDto.From(x))
             .ToArray();
     }
 
@@ -66,7 +66,7 @@ public class EventSlotController(
     public async Task<EventSlotDto> Get(Ulid eid, Ulid sid)
     {
         var slot = await LoadAsync(eid, sid);
-        return new(slot);
+        return EventSlotDto.From(slot);
     }
 
     [HttpGet("mine")]
@@ -82,7 +82,7 @@ public class EventSlotController(
             .Include(x => x.Booking)
             .FirstOrDefaultAsync(f => f.EventAirspace!.Id == eid && f.Booking!.UserId == user.Id)
             ?? throw new ApiError.EventSlotNotFoundForUser(eid, user.Id);
-        return new EventSlotDto(slot);
+        return EventSlotDto.From(slot);
     }
 
     [HttpPost]
@@ -102,7 +102,7 @@ public class EventSlotController(
         };
         DbContext.EventSlot.Add(slot);
         await DbContext.SaveChangesAsync();
-        return new(slot);
+        return EventSlotDto.From(slot);
     }
 
     [HttpPut("{sid}")]
@@ -115,7 +115,7 @@ public class EventSlotController(
         slot.Callsign = dto.Callsign;
         slot.AircraftTypeIcao = dto.AircraftTypeIcao;
         await DbContext.SaveChangesAsync();
-        return new(slot);
+        return EventSlotDto.From(slot);
     }
 
     [HttpDelete("{sid}")]
@@ -125,6 +125,6 @@ public class EventSlotController(
         var slot = await LoadAsync(eid, sid);
         DbContext.EventSlot.Remove(slot);
         await DbContext.SaveChangesAsync();
-        return new(slot);
+        return EventSlotDto.From(slot);
     }
 }

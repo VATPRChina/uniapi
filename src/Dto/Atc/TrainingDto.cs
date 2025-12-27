@@ -34,16 +34,16 @@ public record TrainingDto
             Id = training.Id,
             Name = training.Name,
             TrainerId = training.TrainerId,
-            Trainer = new UserDto(training.Trainer, true),
+            Trainer = UserDto.From(training.Trainer, true),
             TraineeId = training.TraineeId,
-            Trainee = new UserDto(training.Trainee, true),
+            Trainee = UserDto.From(training.Trainee, true),
             StartAt = training.StartAt,
             EndAt = training.EndAt,
             CreatedAt = training.CreatedAt,
             UpdatedAt = training.UpdatedAt,
             RecordSheetFilingId = training.RecordSheetFilingId,
             RecordSheetFiling = training.RecordSheetFilingId == null ? null :
-                training.RecordSheetFiling?.Answers.Select(answer => new TrainingRecordFieldAnswerDto(answer)) ??
+                training.RecordSheetFiling?.Answers.Select(answer => TrainingRecordFieldAnswerDto.From(answer)) ??
                 throw new ArgumentNullException(nameof(training), "RecordSheetFiling must be loaded"),
         };
     }

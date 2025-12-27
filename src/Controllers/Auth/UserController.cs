@@ -21,7 +21,7 @@ public class UserController(
     public async Task<IEnumerable<UserDto>> List()
     {
         var isStaff = await userAccessor.HasCurrentUserRole(UserRoles.Staff);
-        return await DbContext.User.OrderBy(u => u.Cid).Select(x => new UserDto(x, isStaff)).ToListAsync();
+        return await DbContext.User.OrderBy(u => u.Cid).Select(x => UserDto.From(x, isStaff)).ToListAsync();
     }
 
     [HttpGet("{id}")]
@@ -29,7 +29,7 @@ public class UserController(
     [Authorize(Roles = UserRoles.Volunteer)]
     public async Task<UserDto> Get(Ulid id)
     {
-        return new UserDto(
+        return UserDto.From(
             await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id),
             showFullName: await userAccessor.HasCurrentUserRole(UserRoles.Staff));
     }
@@ -46,7 +46,7 @@ public class UserController(
         };
         DbContext.User.Add(user);
         await DbContext.SaveChangesAsync();
-        return new UserDto(user);
+        return UserDto.From(user);
     }
 
     [HttpPut("{id}/roles")]
@@ -67,7 +67,7 @@ public class UserController(
         }
         user.Roles = roles.ToList();
         await DbContext.SaveChangesAsync();
-        return new UserDto(user);
+        return UserDto.From(user);
     }
 
     [HttpGet("me")]
@@ -76,6 +76,6 @@ public class UserController(
         var subject = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var userId = Ulid.Parse(subject);
         var user = await DbContext.User.FindAsync(userId);
-        return new UserDto(user ?? throw new ApiError.UserNotFound(userId), true);
+        return UserDto.From(user ?? throw new ApiError.UserNotFound(userId), true);
     }
 }

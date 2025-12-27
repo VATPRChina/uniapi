@@ -3,26 +3,28 @@ using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Dto;
 
-public record UserDto(
-    Ulid Id,
-    string Cid,
-    string FullName,
-    DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt,
-    ISet<UserRoleDto> Roles,
-    ISet<UserRoleDto> DirectRoles
-)
+public record UserDto
 {
-    public UserDto(User user, bool showFullName = false) : this(
-        user.Id,
-        user.Cid,
-        showFullName ? user.FullName : string.Empty,
-        user.CreatedAt,
-        user.UpdatedAt,
-        null!,
-        user.Roles.Select(ConvertRole).ToHashSet())
+    public required Ulid Id { get; init; }
+    public required string Cid { get; init; }
+    public required string FullName { get; init; }
+    public required DateTimeOffset CreatedAt { get; init; }
+    public required DateTimeOffset UpdatedAt { get; init; }
+    public required ISet<UserRoleDto> Roles { get; init; }
+    public required ISet<UserRoleDto> DirectRoles { get; init; }
+
+    public static UserDto From(User user, bool showFullName = false)
     {
-        Roles = UserRoleService.GetRoleClosure(user.Roles).Select(ConvertRole).ToHashSet();
+        return new()
+        {
+            Id = user.Id,
+            Cid = user.Cid,
+            FullName = showFullName ? user.FullName : string.Empty,
+            CreatedAt = user.CreatedAt,
+            UpdatedAt = user.UpdatedAt,
+            DirectRoles = user.Roles.Select(ConvertRole).ToHashSet(),
+            Roles = UserRoleService.GetRoleClosure(user.Roles).Select(ConvertRole).ToHashSet(),
+        };
     }
 
     public static UserRoleDto ConvertRole(string role) => role switch

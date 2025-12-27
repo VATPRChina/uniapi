@@ -25,7 +25,7 @@ public class AtcApplicationController(
         var applications = await atcApplicationService.GetApplications();
         return applications
             .Where(app => isAdmin || app.UserId == userAccessor.GetUserId())
-            .Select(app => new AtcApplicationSummaryDto(app, isAdmin, userAccessor.GetUserId()));
+            .Select(app => AtcApplicationSummaryDto.From(app, isAdmin, userAccessor.GetUserId()));
     }
 
     [HttpGet("{id}")]
@@ -44,7 +44,7 @@ public class AtcApplicationController(
             throw new ApiError.AtcApplicationNotFound(id);
         }
 
-        return new(application, isAdmin, userAccessor.GetUserId());
+        return AtcApplicationDto.From(application, isAdmin, userAccessor.GetUserId());
     }
 
     [HttpGet("review-sheet")]
@@ -53,7 +53,7 @@ public class AtcApplicationController(
         await sheetService.EnsureSheetAsync(ATC_APPLICATION_REVIEW_SHEET_ID, "ATC Application Review Sheet");
         var sheet = await sheetService.GetSheetByIdAsync(ATC_APPLICATION_REVIEW_SHEET_ID)
             ?? throw new InvalidOperationException("ATC application review sheet is not configured.");
-        return new SheetDto(sheet);
+        return SheetDto.From(sheet);
     }
 
     [HttpPut("{id}/review")]
@@ -81,7 +81,7 @@ public class AtcApplicationController(
 
         await database.SaveChangesAsync();
 
-        return new AtcApplicationDto(application, true, userId);
+        return AtcApplicationDto.From(application, true, userId);
     }
 
     [HttpPut("{id}")]
@@ -99,6 +99,6 @@ public class AtcApplicationController(
 
         application.Status = updateDto.Status;
         await database.SaveChangesAsync();
-        return new AtcApplicationDto(application, true, userAccessor.GetUserId());
+        return AtcApplicationDto.From(application, true, userAccessor.GetUserId());
     }
 }

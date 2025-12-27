@@ -31,7 +31,7 @@ public class EventAirspaceController(Database DbContext) : ControllerBase
             .Collection(x => x.Airspaces!)
             .Query()
             .OrderBy(x => x.Name)
-            .Select(x => new EventAirspaceDto(x)).ToListAsync();
+            .Select(x => EventAirspaceDto.From(x)).ToListAsync();
     }
 
     [HttpGet("{aid}")]
@@ -41,7 +41,7 @@ public class EventAirspaceController(Database DbContext) : ControllerBase
     public async Task<EventAirspaceDto> Get(Ulid eid, Ulid aid)
     {
         var airspace = await LoadAsync(eid, aid);
-        return new(airspace);
+        return EventAirspaceDto.From(airspace);
     }
 
     [HttpPost]
@@ -57,7 +57,7 @@ public class EventAirspaceController(Database DbContext) : ControllerBase
         };
         DbContext.EventAirspace.Add(airspace);
         await DbContext.SaveChangesAsync();
-        return new(airspace);
+        return EventAirspaceDto.From(airspace);
     }
 
     [HttpPut("{aid}")]
@@ -69,7 +69,7 @@ public class EventAirspaceController(Database DbContext) : ControllerBase
         airspace.IcaoCodes = dto.IcaoCodes.ToList();
         airspace.Description = dto.Description;
         await DbContext.SaveChangesAsync();
-        return new(airspace);
+        return EventAirspaceDto.From(airspace);
     }
 
     [HttpDelete("{aid}")]
@@ -79,6 +79,6 @@ public class EventAirspaceController(Database DbContext) : ControllerBase
         var airspace = await LoadAsync(eid, aid);
         DbContext.EventAirspace.Remove(airspace);
         await DbContext.SaveChangesAsync();
-        return new(airspace);
+        return EventAirspaceDto.From(airspace);
     }
 }

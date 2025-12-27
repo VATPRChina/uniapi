@@ -2,16 +2,21 @@ using Net.Vatprc.Uniapi.Models.Sheet;
 
 namespace Net.Vatprc.Uniapi.Dto;
 
-public record SheetDto(
-    string Id,
-    string Name,
-    IEnumerable<SheetFieldDto> Fields)
+public record SheetDto
 {
-    public SheetDto(Sheet sheet) : this(
-        sheet.Id,
-        sheet.Name,
-        sheet.Fields
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public required IEnumerable<SheetFieldDto> Fields { get; init; }
+
+    public static SheetDto From(Sheet sheet)
+    {
+        return new()
+        {
+            Id = sheet.Id,
+            Name = sheet.Name,
+            Fields = sheet.Fields
             .Where(field => !field.IsDeleted)
-            .Select(field => new SheetFieldDto(field)))
-    { }
+            .Select(SheetFieldDto.From),
+        };
+    }
 }

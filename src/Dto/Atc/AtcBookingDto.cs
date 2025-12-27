@@ -21,7 +21,7 @@ public record AtcBookingDto
         return new AtcBookingDto
         {
             Id = booking.Id,
-            User = new UserDto(booking.User),
+            User = UserDto.From(booking.User),
             Callsign = booking.Callsign,
             BookedAt = booking.BookedAt,
             StartTime = booking.StartAt,

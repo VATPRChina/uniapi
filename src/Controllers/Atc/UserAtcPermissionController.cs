@@ -21,7 +21,7 @@ public class UserAtcPermissionController(
 
         return await DbContext.UserAtcPermission
             .Where(p => p.UserId == user.Id)
-            .Select(p => new AtcPermissionDto(p))
+            .Select(p => AtcPermissionDto.From(p))
             .ToListAsync();
     }
 
@@ -33,7 +33,7 @@ public class UserAtcPermissionController(
 
         return await DbContext.UserAtcPermission
             .Where(p => p.UserId == user.Id)
-            .Select(p => new AtcPermissionDto(p))
+            .Select(p => AtcPermissionDto.From(p))
             .ToListAsync();
     }
 
@@ -45,7 +45,7 @@ public class UserAtcPermissionController(
 
         return await DbContext.UserAtcPermission
             .Where(p => p.UserId == user.Id && p.PositionKindId == kind)
-            .Select(p => new AtcPermissionDto(p))
+            .Select(p => AtcPermissionDto.From(p))
             .FirstOrDefaultAsync() ?? throw new ApiError.UserAtcPermissionNotFound(id, kind);
     }
 
@@ -76,7 +76,7 @@ public class UserAtcPermissionController(
         atcPermission.SoloExpiresAt = req.SoloExpiresAt;
 
         await DbContext.SaveChangesAsync();
-        return new AtcPermissionDto(atcPermission);
+        return AtcPermissionDto.From(atcPermission);
     }
 
     [HttpDelete("{id}/atc/permissions/{kind}")]

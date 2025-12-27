@@ -23,11 +23,12 @@ public class SessionController(
         var subject = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var userId = Ulid.Parse(subject);
         var user = await DbContext.User.FindAsync(userId);
-        return new(
-            new(user!, showFullName: true),
-            DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(issued)),
-            DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(expires))
-        );
+        return new()
+        {
+            User = UserDto.From(user!, showFullName: true),
+            IssuedAt = DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(issued)),
+            ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(expires)),
+        };
     }
 
     /// <summary>Logout</summary>

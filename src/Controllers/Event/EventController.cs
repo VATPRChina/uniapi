@@ -25,7 +25,7 @@ public class EventController(Database DbContext) : ControllerBase
 
         return await query
             .OrderBy(x => x.StartBookingAt)
-            .Select(x => new EventDto(x)).ToListAsync();
+            .Select(x => EventDto.From(x)).ToListAsync();
     }
 
     [HttpGet("past")]
@@ -36,7 +36,7 @@ public class EventController(Database DbContext) : ControllerBase
             .Where(x => x.StartAt < DateTimeOffset.UtcNow
                 && (until == null || x.StartAt <= until))
             .OrderByDescending(x => x.StartAt)
-            .Select(x => new EventDto(x));
+            .Select(x => EventDto.From(x));
         return await query.ToListAsync();
     }
 
@@ -45,7 +45,7 @@ public class EventController(Database DbContext) : ControllerBase
     [ApiError.Has<ApiError.EventNotFound>]
     public async Task<EventDto> Get(Ulid eid)
     {
-        return new EventDto(await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid));
+        return EventDto.From(await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid));
     }
 
     [HttpPost]
@@ -64,7 +64,7 @@ public class EventController(Database DbContext) : ControllerBase
         };
         DbContext.Event.Add(eventt);
         await DbContext.SaveChangesAsync();
-        return new(eventt);
+        return EventDto.From(eventt);
     }
 
     [HttpPost("{eid}")]
@@ -80,7 +80,7 @@ public class EventController(Database DbContext) : ControllerBase
         eventt.ImageUrl = dto.ImageUrl;
         eventt.Description = dto.Description;
         await DbContext.SaveChangesAsync();
-        return new(eventt);
+        return EventDto.From(eventt);
     }
 
     [HttpDelete("{eid}")]
@@ -90,6 +90,6 @@ public class EventController(Database DbContext) : ControllerBase
         var eventt = await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid);
         DbContext.Event.Remove(eventt);
         await DbContext.SaveChangesAsync();
-        return new(eventt);
+        return EventDto.From(eventt);
     }
 }

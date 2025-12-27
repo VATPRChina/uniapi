@@ -26,7 +26,7 @@ public class FlightController(
         return await DbContext.Flight
             .Where(f => f.FinalizedAt == null)
             .OrderBy(f => f.Callsign)
-            .Select(f => new FlightDto(f))
+            .Select(f => FlightDto.From(f))
             .ToListAsync();
     }
 
@@ -36,7 +36,7 @@ public class FlightController(
     {
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
             ?? throw new ApiError.CallsignNotFound(callsign);
-        return new FlightDto(flight);
+        return FlightDto.From(flight);
     }
 
     public enum WarningMessageCode
@@ -259,6 +259,6 @@ public class FlightController(
 
         var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Cid == user.Cid && f.FinalizedAt == null)
             ?? throw new ApiError.FlightNotFoundForCid(user.Cid);
-        return new FlightDto(flight);
+        return FlightDto.From(flight);
     }
 }

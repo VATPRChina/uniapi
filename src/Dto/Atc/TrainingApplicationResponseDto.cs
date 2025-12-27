@@ -32,7 +32,7 @@ public record TrainingApplicationResponseDto
             ApplicationId = resp.ApplicationId,
             Application = TrainingApplicationDto.From(resp.Application),
             TrainerId = resp.TrainerId,
-            Trainer = new UserDto(resp.Trainer, true),
+            Trainer = UserDto.From(resp.Trainer, true),
             IsAccepted = resp.IsAccepted,
             Comment = resp.Comment,
             CreatedAt = resp.CreatedAt,

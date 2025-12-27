@@ -44,7 +44,7 @@ public record TrainingApplicationDto
         {
             Id = app.Id,
             TraineeId = app.TraineeId,
-            Trainee = new UserDto(app.Trainee, true),
+            Trainee = UserDto.From(app.Trainee, true),
             Status = status,
             Name = app.Name,
             TrainId = app.TrainId,

@@ -1,15 +1,21 @@
+using System.Diagnostics.CodeAnalysis;
 using Net.Vatprc.Uniapi.Models.Event;
 
 namespace Net.Vatprc.Uniapi.Dto;
 
-public record EventAtcPositionBookingDto(
-    Ulid UserId,
-    DateTimeOffset BookedAt
-)
+public record EventAtcPositionBookingDto
 {
-    public EventAtcPositionBookingDto(EventAtcPositionBooking booking) : this(
-        booking.UserId,
-        booking.CreatedAt)
+    public required Ulid UserId { get; init; }
+    public required DateTimeOffset BookedAt { get; init; }
+
+    [return: NotNullIfNotNull(nameof(booking))]
+    public static EventAtcPositionBookingDto? From(EventAtcPositionBooking? booking)
     {
+        if (booking == null) return null;
+        return new()
+        {
+            UserId = booking.UserId,
+            BookedAt = booking.CreatedAt,
+        };
     }
 }

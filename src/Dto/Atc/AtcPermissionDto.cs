@@ -3,16 +3,19 @@ using static Net.Vatprc.Uniapi.Models.Atc.UserAtcPermission;
 
 namespace Net.Vatprc.Uniapi.Dto;
 
-public record AtcPermissionDto(
-    string PositionKindId,
-    UserControllerState State,
-    DateTimeOffset? SoloExpiresAt
-)
+public record AtcPermissionDto
 {
-    public AtcPermissionDto(UserAtcPermission permission) : this(
-        permission.PositionKindId,
-        permission.State,
-        permission.SoloExpiresAt)
+    public required string PositionKindId { get; init; }
+    public required UserControllerState State { get; init; }
+    public DateTimeOffset? SoloExpiresAt { get; init; }
+
+    public static AtcPermissionDto From(UserAtcPermission permission)
     {
+        return new()
+        {
+            PositionKindId = permission.PositionKindId,
+            State = permission.State,
+            SoloExpiresAt = permission.SoloExpiresAt,
+        };
     }
 }

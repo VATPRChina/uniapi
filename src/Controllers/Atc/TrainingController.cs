@@ -80,7 +80,7 @@ public class TrainingController(
         await sheetService.EnsureSheetAsync(RECORD_SHEEET_ID, "Training Record Sheet");
         var sheet = await sheetService.GetSheetByIdAsync(RECORD_SHEEET_ID)
             ?? throw new InvalidOperationException("Training record sheet is not configured.");
-        return new SheetDto(sheet);
+        return SheetDto.From(sheet);
     }
 
     [HttpPut("{id}/record")]

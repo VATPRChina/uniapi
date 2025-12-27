@@ -3,24 +3,27 @@ using static Net.Vatprc.Uniapi.Models.Atc.UserAtcPermission;
 
 namespace Net.Vatprc.Uniapi.Dto;
 
-public record EventAtcPositionDto(
-    string Callsign,
-    DateTimeOffset StartAt,
-    DateTimeOffset EndAt,
-    string? Remarks,
-    string PositionKindId,
-    UserControllerState MinimumControllerState,
-    EventAtcPositionBookingDto? Booking
-)
+public record EventAtcPositionDto
 {
-    public EventAtcPositionDto(EventAtcPosition position) : this(
-        position.Callsign,
-        position.StartAt,
-        position.EndAt,
-        position.Remarks,
-        position.PositionKindId,
-        position.MinimumControllerState,
-        position.Booking != null ? new EventAtcPositionBookingDto(position.Booking) : null)
+    public required string Callsign { get; init; }
+    public required DateTimeOffset StartAt { get; init; }
+    public required DateTimeOffset EndAt { get; init; }
+    public string? Remarks { get; init; }
+    public required string PositionKindId { get; init; }
+    public required UserControllerState MinimumControllerState { get; init; }
+    public EventAtcPositionBookingDto? Booking { get; init; }
+
+    public static EventAtcPositionDto From(EventAtcPosition position)
     {
+        return new()
+        {
+            Callsign = position.Callsign,
+            StartAt = position.StartAt,
+            EndAt = position.EndAt,
+            Remarks = position.Remarks,
+            PositionKindId = position.PositionKindId,
+            MinimumControllerState = position.MinimumControllerState,
+            Booking = EventAtcPositionBookingDto.From(position.Booking),
+        };
     }
 }

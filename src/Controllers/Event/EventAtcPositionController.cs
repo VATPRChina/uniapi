@@ -36,7 +36,7 @@ public class EventAtcPositionController(
     {
         var positions = await DbContext.EventAtcPosition
             .Where(x => x.EventId == eventId)
-            .Select(x => new EventAtcPositionDto(x))
+            .Select(x => EventAtcPositionDto.From(x))
             .ToListAsync();
         return positions;
     }
@@ -61,7 +61,7 @@ public class EventAtcPositionController(
         };
         DbContext.EventAtcPosition.Add(position);
         await DbContext.SaveChangesAsync();
-        return new EventAtcPositionDto(position);
+        return EventAtcPositionDto.From(position);
     }
 
     [HttpPut("{positionId}")]
@@ -83,7 +83,7 @@ public class EventAtcPositionController(
         position.MinimumControllerState = dto.MinimumControllerState;
 
         await DbContext.SaveChangesAsync();
-        return new EventAtcPositionDto(position);
+        return EventAtcPositionDto.From(position);
     }
 
     [HttpDelete("{positionId}")]
@@ -133,7 +133,7 @@ public class EventAtcPositionController(
         DbContext.AtcBooking.Add(atcBooking);
 
         await DbContext.SaveChangesAsync();
-        return new EventAtcPositionBookingDto(position.Booking);
+        return EventAtcPositionBookingDto.From(position.Booking);
     }
 
     [HttpDelete("{positionId}/booking")]
@@ -167,6 +167,6 @@ public class EventAtcPositionController(
         DbContext.EventAtcPositionBooking.Remove(position.Booking);
         await DbContext.SaveChangesAsync();
 
-        return new EventAtcPositionBookingDto(position.Booking);
+        return EventAtcPositionBookingDto.From(position.Booking);
     }
 }

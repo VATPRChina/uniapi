@@ -38,7 +38,7 @@ public class EventSlotBookingController(
     public async Task<EventBookingDto> Get(Ulid eid, Ulid sid)
     {
         var booking = await LoadAsync(eid, sid) ?? throw new ApiError.EventSlotNotBooked(eid, sid);
-        return new(booking);
+        return EventBookingDto.From(booking);
     }
 
     [HttpPut]
@@ -66,7 +66,7 @@ public class EventSlotBookingController(
             };
             DbContext.EventBooking.Add(booking);
             await DbContext.SaveChangesAsync();
-            return new(booking);
+            return EventBookingDto.From(booking);
         }
         finally
         {
@@ -92,7 +92,7 @@ public class EventSlotBookingController(
             }
             DbContext.EventBooking.Remove(booking);
             await DbContext.SaveChangesAsync();
-            return new(booking);
+            return EventBookingDto.From(booking);
         }
         finally
         {
