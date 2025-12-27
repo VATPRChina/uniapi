@@ -120,6 +120,13 @@ public class AuthenticationEventHandler(Database DbContext) : JwtBearerEvents
                     identity.AddClaim(new(ClaimTypes.Role, role));
                 }
             }
+            var hasAtcPermission = await DbContext.UserAtcPermission
+                .Where(x => x.UserId == user.Id)
+                .AnyAsync();
+            if (hasAtcPermission)
+            {
+                identity.AddClaim(new(ClaimTypes.Role, UserRoles.Controller));
+            }
         }
         catch (Exception e)
         {
