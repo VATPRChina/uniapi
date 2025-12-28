@@ -37,6 +37,7 @@ public record UserDto
         UserRoles.ControllerTrainingInstructor => UserRoleDto.ControllerTrainingInstructor,
         UserRoles.ControllerTrainingMentor => UserRoleDto.ControllerTrainingMentor,
         UserRoles.ControllerTrainingSopEditor => UserRoleDto.ControllerTrainingSopEditor,
+        UserRoles.CommunityDirector => UserRoleDto.CommunityDirector,
         UserRoles.OperationDirector => UserRoleDto.OperationDirector,
         UserRoles.OperationDirectorAssistant => UserRoleDto.OperationDirectorAssistant,
         UserRoles.OperationSectorEditor => UserRoleDto.OperationSectorEditor,

@@ -10,6 +10,7 @@ public enum UserRoleDto
     ControllerTrainingInstructor,
     ControllerTrainingMentor,
     ControllerTrainingSopEditor,
+    CommunityDirector,
     OperationDirector,
     OperationDirectorAssistant,
     OperationSectorEditor,

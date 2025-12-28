@@ -30,6 +30,8 @@ public class UserRoleService
             { UserRoles.ControllerTrainingMentor, [UserRoles.Volunteer] },
             { UserRoles.ControllerTrainingSopEditor, [UserRoles.Volunteer] },
 
+            { UserRoles.CommunityDirector, [UserRoles.Staff]},
+
             { UserRoles.OperationDirector, [
                 UserRoles.Staff,
                 UserRoles.OperationDirectorAssistant,

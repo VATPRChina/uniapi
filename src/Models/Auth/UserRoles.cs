@@ -16,6 +16,8 @@ public static class UserRoles
     public const string ControllerTrainingMentor = "controller-training-mentor";
     public const string ControllerTrainingSopEditor = "controller-training-sop-editor";
 
+    public const string CommunityDirector = "community-director";
+
     public const string OperationDirector = "operation-director";
     public const string OperationDirectorAssistant = "operation-director-assistant";
     public const string OperationSectorEditor = "operation-sector-editor";
