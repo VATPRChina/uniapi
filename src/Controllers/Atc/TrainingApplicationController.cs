@@ -99,6 +99,7 @@ public class TrainingApplicationController(
         var responses = await database.TrainingApplicationResponse
             .Where(r => r.ApplicationId == id)
             .Include(r => r.Application)
+                .ThenInclude(a => a!.Trainee)
             .Include(r => r.Trainer)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => TrainingApplicationResponseDto.From(r))
