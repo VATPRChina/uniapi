@@ -43,8 +43,8 @@ public record TrainingDto
             UpdatedAt = training.UpdatedAt,
             RecordSheetFilingId = training.RecordSheetFilingId,
             RecordSheetFiling = training.RecordSheetFilingId == null ? null :
-                training.RecordSheetFiling?.Answers.Select(answer => TrainingRecordFieldAnswerDto.From(answer)) ??
-                throw new ArgumentNullException(nameof(training), "RecordSheetFiling must be loaded"),
+                (training.RecordSheetFiling?.Answers.Select(answer => TrainingRecordFieldAnswerDto.From(answer)) ??
+                throw new ArgumentNullException(nameof(training), "RecordSheetFiling must be loaded")),
         };
     }
 }
