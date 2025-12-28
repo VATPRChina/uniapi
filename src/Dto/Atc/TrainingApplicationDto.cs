@@ -36,7 +36,7 @@ public record TrainingApplicationDto
             }
             else
             {
-                status = TrainingApplicationStatus.Accepted;
+                status = TrainingApplicationStatus.Pending;
             }
         }
 
