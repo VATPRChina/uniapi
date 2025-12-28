@@ -29,6 +29,9 @@ public class SheetFilingAnswer
                 .WithMany(x => x.Answers)
                 .HasForeignKey(x => x.FilingId)
                 .IsRequired(true);
+
+            builder.Navigation(x => x.Field).AutoInclude();
+            builder.Navigation(x => x.Filing).AutoInclude();
         }
     }
 }
