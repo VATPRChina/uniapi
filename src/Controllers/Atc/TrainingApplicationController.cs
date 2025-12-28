@@ -80,6 +80,28 @@ public class TrainingApplicationController(
         return TrainingApplicationDto.From(trainingApplication);
     }
 
+    [HttpGet("{id}/responses")]
+    public async Task<IEnumerable<TrainingApplicationResponseDto>> GetResponses(Ulid id)
+    {
+        var isAdmin = await userAccessor.HasCurrentUserAnyRoleOf(
+            UserRoles.ControllerTrainingDirectorAssistant,
+            UserRoles.ControllerTrainingMentor);
+
+        var application = await database.TrainingApplication
+            .Where(t => t.Id == id && (isAdmin || t.TraineeId == userAccessor.GetUserId()))
+            .SingleOrDefaultAsync()
+            ?? throw new ApiError.NotFound(nameof(database.TrainingApplication), id);
+
+        var responses = await database.TrainingApplicationResponse
+            .Where(r => r.ApplicationId == id)
+            .Include(r => r.Application)
+            .Include(r => r.Trainer)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => TrainingApplicationResponseDto.From(r))
+            .ToListAsync();
+        return responses;
+    }
+
     [HttpPut("{id}/response")]
     [Authorize(Roles = UserRoles.ControllerTrainingMentor)]
     public async Task<TrainingApplicationResponseDto> RespondToApplication(
