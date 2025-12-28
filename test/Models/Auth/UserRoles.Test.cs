@@ -15,6 +15,7 @@ public class UserTest
             UserRoles.ControllerTrainingInstructor,
             UserRoles.ControllerTrainingMentor,
             UserRoles.ControllerTrainingSopEditor,
+            UserRoles.CommunityDirector,
             UserRoles.OperationDirector,
             UserRoles.OperationDirectorAssistant,
             UserRoles.OperationSectorEditor,
