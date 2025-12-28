@@ -33,6 +33,23 @@ public class TrainingApplicationController(
         return trainings;
     }
 
+    [HttpGet("{id}")]
+    public async Task<TrainingApplicationDto> GetById(Ulid id)
+    {
+        var isAdmin = await userAccessor.HasCurrentUserAnyRoleOf(
+            UserRoles.ControllerTrainingDirectorAssistant,
+            UserRoles.ControllerTrainingMentor);
+
+        var training = await database.TrainingApplication
+            .Where(t => t.Id == id && (isAdmin || t.TraineeId == userAccessor.GetUserId()))
+            .Include(t => t.Trainee)
+            .Include(t => t.Train)
+            .SingleOrDefaultAsync()
+            ?? throw new ApiError.NotFound(nameof(database.TrainingApplication), id);
+
+        return TrainingApplicationDto.From(training);
+    }
+
     [HttpPost]
     public async Task<TrainingApplicationDto> Create([FromBody] TrainingApplicationCreateRequest dto)
     {
