@@ -343,4 +343,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.Conflict, "ATC_APPLICATION_ALREADY_EXISTS", "The current user already has an existing ongoing ATC application.")]
     public class AtcApplicationAlreadyExists() :
         ApiError($"The current user already has an existing ongoing ATC application.");
+
+    [Error(HttpStatusCode.BadRequest, "TRAINING_APPLICATION_ALREADY_ACCEPTED", "The training application {applicationId} has already been accepted.")]
+    public class TrainingApplicationAlreadyAccepted(Ulid applicationId) :
+        ApiError($"The training application {applicationId} has already been accepted.");
 }

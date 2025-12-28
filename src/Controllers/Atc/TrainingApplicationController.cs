@@ -88,8 +88,14 @@ public class TrainingApplicationController(
     {
         var application = await database.TrainingApplication
             .Include(a => a.Trainee)
+            .Include(a => a.Train)
             .FirstOrDefaultAsync(a => a.Id == id)
             ?? throw new ApiError.NotFound(nameof(database.TrainingApplication), id);
+
+        if (application.TrainId != null)
+        {
+            throw new ApiError.TrainingApplicationAlreadyAccepted(id);
+        }
 
         var response = new TrainingApplicationResponse
         {
