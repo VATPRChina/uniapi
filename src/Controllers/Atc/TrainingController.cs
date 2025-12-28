@@ -17,7 +17,7 @@ public class TrainingController(
 ) : Controller
 {
     protected const int MAX_TRAININGS_PER_PAGE = 50;
-    protected const string RECORD_SHEEET_ID = "training-record";
+    public const string RECORD_SHEEET_ID = "training-record";
 
     [HttpGet("active")]
     public async Task<IEnumerable<TrainingDto>> List()

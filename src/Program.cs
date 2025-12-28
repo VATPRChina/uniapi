@@ -365,6 +365,18 @@ migrateCommand.SetHandler(async () =>
                 NameEn = "Review Comments",
             },
         ]);
+    await sheetService.SetSheetFieldsAsync(TrainingController.RECORD_SHEEET_ID,
+        [
+            new SheetField
+            {
+                SheetId = TrainingController.RECORD_SHEEET_ID,
+                Id = "review",
+                Kind = SheetFieldKind.LongText,
+                Sequence = 1,
+                NameZh = "训练评价",
+                NameEn = "Train Review",
+            },
+        ]);
 });
 rootCommand.Add(new NavdataCommand(app));
 
