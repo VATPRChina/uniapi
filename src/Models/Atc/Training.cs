@@ -41,6 +41,10 @@ public class Training
             builder.HasOne(b => b.RecordSheetFiling)
                 .WithMany()
                 .HasForeignKey(b => b.RecordSheetFilingId);
+
+            builder.Navigation(b => b.Trainer).AutoInclude();
+            builder.Navigation(b => b.Trainee).AutoInclude();
+            builder.Navigation(b => b.RecordSheetFiling).AutoInclude();
         }
     }
 }
