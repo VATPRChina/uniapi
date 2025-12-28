@@ -68,8 +68,8 @@ public class TrainingApplicationController(
             Id = Ulid.NewUlid(),
             TraineeId = userId,
             Name = dto.Name,
-            StartAt = dto.StartAt,
-            EndAt = dto.EndAt,
+            StartAt = dto.StartAt.ToUniversalTime(),
+            EndAt = dto.EndAt.ToUniversalTime(),
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
