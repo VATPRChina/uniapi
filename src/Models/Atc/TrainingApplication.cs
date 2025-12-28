@@ -14,13 +14,13 @@ public class TrainingApplication
     public Ulid? TrainId { get; set; }
     public Training? Train { get; set; }
 
-    public required DateTimeOffset StartAt;
+    public required DateTimeOffset StartAt { get; set; }
 
-    public required DateTimeOffset EndAt;
+    public required DateTimeOffset EndAt { get; set; }
 
-    public required DateTimeOffset CreatedAt;
+    public required DateTimeOffset CreatedAt { get; set; }
 
-    public required DateTimeOffset UpdatedAt;
+    public required DateTimeOffset UpdatedAt { get; set; }
 
     public class TrainApplicationConfiguration : IEntityTypeConfiguration<TrainingApplication>
     {
