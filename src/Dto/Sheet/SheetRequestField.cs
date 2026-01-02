@@ -1,6 +1,6 @@
 namespace Net.Vatprc.Uniapi.Dto;
 
-public record AtcApplicationRequestField
+public record SheetRequestField
 {
     public required string Id { get; set; }
     public required string Answer { get; set; }

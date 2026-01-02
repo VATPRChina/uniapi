@@ -15,7 +15,7 @@ public record TrainingDto
     public required DateTimeOffset CreatedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
     public required Ulid? RecordSheetFilingId { get; init; }
-    public required IEnumerable<TrainingRecordFieldAnswerDto>? RecordSheetFiling { get; init; }
+    public required IEnumerable<SheetFieldAnswerDto>? RecordSheetFiling { get; init; }
 
     public static TrainingDto From(Training training)
     {
@@ -52,7 +52,7 @@ public record TrainingDto
             CreatedAt = training.CreatedAt,
             UpdatedAt = training.UpdatedAt,
             RecordSheetFilingId = training.RecordSheetFilingId,
-            RecordSheetFiling = training.RecordSheetFiling?.Answers?.Select(TrainingRecordFieldAnswerDto.From),
+            RecordSheetFiling = training.RecordSheetFiling?.Answers?.Select(SheetFieldAnswerDto.From),
         };
     }
 }

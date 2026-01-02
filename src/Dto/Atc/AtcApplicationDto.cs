@@ -9,8 +9,8 @@ public record AtcApplicationDto
     public required UserDto User { get; init; }
     public required DateTimeOffset AppliedAt { get; init; }
     public required AtcApplicationStatus Status { get; init; }
-    public required IEnumerable<AtcApplicationFieldAnswerDto> ApplicationFilingAnswers { get; init; }
-    public IEnumerable<AtcApplicationFieldAnswerDto>? ReviewFilingAnswers { get; init; }
+    public required IEnumerable<SheetFieldAnswerDto> ApplicationFilingAnswers { get; init; }
+    public IEnumerable<SheetFieldAnswerDto>? ReviewFilingAnswers { get; init; }
 
     public static AtcApplicationDto From(AtcApplication application, bool isAdmin, Ulid currentUserId)
     {
@@ -47,8 +47,8 @@ public record AtcApplicationDto
             isAdmin || application.UserId == currentUserId),
             AppliedAt = application.AppliedAt,
             Status = application.Status,
-            ApplicationFilingAnswers = application.ApplicationFiling.Answers.Select(AtcApplicationFieldAnswerDto.From),
-            ReviewFilingAnswers = application.ReviewFiling?.Answers?.Select(AtcApplicationFieldAnswerDto.From),
+            ApplicationFilingAnswers = application.ApplicationFiling.Answers.Select(SheetFieldAnswerDto.From),
+            ReviewFilingAnswers = application.ReviewFiling?.Answers?.Select(SheetFieldAnswerDto.From),
         };
     }
 }
