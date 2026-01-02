@@ -10,7 +10,7 @@ public class SheetService(
     {
         return await dbContext.Sheet
             .Where(s => s.Id == sheetId)
-            .Include(s => s.Fields.OrderBy(f => !f.IsDeleted).ThenBy(f => f.Sequence))
+            .Include(s => s.Fields!.OrderBy(f => !f.IsDeleted).ThenBy(f => f.Sequence))
             // .Where(f => !f.IsDeleted) does not work due to navigation fixup:
             // https://learn.microsoft.com/en-us/ef/core/querying/related-data/eager
             .FirstOrDefaultAsync(ct);
@@ -49,6 +49,11 @@ public class SheetService(
                 Name = sheetId,
                 Fields = [],
             };
+
+        if (sheet.Fields == null)
+        {
+            throw new InvalidOperationException("Sheet.Fields is not loaded");
+        }
 
         foreach (var field in fields)
         {
@@ -112,6 +117,11 @@ public class SheetService(
         var sheet = await GetSheetByIdAsync(sheetId, ct)
             ?? throw new SheetNotFoundException(nameof(sheetId));
 
+        if (sheet.Fields == null)
+        {
+            throw new InvalidOperationException("Sheet.Fields is not loaded");
+        }
+
         foreach (var (id, answerText) in answers)
         {
             var field = sheet.Fields.FirstOrDefault(f => f.Id == id);
@@ -138,6 +148,11 @@ public class SheetService(
         {
             sheetFiling = await GetSheetFilingByIdAsync(sheetFilingId.Value, ct)
                 ?? throw new SheetFilingNotFoundException(sheetFilingId.Value, nameof(sheetFilingId));
+        }
+
+        if (sheetFiling.Answers == null)
+        {
+            throw new InvalidOperationException("SheetFiling.Answers is not loaded");
         }
 
         var existingAnswers = sheetFiling.Answers.ToDictionary(a => a.FieldId, a => a);

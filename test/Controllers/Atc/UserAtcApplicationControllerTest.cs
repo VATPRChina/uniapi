@@ -178,7 +178,7 @@ public class UserAtcApplicationControllerTest : TestWithDatabase
 
         var updatedFiling = await realSheetService.GetSheetFilingByIdAsync(initialFiling.Id);
         updatedFiling.Should().NotBeNull();
-        var answers = updatedFiling!.Answers.ToDictionary(a => a.FieldId, a => a);
+        var answers = updatedFiling!.Answers!.ToDictionary(a => a.FieldId, a => a);
         answers["full-name"].Answer.Should().Be("Updated Name");
         answers["experience"].Answer.Should().Be("Updated Experience");
     }

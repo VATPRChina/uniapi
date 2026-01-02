@@ -10,13 +10,18 @@ public record SheetDto
 
     public static SheetDto From(Sheet sheet)
     {
+        if (sheet.Fields == null)
+        {
+            throw new ArgumentNullException(nameof(sheet), "Fields must be loaded");
+        }
+
         return new()
         {
             Id = sheet.Id,
             Name = sheet.Name,
             Fields = sheet.Fields
-            .Where(field => !field.IsDeleted)
-            .Select(SheetFieldDto.From),
+                .Where(field => !field.IsDeleted)
+                .Select(SheetFieldDto.From),
         };
     }
 }

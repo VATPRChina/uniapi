@@ -30,9 +30,9 @@ public class Airport
     /// </summary>
     public int Elevation { get; set; }
 
-    public IList<AirportGate> Gates { get; set; } = [];
-    public IList<Runway> Runways { get; set; } = [];
-    public IList<Procedure> Procedures { get; set; } = [];
+    public IList<AirportGate>? Gates { get; set; }
+    public IList<Runway>? Runways { get; set; }
+    public IList<Procedure>? Procedures { get; set; }
 
     public class Configuration : IEntityTypeConfiguration<Airport>
     {

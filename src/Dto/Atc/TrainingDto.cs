@@ -29,6 +29,16 @@ public record TrainingDto
             throw new ArgumentException("Training.Trainee is null", nameof(training));
         }
 
+        if (training.RecordSheetFilingId != null && training.RecordSheetFiling == null)
+        {
+            throw new ArgumentNullException(nameof(training), "RecordSheetFiling must be loaded");
+        }
+
+        if (training.RecordSheetFiling != null && training.RecordSheetFiling.Answers == null)
+        {
+            throw new ArgumentNullException(nameof(training), "RecordSheetFiling.Answers must be loaded");
+        }
+
         return new TrainingDto
         {
             Id = training.Id,
@@ -42,9 +52,7 @@ public record TrainingDto
             CreatedAt = training.CreatedAt,
             UpdatedAt = training.UpdatedAt,
             RecordSheetFilingId = training.RecordSheetFilingId,
-            RecordSheetFiling = training.RecordSheetFilingId == null ? null :
-                (training.RecordSheetFiling?.Answers.Select(answer => TrainingRecordFieldAnswerDto.From(answer)) ??
-                throw new ArgumentNullException(nameof(training), "RecordSheetFiling must be loaded")),
+            RecordSheetFiling = training.RecordSheetFiling?.Answers?.Select(TrainingRecordFieldAnswerDto.From),
         };
     }
 }

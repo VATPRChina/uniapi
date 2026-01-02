@@ -14,7 +14,7 @@ public class SheetFiling
 
     public required DateTimeOffset FiledAt { get; set; }
 
-    public IList<SheetFilingAnswer> Answers { get; set; } = [];
+    public IList<SheetFilingAnswer>? Answers { get; set; }
 
     public class Configuration : IEntityTypeConfiguration<SheetFiling>
     {
@@ -29,8 +29,6 @@ public class SheetFiling
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .IsRequired(true);
-
-            builder.Navigation(x => x.Answers).AutoInclude();
         }
     }
 }

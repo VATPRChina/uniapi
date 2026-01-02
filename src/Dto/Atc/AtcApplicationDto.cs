@@ -14,6 +14,31 @@ public record AtcApplicationDto
 
     public static AtcApplicationDto From(AtcApplication application, bool isAdmin, Ulid currentUserId)
     {
+        if (application.User == null)
+        {
+            throw new ArgumentException("AtcApplication.User is null", nameof(application));
+        }
+
+        if (application.ApplicationFiling == null)
+        {
+            throw new ArgumentNullException(nameof(application), "ApplicationFiling must be loaded");
+        }
+
+        if (application.ApplicationFiling.Answers == null)
+        {
+            throw new ArgumentNullException(nameof(application), "ApplicationFiling.Answers must be loaded");
+        }
+
+        if (application.ReviewFilingId != null && application.ReviewFiling == null)
+        {
+            throw new ArgumentNullException(nameof(application), "ReviewFiling must be loaded");
+        }
+
+        if (application.ReviewFiling != null && application.ReviewFiling.Answers == null)
+        {
+            throw new ArgumentNullException(nameof(application), "ReviewFiling.Answers must be loaded");
+        }
+
         return new()
         {
             Id = application.Id,
@@ -22,9 +47,8 @@ public record AtcApplicationDto
             isAdmin || application.UserId == currentUserId),
             AppliedAt = application.AppliedAt,
             Status = application.Status,
-            ApplicationFilingAnswers = application.ApplicationFiling?.Answers.Select(AtcApplicationFieldAnswerDto.From) ??
-                throw new ArgumentNullException(nameof(application), "ApplicationFiling must be loaded"),
-            ReviewFilingAnswers = application.ReviewFiling?.Answers.Select(AtcApplicationFieldAnswerDto.From),
+            ApplicationFilingAnswers = application.ApplicationFiling.Answers.Select(AtcApplicationFieldAnswerDto.From),
+            ReviewFilingAnswers = application.ReviewFiling?.Answers?.Select(AtcApplicationFieldAnswerDto.From),
         };
     }
 }

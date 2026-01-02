@@ -8,7 +8,7 @@ public class Sheet
 
     public required string Name { get; set; }
 
-    public IList<SheetField> Fields { get; set; } = [];
+    public IList<SheetField>? Fields { get; set; }
 
     public class Configuration : IEntityTypeConfiguration<Sheet>
     {
