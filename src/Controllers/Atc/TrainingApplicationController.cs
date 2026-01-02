@@ -28,8 +28,6 @@ public class TrainingApplicationController(
             .Where(t => isAdmin || t.TraineeId == userAccessor.GetUserId())
             .OrderByDescending(t => t.CreatedAt)
             .Include(t => t.Trainee)
-            .Include(t => t.Train)
-                .ThenInclude(t => t!.Trainer)
             .Select(t => TrainingApplicationDto.From(t))
             .ToListAsync();
 
@@ -46,8 +44,6 @@ public class TrainingApplicationController(
         var training = await database.TrainingApplication
             .Where(t => t.Id == id && (isAdmin || t.TraineeId == userAccessor.GetUserId()))
             .Include(t => t.Trainee)
-            .Include(t => t.Train)
-                .ThenInclude(t => t!.Trainer)
             .SingleOrDefaultAsync()
             ?? throw new ApiError.NotFound(nameof(database.TrainingApplication), id);
 
