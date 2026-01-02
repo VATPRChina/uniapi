@@ -322,7 +322,7 @@ public class AtcApplicationControllerTest : TestWithDatabase
         var reviewDto = new AtcApplicationReviewRequest
         {
             ReviewAnswers = [
-                new AtcApplicationReviewRequestAnswer
+                new ()
                 {
                     Id = "review",
                     Answer = "Strong candidate.",
@@ -348,7 +348,7 @@ public class AtcApplicationControllerTest : TestWithDatabase
         var reviewDto = new AtcApplicationReviewRequest
         {
             ReviewAnswers = [
-                new AtcApplicationReviewRequestAnswer
+                new ()
                 {
                     Id = "review",
                     Answer = "Strong candidate.",

@@ -30,6 +30,11 @@ public class TrainingController(
                 t.TrainerId == userAccessor.GetUserId() ||
                 t.TraineeId == userAccessor.GetUserId())
             .OrderByDescending(t => t.CreatedAt)
+            .Include(t => t.Trainer)
+            .Include(t => t.Trainee)
+            .Include(t => t.RecordSheetFiling)
+                .ThenInclude(s => s!.Answers!)
+                    .ThenInclude(a => a.Field)
             .Select(t => TrainingDto.From(t))
             .ToListAsync();
 
@@ -48,6 +53,11 @@ public class TrainingController(
                 t.TrainerId == userAccessor.GetUserId() ||
                 t.TraineeId == userAccessor.GetUserId())
             .OrderByDescending(t => t.CreatedAt)
+            .Include(t => t.Trainer)
+            .Include(t => t.Trainee)
+            .Include(t => t.RecordSheetFiling)
+                .ThenInclude(s => s!.Answers!)
+                    .ThenInclude(a => a.Field)
             .Take(MAX_TRAININGS_PER_PAGE)
             .Select(t => TrainingDto.From(t))
             .ToListAsync();
@@ -61,6 +71,11 @@ public class TrainingController(
     {
         var training = await database.Training
             .Where(t => t.Id == id)
+            .Include(t => t.Trainer)
+            .Include(t => t.Trainee)
+            .Include(t => t.RecordSheetFiling)
+                .ThenInclude(s => s!.Answers!)
+                    .ThenInclude(a => a.Field)
             .FirstOrDefaultAsync();
 
         if (training == null)
@@ -72,7 +87,6 @@ public class TrainingController(
 
         return TrainingDto.From(training);
     }
-
 
     [HttpGet("record-sheet")]
     public async Task<SheetDto> GetSheet()
@@ -88,7 +102,14 @@ public class TrainingController(
     public async Task<TrainingDto> SetRecordSheet(Ulid id, [FromBody]
         TrainingRecordRequest request)
     {
-        var training = await database.Training.FindAsync(id);
+        var training = await database.Training
+            .Include(t => t.Trainer)
+            .Include(t => t.Trainee)
+            .Include(t => t.RecordSheetFiling)
+                .ThenInclude(s => s!.Answers!)
+                    .ThenInclude(a => a.Field)
+            .Where(t => t.Id == id)
+            .SingleOrDefaultAsync();
         if (training == null)
         {
             throw new ApiError.NotFound(nameof(database.Training), id);

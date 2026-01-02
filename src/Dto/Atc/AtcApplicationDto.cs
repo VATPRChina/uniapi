@@ -43,8 +43,7 @@ public record AtcApplicationDto
         {
             Id = application.Id,
             UserId = application.UserId,
-            User = UserDto.From(application.User ?? throw new ArgumentNullException(nameof(application), "User must be loaded"),
-            isAdmin || application.UserId == currentUserId),
+            User = UserDto.From(application.User, isAdmin || application.UserId == currentUserId),
             AppliedAt = application.AppliedAt,
             Status = application.Status,
             ApplicationFilingAnswers = application.ApplicationFiling.Answers.Select(SheetFieldAnswerDto.From),
