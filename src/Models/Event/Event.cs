@@ -26,6 +26,10 @@ public class Event
 
     public string? ImageUrl { get; set; }
 
+    public string? CommunityLink { get; set; }
+
+    public string? VatsimLink { get; set; }
+
     public IEnumerable<EventAirspace>? Airspaces { get; set; }
 
     public IEnumerable<EventAtcPosition>? AtcPositions { get; set; }
@@ -54,6 +58,12 @@ public class Event
                 .IsRequired(false);
 
             builder.Property(x => x.ImageUrl)
+                .IsRequired(false);
+
+            builder.Property(x => x.CommunityLink)
+                .IsRequired(false);
+
+            builder.Property(x => x.VatsimLink)
                 .IsRequired(false);
         }
     }
