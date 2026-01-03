@@ -14,13 +14,13 @@ public class TrainingApplication
     public Ulid? TrainId { get; set; }
     public Training? Train { get; set; }
 
-    public required DateTimeOffset StartAt { get; set; }
-
-    public required DateTimeOffset EndAt { get; set; }
-
     public required DateTimeOffset CreatedAt { get; set; }
 
     public required DateTimeOffset UpdatedAt { get; set; }
+
+    public DateTimeOffset? DeletedAt { get; set; }
+
+    public IEnumerable<TrainingApplicationSlot>? Slots { get; set; }
 
     public class TrainApplicationConfiguration : IEntityTypeConfiguration<TrainingApplication>
     {
@@ -35,6 +35,9 @@ public class TrainingApplication
             builder.HasOne(b => b.Train)
                 .WithOne()
                 .HasForeignKey<TrainingApplication>(b => b.TrainId);
+
+            builder.Property(b => b.DeletedAt)
+                .IsRequired(false);
         }
     }
 }

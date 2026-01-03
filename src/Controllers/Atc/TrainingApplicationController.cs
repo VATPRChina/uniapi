@@ -28,6 +28,7 @@ public class TrainingApplicationController(
             .Where(t => isAdmin || t.TraineeId == userAccessor.GetUserId())
             .OrderByDescending(t => t.CreatedAt)
             .Include(t => t.Trainee)
+            .Include(t => t.Slots)
             .Select(t => TrainingApplicationDto.From(t))
             .ToListAsync();
 
@@ -44,6 +45,7 @@ public class TrainingApplicationController(
         var training = await database.TrainingApplication
             .Where(t => t.Id == id && (isAdmin || t.TraineeId == userAccessor.GetUserId()))
             .Include(t => t.Trainee)
+            .Include(t => t.Slots)
             .SingleOrDefaultAsync()
             ?? throw new ApiError.NotFound(nameof(database.TrainingApplication), id);
 
@@ -68,13 +70,21 @@ public class TrainingApplicationController(
             Id = Ulid.NewUlid(),
             TraineeId = userId,
             Name = dto.Name,
-            StartAt = dto.StartAt.ToUniversalTime(),
-            EndAt = dto.EndAt.ToUniversalTime(),
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
 
         database.TrainingApplication.Add(trainingApplication);
+
+        var slots = dto.Slots.Select(slotDto => new TrainingApplicationSlot
+        {
+            Id = Ulid.NewUlid(),
+            ApplicationId = trainingApplication.Id,
+            StartAt = slotDto.StartAt,
+            EndAt = slotDto.EndAt
+        });
+        database.TrainingApplicationSlot.AddRange(slots);
+
         await database.SaveChangesAsync();
 
         return TrainingApplicationDto.From(trainingApplication);
@@ -120,20 +130,28 @@ public class TrainingApplicationController(
             throw new ApiError.TrainingApplicationAlreadyAccepted(id);
         }
 
+        TrainingApplicationSlot? slot = null;
+        if (req.SlotId != null)
+        {
+            slot = await database.TrainingApplicationSlot
+                .FirstOrDefaultAsync(s => s.Id == req.SlotId && s.ApplicationId == application.Id)
+                ?? throw new ApiError.NotFound(nameof(database.TrainingApplicationSlot), req.SlotId.Value);
+        }
+
         var response = new TrainingApplicationResponse
         {
             Id = Ulid.NewUlid(),
             ApplicationId = application.Id,
             TrainerId = userAccessor.GetUserId(),
-            IsAccepted = req.IsAccepted,
+            SlotId = req.SlotId,
             Comment = req.Comment,
             CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow
+            UpdatedAt = DateTimeOffset.UtcNow,
         };
 
         database.TrainingApplicationResponse.Add(response);
 
-        if (req.IsAccepted)
+        if (slot != null)
         {
             var training = new Training
             {
@@ -141,8 +159,8 @@ public class TrainingApplicationController(
                 Name = application.Name,
                 TrainerId = response.TrainerId,
                 TraineeId = application.TraineeId,
-                StartAt = application.StartAt,
-                EndAt = application.EndAt,
+                StartAt = slot.StartAt,
+                EndAt = slot.EndAt,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow
             };

@@ -39,6 +39,7 @@ public class Database(DbContextOptions<Database> options) : DbContext(options)
     public virtual DbSet<AtcBooking> AtcBooking { get; set; }
     public virtual DbSet<Training> Training { get; set; }
     public virtual DbSet<TrainingApplication> TrainingApplication { get; set; }
+    public virtual DbSet<TrainingApplicationSlot> TrainingApplicationSlot { get; set; }
     public virtual DbSet<TrainingApplicationResponse> TrainingApplicationResponse { get; set; }
 
 

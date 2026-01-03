@@ -10,17 +10,14 @@ public record TrainingApplicationDto
     public required TrainingApplicationStatus Status { get; init; }
     public required string Name { get; init; }
     public Ulid? TrainId { get; init; }
-    public required DateTimeOffset StartAt { get; init; }
-    public required DateTimeOffset EndAt { get; init; }
+    public IEnumerable<TrainingApplicationSlotDto>? Slots { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
 
     public static TrainingApplicationDto From(TrainingApplication app)
     {
-        if (app.Trainee == null)
-        {
-            throw new ArgumentException("TrainingApplication.Trainee is null", nameof(app));
-        }
+        ArgumentNullException.ThrowIfNull(app.Trainee, nameof(app.Trainee));
+        ArgumentNullException.ThrowIfNull(app.Slots, nameof(app.Slots));
 
         TrainingApplicationStatus status;
         if (app.TrainId != null)
@@ -29,7 +26,8 @@ public record TrainingApplicationDto
         }
         else
         {
-            if (app.EndAt < DateTimeOffset.UtcNow)
+            var endAt = app.Slots.Max(s => s.EndAt);
+            if (endAt < DateTimeOffset.UtcNow)
             {
                 status = TrainingApplicationStatus.Rejected;
             }
@@ -47,10 +45,9 @@ public record TrainingApplicationDto
             Status = status,
             Name = app.Name,
             TrainId = app.TrainId,
-            StartAt = app.StartAt,
-            EndAt = app.EndAt,
+            Slots = app.Slots.Select(TrainingApplicationSlotDto.From),
             CreatedAt = app.CreatedAt,
-            UpdatedAt = app.UpdatedAt
+            UpdatedAt = app.UpdatedAt,
         };
     }
 }

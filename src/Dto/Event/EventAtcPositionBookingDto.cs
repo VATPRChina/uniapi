@@ -6,7 +6,7 @@ namespace Net.Vatprc.Uniapi.Dto;
 public record EventAtcPositionBookingDto
 {
     public required Ulid UserId { get; init; }
-    public required UserDto? User { get; init; }
+    public required UserDto User { get; init; }
     public required DateTimeOffset BookedAt { get; init; }
 
     [return: NotNullIfNotNull(nameof(booking))]

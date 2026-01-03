@@ -12,7 +12,8 @@ public class TrainingApplicationResponse
     public required Ulid TrainerId { get; set; }
     public User? Trainer { get; set; }
 
-    public required bool IsAccepted { get; set; }
+    public required Ulid? SlotId { get; set; }
+    public TrainingApplicationSlot? Slot { get; set; }
 
     public required string Comment { get; set; }
 
@@ -33,6 +34,10 @@ public class TrainingApplicationResponse
             builder.HasOne(b => b.Trainer)
                 .WithMany()
                 .HasForeignKey(b => b.TrainerId);
+
+            builder.HasOne(b => b.Slot)
+                .WithOne()
+                .HasForeignKey<TrainingApplicationResponse>(b => b.SlotId);
         }
     }
 }

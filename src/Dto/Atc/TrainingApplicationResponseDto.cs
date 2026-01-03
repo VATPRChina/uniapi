@@ -6,7 +6,6 @@ public record TrainingApplicationResponseDto
 {
     public required Ulid Id { get; init; }
     public required Ulid ApplicationId { get; init; }
-    public required TrainingApplicationDto Application { get; init; }
     public required Ulid TrainerId { get; init; }
     public required UserDto Trainer { get; init; }
     public required bool IsAccepted { get; init; }
@@ -30,10 +29,9 @@ public record TrainingApplicationResponseDto
         {
             Id = resp.Id,
             ApplicationId = resp.ApplicationId,
-            Application = TrainingApplicationDto.From(resp.Application),
             TrainerId = resp.TrainerId,
             Trainer = UserDto.From(resp.Trainer, true),
-            IsAccepted = resp.IsAccepted,
+            IsAccepted = resp.SlotId != null,
             Comment = resp.Comment,
             CreatedAt = resp.CreatedAt,
             UpdatedAt = resp.UpdatedAt
