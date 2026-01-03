@@ -132,6 +132,11 @@ public class EventAtcPositionController(
             throw new ApiError.EventPositionBooked(eventId, positionId);
         }
 
+        if (position.Event!.IsInAtcBookingPeriod == false)
+        {
+            throw new ApiError.EventNotInBookingTime(eventId);
+        }
+
         position.Booking = new EventAtcPositionBooking
         {
             UserId = user.Id,

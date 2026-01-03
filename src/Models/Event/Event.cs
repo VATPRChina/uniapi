@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Net.Vatprc.Uniapi.Models.Event;
@@ -23,16 +22,22 @@ public class Event
 
     public DateTimeOffset EndBookingAt { get; set; }
 
+    public DateTimeOffset? StartAtcBookingAt { get; set; }
+
     public string? ImageUrl { get; set; }
 
     public IEnumerable<EventAirspace>? Airspaces { get; set; }
 
     public IEnumerable<EventAtcPosition>? AtcPositions { get; set; }
 
-    [JsonIgnore]
     public bool IsInBookingPeriod
     {
         get => DateTimeOffset.Now > StartBookingAt && DateTimeOffset.Now < EndBookingAt;
+    }
+
+    public bool IsInAtcBookingPeriod
+    {
+        get => StartAtcBookingAt == null || (DateTimeOffset.Now > StartAtcBookingAt);
     }
 
     public class EventConfiguration : IEntityTypeConfiguration<Event>
@@ -44,6 +49,9 @@ public class Event
 
             builder.Property(x => x.UpdatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            builder.Property(x => x.StartAtcBookingAt)
+                .IsRequired(false);
 
             builder.Property(x => x.ImageUrl)
                 .IsRequired(false);

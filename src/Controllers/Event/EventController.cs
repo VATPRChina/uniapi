@@ -59,6 +59,7 @@ public class EventController(Database DbContext) : ControllerBase
             EndAt = dto.EndAt.ToUniversalTime(),
             StartBookingAt = dto.StartBookingAt.ToUniversalTime(),
             EndBookingAt = dto.EndBookingAt.ToUniversalTime(),
+            StartAtcBookingAt = dto.StartAtcBookingAt?.ToUniversalTime(),
             ImageUrl = dto.ImageUrl,
             Description = dto.Description,
         };
@@ -77,6 +78,7 @@ public class EventController(Database DbContext) : ControllerBase
         eventt.EndAt = dto.EndAt.ToUniversalTime();
         eventt.StartBookingAt = dto.StartBookingAt.ToUniversalTime();
         eventt.EndBookingAt = dto.EndBookingAt.ToUniversalTime();
+        eventt.StartAtcBookingAt = dto.StartAtcBookingAt?.ToUniversalTime();
         eventt.ImageUrl = dto.ImageUrl;
         eventt.Description = dto.Description;
         await DbContext.SaveChangesAsync();

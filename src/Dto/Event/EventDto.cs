@@ -12,6 +12,7 @@ public record EventDto
     public required DateTimeOffset EndAt { get; init; }
     public required DateTimeOffset StartBookingAt { get; init; }
     public required DateTimeOffset EndBookingAt { get; init; }
+    public required DateTimeOffset? StartAtcBookingAt { get; init; }
     public required string? ImageUrl { get; set; }
     public required string Description { get; set; }
 
@@ -27,6 +28,7 @@ public record EventDto
             EndAt = eventt.EndAt,
             StartBookingAt = eventt.StartBookingAt,
             EndBookingAt = eventt.EndBookingAt,
+            StartAtcBookingAt = eventt.StartAtcBookingAt,
             ImageUrl = eventt.ImageUrl,
             Description = eventt.Description,
         };
