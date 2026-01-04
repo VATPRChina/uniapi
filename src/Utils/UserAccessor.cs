@@ -10,6 +10,7 @@ public interface IUserAccessor
     public Ulid GetUserId();
     public Task<bool> HasCurrentUserRole(string role);
     public Task<bool> HasCurrentUserAnyRoleOf(params string[] expectedRoles);
+    public Task EnsureCurrentUserAnyRoleOf(params string[] expectedRoles);
 }
 
 public class UserAccessor(IHttpContextAccessor httpContextAccessor, Database dbContext) : IUserAccessor
@@ -45,5 +46,14 @@ public class UserAccessor(IHttpContextAccessor httpContextAccessor, Database dbC
             throw new ApiError.UserNotFound(GetUserId());
         var roles = UserRoleService.GetRoleClosure(user.Roles);
         return roles.Any(r => expectedRoles.Contains(r));
+    }
+
+    public async Task EnsureCurrentUserAnyRoleOf(params string[] expectedRoles)
+    {
+        var hasRole = await HasCurrentUserAnyRoleOf(expectedRoles);
+        if (!hasRole)
+        {
+            throw new ApiError.Forbidden(expectedRoles);
+        }
     }
 }

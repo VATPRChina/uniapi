@@ -114,13 +114,20 @@ public class EventAtcPositionController(
 
     [HttpPut("{positionId}/booking")]
     [Authorize(Roles = UserRoles.Controller)]
-    public async Task<EventAtcPositionBookingDto> BookEventAtcPositionAsync(Ulid eventId, Ulid positionId)
+    public async Task<EventAtcPositionBookingDto> BookEventAtcPositionAsync(Ulid eventId, Ulid positionId, EventAtcPositionBookRequest req)
     {
         var position = await LoadAsync(eventId, positionId);
 
-        var user = await userAccessor.GetUser();
+        if (req.UserId != null)
+        {
+            await userAccessor.EnsureCurrentUserAnyRoleOf(
+                UserRoles.ControllerTrainingDirectorAssistant,
+                UserRoles.ControllerTrainingMentor);
+        }
+
+        var userId = req.UserId ?? userAccessor.GetUserId();
         var userPositionPermission = await DbContext.UserAtcPermission
-            .SingleOrDefaultAsync(x => x.UserId == user.Id && x.PositionKindId == position.PositionKindId)
+            .SingleOrDefaultAsync(x => x.UserId == userId && x.PositionKindId == position.PositionKindId)
             ?? throw new ApiError.InsufficientAtcPermission(position.PositionKindId, null, position.MinimumControllerState);
         if (!positionStatusService.IsStatusSatifyMinimum(userPositionPermission, position.MinimumControllerState))
         {
@@ -139,14 +146,14 @@ public class EventAtcPositionController(
 
         position.Booking = new EventAtcPositionBooking
         {
-            UserId = user.Id,
+            UserId = userId,
             CreatedAt = DateTimeOffset.UtcNow,
         };
 
         var atcBooking = new AtcBooking
         {
             Id = Ulid.NewUlid(),
-            UserId = user.Id,
+            UserId = userId,
             Callsign = position.Callsign,
             BookedAt = DateTimeOffset.UtcNow,
             StartAt = position.StartAt,
