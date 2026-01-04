@@ -17,7 +17,7 @@ public record EventAtcPositionBookingDto
         return new()
         {
             UserId = booking.UserId,
-            User = UserDto.From(booking.User),
+            User = UserDto.From(booking.User, showFullName: true),
             BookedAt = booking.CreatedAt,
         };
     }

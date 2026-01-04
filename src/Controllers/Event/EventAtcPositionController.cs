@@ -33,6 +33,7 @@ public class EventAtcPositionController(
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IEnumerable<EventAtcPositionDto>> GetEventAtcPositionsAsync(Ulid eventId)
     {
         var positions = await DbContext.EventAtcPosition
