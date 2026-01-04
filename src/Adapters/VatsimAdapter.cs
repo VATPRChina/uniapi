@@ -30,30 +30,6 @@ public class VatsimAdapter
             ?? throw new Exception("Unexpected null on fetch vatsim data");
     }
 
-    public async Task<IEnumerable<AtcSchedule>> GetAtcSchedule(CancellationToken ct = default)
-    {
-        var result = await Cache.GetOrCreateAsync("schedule", async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
-            return await "https://atcapi.vatprc.net/v1/public/schedules"
-                .WithHeader("User-Agent", UniapiUserAgent)
-                .GetJsonAsync<IEnumerable<AtcSchedule>>(cancellationToken: ct);
-        }) ?? throw new Exception("Unexpected null on fetch vatprc data");
-        return result;
-    }
-
-    public async Task<IEnumerable<Controller>> GetAtcList(CancellationToken ct = default)
-    {
-        var result = await Cache.GetOrCreateAsync("controllers", async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
-            return await "https://atcapi.vatprc.net/v1/public/controllers"
-                .WithHeader("User-Agent", UniapiUserAgent)
-                .GetJsonAsync<IEnumerable<Controller>>(cancellationToken: ct);
-        }) ?? throw new Exception("Unexpected null on fetch vatprc data");
-        return result;
-    }
-
     public async Task<string> GetDivisionEventsAsString(CancellationToken ct = default)
     {
         var result = await Cache.GetOrCreateAsync("controllers", async entry =>

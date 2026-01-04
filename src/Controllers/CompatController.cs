@@ -15,7 +15,8 @@ namespace Net.Vatprc.Uniapi.Controllers;
 public partial class CompatController(
     VatsimAdapter VatsimService,
     MetarAdapter MetarService,
-    TrackAudioAdapter TrackAudioService) : ControllerBase
+    TrackAudioAdapter TrackAudioService,
+    Database database) : ControllerBase
 {
 
     [GeneratedRegex("^(Z[BSGUHWJPLYM][A-Z0-9]{2}(_[A-Z0-9]*)?_(DEL|GND|TWR|APP|DEP|CTR))|(PRC_FSS)$")]
@@ -27,7 +28,10 @@ public partial class CompatController(
     public async Task<CompatVatprcStatusDto> Status()
     {
         var vatsimData = await VatsimService.GetOnlineData();
-        var atcSchedule = await VatsimService.GetAtcSchedule();
+        var atcSchedule = await database.AtcBooking
+            .Where(s => s.StartAt >= DateTimeOffset.UtcNow)
+            .Include(s => s.User)
+            .ToListAsync();
         return new CompatVatprcStatusDto
         {
             LastUpdated = vatsimData.General.UpdateTimestamp,
@@ -56,12 +60,12 @@ public partial class CompatController(
                 }),
             FutureControllers = atcSchedule.Select(x => new CompatFutureControllerDto
             {
-                Name = $"{x.User.FirstName} {x.User.LastName}",
+                Name = x.User!.FullName,
                 Callsign = x.Callsign,
-                Start = x.Start.ToUniversalTime().ToString("dd HH:mm"),
-                StartUtc = x.Start.ToUniversalTime(),
-                End = x.Finish.ToUniversalTime().ToString("dd HH:mm"),
-                EndUtc = x.Finish.ToUniversalTime(),
+                Start = x.StartAt.ToUniversalTime().ToString("dd HH:mm"),
+                StartUtc = x.StartAt.ToUniversalTime(),
+                End = x.EndAt.ToUniversalTime().ToString("dd HH:mm"),
+                EndUtc = x.EndAt.ToUniversalTime(),
             }),
         };
     }
