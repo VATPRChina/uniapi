@@ -16,7 +16,6 @@ public class TrainingController(
     IUserAccessor userAccessor
 ) : Controller
 {
-    protected const int MAX_TRAININGS_PER_PAGE = 50;
     public const string RECORD_SHEEET_ID = "training-record";
 
     [HttpGet("active")]
@@ -42,13 +41,12 @@ public class TrainingController(
     }
 
     [HttpGet("finished")]
-    public async Task<IEnumerable<TrainingDto>> ListFinished(DateTimeOffset? until = null)
+    public async Task<IEnumerable<TrainingDto>> ListFinished()
     {
         var isAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant);
 
         var trainings = await database.Training
-            .Where(t => t.RecordSheetFilingId != null
-                && (until == null || t.CreatedAt <= until))
+            .Where(t => t.RecordSheetFilingId != null)
             .Where(t => isAdmin ||
                 t.TrainerId == userAccessor.GetUserId() ||
                 t.TraineeId == userAccessor.GetUserId())
@@ -58,7 +56,6 @@ public class TrainingController(
             .Include(t => t.RecordSheetFiling)
                 .ThenInclude(s => s!.Answers!)
                     .ThenInclude(a => a.Field)
-            .Take(MAX_TRAININGS_PER_PAGE)
             .Select(t => TrainingDto.From(t))
             .ToListAsync();
 
