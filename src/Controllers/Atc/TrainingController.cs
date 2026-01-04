@@ -21,7 +21,7 @@ public class TrainingController(
     [HttpGet("active")]
     public async Task<IEnumerable<TrainingDto>> List()
     {
-        var isAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant);
+        var isAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingMentor);
 
         var trainings = await database.Training
             .Where(t => t.RecordSheetFilingId == null)
@@ -43,7 +43,7 @@ public class TrainingController(
     [HttpGet("finished")]
     public async Task<IEnumerable<TrainingDto>> ListFinished()
     {
-        var isAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant);
+        var isAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingMentor);
 
         var trainings = await database.Training
             .Where(t => t.RecordSheetFilingId != null)
@@ -132,7 +132,7 @@ public class TrainingController(
     {
         if (training.TrainerId == userAccessor.GetUserId()) return;
         if (training.TraineeId == userAccessor.GetUserId()) return;
-        if (await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant)) return;
+        if (await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingMentor)) return;
 
         throw new ApiError.NotOwned(nameof(database.Training), training.Id, userAccessor.GetUserId());
     }
