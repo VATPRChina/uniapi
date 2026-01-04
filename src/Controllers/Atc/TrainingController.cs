@@ -112,7 +112,7 @@ public class TrainingController(
             throw new ApiError.NotFound(nameof(database.Training), id);
         }
 
-        await ValidateOwnership(training);
+        await ValidateOwnership(training, requireTrainer: true);
 
         var recordFiling = await sheetService.SetSheetFilingAsync(
             RECORD_SHEEET_ID,
@@ -128,10 +128,10 @@ public class TrainingController(
         return TrainingDto.From(training);
     }
 
-    protected async Task ValidateOwnership(Training training)
+    protected async Task ValidateOwnership(Training training, bool requireTrainer = false)
     {
         if (training.TrainerId == userAccessor.GetUserId()) return;
-        if (training.TraineeId == userAccessor.GetUserId()) return;
+        if (training.TraineeId == userAccessor.GetUserId() && !requireTrainer) return;
         if (await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingMentor)) return;
 
         throw new ApiError.NotOwned(nameof(database.Training), training.Id, userAccessor.GetUserId());
