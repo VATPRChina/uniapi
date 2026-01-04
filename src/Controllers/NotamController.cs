@@ -19,11 +19,6 @@ public class NotamController(DiscourseAdapter DiscourseService) : ControllerBase
         public required string Link { get; set; }
     }
 
-    protected IEnumerable<VatprcAtcApiAdapter.Role> FlattenRoles(IEnumerable<VatprcAtcApiAdapter.Role> Roles)
-    {
-        return Roles.SelectMany(r => FlattenRoles(r.AllSuperroles)).Concat(Roles);
-    }
-
     [HttpGet]
     [ProducesResponseType<IEnumerable<Notam>>(200)]
     public async Task<IActionResult> GetPermission()

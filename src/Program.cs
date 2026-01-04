@@ -185,7 +185,6 @@ builder.Services.AddCors(options =>
 
 MetarAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<VatsimAdapter>();
-VatprcAtcApiAdapter.ConfigureOn(builder);
 DiscourseAdapter.ConfigureOn(builder);
 FlightWorker.ConfigureOn(builder);
 builder.Services.AddSingleton<TrackAudioAdapter>();
