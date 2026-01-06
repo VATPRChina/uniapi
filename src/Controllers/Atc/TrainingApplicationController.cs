@@ -52,6 +52,23 @@ public class TrainingApplicationController(
         return TrainingApplicationDto.From(training);
     }
 
+    [HttpDelete("{id}")]
+    public async Task<TrainingApplicationDto> Delete(Ulid id)
+    {
+        var trainingApplication = await database.TrainingApplication
+            .Where(t => t.Id == id && t.TraineeId == userAccessor.GetUserId())
+            .Include(t => t.Trainee)
+            .Include(t => t.Slots)
+            .SingleOrDefaultAsync()
+            ?? throw new ApiError.NotFound(nameof(database.TrainingApplication), id);
+
+        trainingApplication.DeletedAt = DateTimeOffset.UtcNow;
+
+        await database.SaveChangesAsync();
+
+        return TrainingApplicationDto.From(trainingApplication);
+    }
+
     [HttpPost]
     public async Task<TrainingApplicationDto> Create([FromBody] TrainingApplicationCreateRequest dto)
     {
@@ -128,6 +145,11 @@ public class TrainingApplicationController(
         if (application.TrainId != null)
         {
             throw new ApiError.TrainingApplicationAlreadyAccepted(id);
+        }
+
+        if (application.DeletedAt != null)
+        {
+            throw new ApiError.NotFound(nameof(TrainingApplication), id);
         }
 
         TrainingApplicationSlot? slot = null;

@@ -24,6 +24,10 @@ public record TrainingApplicationDto
         {
             status = TrainingApplicationStatus.Accepted;
         }
+        else if (app.DeletedAt != null)
+        {
+            status = TrainingApplicationStatus.Cancelled;
+        }
         else
         {
             var endAt = app.Slots.Max(s => s.EndAt);

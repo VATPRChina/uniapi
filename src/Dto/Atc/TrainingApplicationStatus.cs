@@ -4,5 +4,6 @@ public enum TrainingApplicationStatus
 {
     Pending,
     Accepted,
-    Rejected
+    Rejected,
+    Cancelled,
 }
