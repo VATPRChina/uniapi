@@ -16,7 +16,8 @@ public class UserAtcPermission
 
     public bool CanAccessMoodle => true;
 
-    public bool CanOnline => State is UserControllerState.UnderMentor
+    public bool CanOnline => State is UserControllerState.Student
+        or UserControllerState.UnderMentor
         or UserControllerState.Solo
         or UserControllerState.Certified
         or UserControllerState.Mentor
