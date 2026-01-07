@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Net.Vatprc.Uniapi.Models.Atc;
 
 namespace Net.Vatprc.Uniapi.Models;
 
@@ -17,6 +18,8 @@ public partial class User
     public DateTimeOffset UpdatedAt { get; set; }
 
     public IList<string> Roles { get; set; } = new List<string>();
+
+    public UserAtcStatus? AtcStatus { get; set; }
 
     public IEnumerable<RefreshToken> Sessions { get; set; } = null!;
 

@@ -14,14 +14,18 @@ public class AtcController(
     [AllowAnonymous]
     public async Task<IEnumerable<ControllerDto>> List()
     {
-        return await DbContext.UserAtcPermission
-            .Include(p => p.User)
+        var permissions = await DbContext.UserAtcPermission
+            .Include(p => p.User!)
+                .ThenInclude(u => u.AtcStatus)
             .GroupBy(p => p.UserId)
+            .ToListAsync();
+        return permissions
             .Select(g => new ControllerDto
             {
                 User = UserDto.From(g.First().User!, showFullName: true),
-                Permissions = g.Select(p => AtcPermissionDto.From(p))
-            })
-            .ToListAsync();
+                Permissions = g.Select(p => AtcPermissionDto.From(p)),
+                IsVisiting = g.First().User!.AtcStatus?.IsVisiting ?? false,
+                IsAbsent = g.First().User!.AtcStatus?.IsAbsent ?? false,
+            });
     }
 }

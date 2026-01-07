@@ -65,7 +65,7 @@ public class VatsimAuthAdapter(IOptions<VatsimAuthAdapter.Option> Options)
                 redirect_uri = Options.Value.RedirectUri,
                 code,
                 code_verifier = verifier,
-                scope = "full_name email",
+                scope = "full_name email vatsim_details",
             })
             .ReceiveJson<TokenResponse>();
         return response;

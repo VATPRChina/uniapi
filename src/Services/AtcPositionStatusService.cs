@@ -19,6 +19,7 @@ public class AtcPositionStatusService
                 or UserControllerState.UnderMentor
                 or UserControllerState.Solo
                 or UserControllerState.Certified,
+            UserControllerState.Mentor => true,
             _ => throw new NotImplementedException("Invalid permission state: " + permission.State),
         };
     }

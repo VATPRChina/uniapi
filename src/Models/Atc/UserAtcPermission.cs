@@ -19,6 +19,7 @@ public class UserAtcPermission
     public bool CanOnline => State is UserControllerState.UnderMentor
         or UserControllerState.Solo
         or UserControllerState.Certified
+        or UserControllerState.Mentor
         && (SoloExpiresAt == null || SoloExpiresAt > DateTimeOffset.UtcNow);
 
     public bool CanRequestMentorSession => State is UserControllerState.UnderMentor
@@ -30,6 +31,7 @@ public class UserAtcPermission
         UnderMentor,
         Solo,
         Certified,
+        Mentor,
     }
 
     public class UserAtcPermissionConfiguration : IEntityTypeConfiguration<UserAtcPermission>

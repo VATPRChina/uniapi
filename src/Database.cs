@@ -35,6 +35,7 @@ public class Database(DbContextOptions<Database> options) : DbContext(options)
     public virtual DbSet<Waypoint> Waypoint { get; set; }
 
     public virtual DbSet<UserAtcPermission> UserAtcPermission { get; set; }
+    public virtual DbSet<UserAtcStatus> UserAtcStatus { get; set; }
     public virtual DbSet<AtcApplication> AtcApplication { get; set; }
     public virtual DbSet<AtcBooking> AtcBooking { get; set; }
     public virtual DbSet<Training> Training { get; set; }

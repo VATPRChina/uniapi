@@ -25,6 +25,26 @@ public class UserAtcPermissionController(
             .ToListAsync();
     }
 
+    [HttpGet("{id}/atc/status")]
+    public async Task<ControllerDto> GetAtcStatus(Ulid id)
+    {
+        var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
+
+        var status = await DbContext.UserAtcStatus.SingleOrDefaultAsync(s => s.UserId == user.Id);
+
+        var atcPermissions = await DbContext.UserAtcPermission
+            .Where(p => p.UserId == user.Id)
+            .ToListAsync();
+
+        return new ControllerDto
+        {
+            User = UserDto.From(user),
+            Permissions = atcPermissions.Select(AtcPermissionDto.From),
+            IsVisiting = status?.IsVisiting ?? false,
+            IsAbsent = status?.IsAbsent ?? false,
+        };
+    }
+
     [HttpGet("{id}/atc/permissions")]
     [Authorize(Roles = $"{UserRoles.ControllerTrainingMentor},{UserRoles.ControllerTrainingDirectorAssistant}")]
     public async Task<IEnumerable<AtcPermissionDto>> GetAtcPermissions(Ulid id)
