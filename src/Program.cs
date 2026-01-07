@@ -2,6 +2,7 @@ global using Microsoft.EntityFrameworkCore;
 global using Net.Vatprc.Uniapi;
 global using static Net.Vatprc.Uniapi.Utils.Utils;
 global using UniApi = Net.Vatprc.Uniapi;
+using System.Collections.Immutable;
 using System.CommandLine;
 using System.Reflection;
 using System.Text.Json;

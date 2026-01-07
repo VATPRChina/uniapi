@@ -12,6 +12,8 @@ public class UserAtcStatus
 
     public required bool IsAbsent { get; set; }
 
+    public required string Rating { get; set; }
+
     public class UserAtcStatusConfiguration : IEntityTypeConfiguration<UserAtcStatus>
     {
         public void Configure(EntityTypeBuilder<UserAtcStatus> builder)

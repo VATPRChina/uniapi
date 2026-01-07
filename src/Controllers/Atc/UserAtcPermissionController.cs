@@ -42,6 +42,7 @@ public class UserAtcPermissionController(
             Permissions = atcPermissions.Select(AtcPermissionDto.From),
             IsVisiting = status?.IsVisiting ?? false,
             IsAbsent = status?.IsAbsent ?? false,
+            Rating = status?.Rating ?? "OBS",
         };
     }
 

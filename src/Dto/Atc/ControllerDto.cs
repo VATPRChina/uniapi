@@ -6,4 +6,5 @@ public record class ControllerDto
     public required IEnumerable<AtcPermissionDto> Permissions { get; init; }
     public required bool IsVisiting { get; init; }
     public required bool IsAbsent { get; init; }
+    public required string Rating { get; init; }
 }

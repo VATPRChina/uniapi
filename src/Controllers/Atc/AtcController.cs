@@ -26,6 +26,7 @@ public class AtcController(
                 Permissions = g.Select(p => AtcPermissionDto.From(p)),
                 IsVisiting = g.First().User!.AtcStatus?.IsVisiting ?? false,
                 IsAbsent = g.First().User!.AtcStatus?.IsAbsent ?? false,
+                Rating = g.First().User!.AtcStatus?.Rating ?? "OBS",
             });
     }
 }
