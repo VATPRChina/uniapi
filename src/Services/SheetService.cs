@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Caching.Memory;
 using Net.Vatprc.Uniapi.Models.Sheet;
 
 namespace Net.Vatprc.Uniapi.Services;
@@ -7,21 +6,14 @@ public class SheetService(
     Database dbContext
 )
 {
-    // cache sheet
-    protected readonly IMemoryCache memoryCache = new MemoryCache(new MemoryCacheOptions());
-
     public async Task<Sheet?> GetSheetByIdAsync(string sheetId, CancellationToken ct = default)
     {
-        return await memoryCache.GetOrCreateAsync($"Sheet_{sheetId}", async entry =>
-        {
-            entry.SlidingExpiration = TimeSpan.FromMinutes(10);
-            return await dbContext.Sheet
-                .Where(s => s.Id == sheetId)
-                .Include(s => s.Fields!.OrderBy(f => !f.IsDeleted).ThenBy(f => f.Sequence))
-                // .Where(f => !f.IsDeleted) does not work due to navigation fixup:
-                // https://learn.microsoft.com/en-us/ef/core/querying/related-data/eager
-                .FirstOrDefaultAsync(ct);
-        });
+        return await dbContext.Sheet
+            .Where(s => s.Id == sheetId)
+            .Include(s => s.Fields!.OrderBy(f => !f.IsDeleted).ThenBy(f => f.Sequence))
+            // .Where(f => !f.IsDeleted) does not work due to navigation fixup:
+            // https://learn.microsoft.com/en-us/ef/core/querying/related-data/eager
+            .FirstOrDefaultAsync(ct);
     }
 
     public async Task<Sheet> EnsureSheetAsync(string sheetId, string sheetName, CancellationToken ct = default)
@@ -40,7 +32,7 @@ public class SheetService(
         };
 
         dbContext.Sheet.Add(sheet);
-        // await dbContext.SaveChangesAsync(ct);
+        await dbContext.SaveChangesAsync(ct);
 
         return sheet;
     }
@@ -102,7 +94,7 @@ public class SheetService(
             }
         }
 
-        // await dbContext.SaveChangesAsync(ct);
+        await dbContext.SaveChangesAsync(ct);
 
         return sheet;
     }
@@ -172,7 +164,7 @@ public class SheetService(
                 continue;
             }
 
-            if (!answers.TryGetValue(field.Id, out string? value) || value == null)
+            if (!answers.TryGetValue(field.Id, out string? value) || string.IsNullOrWhiteSpace(value))
             {
                 throw new RequiredFieldMissingException(field.Id, sheetId, nameof(answers));
             }
@@ -194,7 +186,7 @@ public class SheetService(
             }
         }
 
-        // await dbContext.SaveChangesAsync(ct);
+        await dbContext.SaveChangesAsync(ct);
 
         return sheetFiling;
     }
