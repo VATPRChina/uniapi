@@ -26,6 +26,7 @@ public class UserAtcPermissionController(
     }
 
     [HttpGet("{id}/atc/status")]
+    [Authorize(Roles = $"{UserRoles.ControllerTrainingMentor},{UserRoles.ControllerTrainingDirectorAssistant}")]
     public async Task<ControllerDto> GetAtcStatus(Ulid id)
     {
         var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);

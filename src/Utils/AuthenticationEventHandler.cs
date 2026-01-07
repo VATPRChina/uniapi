@@ -127,6 +127,14 @@ public class AuthenticationEventHandler(Database DbContext) : JwtBearerEvents
             {
                 identity.AddClaim(new(ClaimTypes.Role, UserRoles.Controller));
             }
+            var hasMentorPermission = await DbContext.UserAtcPermission
+                .Where(x => x.UserId == user.Id
+                    && x.State == Models.Atc.UserAtcPermission.UserControllerState.Mentor)
+                .AnyAsync();
+            if (hasMentorPermission)
+            {
+                identity.AddClaim(new(ClaimTypes.Role, UserRoles.ControllerTrainingMentor));
+            }
         }
         catch (Exception e)
         {
