@@ -21,7 +21,7 @@ public class UserAtcStatus
             builder.HasKey(e => e.UserId);
 
             builder.HasOne(e => e.User)
-                .WithOne()
+                .WithOne(u => u.AtcStatus)
                 .HasForeignKey<UserAtcStatus>(e => e.UserId);
         }
     }
