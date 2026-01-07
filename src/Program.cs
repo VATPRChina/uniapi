@@ -378,5 +378,6 @@ migrateCommand.SetHandler(async () =>
         ]);
 });
 rootCommand.Add(new NavdataCommand(app));
+rootCommand.Add(new ImportCommand(app));
 
 await rootCommand.InvokeAsync(args);
