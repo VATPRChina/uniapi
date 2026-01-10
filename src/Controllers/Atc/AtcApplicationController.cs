@@ -15,7 +15,7 @@ public class AtcApplicationController(
     SheetService sheetService,
     IUserAccessor userAccessor,
     AtcApplicationService atcApplicationService,
-    SmtpEmailAdapter emailAdapter
+    ISmtpEmailAdapter emailAdapter
 ) : Controller
 {
     public const string ATC_APPLICATION_REVIEW_SHEET_ID = "atc-application-review";

@@ -7,7 +7,12 @@ using MimeKit.Text;
 
 namespace Net.Vatprc.Uniapi.Adapters.EmailAdapter;
 
-public class SmtpEmailAdapter(IOptions<SmtpEmailAdapter.Option> Options, ILogger logger, IMeterFactory meterFactory)
+public interface ISmtpEmailAdapter
+{
+    Task SendEmailAsync(string to, EmailBase email, CancellationToken ct = default);
+}
+
+public class SmtpEmailAdapter(IOptions<SmtpEmailAdapter.Option> Options, ILogger<SmtpEmailAdapter> logger, IMeterFactory meterFactory) : ISmtpEmailAdapter
 {
     protected readonly static ActivitySource activitySource = new(typeof(SmtpEmailAdapter).FullName ?? throw new ArgumentNullException());
 
@@ -42,7 +47,7 @@ public class SmtpEmailAdapter(IOptions<SmtpEmailAdapter.Option> Options, ILogger
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
     {
         builder.Services.Configure<Option>(builder.Configuration.GetSection(Option.LOCATION));
-        builder.Services.AddSingleton<SmtpEmailAdapter>();
+        builder.Services.AddSingleton<ISmtpEmailAdapter, SmtpEmailAdapter>();
         return builder;
     }
 

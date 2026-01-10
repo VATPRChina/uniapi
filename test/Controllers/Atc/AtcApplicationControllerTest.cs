@@ -1,4 +1,7 @@
+using System.Diagnostics.Metrics;
+using Microsoft.Extensions.Logging;
 using Moq;
+using Net.Vatprc.Uniapi.Adapters.EmailAdapter;
 using Net.Vatprc.Uniapi.Controllers.Atc;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
@@ -34,7 +37,8 @@ public class AtcApplicationControllerTest : TestWithDatabase
             dbContext,
             sheetService.Object,
             userAccessor.Object,
-            atcApplicationService);
+            atcApplicationService,
+            new Mock<ISmtpEmailAdapter>().Object);
 
         var u1 = new User
         {
