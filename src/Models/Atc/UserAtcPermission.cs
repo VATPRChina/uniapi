@@ -23,8 +23,7 @@ public class UserAtcPermission
         or UserControllerState.Mentor
         && (SoloExpiresAt == null || SoloExpiresAt > DateTimeOffset.UtcNow);
 
-    public bool CanRequestMentorSession => State is UserControllerState.UnderMentor
-        or UserControllerState.Solo;
+    public bool CanRequestMentorSession => true;
 
     public enum UserControllerState
     {
