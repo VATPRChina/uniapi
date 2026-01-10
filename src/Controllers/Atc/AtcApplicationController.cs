@@ -102,15 +102,6 @@ public class AtcApplicationController(
         application.Status = updateDto.Status;
         await database.SaveChangesAsync();
 
-        var userEmail = application.User?.Email;
-        if (userEmail != null)
-        {
-            await emailAdapter.SendEmailAsync(
-                userEmail,
-                new AtcApplicationStatusChangeEmail(application.Id, application.Status.ToString()),
-                CancellationToken.None);
-        }
-
         return AtcApplicationDto.From(application, true, userAccessor.GetUserId());
     }
 }
