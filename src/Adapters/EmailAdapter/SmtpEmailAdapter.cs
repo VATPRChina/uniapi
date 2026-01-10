@@ -36,8 +36,12 @@ public class SmtpEmailAdapter(IOptions<SmtpEmailAdapter.Option> Options, ILogger
         message.From.Add(MimeKit.MailboxAddress.Parse(options.From));
         message.To.Add(MimeKit.MailboxAddress.Parse(to));
         message.Subject = email.GetSubject();
-        message.Body = new MimeKit.TextPart(TextFormat.Plain) { Text = email.GetPlainText() };
-        message.Body = new MimeKit.TextPart(TextFormat.Html) { Text = email.GetPlainText() };
+        var bodyBuilder = new MimeKit.BodyBuilder
+        {
+            HtmlBody = email.GetHtml(),
+            TextBody = email.GetPlainText()
+        };
+        message.Body = bodyBuilder.ToMessageBody();
 
         await smtpClient.SendAsync(message, ct);
 
