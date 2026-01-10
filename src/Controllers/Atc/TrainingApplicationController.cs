@@ -19,12 +19,17 @@ public class TrainingApplicationController(
 {
     protected const int MAX_TRAININGS_PER_PAGE = 50;
 
+    protected async Task<bool> IsAdmin()
+    {
+        return await userAccessor.HasCurrentUserAnyRoleOf(
+            UserRoles.ControllerTrainingDirectorAssistant,
+            UserRoles.ControllerTrainingMentor);
+    }
+
     [HttpGet]
     public async Task<IEnumerable<TrainingApplicationDto>> List()
     {
-        var isAdmin = await userAccessor.HasCurrentUserAnyRoleOf(
-            UserRoles.ControllerTrainingDirectorAssistant,
-            UserRoles.ControllerTrainingMentor);
+        var isAdmin = await IsAdmin();
 
         var trainings = await database.TrainingApplication
             .Where(t => isAdmin || t.TraineeId == userAccessor.GetUserId())
@@ -37,12 +42,9 @@ public class TrainingApplicationController(
         return trainings;
     }
 
-    [HttpGet("{id}")]
-    public async Task<TrainingApplicationDto> GetById(Ulid id)
+    protected async Task<TrainingApplication> FindById(Ulid id)
     {
-        var isAdmin = await userAccessor.HasCurrentUserAnyRoleOf(
-            UserRoles.ControllerTrainingDirectorAssistant,
-            UserRoles.ControllerTrainingMentor);
+        var isAdmin = await IsAdmin();
 
         var training = await database.TrainingApplication
             .Where(t => t.Id == id && (isAdmin || t.TraineeId == userAccessor.GetUserId()))
@@ -51,18 +53,21 @@ public class TrainingApplicationController(
             .SingleOrDefaultAsync()
             ?? throw new ApiError.NotFound(nameof(database.TrainingApplication), id);
 
+        return training;
+    }
+
+    [HttpGet("{id}")]
+    public async Task<TrainingApplicationDto> GetById(Ulid id)
+    {
+        var training = await FindById(id);
+
         return TrainingApplicationDto.From(training);
     }
 
     [HttpDelete("{id}")]
     public async Task<TrainingApplicationDto> Delete(Ulid id)
     {
-        var trainingApplication = await database.TrainingApplication
-            .Where(t => t.Id == id && t.TraineeId == userAccessor.GetUserId())
-            .Include(t => t.Trainee)
-            .Include(t => t.Slots)
-            .SingleOrDefaultAsync()
-            ?? throw new ApiError.NotFound(nameof(database.TrainingApplication), id);
+        var trainingApplication = await FindById(id);
 
         trainingApplication.DeletedAt = DateTimeOffset.UtcNow;
 
@@ -109,17 +114,41 @@ public class TrainingApplicationController(
         return TrainingApplicationDto.From(trainingApplication);
     }
 
+    [HttpPut("{id}")]
+    public async Task<TrainingApplicationDto> Update(Ulid id, [FromBody] TrainingApplicationCreateRequest dto)
+    {
+        var trainingApplication = await FindById(id);
+
+        trainingApplication.Name = dto.Name;
+        trainingApplication.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var existingSlots = await database.TrainingApplicationSlot
+            .Where(s => s.ApplicationId == trainingApplication.Id)
+            .ToListAsync();
+
+        database.TrainingApplicationSlot.RemoveRange(
+            existingSlots.Where(s => !dto.Slots.Any(dtoSlot => dtoSlot.StartAt == s.StartAt && dtoSlot.EndAt == s.EndAt)));
+
+        var slots = dto.Slots
+            .Where(dtoSlot => !existingSlots.Any(s => s.StartAt == dtoSlot.StartAt && s.EndAt == dtoSlot.EndAt))
+            .Select(slotDto => new TrainingApplicationSlot
+            {
+                Id = Ulid.NewUlid(),
+                ApplicationId = trainingApplication.Id,
+                StartAt = slotDto.StartAt,
+                EndAt = slotDto.EndAt
+            });
+        database.TrainingApplicationSlot.AddRange(slots);
+
+        await database.SaveChangesAsync();
+
+        return TrainingApplicationDto.From(trainingApplication);
+    }
+
     [HttpGet("{id}/responses")]
     public async Task<IEnumerable<TrainingApplicationResponseDto>> GetResponses(Ulid id)
     {
-        var isAdmin = await userAccessor.HasCurrentUserAnyRoleOf(
-            UserRoles.ControllerTrainingDirectorAssistant,
-            UserRoles.ControllerTrainingMentor);
-
-        var application = await database.TrainingApplication
-            .Where(t => t.Id == id && (isAdmin || t.TraineeId == userAccessor.GetUserId()))
-            .SingleOrDefaultAsync()
-            ?? throw new ApiError.NotFound(nameof(database.TrainingApplication), id);
+        var application = await FindById(id);
 
         var responses = await database.TrainingApplicationResponse
             .Where(r => r.ApplicationId == id)
@@ -129,6 +158,7 @@ public class TrainingApplicationController(
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => TrainingApplicationResponseDto.From(r))
             .ToListAsync();
+
         return responses;
     }
 
