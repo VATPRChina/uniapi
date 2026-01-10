@@ -35,12 +35,6 @@ public class TrainingApplicationResponseEmail : MjmlEmailBase
             <mj-text font-size="18px" font-weight="bold">Response Details</mj-text>
             <mj-text>Student: {{application.Trainee!.FullName}}/{{application.Trainee!.Cid}}</mj-text>
             <mj-text>Title: {{application.Name}}</mj-text>
-            <mj-text>Slots:</mj-text>
-            <mj-text>
-                <ul>
-                    {{string.Join("\n", application.Slots!.Select(slot => $"<li>{slot.StartAt:yyyy-MM-dd HH:mm} - {slot.EndAt:HH:mm} UTC</li>"))}}
-                </ul>
-            </mj-text>
             <mj-text>Response: {{(response.SlotId != null ? "Approved" : "Rejected")}}</mj-text>
             <mj-text>Comments: {{response.Comment}}</mj-text>
             """;
@@ -53,8 +47,6 @@ public class TrainingApplicationResponseEmail : MjmlEmailBase
             Response Details
             Student: {{application.Trainee!.FullName}}/{{application.Trainee!.Cid}}
             Title: {{application.Name}}
-            Slots:
-            {{string.Join("\n", application.Slots!.Select(slot => $"- {slot.StartAt:yyyy-MM-dd HH:mm} - {slot.EndAt:HH:mm} UTC"))}}
             Response: {{(response.SlotId != null ? "Approved" : "Rejected")}}
             Comments: {{response.Comment}}
             """;
