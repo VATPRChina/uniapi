@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters.EmailAdapter;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
@@ -13,7 +14,8 @@ public class AtcApplicationController(
     Database database,
     SheetService sheetService,
     IUserAccessor userAccessor,
-    AtcApplicationService atcApplicationService
+    AtcApplicationService atcApplicationService,
+    SmtpEmailAdapter emailAdapter
 ) : Controller
 {
     public const string ATC_APPLICATION_REVIEW_SHEET_ID = "atc-application-review";
@@ -80,6 +82,15 @@ public class AtcApplicationController(
         application.ReviewFilingId = reviewFiling.Id;
 
         await database.SaveChangesAsync();
+
+        var userEmail = application.User?.Email;
+        if (userEmail != null)
+        {
+            await emailAdapter.SendEmailAsync(
+                userEmail,
+                new AtcApplicationStatusChangeEmail(application.Id, application.Status.ToString()),
+                CancellationToken.None);
+        }
 
         return AtcApplicationDto.From(application, true, userId);
     }
