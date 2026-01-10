@@ -1,0 +1,84 @@
+using Net.Vatprc.Uniapi.Models.Atc;
+
+namespace Net.Vatprc.Uniapi.Adapters.EmailAdapter;
+
+public class TrainingApplicationCreationEmail : MjmlEmailBase
+{
+    protected readonly TrainingApplication application;
+
+    public TrainingApplicationCreationEmail(TrainingApplication application)
+    {
+        this.application = application;
+    }
+
+    public override string GetActionText()
+    {
+        return "View all training requests";
+    }
+
+    public override string GetActionUrl()
+    {
+        return "/controllers/trainings";
+    }
+
+    public override string GetEmailReasonText()
+    {
+        return "you are listed as one of the mentors";
+    }
+
+    public override string GetPostActionMjml()
+    {
+        return $$"""
+            <mj-divider border-color="#dee2e6" border-width="2px"></mj-divider>
+            <mj-text font-size="18px" font-weight="bold">Training Details</mj-text>
+            <mj-text>Student: {{application.Trainee!.FullName}}/{{application.Trainee!.Cid}}</mj-text>
+            <mj-text>Title: {{application.Name}}</mj-text>
+            <mj-text>Slots:</mj-text>
+            <mj-text>
+                <ul>
+                    {{string.Join("\n", application.Slots!.Select(slot => $"<li>{slot.StartAt:yyyy-MM-dd HH:mm} - {slot.EndAt:HH:mm} UTC</li>"))}}
+                </ul>
+            </mj-text>
+            """;
+    }
+
+    public override string GetPostActionText()
+    {
+        return $$"""
+
+            Training Details
+            Student: {{application.Trainee!.FullName}}/{{application.Trainee!.Cid}}
+            Title: {{application.Name}}
+            Slots:
+            {{string.Join("\n", application.Slots!.Select(slot => $"- {slot.StartAt:yyyy-MM-dd HH:mm} - {slot.EndAt:HH:mm} UTC"))}}
+            """;
+    }
+
+    public override string GetPreActionMjml()
+    {
+        return $$"""
+            <mj-text>We have received a new training request.</mj-text>
+            <mj-text>You can view the training request details in the training request list.</mj-text>
+            """;
+    }
+
+    public override string GetPreActionText()
+    {
+        return "We have received a new training request. You can view the training request details in the training request list.";
+    }
+
+    public override string GetPreviewText()
+    {
+        return "We have received a new training request";
+    }
+
+    public override string GetSubject()
+    {
+        return "New training request";
+    }
+
+    public override string GetTitleText()
+    {
+        return "New training request";
+    }
+}

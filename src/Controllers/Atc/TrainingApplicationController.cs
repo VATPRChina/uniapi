@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters.EmailAdapter;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Atc;
@@ -12,7 +13,8 @@ namespace Net.Vatprc.Uniapi.Controllers.Atc;
 [Route("api/atc/trainings/applications")]
 public class TrainingApplicationController(
     Database database,
-    IUserAccessor userAccessor
+    IUserAccessor userAccessor,
+    ISmtpEmailAdapter emailAdapter
 ) : Controller
 {
     protected const int MAX_TRAININGS_PER_PAGE = 50;
@@ -193,6 +195,13 @@ public class TrainingApplicationController(
         }
 
         await database.SaveChangesAsync();
+
+        if (application.Trainee!.Email != null)
+        {
+            await database.Entry(response).Reference(u => u.Trainer).LoadAsync();
+            var email = new TrainingApplicationResponseEmail(application, response);
+            await emailAdapter.SendEmailAsync(application.Trainee.Email, email, default);
+        }
 
         return TrainingApplicationResponseDto.From(response);
     }
