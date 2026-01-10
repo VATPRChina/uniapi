@@ -159,6 +159,8 @@ public class AtcApplicationController(
             throw new ApiError.AtcApplicationNotFound(id);
         }
 
+        application.Status = reviewDto.Status;
+
         var reviewFiling = await sheetService.SetSheetFilingAsync(
             ATC_APPLICATION_REVIEW_SHEET_ID,
             application.ReviewFiling?.Id,
@@ -171,33 +173,5 @@ public class AtcApplicationController(
         await database.SaveChangesAsync();
 
         return AtcApplicationDto.From(application, true, userId);
-    }
-
-    [HttpPut("{id}")]
-    [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
-    public async Task<AtcApplicationDto> UpdateStatus(
-        Ulid id,
-        [FromBody] AtcApplicationUpdateRequest updateDto)
-    {
-        var application = await atcApplicationService.GetApplication(id);
-
-        if (application == null)
-        {
-            throw new ApiError.AtcApplicationNotFound(id);
-        }
-
-        application.Status = updateDto.Status;
-        await database.SaveChangesAsync();
-
-        var userEmail = application.User?.Email;
-        if (userEmail != null)
-        {
-            await emailAdapter.SendEmailAsync(
-                userEmail,
-                new AtcApplicationStatusChangeEmail(application),
-                CancellationToken.None);
-        }
-
-        return AtcApplicationDto.From(application, true, userAccessor.GetUserId());
     }
 }
