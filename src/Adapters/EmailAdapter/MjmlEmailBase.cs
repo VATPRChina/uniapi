@@ -32,7 +32,7 @@ public abstract class MjmlEmailBase : EmailBase
     <mj-font name="Outfit"
       href="https://fonts.loli.net/css2?family=Outfit:wght@100..900" />
     <mj-attributes>
-      <mj-all font-family="Outfit" font-size="12pt" line-height="1.5" />
+      <mj-all font-family="Outfit,ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji" font-size="12pt" line-height="1.5" />
     </mj-attributes>
     <mj-style>
       a {
