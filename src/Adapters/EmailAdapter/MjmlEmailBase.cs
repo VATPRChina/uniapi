@@ -53,6 +53,7 @@ public abstract class MjmlEmailBase : EmailBase
         <mj-text font-size="24px" font-weight="bold">{{GetTitleText()}}</mj-text>
         {{GetPreActionMjml()}}
         <mj-button color="#FFF" background-color="#AB1615" href="https://www.vatprc.net{{GetActionUrl()}}">{{GetActionText()}}</mj-button>
+        {{GetPostActionMjml()}}
       </mj-column>
     </mj-section>
     <mj-section>
