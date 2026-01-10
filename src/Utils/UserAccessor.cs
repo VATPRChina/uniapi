@@ -34,14 +34,17 @@ public class UserAccessor(IHttpContextAccessor httpContextAccessor, Database dbC
 
     public async Task<bool> HasCurrentUserRole(string role)
     {
-        var user = await dbContext.User.FindAsync(GetUserId()) ??
-            throw new ApiError.UserNotFound(GetUserId());
-        var roles = UserRoleService.GetRoleClosure(user.Roles);
-        return roles.Contains(role);
+        return await HasCurrentUserAnyRoleOf(role);
     }
 
     public async Task<bool> HasCurrentUserAnyRoleOf(params string[] expectedRoles)
     {
+        var httpContext = httpContextAccessor.HttpContext
+            ?? throw new InvalidOperationException("No HttpContext available");
+        if (expectedRoles.Any(r => httpContext.User.IsInRole(r)))
+        {
+            return true;
+        }
         var user = await dbContext.User.FindAsync(GetUserId()) ??
             throw new ApiError.UserNotFound(GetUserId());
         var roles = UserRoleService.GetRoleClosure(user.Roles);
