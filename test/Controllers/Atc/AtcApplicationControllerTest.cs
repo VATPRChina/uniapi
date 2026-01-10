@@ -325,6 +325,7 @@ public class AtcApplicationControllerTest : TestWithDatabase
 
         var reviewDto = new AtcApplicationReviewRequest
         {
+            Status = AtcApplicationStatus.Approved,
             ReviewAnswers = [
                 new ()
                 {
@@ -351,6 +352,7 @@ public class AtcApplicationControllerTest : TestWithDatabase
         var nonExistentId = Ulid.NewUlid();
         var reviewDto = new AtcApplicationReviewRequest
         {
+            Status = AtcApplicationStatus.Approved,
             ReviewAnswers = [
                 new ()
                 {
@@ -362,40 +364,5 @@ public class AtcApplicationControllerTest : TestWithDatabase
 
         // Act & Assert
         var ex = Assert.ThrowsAsync<ApiError.AtcApplicationNotFound>(async () => await controller.ReviewApplication(nonExistentId, reviewDto));
-    }
-
-    [Test]
-    public async Task UpdateStatus_ChangesApplicationStatus()
-    {
-        // Arrange
-        var filing = await realSheetService.SetSheetFilingAsync(
-            ATC_APPLICATION_SHEET_ID,
-            null,
-            applicantUserId,
-            new Dictionary<string, string>
-            {
-                { "full-name", "Alice" },
-                { "experience", "2 years" },
-            });
-
-        var application = new AtcApplication
-        {
-            Id = Ulid.NewUlid(),
-            UserId = applicantUserId,
-            AppliedAt = DateTimeOffset.UtcNow,
-            ApplicationFilingId = filing.Id,
-        };
-
-        dbContext.AtcApplication.Add(application);
-        await dbContext.SaveChangesAsync();
-
-        // Act
-        var updatedAppDto = await controller.UpdateStatus(application.Id, new()
-        {
-            Status = AtcApplicationStatus.Approved,
-        });
-
-        // Assert
-        updatedAppDto.Status.Should().Be(AtcApplicationStatus.Approved);
     }
 }
