@@ -35,7 +35,7 @@ public class SmtpEmailAdapter(IOptions<SmtpEmailAdapter.Option> Options, ILogger
         var message = new MimeKit.MimeMessage();
         message.From.Add(MimeKit.MailboxAddress.Parse(options.From));
         message.To.Add(MimeKit.MailboxAddress.Parse(to));
-        message.Subject = email.GetSubject();
+        message.Subject = "[VATPRC]" + email.GetSubject();
         var bodyBuilder = new MimeKit.BodyBuilder
         {
             HtmlBody = email.GetHtml(),
