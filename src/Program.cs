@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.IdentityModel.Tokens;
 using Net.Vatprc.Uniapi.Adapters;
+using Net.Vatprc.Uniapi.Adapters.EmailAdapter;
 using Net.Vatprc.Uniapi.Controllers;
 using Net.Vatprc.Uniapi.Controllers.Atc;
 using Net.Vatprc.Uniapi.Models.Sheet;
@@ -199,6 +200,7 @@ builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddSingleton<AtcPositionKindService>();
 builder.Services.AddSingleton<AtcPositionStatusService>();
 builder.Services.AddScoped<AtcApplicationService>();
+SmtpEmailAdapter.ConfigureOn(builder);
 
 var app = builder.Build();
 
