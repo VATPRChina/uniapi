@@ -14,7 +14,8 @@ public class UserAtcPermissionController(
     Database DbContext,
     IUserAccessor userAccessor) : Controller
 {
-    protected readonly IEnumerable<string> ALLOWED_RATINGS = ["OBS", "S1", "S2", "S3", "C1", "C3", "I1", "I3"];
+    protected const string ADMIN_ROLES = $"{UserRoles.ControllerTrainingMentor},{UserRoles.ControllerTrainingDirectorAssistant}";
+    protected static readonly IEnumerable<string> ALLOWED_RATINGS = ["OBS", "S1", "S2", "S3", "C1", "C3", "I1", "I3"];
 
     [HttpGet("me/atc/status")]
     public async Task<AtcStatusDto> GetAtcStatus()
@@ -25,7 +26,7 @@ public class UserAtcPermissionController(
     }
 
     [HttpGet("{id}/atc/status")]
-    [Authorize(Roles = $"{UserRoles.ControllerTrainingMentor},{UserRoles.ControllerTrainingDirectorAssistant}")]
+    [Authorize(Roles = ADMIN_ROLES)]
     public async Task<AtcStatusDto> GetAtcStatus(Ulid id)
     {
         var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
@@ -40,7 +41,7 @@ public class UserAtcPermissionController(
     }
 
     [HttpPut("{id}/atc/status")]
-    [Authorize(Roles = $"{UserRoles.ControllerTrainingMentor},{UserRoles.ControllerTrainingDirectorAssistant}")]
+    [Authorize(Roles = ADMIN_ROLES)]
     public async Task<AtcStatusDto> SetAtcStatus(Ulid id, AtcStatusRequest req)
     {
         if (!ALLOWED_RATINGS.Contains(req.Rating))
@@ -94,7 +95,7 @@ public class UserAtcPermissionController(
     }
 
     [HttpDelete("{id}/atc/status")]
-    [Authorize(Roles = $"{UserRoles.ControllerTrainingMentor},{UserRoles.ControllerTrainingDirectorAssistant}")]
+    [Authorize(Roles = ADMIN_ROLES)]
     public async Task<IActionResult> DeleteAtcStatus(Ulid id)
     {
         var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
