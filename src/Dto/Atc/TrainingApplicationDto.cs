@@ -49,7 +49,7 @@ public record TrainingApplicationDto
             Status = status,
             Name = app.Name,
             TrainId = app.TrainId,
-            Slots = app.Slots.Select(TrainingApplicationSlotDto.From),
+            Slots = app.Slots.Select(TrainingApplicationSlotDto.From).OrderBy(s => s.StartAt),
             CreatedAt = app.CreatedAt,
             UpdatedAt = app.UpdatedAt,
         };
