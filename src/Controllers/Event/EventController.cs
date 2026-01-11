@@ -18,13 +18,8 @@ public class EventController(Database DbContext) : ControllerBase
     {
         var query = DbContext.Event.AsQueryable()
             .Where(x => DateTimeOffset.UtcNow < x.EndAt);
-        if (!User.IsInRole(UserRoles.EventCoordinator))
-        {
-            query = query.Where(x => DateTimeOffset.UtcNow.AddDays(7) > x.StartBookingAt);
-        }
-
         return await query
-            .OrderBy(x => x.StartBookingAt)
+            .OrderBy(x => x.StartAt)
             .Select(x => EventDto.From(x)).ToListAsync();
     }
 
