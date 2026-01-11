@@ -347,4 +347,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.BadRequest, "TRAINING_APPLICATION_ALREADY_ACCEPTED", "The training application {applicationId} has already been accepted.")]
     public class TrainingApplicationAlreadyAccepted(Ulid applicationId) :
         ApiError($"The training application {applicationId} has already been accepted.");
+
+    [Error(HttpStatusCode.BadRequest, "INVALID_ATC_RATING", "ATC rating {rating} is invalid.")]
+    public class InvalidAtcRating(string rating) :
+        ApiError($"ATC rating {rating} is invalid.");
 }
