@@ -10,8 +10,8 @@ public record EventDto
     public required string Title { get; init; }
     public required DateTimeOffset StartAt { get; init; }
     public required DateTimeOffset EndAt { get; init; }
-    public required DateTimeOffset StartBookingAt { get; init; }
-    public required DateTimeOffset EndBookingAt { get; init; }
+    public required DateTimeOffset? StartBookingAt { get; init; }
+    public required DateTimeOffset? EndBookingAt { get; init; }
     public required DateTimeOffset? StartAtcBookingAt { get; init; }
     public required string? ImageUrl { get; set; }
     public required string Description { get; set; }

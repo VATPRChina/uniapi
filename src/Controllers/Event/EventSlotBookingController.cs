@@ -43,10 +43,10 @@ public class EventSlotBookingController(
 
     [HttpPut]
     [ApiError.Has<ApiError.EventNotFound>]
-    public async Task<EventBookingDto> Put(Ulid eid, Ulid sid)
+    public async Task<EventBookingDto> Put(Ulid eid, Ulid sid, CancellationToken ct)
     {
         var lockObject = UserLevelLock.GetOrAdd(userAccessor.GetUserId(), new SemaphoreSlim(1, 1));
-        await lockObject.WaitAsync();
+        await lockObject.WaitAsync(ct);
         try
         {
             var uid = userAccessor.GetUserId();

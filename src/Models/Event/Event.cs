@@ -18,9 +18,9 @@ public class Event
 
     public DateTimeOffset UpdatedAt { get; set; }
 
-    public DateTimeOffset StartBookingAt { get; set; }
+    public DateTimeOffset? StartBookingAt { get; set; }
 
-    public DateTimeOffset EndBookingAt { get; set; }
+    public DateTimeOffset? EndBookingAt { get; set; }
 
     public DateTimeOffset? StartAtcBookingAt { get; set; }
 
@@ -36,7 +36,10 @@ public class Event
 
     public bool IsInBookingPeriod
     {
-        get => DateTimeOffset.Now > StartBookingAt && DateTimeOffset.Now < EndBookingAt;
+        get => StartBookingAt != null
+            && EndBookingAt != null
+            && DateTimeOffset.Now > StartBookingAt
+            && DateTimeOffset.Now < EndBookingAt;
     }
 
     public bool IsInAtcBookingPeriod
@@ -53,6 +56,12 @@ public class Event
 
             builder.Property(x => x.UpdatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            builder.Property(x => x.StartBookingAt)
+                .IsRequired(false);
+
+            builder.Property(x => x.EndBookingAt)
+                .IsRequired(false);
 
             builder.Property(x => x.StartAtcBookingAt)
                 .IsRequired(false);

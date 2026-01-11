@@ -52,13 +52,18 @@ public class EventController(Database DbContext) : ControllerBase
     [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<EventDto> Create(EventSaveRequest dto)
     {
+        if (dto.StartBookingAt == null ^ dto.EndBookingAt == null)
+        {
+            throw new ApiError.BadRequest("Both StartBookingAt and EndBookingAt must be set or both must be null.");
+        }
+
         var eventt = new Event()
         {
             Title = dto.Title,
             StartAt = dto.StartAt.ToUniversalTime(),
             EndAt = dto.EndAt.ToUniversalTime(),
-            StartBookingAt = dto.StartBookingAt.ToUniversalTime(),
-            EndBookingAt = dto.EndBookingAt.ToUniversalTime(),
+            StartBookingAt = dto.StartBookingAt?.ToUniversalTime(),
+            EndBookingAt = dto.EndBookingAt?.ToUniversalTime(),
             StartAtcBookingAt = dto.StartAtcBookingAt?.ToUniversalTime(),
             ImageUrl = dto.ImageUrl,
             Description = dto.Description,
@@ -72,12 +77,17 @@ public class EventController(Database DbContext) : ControllerBase
     [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<EventDto> Update(Ulid eid, EventSaveRequest dto)
     {
+        if (dto.StartBookingAt == null ^ dto.EndBookingAt == null)
+        {
+            throw new ApiError.BadRequest("Both StartBookingAt and EndBookingAt must be set or both must be null.");
+        }
+
         var eventt = await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid);
         eventt.Title = dto.Title;
         eventt.StartAt = dto.StartAt.ToUniversalTime();
         eventt.EndAt = dto.EndAt.ToUniversalTime();
-        eventt.StartBookingAt = dto.StartBookingAt.ToUniversalTime();
-        eventt.EndBookingAt = dto.EndBookingAt.ToUniversalTime();
+        eventt.StartBookingAt = dto.StartBookingAt?.ToUniversalTime();
+        eventt.EndBookingAt = dto.EndBookingAt?.ToUniversalTime();
         eventt.StartAtcBookingAt = dto.StartAtcBookingAt?.ToUniversalTime();
         eventt.ImageUrl = dto.ImageUrl;
         eventt.Description = dto.Description;
