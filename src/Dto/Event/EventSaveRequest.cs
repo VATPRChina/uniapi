@@ -9,5 +9,7 @@ public record EventSaveRequest
     public DateTimeOffset? EndBookingAt { get; init; }
     public DateTimeOffset? StartAtcBookingAt { get; init; }
     public string? ImageUrl { get; init; }
+    public string? CommunityLink { get; init; }
+    public string? VatsimLink { get; init; }
     public required string Description { get; set; }
 }

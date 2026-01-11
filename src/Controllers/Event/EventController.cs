@@ -61,6 +61,8 @@ public class EventController(Database DbContext) : ControllerBase
             EndBookingAt = dto.EndBookingAt?.ToUniversalTime(),
             StartAtcBookingAt = dto.StartAtcBookingAt?.ToUniversalTime(),
             ImageUrl = dto.ImageUrl,
+            CommunityLink = dto.CommunityLink,
+            VatsimLink = dto.VatsimLink,
             Description = dto.Description,
         };
         DbContext.Event.Add(eventt);
@@ -85,6 +87,8 @@ public class EventController(Database DbContext) : ControllerBase
         eventt.EndBookingAt = dto.EndBookingAt?.ToUniversalTime();
         eventt.StartAtcBookingAt = dto.StartAtcBookingAt?.ToUniversalTime();
         eventt.ImageUrl = dto.ImageUrl;
+        eventt.CommunityLink = dto.CommunityLink;
+        eventt.VatsimLink = dto.VatsimLink;
         eventt.Description = dto.Description;
         await DbContext.SaveChangesAsync();
         return EventDto.From(eventt);

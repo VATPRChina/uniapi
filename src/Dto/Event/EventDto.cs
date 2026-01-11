@@ -14,6 +14,8 @@ public record EventDto
     public required DateTimeOffset? EndBookingAt { get; init; }
     public required DateTimeOffset? StartAtcBookingAt { get; init; }
     public required string? ImageUrl { get; set; }
+    public required string? CommunityLink { get; set; }
+    public required string? VatsimLink { get; set; }
     public required string Description { get; set; }
 
     public static EventDto From(Event eventt)
@@ -30,6 +32,8 @@ public record EventDto
             EndBookingAt = eventt.EndBookingAt,
             StartAtcBookingAt = eventt.StartAtcBookingAt,
             ImageUrl = eventt.ImageUrl,
+            CommunityLink = eventt.CommunityLink,
+            VatsimLink = eventt.VatsimLink,
             Description = eventt.Description,
         };
     }
