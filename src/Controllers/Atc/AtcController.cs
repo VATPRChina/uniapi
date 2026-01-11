@@ -12,7 +12,7 @@ public class AtcController(
 {
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IEnumerable<ControllerDto>> List()
+    public async Task<IEnumerable<AtcStatusDto>> List()
     {
         var permissions = await DbContext.UserAtcPermission
             .Include(p => p.User!)
@@ -20,8 +20,9 @@ public class AtcController(
             .GroupBy(p => p.UserId)
             .ToListAsync();
         return permissions
-            .Select(g => new ControllerDto
+            .Select(g => new AtcStatusDto
             {
+                UserId = g.First().UserId,
                 User = UserDto.From(g.First().User!, showFullName: true),
                 Permissions = g.Select(p => AtcPermissionDto.From(p)),
                 IsVisiting = g.First().User!.AtcStatus?.IsVisiting ?? false,

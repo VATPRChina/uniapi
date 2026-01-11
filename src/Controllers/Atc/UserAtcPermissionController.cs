@@ -37,7 +37,7 @@ public class UserAtcPermissionController(
             .Where(p => p.UserId == user.Id)
             .ToListAsync();
 
-        return AtcStatusDto.From(user.Id, status, permissions);
+        return AtcStatusDto.From(user, status, permissions);
     }
 
     [HttpPut("{id}/atc/status")]
@@ -91,7 +91,7 @@ public class UserAtcPermissionController(
 
         await DbContext.SaveChangesAsync();
 
-        return AtcStatusDto.From(user.Id, status, permissions);
+        return AtcStatusDto.From(user, status, permissions);
     }
 
     [HttpDelete("{id}/atc/status")]
