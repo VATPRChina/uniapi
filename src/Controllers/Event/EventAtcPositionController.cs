@@ -178,7 +178,10 @@ public class EventAtcPositionController(
             throw new ApiError.EventPositionNotBooked(eventId, positionId);
         }
 
-        if (position.Booking.UserId != user.Id)
+        var isAdmin = await userAccessor.HasCurrentUserAnyRoleOf(
+            UserRoles.ControllerTrainingDirectorAssistant,
+            UserRoles.ControllerTrainingMentor);
+        if (position.Booking.UserId != user.Id && !isAdmin)
         {
             throw new ApiError.EventPositionBookedByAnotherUser(eventId, positionId);
         }
