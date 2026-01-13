@@ -202,6 +202,10 @@ public abstract class ApiError : Exception
     public class UserNotFound(Ulid user_id) :
         ApiError($"User {user_id} not found.");
 
+    [Error(HttpStatusCode.NotFound, "USER_NOT_FOUND_BY_CID", "User with CID {cid} not found.")]
+    public class UserNotFoundByCid(string cid) :
+        ApiError($"User with CID {cid} not found.");
+
     [Error(HttpStatusCode.BadRequest, "INVALID_GRANT_TYPE", "Invalid grant type {grant_type}.")]
     public class InvalidGrantType(string grant_type) :
         ApiError($"Invalid grant type {grant_type}.");

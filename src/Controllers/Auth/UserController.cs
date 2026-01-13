@@ -34,6 +34,21 @@ public class UserController(
             showFullName: await userAccessor.HasCurrentUserRole(UserRoles.Staff));
     }
 
+    [HttpGet("by-cid/{cid}")]
+    [Authorize(Roles = UserRoles.Volunteer)]
+    public async Task<UserDto?> GetByCid(string cid)
+    {
+        var user = await DbContext.User.FirstOrDefaultAsync(u => u.Cid == cid);
+        if (user == null)
+        {
+            throw new ApiError.UserNotFoundByCid(cid);
+        }
+
+        return UserDto.From(
+            user,
+            showFullName: await userAccessor.HasCurrentUserRole(UserRoles.Staff));
+    }
+
     [HttpPost("by-cid/{cid}")]
     [Authorize(Roles = UserRoles.Staff)]
     public async Task<UserDto> AssumeByCid(string cid)
