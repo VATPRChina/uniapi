@@ -163,6 +163,8 @@ public class EventAtcPositionController(
         DbContext.AtcBooking.Add(atcBooking);
 
         await DbContext.SaveChangesAsync();
+
+        await DbContext.Entry(position.Booking).Reference(x => x.User).LoadAsync();
         return EventAtcPositionBookingDto.From(position.Booking);
     }
 
