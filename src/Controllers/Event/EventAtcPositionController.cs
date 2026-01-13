@@ -140,7 +140,7 @@ public class EventAtcPositionController(
             throw new ApiError.EventPositionBooked(eventId, positionId);
         }
 
-        if (position.Event!.IsInAtcBookingPeriod == false)
+        if (position.Event!.IsInAtcBookingPeriod == false && req.UserId == null)
         {
             throw new ApiError.EventNotInBookingTime(eventId);
         }
