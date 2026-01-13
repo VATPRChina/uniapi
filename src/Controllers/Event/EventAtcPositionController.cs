@@ -173,7 +173,7 @@ public class EventAtcPositionController(
         var position = await LoadAsync(eventId, positionId);
         var user = await userAccessor.GetUser();
 
-        if (position.Booking == null || position.Booking.UserId != user.Id)
+        if (position.Booking == null)
         {
             throw new ApiError.EventPositionNotBooked(eventId, positionId);
         }
