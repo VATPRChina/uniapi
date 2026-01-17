@@ -355,4 +355,12 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.BadRequest, "INVALID_ATC_RATING", "ATC rating {rating} is invalid.")]
     public class InvalidAtcRating(string rating) :
         ApiError($"ATC rating {rating} is invalid.");
+
+    [Error(HttpStatusCode.Forbidden, "CANNOT_CREATE_TRAINING_FOR_OTHER_TRAINERS", "Cannot create training for other trainers.")]
+    public class CannotCreateTrainingForOtherTrainers() :
+        ApiError($"Cannot create training for other trainers.");
+
+    [Error(HttpStatusCode.Forbidden, "CANNOT_UPDATE_TRAINING_TRAINER_TRAINEE", "Cannot update training's trainer or trainee to another user.")]
+    public class CannotUpdateTrainingTrainerTrainee() :
+        ApiError($"Cannot update training's trainer or trainee to another user.");
 }

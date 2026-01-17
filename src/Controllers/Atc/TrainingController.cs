@@ -1,3 +1,4 @@
+using Discord.Commands;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Dto;
@@ -5,6 +6,7 @@ using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Atc;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
+using Org.BouncyCastle.Ocsp;
 
 namespace Net.Vatprc.Uniapi.Controllers.Atc;
 
@@ -85,6 +87,66 @@ public class TrainingController(
         return TrainingDto.From(training);
     }
 
+    [HttpPost]
+    [RequireRole(UserRoles.ControllerTrainingMentor)]
+    public async Task<TrainingDto> Create([FromBody] TrainingSaveRequest request)
+    {
+        var isSuperAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant);
+
+        if (request.TrainerId != userAccessor.GetUserId() && !isSuperAdmin)
+        {
+            throw new ApiError.CannotCreateTrainingForOtherTrainers();
+        }
+
+        var training = new Training
+        {
+            Id = Ulid.NewUlid(),
+            Name = request.Name,
+            TrainerId = request.TrainerId,
+            TraineeId = request.TraineeId,
+            StartAt = request.StartAt,
+            EndAt = request.EndAt,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        };
+
+        database.Training.Add(training);
+        await database.SaveChangesAsync();
+
+        var createdTraining = await FindById(training.Id);
+
+        return TrainingDto.From(createdTraining);
+    }
+
+    [HttpPut("{id}")]
+    [RequireRole(UserRoles.ControllerTrainingMentor)]
+    public async Task<TrainingDto> Update(Ulid id, [FromBody] TrainingSaveRequest request)
+    {
+        var training = await FindById(id);
+
+        if (training == null)
+        {
+            throw new ApiError.NotFound(nameof(database.Training), id);
+        }
+
+        await ValidateOwnership(training, requireTrainer: true);
+
+        if (request.TrainerId != training.TrainerId ||
+           request.TraineeId != training.TraineeId)
+        {
+            throw new ApiError.CannotUpdateTrainingTrainerTrainee();
+        }
+
+        training.Name = request.Name;
+        training.StartAt = request.StartAt;
+        training.EndAt = request.EndAt;
+        training.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await database.SaveChangesAsync();
+
+        return TrainingDto.From(training);
+    }
+
     [HttpGet("record-sheet")]
     public async Task<SheetDto> GetSheet()
     {
@@ -95,22 +157,12 @@ public class TrainingController(
     }
 
     [HttpPut("{id}/record")]
+    [RequireRole(UserRoles.ControllerTrainingMentor)]
     [ApiError.Has<ApiError.NotFound>]
     public async Task<TrainingDto> SetRecordSheet(Ulid id, [FromBody]
         TrainingRecordRequest request)
     {
-        var training = await database.Training
-            .Include(t => t.Trainer)
-            .Include(t => t.Trainee)
-            .Include(t => t.RecordSheetFiling)
-                .ThenInclude(s => s!.Answers!)
-                    .ThenInclude(a => a.Field)
-            .Where(t => t.Id == id)
-            .SingleOrDefaultAsync();
-        if (training == null)
-        {
-            throw new ApiError.NotFound(nameof(database.Training), id);
-        }
+        var training = await FindById(id);
 
         await ValidateOwnership(training, requireTrainer: true);
 
@@ -135,5 +187,24 @@ public class TrainingController(
         if (await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingMentor)) return;
 
         throw new ApiError.NotOwned(nameof(database.Training), training.Id, userAccessor.GetUserId());
+    }
+
+    protected async Task<Training> FindById(Ulid id)
+    {
+        var training = await database.Training
+            .Include(t => t.Trainer)
+            .Include(t => t.Trainee)
+            .Include(t => t.RecordSheetFiling)
+                .ThenInclude(s => s!.Answers!)
+                    .ThenInclude(a => a.Field)
+            .Where(t => t.Id == id)
+            .SingleOrDefaultAsync();
+
+        if (training == null)
+        {
+            throw new ApiError.NotFound(nameof(database.Training), id);
+        }
+
+        return training;
     }
 }
