@@ -134,6 +134,7 @@ public class AuthenticationEventHandler(Database DbContext) : JwtBearerEvents
             if (hasMentorPermission)
             {
                 identity.AddClaim(new(ClaimTypes.Role, UserRoles.ControllerTrainingMentor));
+                identity.AddClaim(new(ClaimTypes.Role, UserRoles.Volunteer));
             }
         }
         catch (Exception e)

@@ -88,7 +88,7 @@ public class TrainingController(
     }
 
     [HttpPost]
-    [RequireRole(UserRoles.ControllerTrainingMentor)]
+    [Authorize(Roles = UserRoles.ControllerTrainingMentor)]
     public async Task<TrainingDto> Create([FromBody] TrainingSaveRequest request)
     {
         var isSuperAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingDirectorAssistant);
@@ -119,7 +119,7 @@ public class TrainingController(
     }
 
     [HttpPut("{id}")]
-    [RequireRole(UserRoles.ControllerTrainingMentor)]
+    [Authorize(Roles = UserRoles.ControllerTrainingMentor)]
     public async Task<TrainingDto> Update(Ulid id, [FromBody] TrainingSaveRequest request)
     {
         var training = await FindById(id);
@@ -157,7 +157,7 @@ public class TrainingController(
     }
 
     [HttpPut("{id}/record")]
-    [RequireRole(UserRoles.ControllerTrainingMentor)]
+    [Authorize(Roles = UserRoles.ControllerTrainingMentor)]
     [ApiError.Has<ApiError.NotFound>]
     public async Task<TrainingDto> SetRecordSheet(Ulid id, [FromBody]
         TrainingRecordRequest request)
