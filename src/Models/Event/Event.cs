@@ -8,6 +8,8 @@ public class Event
 
     public string Title { get; set; } = string.Empty;
 
+    public string? TitleEn { get; set; }
+
     public string Description { get; set; } = string.Empty;
 
     public DateTimeOffset StartAt { get; set; }
@@ -73,6 +75,9 @@ public class Event
                 .IsRequired(false);
 
             builder.Property(x => x.VatsimLink)
+                .IsRequired(false);
+
+            builder.Property(x => x.TitleEn)
                 .IsRequired(false);
         }
     }

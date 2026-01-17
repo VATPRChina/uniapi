@@ -8,6 +8,7 @@ public record EventDto
     public required DateTimeOffset CreatedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
     public required string Title { get; init; }
+    public required string? TitleEn { get; init; }
     public required DateTimeOffset StartAt { get; init; }
     public required DateTimeOffset EndAt { get; init; }
     public required DateTimeOffset? StartBookingAt { get; init; }
@@ -26,6 +27,7 @@ public record EventDto
             CreatedAt = eventt.CreatedAt,
             UpdatedAt = eventt.UpdatedAt,
             Title = eventt.Title,
+            TitleEn = eventt.TitleEn,
             StartAt = eventt.StartAt,
             EndAt = eventt.EndAt,
             StartBookingAt = eventt.StartBookingAt,

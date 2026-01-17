@@ -3,6 +3,7 @@ namespace Net.Vatprc.Uniapi.Dto;
 public record EventSaveRequest
 {
     public required string Title { get; set; }
+    public string? TitleEn { get; set; }
     public required DateTimeOffset StartAt { get; set; }
     public required DateTimeOffset EndAt { get; set; }
     public DateTimeOffset? StartBookingAt { get; init; }

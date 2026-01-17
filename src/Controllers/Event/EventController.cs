@@ -55,6 +55,7 @@ public class EventController(Database DbContext) : ControllerBase
         var eventt = new Event()
         {
             Title = dto.Title,
+            TitleEn = dto.TitleEn,
             StartAt = dto.StartAt.ToUniversalTime(),
             EndAt = dto.EndAt.ToUniversalTime(),
             StartBookingAt = dto.StartBookingAt?.ToUniversalTime(),
@@ -81,6 +82,7 @@ public class EventController(Database DbContext) : ControllerBase
 
         var eventt = await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid);
         eventt.Title = dto.Title;
+        eventt.TitleEn = dto.TitleEn;
         eventt.StartAt = dto.StartAt.ToUniversalTime();
         eventt.EndAt = dto.EndAt.ToUniversalTime();
         eventt.StartBookingAt = dto.StartBookingAt?.ToUniversalTime();
