@@ -122,6 +122,7 @@ public class EventAtcPositionController(
         if (req.UserId != null)
         {
             await userAccessor.EnsureCurrentUserAnyRoleOf(
+                UserRoles.EventCoordinator,
                 UserRoles.ControllerTrainingDirectorAssistant,
                 UserRoles.ControllerTrainingMentor);
         }
@@ -181,6 +182,7 @@ public class EventAtcPositionController(
         }
 
         var isAdmin = await userAccessor.HasCurrentUserAnyRoleOf(
+            UserRoles.EventCoordinator,
             UserRoles.ControllerTrainingDirectorAssistant,
             UserRoles.ControllerTrainingMentor);
         if (position.Booking.UserId != user.Id && !isAdmin)
