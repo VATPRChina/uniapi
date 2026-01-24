@@ -16,7 +16,8 @@ public partial class CompatController(
     VatsimAdapter VatsimService,
     MetarAdapter MetarService,
     TrackAudioAdapter TrackAudioService,
-    Database database) : ControllerBase
+    Database database,
+    VplaafAdapter vplaafAdapter) : ControllerBase
 {
 
     [GeneratedRegex("^(Z[BSGUHWJPLYM][A-Z0-9]{2}(_[A-Z0-9]*)?_(DEL|GND|TWR|APP|DEP|CTR))|(PRC_FSS)$")]
@@ -107,5 +108,12 @@ public partial class CompatController(
     {
         var lastVersion = await TrackAudioService.GetLastVersionAsync();
         return Content(lastVersion, "text/plain", System.Text.Encoding.UTF8);
+    }
+
+    [HttpGet("vplaaf/areas.json")]
+    public async Task<IActionResult> GetVplaafAreas()
+    {
+        var areas = await vplaafAdapter.GetAreasAsync();
+        return Content(areas, "application/json", System.Text.Encoding.UTF8);
     }
 }

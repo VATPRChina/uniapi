@@ -201,6 +201,7 @@ builder.Services.AddSingleton<AtcPositionKindService>();
 builder.Services.AddSingleton<AtcPositionStatusService>();
 builder.Services.AddScoped<AtcApplicationService>();
 SmtpEmailAdapter.ConfigureOn(builder);
+builder.Services.AddSingleton<VplaafAdapter>();
 
 var app = builder.Build();
 
