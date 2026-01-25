@@ -13,6 +13,7 @@ public class TrackAudioAdapter
     {
         return await Cache.GetOrCreateAsync("MANDATORY_VERSION", entry =>
         {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(60);
             return ENDPOINT
                 .WithHeader("User-Agent", UniapiUserAgent)
                 .WithTimeout(15)

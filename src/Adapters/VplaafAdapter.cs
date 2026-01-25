@@ -13,6 +13,7 @@ public class VplaafAdapter
     {
         return await Cache.GetOrCreateAsync("AREAS", entry =>
         {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2);
             return ENDPOINT
                 .WithHeader("User-Agent", UniapiUserAgent)
                 .WithTimeout(15)
