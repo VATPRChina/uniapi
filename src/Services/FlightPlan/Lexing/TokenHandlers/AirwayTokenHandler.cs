@@ -19,16 +19,16 @@ public class AirwayTokenHandler : ITokenHandler
     {
         if (context.LastSegment == null) return false;
         if (context.NextSegment == null) return false;
-        var existsLeft = await navdataProvider.ExistsAirwayWithFix(
+        var existsLeft = navdataProvider.ExistsAirwayWithFix(
             context.CurrentSegment.Value,
             context.LastSegment.Value);
-        var existsRight = await navdataProvider.ExistsAirwayWithFix(
+        var existsRight = navdataProvider.ExistsAirwayWithFix(
             context.CurrentSegment.Value,
             context.NextSegment.Value);
         if (!existsLeft || !existsRight) return false;
 
         context.CurrentSegment.Kind = RouteTokenKind.AIRWAY;
-        context.CurrentSegment.Id = Ulid.Empty;
+        context.CurrentSegment.Id = string.Empty;
         context.CurrentSegment.Value = context.CurrentSegment.Value;
         return true;
     }

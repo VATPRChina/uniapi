@@ -26,13 +26,15 @@ public class AirwayTokenHandlerTest
         {
             Kind = RouteTokenKind.VHF,
             Value = "PUD",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.VHF,
             Value = "SHA",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
 
         var result = Handler.IsAllowed(Context, Navdata);
@@ -46,13 +48,15 @@ public class AirwayTokenHandlerTest
         {
             Kind = RouteTokenKind.NDB,
             Value = "PUD",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.NDB,
             Value = "SHA",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
 
         var result = Handler.IsAllowed(Context, Navdata);
@@ -66,13 +70,15 @@ public class AirwayTokenHandlerTest
         {
             Kind = RouteTokenKind.WAYPOINT,
             Value = "TOSID",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.WAYPOINT,
             Value = "ANSUK",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
 
         var result = Handler.IsAllowed(Context, Navdata);
@@ -86,13 +92,15 @@ public class AirwayTokenHandlerTest
         {
             Kind = RouteTokenKind.AIRWAY,
             Value = "A593",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.WAYPOINT,
             Value = "ANSUK",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
 
         var result = Handler.IsAllowed(Context, Navdata);
@@ -106,13 +114,15 @@ public class AirwayTokenHandlerTest
         {
             Kind = RouteTokenKind.AIRPORT,
             Value = "ZSPD",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.WAYPOINT,
             Value = "ANSUK",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
 
         var result = Handler.IsAllowed(Context, Navdata);
@@ -126,25 +136,28 @@ public class AirwayTokenHandlerTest
         {
             Kind = RouteTokenKind.VHF,
             Value = "PUD",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.CurrentSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "A593",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.NDB,
             Value = "SHA",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
 
         NavdataMock.Setup(n => n.ExistsAirwayWithFix("A593", "PUD"))
-            .ReturnsAsync(true);
+            .Returns(true);
         NavdataMock.Setup(n => n.ExistsAirwayWithFix("A593", "SHA"))
-            .ReturnsAsync(true);
+            .Returns(true);
 
         await Handler.Resolve(Context, Navdata);
 
@@ -152,7 +165,7 @@ public class AirwayTokenHandlerTest
         NavdataMock.Verify(n => n.ExistsAirwayWithFix("A593", "SHA"), Times.Once);
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.AIRWAY);
         Context.CurrentSegment.Value.Should().Be("A593");
-        Context.CurrentSegment.Id.Should().Be(Ulid.Empty);
+        Context.CurrentSegment.Id.Should().Be(string.Empty);
         ContextMock.VerifySet(c => c.CurrentLat = It.IsAny<double>(), Times.Never);
         ContextMock.VerifySet(c => c.CurrentLon = It.IsAny<double>(), Times.Never);
     }
@@ -164,23 +177,26 @@ public class AirwayTokenHandlerTest
         {
             Kind = RouteTokenKind.VHF,
             Value = "SHA",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.CurrentSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "A593",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.WAYPOINT,
             Value = "PUD",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
 
-        NavdataMock.Setup(n => n.ExistsAirwayWithFix("A593", "SHA")).ReturnsAsync(false);
-        NavdataMock.Setup(n => n.ExistsAirwayWithFix("A593", "PUD")).ReturnsAsync(false);
+        NavdataMock.Setup(n => n.ExistsAirwayWithFix("A593", "SHA")).Returns(false);
+        NavdataMock.Setup(n => n.ExistsAirwayWithFix("A593", "PUD")).Returns(false);
 
         await Handler.Resolve(Context, Navdata);
 
@@ -188,7 +204,7 @@ public class AirwayTokenHandlerTest
         NavdataMock.Verify(n => n.ExistsAirwayWithFix("A593", "PUD"), Times.Once);
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.UNKNOWN);
         Context.CurrentSegment.Value.Should().Be("A593");
-        Context.CurrentSegment.Id.Should().Be(Ulid.Empty);
+        Context.CurrentSegment.Id.Should().Be(string.Empty);
         ContextMock.VerifySet(c => c.CurrentLat = It.IsAny<double>(), Times.Never);
         ContextMock.VerifySet(c => c.CurrentLon = It.IsAny<double>(), Times.Never);
     }
@@ -200,23 +216,26 @@ public class AirwayTokenHandlerTest
         {
             Kind = RouteTokenKind.VHF,
             Value = "SHA",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.CurrentSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "A593",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         ContextMock.SetupGet(c => c.NextSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.WAYPOINT,
             Value = "PUD",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
 
-        NavdataMock.Setup(n => n.ExistsAirwayWithFix("A593", "SHA")).ReturnsAsync(false);
-        NavdataMock.Setup(n => n.ExistsAirwayWithFix("A593", "PUD")).ReturnsAsync(false);
+        NavdataMock.Setup(n => n.ExistsAirwayWithFix("A593", "SHA")).Returns(false);
+        NavdataMock.Setup(n => n.ExistsAirwayWithFix("A593", "PUD")).Returns(false);
 
         await Handler.Resolve(Context, Navdata);
 
@@ -224,7 +243,7 @@ public class AirwayTokenHandlerTest
         NavdataMock.Verify(n => n.ExistsAirwayWithFix("A593", "PUD"), Times.Once);
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.UNKNOWN);
         Context.CurrentSegment.Value.Should().Be("A593");
-        Context.CurrentSegment.Id.Should().Be(Ulid.Empty);
+        Context.CurrentSegment.Id.Should().Be(string.Empty);
         ContextMock.VerifySet(c => c.CurrentLat = It.IsAny<double>(), Times.Never);
         ContextMock.VerifySet(c => c.CurrentLon = It.IsAny<double>(), Times.Never);
     }

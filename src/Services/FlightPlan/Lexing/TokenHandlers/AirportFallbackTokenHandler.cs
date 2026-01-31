@@ -12,7 +12,7 @@ public class AirportFallbackTokenHandler : ITokenHandler
     public Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
         context.CurrentSegment.Kind = RouteTokenKind.AIRPORT;
-        context.CurrentSegment.Id = Ulid.Empty;
+        context.CurrentSegment.Id = string.Empty;
         return Task.FromResult(true);
     }
 }

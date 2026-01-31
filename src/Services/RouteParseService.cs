@@ -1,13 +1,13 @@
-using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models.Acdm;
+using Net.Vatprc.Uniapi.Services.FlightPlan;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Validating;
 
 namespace Net.Vatprc.Uniapi.Services;
 
-public class RouteParseService(DbNavdataAdapter navdata, RouteParserFactory routeParserFactory, ILoggerFactory loggerFactory)
+public class RouteParseService(INavdataProvider navdata, RouteParserFactory routeParserFactory, ILoggerFactory loggerFactory, Database db)
 {
-    protected DbNavdataAdapter Navdata => navdata;
+    protected INavdataProvider Navdata => navdata;
     protected RouteParserFactory RouteParserFactory => routeParserFactory;
 
     public async Task<IList<FlightLeg>> ParseRouteAsync(string route, string dep, string arr, CancellationToken ct = default)
@@ -24,7 +24,8 @@ public class RouteParseService(DbNavdataAdapter navdata, RouteParserFactory rout
             Navdata,
             RouteParserFactory,
             loggerFactory.CreateLogger<Validator>(),
-            loggerFactory);
+            loggerFactory,
+            db);
         return await validator.Validate(ct);
     }
 }

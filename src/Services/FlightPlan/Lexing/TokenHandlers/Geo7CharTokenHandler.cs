@@ -1,3 +1,6 @@
+using Arinc424;
+using Net.Vatprc.Uniapi.Services.FlightPlan.Utility;
+
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Lexing.TokenHandlers;
 
 public class Geo7CharTokenHandler : ITokenHandler
@@ -32,9 +35,10 @@ public class Geo7CharTokenHandler : ITokenHandler
                 : throw new InvalidOperationException($"Invalid longitude sign in geo coordinate {context.CurrentSegment.Value}");
 
             context.CurrentSegment.Kind = RouteTokenKind.GEO_COORD;
-            context.CurrentSegment.Id = Ulid.Empty;
+            context.CurrentSegment.Id = string.Empty;
             context.CurrentLat = lat * latSign;
             context.CurrentLon = lon * lonSign;
+            context.CurrentSegment.Geo = new GeoPoint(context.CurrentLat, context.CurrentLon);
             return Task.FromResult(true);
         }
         catch (InvalidOperationException ex)

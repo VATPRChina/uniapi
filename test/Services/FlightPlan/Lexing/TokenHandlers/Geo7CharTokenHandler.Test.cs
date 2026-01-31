@@ -30,7 +30,8 @@ public class Geo7CharTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = value,
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         var result = Handler.IsAllowed(Context, Navdata);
         result.Should().BeTrue();
@@ -43,7 +44,8 @@ public class Geo7CharTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "51N001W1",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         var result = Handler.IsAllowed(Context, Navdata);
         result.Should().BeFalse();
@@ -56,7 +58,8 @@ public class Geo7CharTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "51N001",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         var result = Handler.IsAllowed(Context, Navdata);
         result.Should().BeFalse();
@@ -73,7 +76,8 @@ public class Geo7CharTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = value,
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         var result = Handler.IsAllowed(Context, Navdata);
         result.Should().BeFalse();
@@ -88,14 +92,15 @@ public class Geo7CharTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = value,
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
 
         await Handler.Resolve(Context, Navdata);
 
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.GEO_COORD);
         Context.CurrentSegment.Value.Should().Be(value);
-        Context.CurrentSegment.Id.Should().Be(Ulid.Empty);
+        Context.CurrentSegment.Id.Should().Be(string.Empty);
         ContextMock.VerifySet(c => c.CurrentLat = lat, Times.Once);
         ContextMock.VerifySet(c => c.CurrentLon = lon, Times.Once);
     }

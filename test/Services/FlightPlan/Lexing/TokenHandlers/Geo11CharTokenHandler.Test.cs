@@ -30,7 +30,8 @@ public class Geo11CharTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = value,
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         var result = Handler.IsAllowed(Context, Navdata);
         result.Should().BeTrue();
@@ -43,7 +44,8 @@ public class Geo11CharTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "5100N00100W1",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         var result = Handler.IsAllowed(Context, Navdata);
         result.Should().BeFalse();
@@ -56,7 +58,8 @@ public class Geo11CharTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "5100N00100",
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         var result = Handler.IsAllowed(Context, Navdata);
         result.Should().BeFalse();
@@ -73,7 +76,8 @@ public class Geo11CharTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = value,
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
         var result = Handler.IsAllowed(Context, Navdata);
         result.Should().BeFalse();
@@ -89,14 +93,15 @@ public class Geo11CharTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = value,
-            Id = Ulid.Empty,
+            Id = string.Empty,
+            Geo = null,
         });
 
         await Handler.Resolve(Context, Navdata);
 
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.GEO_COORD);
         Context.CurrentSegment.Value.Should().Be(value);
-        Context.CurrentSegment.Id.Should().Be(Ulid.Empty);
+        Context.CurrentSegment.Id.Should().Be(string.Empty);
         ContextMock.VerifySet(c => c.CurrentLat = lat, Times.Once);
         ContextMock.VerifySet(c => c.CurrentLon = lon, Times.Once);
     }

@@ -1,5 +1,10 @@
+using Amazon.Runtime.Internal.Util;
+using Arinc424.Navigation;
+using Arinc424.Routing;
+using Arinc424.Waypoints;
 using Microsoft.Extensions.Caching.Memory;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Lexing;
+using Net.Vatprc.Uniapi.Services.FlightPlan.Utility;
 using static Net.Vatprc.Uniapi.Services.FlightPlan.INavdataProvider;
 
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
@@ -76,7 +81,8 @@ public class RouteParser
                         RouteTokenKind.GEO_COORD => FlightFix.FixType.GeoCoord,
                         RouteTokenKind.UNKNOWN => FlightFix.FixType.Unknown,
                         _ => throw new InvalidOperationException($"Unexpected token kind {segment.Kind} for initial fix."),
-                    }
+                    },
+                    Geo = segment.Geo,
                 };
             }
             else if (Legs.Count > 0)
@@ -96,28 +102,23 @@ public class RouteParser
             {
                 var legLookup = new Dictionary<string, Dictionary<string, AirwayLeg>>();
                 var airwayLegs = Navdata.FindAirwayLegs(segment.Value);
-                await foreach (var leg in airwayLegs)
+                foreach (var leg in airwayLegs)
                 {
-                    if (!legLookup.ContainsKey(leg.FromFixIdentifier))
+                    if (!legLookup.ContainsKey(leg.From.Fix.Identifier))
                     {
-                        legLookup[leg.FromFixIdentifier] = [];
+                        legLookup[leg.From.Fix.Identifier] = [];
                     }
-                    legLookup[leg.FromFixIdentifier][leg.ToFixIdentifier] = leg;
-                    if (!legLookup.ContainsKey(leg.ToFixIdentifier))
+                    legLookup[leg.From.Fix.Identifier][leg.To.Fix.Identifier] = leg;
+                    if (!legLookup.ContainsKey(leg.To.Fix.Identifier))
                     {
-                        legLookup[leg.ToFixIdentifier] = [];
+                        legLookup[leg.To.Fix.Identifier] = [];
                     }
-                    legLookup[leg.ToFixIdentifier][leg.FromFixIdentifier] = new AirwayLeg
+                    legLookup[leg.To.Fix.Identifier][leg.From.Fix.Identifier] = new AirwayLeg
                     {
-                        Ident = leg.Ident,
-                        FromFixIcaoCode = leg.ToFixIcaoCode,
-                        FromFixIdentifier = leg.ToFixIdentifier,
-                        FromFixId = leg.ToFixId,
-                        FromFixType = leg.ToFixType,
-                        ToFixIcaoCode = leg.FromFixIcaoCode,
-                        ToFixIdentifier = leg.FromFixIdentifier,
-                        ToFixId = leg.FromFixId,
-                        ToFixType = leg.FromFixType,
+                        Airway = leg.Airway,
+                        From = leg.To,
+                        To = leg.From,
+                        Flipped = true,
                     };
                 }
                 var fromFix = Lexer.Tokens[i - 1].Value;
@@ -129,37 +130,43 @@ public class RouteParser
                 foreach (var leg in path)
                 {
                     Logger.LogInformation(
-                        "Adding leg from {FromFixIdentifier}({FromFixId}) to {ToFixIdentifier}({ToFixId}) ({Ident})",
-                        leg.FromFixIdentifier, leg.FromFixId, leg.ToFixIdentifier, leg.ToFixId, leg.Ident);
+                        "Adding leg from {FromFixIdentifier}({FromFixId}) to {ToFixIdentifier}({ToFixId}) ({Ident}/{Id})",
+                        leg.From.Fix.Identifier, leg.From.RecordId,
+                        leg.To.Fix.Identifier, leg.To.RecordId,
+                        leg.Airway.Identifier, leg.Airway.RecordId);
                     Legs.Add(new FlightLeg
                     {
                         From = new FlightFix
                         {
-                            Id = leg.FromFixId,
-                            Identifier = leg.FromFixIdentifier,
-                            Type = leg.FromFixType switch
+                            Id = leg.From.RecordId,
+                            Identifier = leg.From.Fix.Identifier,
+                            Type = leg.From.Fix switch
                             {
-                                FixType.Waypoint => FlightFix.FixType.Waypoint,
-                                FixType.Vhf => FlightFix.FixType.Vhf,
-                                FixType.Ndb => FlightFix.FixType.Ndb,
+                                Waypoint => FlightFix.FixType.Waypoint,
+                                Omnidirect => FlightFix.FixType.Vhf,
+                                Nondirect => FlightFix.FixType.Ndb,
                                 _ => FlightFix.FixType.Unknown,
                             },
+                            Geo = leg.From.Fix,
                         },
                         To = new FlightFix
                         {
-                            Id = leg.ToFixId,
-                            Identifier = leg.ToFixIdentifier,
-                            Type = leg.ToFixType switch
+                            Id = leg.To.RecordId,
+                            Identifier = leg.To.Fix.Identifier,
+                            Type = leg.To.Fix switch
                             {
-                                FixType.Waypoint => FlightFix.FixType.Waypoint,
-                                FixType.Vhf => FlightFix.FixType.Vhf,
-                                FixType.Ndb => FlightFix.FixType.Ndb,
+                                Waypoint => FlightFix.FixType.Waypoint,
+                                Omnidirect => FlightFix.FixType.Vhf,
+                                Nondirect => FlightFix.FixType.Ndb,
                                 _ => FlightFix.FixType.Unknown,
                             },
+                            Geo = leg.To.Fix,
                         },
-                        LegId = (leg.FromFixId, leg.ToFixId),
-                        LegIdentifier = leg.Ident,
-                        Type = FlightLeg.LegType.Airway
+                        LegId = (leg.From.RecordId, leg.To.RecordId),
+                        LegIdentifier = leg.Airway.Identifier,
+                        Type = FlightLeg.LegType.Airway,
+                        Points = (leg.From, leg.To),
+                        Airway = leg.Airway,
                     });
                 }
             }
@@ -170,6 +177,7 @@ public class RouteParser
                     Id = segment.Id,
                     Identifier = segment.Value,
                     Type = FlightFix.FixType.Airport,
+                    Geo = segment.Geo,
                 });
             }
             else if (segment.Kind == RouteTokenKind.VHF)
@@ -179,6 +187,7 @@ public class RouteParser
                     Id = segment.Id,
                     Identifier = segment.Value,
                     Type = FlightFix.FixType.Vhf,
+                    Geo = segment.Geo,
                 });
             }
             else if (segment.Kind == RouteTokenKind.NDB)
@@ -188,6 +197,7 @@ public class RouteParser
                     Id = segment.Id,
                     Identifier = segment.Value,
                     Type = FlightFix.FixType.Ndb,
+                    Geo = segment.Geo,
                 });
             }
             else if (segment.Kind == RouteTokenKind.WAYPOINT)
@@ -197,6 +207,7 @@ public class RouteParser
                     Id = segment.Id,
                     Identifier = segment.Value,
                     Type = FlightFix.FixType.Waypoint,
+                    Geo = segment.Geo,
                 });
             }
             else if (segment.Kind == RouteTokenKind.GEO_COORD)
@@ -206,6 +217,7 @@ public class RouteParser
                     Id = segment.Id,
                     Identifier = segment.Value,
                     Type = FlightFix.FixType.GeoCoord,
+                    Geo = segment.Geo,
                 });
             }
             else if (segment.Kind == RouteTokenKind.UNKNOWN)
@@ -215,6 +227,7 @@ public class RouteParser
                     Id = segment.Id,
                     Identifier = segment.Value,
                     Type = FlightFix.FixType.Unknown,
+                    Geo = segment.Geo,
                 });
             }
             else if (segment.Kind == RouteTokenKind.SPEED_AND_ALTITUDE)
@@ -302,6 +315,8 @@ public class RouteParser
             LegId = null,
             LegIdentifier = "DCT",
             Type = FlightLeg.LegType.Direct,
+            Points = null,
+            Airway = null,
         });
     }
 }

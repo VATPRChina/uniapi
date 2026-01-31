@@ -1,6 +1,10 @@
 using Arinc424;
-using Net.Vatprc.Uniapi.Models.Navdata;
+using Arinc424.Ground;
+using Arinc424.Navigation;
+using Arinc424.Procedures;
+using Arinc424.Waypoints;
 using Net.Vatprc.Uniapi.Services.FlightPlan;
+using Net.Vatprc.Uniapi.Services.FlightPlan.Utility;
 using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Adapters;
@@ -10,89 +14,90 @@ public class Arinc424NavdataAdapter : INavdataProvider
     protected const string Arinc424DataPath = "Data/cesfpl.pc";
     protected Data424 Data { get; set; } = null!;
 
+    public bool ExistsAirwayWithFix(string ident, string fixIdent)
+    {
+        var exists = Data.Airways
+            .Where(a => a.Identifier == ident)
+            .Any(a => a.Sequence.Any(f => f.Fix.Identifier == fixIdent));
+        return exists;
+    }
+
+    public Airport? FindAirport(string ident)
+    {
+        var airport = Data.Airports.SingleOrDefault(a => a.Identifier == ident);
+        return airport;
+    }
+
+    public IEnumerable<AirwayLeg> FindAirwayLegs(string ident)
+    {
+        var airways = Data.Airways.Where(a => a.Identifier == ident).ToList();
+        var legs = airways
+            .SelectMany(airway => airway.Sequence.SkipLast(1)
+                .Zip(airway.Sequence.Skip(1), (from, to) => new AirwayLeg
+                {
+                    Airway = airway,
+                    From = from,
+                    To = to,
+                    Flipped = false,
+                })
+                .ToList());
+        return legs;
+    }
+
+    public Nondirect? FindNdbNavaid(string ident, double lat, double lon)
+    {
+        var ndb = Data.Nondirects
+            .Where(a => a.Identifier == ident)
+            .OrderBy(w => Geography.DistanceBetweenPoints(w.Coordinates.Latitude, w.Coordinates.Longitude, lat, lon))
+            .FirstOrDefault();
+        return ndb;
+    }
+
+    public Departure? FindSid(string ident, string airportIdent)
+    {
+        var airport = Data.Airports.SingleOrDefault(a => a.Identifier == airportIdent);
+        if (airport == null) return null;
+
+        var sid = airport.Departures?.SingleOrDefault(p => p.Identifier == ident);
+        return sid;
+    }
+
+    public Arrival? FindStar(string ident, string airportIdent)
+    {
+        var airport = Data.Airports.SingleOrDefault(a => a.Identifier == airportIdent);
+        if (airport == null) return null;
+
+        var star = airport.Arrivals?.SingleOrDefault(p => p.Identifier == ident);
+        return star;
+    }
+
+    public Omnidirect? FindVhfNavaid(string ident, double lat, double lon)
+    {
+        var vhf = Data.Omnidirects
+            .Where(a => a.Identifier == ident)
+            .OrderBy(w => Geography.DistanceBetweenPoints(
+                w.Coordinates.Latitude, w.Coordinates.Longitude,
+                lat, lon))
+            .FirstOrDefault();
+        return vhf;
+    }
+
+    public Waypoint? FindWaypoint(string ident, double lat, double lon)
+    {
+        var waypoint = Data.EnrouteWaypoints
+            .Where(a => a.Identifier == ident)
+            .OrderBy(w => Geography.DistanceBetweenPoints(
+                w.Coordinates.Latitude, w.Coordinates.Longitude,
+                lat, lon))
+            .FirstOrDefault();
+        return waypoint;
+    }
+
     public async Task InitializeAsync()
     {
         var meta = Meta424.Create(Supplement.V18);
         var strings = await File.ReadAllLinesAsync(Arinc424DataPath);
         var data = Data424.Create(meta, strings, out var invalid, out var skipped);
         Data = data;
-    }
-
-    public Task<bool> ExistsAirwayWithFix(string ident, string fixIdent)
-    {
-        var airway = Data.Airways.FirstOrDefault(a => a.Identifier == ident);
-        if (airway == null) return Task.FromResult(false);
-        var exists = airway.Sequence.Any(f => f.Fix.Identifier == fixIdent);
-        return Task.FromResult(exists);
-    }
-
-    public Task<Airport?> FindAirport(string ident)
-    {
-        var airport = Data.Airports.FirstOrDefault(a => a.Identifier == ident);
-        if (airport == null) return Task.FromResult<Airport?>(null);
-        return Task.FromResult<Airport?>(new Airport
-        {
-            Id = Ulid.Empty, // TODO: $"{airport.Date}/{airport.Number}",
-            Identifier = airport.Identifier,
-            Latitude = airport.Coordinates.Latitude,
-            Longitude = airport.Coordinates.Longitude,
-            Elevation = airport.Elevation,
-        });
-    }
-
-    public IAsyncEnumerable<INavdataProvider.AirwayLeg> FindAirwayLegs(string ident)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<NdbNavaid?> FindNdbNavaid(string ident, double lat, double lon)
-    {
-        var ndb = Data.Nondirects
-            .Where(n => n.Identifier == ident)
-            .OrderBy(n => Geography.DistanceBetweenPoints(n.Coordinates.Latitude, n.Coordinates.Longitude, lat, lon))
-            .FirstOrDefault();
-        if (ndb == null) return Task.FromResult<NdbNavaid?>(null);
-        return Task.FromResult<NdbNavaid?>(new NdbNavaid
-        {
-            Id = Ulid.Empty, // TODO: $"{ndb.Date}/{ndb.Number}",
-            Identifier = ndb.Identifier,
-            Latitude = ndb.Coordinates.Latitude,
-            Longitude = ndb.Coordinates.Longitude,
-        });
-    }
-
-    public Task<Procedure?> FindSid(string ident, string airportIdent)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<Procedure?> FindStar(string ident, string airportIdent)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<VhfNavaid?> FindVhfNavaid(string ident, double lat, double lon)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<Waypoint?> FindWaypoint(string ident, double lat, double lon)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<AirwayFix?> GetAirwayFix(Ulid id)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<IList<PreferredRoute>> GetRecommendedRoutes(string dep, string arr)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<string?> GetFullQualifiedFixIdentifier(Ulid id, INavdataProvider.FixType type)
-    {
-        throw new NotImplementedException();
     }
 }

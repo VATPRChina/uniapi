@@ -15,7 +15,7 @@ public class StarFallbackTokenHandler : ITokenHandler
     public Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
         context.CurrentSegment.Kind = RouteTokenKind.STAR;
-        context.CurrentSegment.Id = Ulid.Empty;
+        context.CurrentSegment.Id = string.Empty;
         return Task.FromResult(true);
     }
 }
