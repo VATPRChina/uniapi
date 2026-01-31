@@ -190,7 +190,6 @@ MetarAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<VatsimAdapter>();
 DiscourseAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<TrackAudioAdapter>();
-builder.Services.AddScoped<INavdataProvider, Arinc424NavdataAdapter>();
 builder.Services.AddScoped<RouteParseService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<RouteParserFactory>();
@@ -203,6 +202,7 @@ builder.Services.AddSingleton<AtcPositionStatusService>();
 builder.Services.AddScoped<AtcApplicationService>();
 SmtpEmailAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<VplaafAdapter>();
+Arinc424NavdataAdapter.ConfigureOn(builder);
 
 var app = builder.Build();
 
