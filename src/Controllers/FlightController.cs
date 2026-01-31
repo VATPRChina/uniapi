@@ -13,27 +13,25 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// </summary>
 [ApiController, Route("api/flights")]
 public partial class FlightController(
-    Database DbContext,
     ILogger<FlightController> Logger,
     RouteParseService RouteParse,
-    IUserAccessor userAccessor) : ControllerBase
+    IUserAccessor userAccessor,
+    FlightService flightService) : ControllerBase
 {
     [HttpGet("active")]
     [AllowAnonymous]
     public async Task<IEnumerable<FlightDto>> GetActive()
     {
-        return await DbContext.Flight
-            .Where(f => f.FinalizedAt == null)
-            .OrderBy(f => f.Callsign)
-            .Select(f => FlightDto.From(f))
-            .ToListAsync();
+        return (await flightService.GetFlightsAsync())
+            .Select(FlightDto.From)
+            .ToList();
     }
 
     [HttpGet("by-callsign/{callsign}")]
     [AllowAnonymous]
-    public async Task<FlightDto> GetByCallsign(string callsign)
+    public async Task<FlightDto> GetByCallsign(string callsign, CancellationToken ct)
     {
-        var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
+        var flight = await flightService.GetFlightByCallsignAsync(callsign, ct)
             ?? throw new ApiError.CallsignNotFound(callsign);
         return FlightDto.From(flight);
     }
@@ -42,7 +40,7 @@ public partial class FlightController(
     [AllowAnonymous]
     public async Task<IEnumerable<WarningMessage>> GetWarningByCallsign(string callsign, CancellationToken ct)
     {
-        var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
+        var flight = await flightService.GetFlightByCallsignAsync(callsign, ct)
             ?? throw new ApiError.CallsignNotFound(callsign);
         var parsedRoute = await RouteParse.ParseRouteAsync(flight.RawRoute, flight.Departure, flight.Arrival, ct);
         var violations = await RouteParse.ValidateFlight(flight, parsedRoute, ct);
@@ -66,7 +64,7 @@ public partial class FlightController(
     [AllowAnonymous]
     public async Task<IList<FlightLeg>> GetRouteByCallsign(string callsign, CancellationToken ct)
     {
-        var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Callsign == callsign && f.FinalizedAt == null)
+        var flight = await flightService.GetFlightByCallsignAsync(callsign, ct)
             ?? throw new ApiError.CallsignNotFound(callsign);
         try
         {
@@ -158,7 +156,7 @@ public partial class FlightController(
     {
         var user = await userAccessor.GetUser();
 
-        var flight = await DbContext.Flight.FirstOrDefaultAsync(f => f.Cid == user.Cid && f.FinalizedAt == null)
+        var flight = await flightService.GetFlightByCidAsync(user.Cid)
             ?? throw new ApiError.FlightNotFoundForCid(user.Cid);
         return FlightDto.From(flight);
     }

@@ -1,5 +1,3 @@
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
 namespace Net.Vatprc.Uniapi.Models.Acdm;
 
 public class Flight
@@ -66,27 +64,4 @@ public class Flight
     public bool SupportRnpArWithRf => NavigationPerformance.Contains("T1");
     public bool SupportRnpArWithoutRf => NavigationPerformance.Contains("T2");
     public bool HasTransponder => !string.IsNullOrEmpty(Transponder);
-
-    public class Configuration : IEntityTypeConfiguration<Flight>
-    {
-        public void Configure(EntityTypeBuilder<Flight> builder)
-        {
-            builder.Property(x => x.FinalizedAt)
-                .IsRequired(false)
-                .HasDefaultValue(null);
-
-            builder.HasIndex(x => x.Callsign);
-
-            builder.HasIndex(x => x.Cid);
-
-            builder.Property(x => x.DepartureGate)
-                .IsRequired(false);
-
-            builder.Property(x => x.ArrivalGate)
-                .IsRequired(false);
-
-            builder.Property(x => x.State)
-                .HasConversion<string>();
-        }
-    }
 }

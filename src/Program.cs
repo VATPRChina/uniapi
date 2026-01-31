@@ -188,13 +188,13 @@ builder.Services.AddCors(options =>
 MetarAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<VatsimAdapter>();
 DiscourseAdapter.ConfigureOn(builder);
-FlightWorker.ConfigureOn(builder);
 builder.Services.AddSingleton<TrackAudioAdapter>();
 builder.Services.AddScoped<DbNavdataAdapter>();
 builder.Services.AddScoped<RouteParseService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<RouteParserFactory>();
 SmmsAdapter.ConfigureOn(builder);
+builder.Services.AddSingleton<FlightService>();
 builder.Services.AddScoped<SheetService>();
 builder.Services.AddScoped<IUserAccessor, UserAccessor>();
 builder.Services.AddSingleton<AtcPositionKindService>();
@@ -239,7 +239,7 @@ app.MapFallbackToController("/api/{**path}",
     nameof(UniApi.Controllers.InternalController).Replace("Controller", ""));
 
 var rootCommand = new RootCommand("Start VATPRC UniAPI");
-rootCommand.SetHandler(async () =>
+rootCommand.SetAction(async parseResult =>
 {
     if (app.Environment.IsDevelopment())
     {
@@ -251,7 +251,7 @@ rootCommand.TreatUnmatchedTokensAsErrors = false;
 
 var migrateCommand = new Command("migrate", "Migrate database");
 rootCommand.Add(migrateCommand);
-migrateCommand.SetHandler(async () =>
+migrateCommand.SetAction(async parseResult =>
 {
     using var scope = app.Services.CreateScope();
     using var db = scope.ServiceProvider.GetRequiredService<Database>();
@@ -415,6 +415,5 @@ migrateCommand.SetHandler(async () =>
     }
     await db.SaveChangesAsync();
 });
-rootCommand.Add(new NavdataCommand(app));
 
-await rootCommand.InvokeAsync(args);
+return await rootCommand.Parse(args).InvokeAsync();

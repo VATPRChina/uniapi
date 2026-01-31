@@ -27,7 +27,7 @@
 
   <ItemGroup>
     <PackageReference Include="arinc424" Version="0.3.2" />
-    <PackageReference Include="AWSSDK.S3" Version="4.0.4.2" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.18.1" />
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="Discord.Net" Version="3.18.0" />
     <PackageReference Include="EFCore.NamingConventions" Version="10.0.0-rc.2" />
@@ -48,7 +48,7 @@
     <PackageReference Include="OpenTelemetry" Version="1.14.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.11.8" />
     <PackageReference Include="Sep" Version="0.12.0" />
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <PackageReference Include="System.CommandLine" Version="2.0.2" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     <PackageReference Include="System.Linq.Async" Version="7.0.0" />
     <PackageReference Include="Tomlyn" Version="0.19.0" />

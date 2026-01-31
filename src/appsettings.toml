@@ -53,10 +53,5 @@ PublicKey = """
 Endpoint = "https://community.vatprc.net"
 ApiKey = ""
 
-[Worker.Flight]
-Enabled = false
-PeriodInSeconds = 15
-TimeoutInMinutes = 5
-
 [Storage.Image.Smms]
 SecretToken = ""

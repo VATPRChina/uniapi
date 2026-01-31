@@ -77,15 +77,15 @@
       },
       "AWSSDK.Core": {
         "type": "Transitive",
-        "resolved": "4.0.0.15",
-        "contentHash": "nt0pgf20/wt8NEH/Kw97CS9mlIivg3lROW1E2piFJZPmwZIDVKVEGSvCztGWedMByQYMVpxGbVmn7oC0p1vmkw=="
+        "resolved": "4.0.3.12",
+        "contentHash": "/FyE96xV2qJLgJN++ZW8M7udRf2NBLoku9AkEHLQqpH9uv0r0QQK2sw2pF3OvzKnuKsyp+Mx5wYwgFXPLnBb9g=="
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "4.0.4.2",
-        "contentHash": "uEP2sGa5yiF7yukC9pHJBpP9ArgHaHJxqyls5PRODUXHCXQk3cIGx7Creyu7c5t1GBGQ+Us8tFSraA1CcLsxBQ==",
+        "resolved": "4.0.18.1",
+        "contentHash": "T4tT121H4vpRk2X5ML2zU/IbgIg/BLpZdY4EVE2OhQh/8g96ZtquyCu8UmhQl6769Avv+245jSknR3ADOJavYw==",
         "dependencies": {
-          "AWSSDK.Core": "[4.0.0.15, 5.0.0)"
+          "AWSSDK.Core": "[4.0.3.12, 5.0.0)"
         }
       },
       "BouncyCastle.Cryptography": {
@@ -726,8 +726,8 @@
       },
       "System.CommandLine": {
         "type": "Transitive",
-        "resolved": "2.0.0-beta4.22272.1",
-        "contentHash": "1uqED/q2H0kKoLJ4+hI2iPSBSEdTuhfCYADeJrAqERmiGQ2NNacYKRNEQ+gFbU4glgVyK8rxI+ZOe1onEtr/Pg=="
+        "resolved": "2.0.2",
+        "contentHash": "zqn6I1IULEJaLEFKejeSFlZrf8HzIUU4qEjuYtEVRx5AsxKMLqLP+t0dQ4fk51A5CzT9Uv8wBLdMHSIYIrCKBw=="
       },
       "System.Diagnostics.EventLog": {
         "type": "Transitive",
@@ -781,7 +781,7 @@
       "net.vatprc.uniapi": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[4.0.4.2, )",
+          "AWSSDK.S3": "[4.0.18.1, )",
           "Dapper": "[2.1.66, )",
           "Discord.Net": "[3.18.0, )",
           "EFCore.NamingConventions": "[10.0.0-rc.2, )",
@@ -802,7 +802,7 @@
           "OpenTelemetry.Instrumentation.Http": "[1.14.0, )",
           "Scalar.AspNetCore": "[2.11.8, )",
           "Sep": "[0.12.0, )",
-          "System.CommandLine": "[2.0.0-beta4.22272.1, )",
+          "System.CommandLine": "[2.0.2, )",
           "System.IdentityModel.Tokens.Jwt": "[8.15.0, )",
           "System.Linq.Async": "[7.0.0, )",
           "Tomlyn": "[0.19.0, )",
