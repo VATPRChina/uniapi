@@ -55,3 +55,10 @@ ApiKey = ""
 
 [Storage.Image.Smms]
 SecretToken = ""
+
+[Navdata.Arinc424]
+ServiceUrl = ""
+AccessKey = ""
+SecretKey = ""
+Bucket = ""
+ArincPath = ""
