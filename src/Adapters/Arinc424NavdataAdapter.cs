@@ -21,7 +21,7 @@ public class Arinc424NavdataAdapter(IOptions<Arinc424NavdataAdapter.Option> opti
     {
         using var rootActivity = activitySource.StartActivity($"{nameof(Arinc424NavdataAdapter)}.{nameof(InitializeAsync)}");
 
-        string content;
+        var content = new List<string>();
         using (var activity = activitySource.StartActivity("Load", ActivityKind.Client))
         {
             var option = options.Value;
@@ -34,13 +34,17 @@ public class Arinc424NavdataAdapter(IOptions<Arinc424NavdataAdapter.Option> opti
             var response = await s3Client.GetObjectAsync(option.Bucket, option.ArincPath, ct);
             using var responseStream = response.ResponseStream;
             using var streamReader = new StreamReader(responseStream);
-            content = await streamReader.ReadToEndAsync(ct);
+            string? line;
+            while ((line = await streamReader.ReadLineAsync()) != null)
+            {
+                content.Add(line);
+            }
         }
 
         using (var activity = activitySource.StartActivity("Parse", ActivityKind.Internal))
         {
             var meta = Meta424.Create(Supplement.V18);
-            Data = Data424.Create(meta, content.Split('\n'), out var invalid, out var skipped);
+            Data = Data424.Create(meta, content, out var invalid, out var skipped);
         }
     }
 
