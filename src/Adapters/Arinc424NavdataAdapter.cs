@@ -1,79 +1,98 @@
-using System.Diagnostics;
-using Amazon.Runtime;
-using Amazon.S3;
 using Arinc424;
-using Arinc424.Ground;
-using Arinc424.Navigation;
-using Arinc424.Procedures;
-using Arinc424.Waypoints;
-using Microsoft.Extensions.Options;
+using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Services.FlightPlan;
-using Net.Vatprc.Uniapi.Services.FlightPlan.Utility;
 using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Adapters;
 
-public class Arinc424NavdataAdapter(IOptions<Arinc424NavdataAdapter.Option> options, ActivitySource activitySource)
+public class Arinc424NavdataAdapter : INavdataProvider
 {
-    public Data424 Data { get; protected set; } = Data424.Create(Meta424.Create(Supplement.V18), [], out _, out _);
+    protected const string Arinc424DataPath = "Data/cesfpl.pc";
+    protected Data424 Data { get; set; } = null!;
 
-    public async Task InitializeAsync(CancellationToken ct = default)
+    public async Task InitializeAsync()
     {
-        using var rootActivity = activitySource.StartActivity($"{nameof(Arinc424NavdataAdapter)}.{nameof(InitializeAsync)}");
+        var meta = Meta424.Create(Supplement.V18);
+        var strings = await File.ReadAllLinesAsync(Arinc424DataPath);
+        var data = Data424.Create(meta, strings, out var invalid, out var skipped);
+        Data = data;
+    }
 
-        var content = new List<string>();
-        using (var activity = activitySource.StartActivity("Load", ActivityKind.Client))
+    public Task<bool> ExistsAirwayWithFix(string ident, string fixIdent)
+    {
+        var airway = Data.Airways.FirstOrDefault(a => a.Identifier == ident);
+        if (airway == null) return Task.FromResult(false);
+        var exists = airway.Sequence.Any(f => f.Fix.Identifier == fixIdent);
+        return Task.FromResult(exists);
+    }
+
+    public Task<Airport?> FindAirport(string ident)
+    {
+        var airport = Data.Airports.FirstOrDefault(a => a.Identifier == ident);
+        if (airport == null) return Task.FromResult<Airport?>(null);
+        return Task.FromResult<Airport?>(new Airport
         {
-            var option = options.Value;
-            var credentials = new BasicAWSCredentials(option.AccessKey, option.SecretKey);
-            using var s3Client = new AmazonS3Client(credentials, new AmazonS3Config
-            {
-                ServiceURL = option.ServiceUrl,
-                ForcePathStyle = true,
-            });
-            var response = await s3Client.GetObjectAsync(option.Bucket, option.ArincPath, ct);
-            using var responseStream = response.ResponseStream;
-            using var streamReader = new StreamReader(responseStream);
-            string? line;
-            while ((line = await streamReader.ReadLineAsync()) != null)
-            {
-                content.Add(line);
-            }
-        }
+            Id = Ulid.Empty, // TODO: $"{airport.Date}/{airport.Number}",
+            Identifier = airport.Identifier,
+            Latitude = airport.Coordinates.Latitude,
+            Longitude = airport.Coordinates.Longitude,
+            Elevation = airport.Elevation,
+        });
+    }
 
-        using (var activity = activitySource.StartActivity("Parse", ActivityKind.Internal))
+    public IAsyncEnumerable<INavdataProvider.AirwayLeg> FindAirwayLegs(string ident)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<NdbNavaid?> FindNdbNavaid(string ident, double lat, double lon)
+    {
+        var ndb = Data.Nondirects
+            .Where(n => n.Identifier == ident)
+            .OrderBy(n => Geography.DistanceBetweenPoints(n.Coordinates.Latitude, n.Coordinates.Longitude, lat, lon))
+            .FirstOrDefault();
+        if (ndb == null) return Task.FromResult<NdbNavaid?>(null);
+        return Task.FromResult<NdbNavaid?>(new NdbNavaid
         {
-            var meta = Meta424.Create(Supplement.V18);
-            Data = Data424.Create(meta, content, out var invalid, out var skipped);
-        }
+            Id = Ulid.Empty, // TODO: $"{ndb.Date}/{ndb.Number}",
+            Identifier = ndb.Identifier,
+            Latitude = ndb.Coordinates.Latitude,
+            Longitude = ndb.Coordinates.Longitude,
+        });
     }
 
-    public class Option
+    public Task<Procedure?> FindSid(string ident, string airportIdent)
     {
-        public const string LOCATION = "Navdata:Arinc424";
-
-        public required string ServiceUrl { get; set; }
-        public required string AccessKey { get; set; }
-        public required string SecretKey { get; set; }
-        public required string Bucket { get; set; }
-        public required string ArincPath { get; set; }
+        throw new NotImplementedException();
     }
 
-    public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
+    public Task<Procedure?> FindStar(string ident, string airportIdent)
     {
-        builder.Services.Configure<Option>(builder.Configuration.GetSection(Option.LOCATION));
-        builder.Services.AddSingleton<Arinc424NavdataAdapter>();
-        builder.Services.AddHostedService<Arinc424Initializer>();
-        builder.Services.AddScoped<INavdataProvider, Arinc424NavdataProvider>();
-        return builder;
+        throw new NotImplementedException();
     }
 
-    public class Arinc424Initializer : IHostedService
+    public Task<VhfNavaid?> FindVhfNavaid(string ident, double lat, double lon)
     {
-        readonly Arinc424NavdataAdapter _adapter;
-        public Arinc424Initializer(Arinc424NavdataAdapter adapter) => _adapter = adapter;
+        throw new NotImplementedException();
+    }
 
-        public Task StartAsync(CancellationToken ct) => _adapter.InitializeAsync(ct);
-        public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+    public Task<Waypoint?> FindWaypoint(string ident, double lat, double lon)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<AirwayFix?> GetAirwayFix(Ulid id)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<IList<PreferredRoute>> GetRecommendedRoutes(string dep, string arr)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<string?> GetFullQualifiedFixIdentifier(Ulid id, INavdataProvider.FixType type)
+    {
+        throw new NotImplementedException();
     }
 }

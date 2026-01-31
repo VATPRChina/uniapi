@@ -1,5 +1,3 @@
-using Arinc424.Navigation;
-using Arinc424.Waypoints;
 using Moq;
 using Net.Vatprc.Uniapi.Models.Navdata;
 
@@ -36,13 +34,13 @@ public class WaypointTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "PUD",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
-        NavdataMock.Setup(p => p.FindVhfNavaid("PUD", It.IsAny<double>(), It.IsAny<double>())).Returns(new Omnidirect
+        NavdataMock.Setup(p => p.FindVhfNavaid("PUD", It.IsAny<double>(), It.IsAny<double>())).ReturnsAsync(new VhfNavaid
         {
-            Identifier = "PUD",
-            Coordinates = new(51.4775, -0.461389),
+            VorIdentifier = "PUD",
+            VorLatitude = 51.4775,
+            VorLongitude = -0.461389,
         });
 
         await Handler.Resolve(Context, Navdata);
@@ -51,7 +49,34 @@ public class WaypointTokenHandlerTest
             "VHF database should be searched with the correct identifier.");
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.VHF);
         Context.CurrentSegment.Value.Should().Be("PUD");
-        Context.CurrentSegment.Id.Should().NotBe(string.Empty);
+        Context.CurrentSegment.Id.Should().NotBe(Ulid.Empty);
+        ContextMock.VerifySet(c => c.CurrentLat = 51.4775, Times.Once);
+        ContextMock.VerifySet(c => c.CurrentLon = -0.461389, Times.Once);
+    }
+
+    [Test]
+    public async Task Resolve_ShouldFindVhfDme()
+    {
+        ContextMock.SetupGet(c => c.CurrentSegment).Returns(new RouteToken
+        {
+            Kind = RouteTokenKind.UNKNOWN,
+            Value = "PUD",
+            Id = Ulid.Empty,
+        });
+        NavdataMock.Setup(p => p.FindVhfNavaid("PUD", It.IsAny<double>(), It.IsAny<double>())).ReturnsAsync(new VhfNavaid
+        {
+            DmeIdentifier = "PUD",
+            DmeLatitude = 51.4775,
+            DmeLongitude = -0.461389,
+        });
+
+        await Handler.Resolve(Context, Navdata);
+
+        NavdataMock.Verify(n => n.FindVhfNavaid("PUD", It.IsAny<double>(), It.IsAny<double>()), Times.Once,
+            "VHF database should be searched with the correct identifier.");
+        Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.VHF);
+        Context.CurrentSegment.Value.Should().Be("PUD");
+        Context.CurrentSegment.Id.Should().NotBe(Ulid.Empty);
         ContextMock.VerifySet(c => c.CurrentLat = 51.4775, Times.Once);
         ContextMock.VerifySet(c => c.CurrentLon = -0.461389, Times.Once);
     }
@@ -63,13 +88,13 @@ public class WaypointTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "SHA",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
-        NavdataMock.Setup(p => p.FindNdbNavaid("SHA", It.IsAny<double>(), It.IsAny<double>())).Returns(new Nondirect
+        NavdataMock.Setup(p => p.FindNdbNavaid("SHA", It.IsAny<double>(), It.IsAny<double>())).ReturnsAsync(new NdbNavaid
         {
             Identifier = "SHA",
-            Coordinates = new(51.4775, -0.461389),
+            Latitude = 51.4775,
+            Longitude = -0.461389,
         });
 
         await Handler.Resolve(Context, Navdata);
@@ -80,7 +105,7 @@ public class WaypointTokenHandlerTest
             "NDB database should be searched with the correct identifier.");
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.NDB);
         Context.CurrentSegment.Value.Should().Be("SHA");
-        Context.CurrentSegment.Id.Should().NotBe(string.Empty);
+        Context.CurrentSegment.Id.Should().NotBe(Ulid.Empty);
         ContextMock.VerifySet(c => c.CurrentLat = 51.4775, Times.Once);
         ContextMock.VerifySet(c => c.CurrentLon = -0.461389, Times.Once);
     }
@@ -92,13 +117,13 @@ public class WaypointTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "TOSID",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
-        NavdataMock.Setup(p => p.FindWaypoint("TOSID", It.IsAny<double>(), It.IsAny<double>())).Returns(new Waypoint
+        NavdataMock.Setup(p => p.FindWaypoint("TOSID", It.IsAny<double>(), It.IsAny<double>())).ReturnsAsync(new Waypoint
         {
             Identifier = "TOSID",
-            Coordinates = new(51.4775, -0.461389),
+            Latitude = 51.4775,
+            Longitude = -0.461389,
         });
 
         await Handler.Resolve(Context, Navdata);
@@ -111,7 +136,7 @@ public class WaypointTokenHandlerTest
             "Waypoint database should be searched with the correct identifier.");
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.WAYPOINT);
         Context.CurrentSegment.Value.Should().Be("TOSID");
-        Context.CurrentSegment.Id.Should().NotBe(string.Empty);
+        Context.CurrentSegment.Id.Should().NotBe(Ulid.Empty);
         ContextMock.VerifySet(c => c.CurrentLat = 51.4775, Times.Once);
         ContextMock.VerifySet(c => c.CurrentLon = -0.461389, Times.Once);
     }

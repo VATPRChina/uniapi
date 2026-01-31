@@ -13,7 +13,7 @@ public class SidFallbackTokenHandler : ITokenHandler
     public Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
         context.CurrentSegment.Kind = RouteTokenKind.SID;
-        context.CurrentSegment.Id = string.Empty;
+        context.CurrentSegment.Id = Ulid.Empty;
         return Task.FromResult(true);
     }
 }

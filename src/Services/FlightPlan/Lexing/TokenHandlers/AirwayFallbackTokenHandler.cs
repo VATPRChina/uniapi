@@ -17,7 +17,7 @@ public class AirwayFallbackTokenHandler : ITokenHandler
     public Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
         context.CurrentSegment.Kind = RouteTokenKind.AIRWAY;
-        context.CurrentSegment.Id = string.Empty;
+        context.CurrentSegment.Id = Ulid.Empty;
         return Task.FromResult(true);
     }
 }

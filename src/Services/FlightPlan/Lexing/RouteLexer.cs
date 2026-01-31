@@ -40,8 +40,7 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<Route
                 {
                     Kind = RouteTokenKind.UNKNOWN,
                     Value = segment,
-                    Id = string.Empty,
-                    Geo = null,
+                    Id = Ulid.Empty,
                 };
             })
             .ToArray();
@@ -82,7 +81,7 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<Route
             CurrentSegmentIndex, SegmentCount, CurrentSegment.Value);
 
         CurrentSegment.Kind = RouteTokenKind.UNKNOWN;
-        CurrentSegment.Id = string.Empty;
+        CurrentSegment.Id = Ulid.Empty;
 
         foreach (var handler in TokenHandlers)
         {

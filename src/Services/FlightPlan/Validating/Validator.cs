@@ -1,6 +1,4 @@
 using System.ComponentModel;
-using Arinc424;
-using Arinc424.Routing.Terms;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
@@ -14,8 +12,7 @@ public class Validator(
     INavdataProvider navdata,
     RouteParserFactory routeParserFactory,
     ILogger<Validator> Logger,
-    ILoggerFactory loggerFactory,
-    Database db)
+    ILoggerFactory loggerFactory)
 {
     protected readonly Flight Flight = flight;
     protected readonly IList<FlightLeg> Legs = legs;
@@ -72,9 +69,7 @@ public class Validator(
             });
         }
 
-        var prefRoutes = await db.PreferredRoute
-            .Where(f => f.Departure == Flight.Departure && f.Arrival == Flight.Arrival)
-            .ToListAsync(ct);
+        var prefRoutes = await Navdata.GetRecommendedRoutes(Flight.Departure, Flight.Arrival);
         Logger.LogInformation("Recommended routes for {Dep} to {Arr}: {Routes}",
             Flight.Departure, Flight.Arrival, prefRoutes);
         PreferredRoute? matchingRoute = null;
@@ -178,19 +173,28 @@ public class Validator(
                 && leg.To.Type != FlightFix.FixType.Airport
                 && matchingRoute == null)
             {
-                var fromFixIsChina = leg.From.Geo switch
+                var fromFix = await Navdata.GetFullQualifiedFixIdentifier(leg.From.Id, leg.From.Type switch
                 {
-                    null => false,
-                    Fix fix => fix.Icao.First == 'Z',
-                    _ => false,
-                };
-                var toFixIsChina = leg.To.Geo switch
+                    FlightFix.FixType.Airport => INavdataProvider.FixType.Unknown,
+                    FlightFix.FixType.Waypoint => INavdataProvider.FixType.Waypoint,
+                    FlightFix.FixType.Vhf => INavdataProvider.FixType.Vhf,
+                    FlightFix.FixType.Ndb => INavdataProvider.FixType.Ndb,
+                    FlightFix.FixType.GeoCoord => INavdataProvider.FixType.Unknown,
+                    FlightFix.FixType.Unknown => INavdataProvider.FixType.Unknown,
+                    _ => throw new InvalidEnumArgumentException($"Unexpected fix type: {leg.From.Type}"),
+                });
+                var toFix = await Navdata.GetFullQualifiedFixIdentifier(leg.To.Id, leg.To.Type switch
                 {
-                    null => false,
-                    Fix fix => fix.Icao.First == 'Z',
-                    _ => false,
-                };
-                if (fromFixIsChina && toFixIsChina)
+                    FlightFix.FixType.Airport => INavdataProvider.FixType.Unknown,
+                    FlightFix.FixType.Waypoint => INavdataProvider.FixType.Waypoint,
+                    FlightFix.FixType.Vhf => INavdataProvider.FixType.Vhf,
+                    FlightFix.FixType.Ndb => INavdataProvider.FixType.Ndb,
+                    FlightFix.FixType.GeoCoord => INavdataProvider.FixType.Unknown,
+                    FlightFix.FixType.Unknown => INavdataProvider.FixType.Unknown,
+                    _ => throw new InvalidEnumArgumentException($"Unexpected fix type: {leg.To.Type}"),
+                });
+                if ((fromFix == null || fromFix.StartsWith("Z"))
+                    && (toFix == null || toFix.StartsWith("Z")))
                 {
                     Messages.Add(new ValidationMessage
                     {
@@ -201,16 +205,20 @@ public class Validator(
                 }
             }
 
-            if (leg.LegId != null && leg.Points != null)
+            if (leg.LegId != null)
             {
-                var (fromPoint, toPoint) = leg.Points.Value;
+                var (fromLegId, toLegId) = leg.LegId.Value;
+                var fromLeg = await Navdata.GetAirwayFix(fromLegId)
+                    ?? throw new InvalidOperationException($"Unexpected null airway leg: {fromLegId}");
+                var toLeg = await Navdata.GetAirwayFix(toLegId)
+                    ?? throw new InvalidOperationException($"Unexpected null airway leg: {toLegId}");
 
                 Logger.LogInformation("Validating airway leg {FromLeg} to {ToLeg} for flight {FlightId}",
-                    fromPoint.Fix.Identifier, toPoint.Fix.Identifier, Flight.Id);
-                Logger.LogInformation("Restrictions: From leg: {FromLeg}, To leg: {ToLeg}", fromPoint.Restriction, toPoint.Restriction);
+                    fromLeg.FixIdentifier, toLeg.FixIdentifier, Flight.Id);
+                Logger.LogInformation("Restrictions: From leg: {FromLeg}, To leg: {ToLeg}", fromLeg.DirectionalRestriction, toLeg.DirectionalRestriction);
                 Logger.LogInformation("Sequence numbers: From leg: {FromSeq}, To leg: {ToSeq}",
-                    fromPoint.SeqNumber, toPoint.SeqNumber);
-                if (fromPoint.SeqNumber <= toPoint.SeqNumber && fromPoint.Restriction == AirwayRestriction.Backward && matchingRoute == null)
+                    fromLeg.SequenceNumber, toLeg.SequenceNumber);
+                if (fromLeg.SequenceNumber <= toLeg.SequenceNumber && fromLeg.DirectionalRestriction == 'B' && matchingRoute == null)
                 {
                     Logger.LogInformation("Violation found: From leg is backward.");
                     Messages.Add(new ValidationMessage
@@ -221,7 +229,7 @@ public class Validator(
                     });
                 }
                 // TODO: test for KARSI[5720] * - TR[5750] F is bidirectional
-                if (toPoint.SeqNumber <= fromPoint.SeqNumber && toPoint.Restriction == AirwayRestriction.Forward && matchingRoute == null)
+                if (toLeg.SequenceNumber <= fromLeg.SequenceNumber && toLeg.DirectionalRestriction == 'F' && matchingRoute == null)
                 {
                     Logger.LogInformation("Violation found: To leg is forward.");
                     Messages.Add(new ValidationMessage
@@ -232,9 +240,9 @@ public class Validator(
                     });
                 }
 
-                if (fromPoint.Fix.Icao.First == 'Z'
-                    && toPoint.Fix.Icao.First == 'Z'
-                    && (leg.Airway!.Identifier.StartsWith('V') || leg.Airway!.Identifier.StartsWith('X'))
+                if (fromLeg.FixIcaoCode.StartsWith("Z")
+                    && toLeg.FixIcaoCode.StartsWith("Z")
+                    && (fromLeg.AirwayIdentifier!.StartsWith("V") || fromLeg.AirwayIdentifier!.StartsWith("X"))
                     && matchingRoute == null)
                 {
                     Messages.Add(new ValidationMessage

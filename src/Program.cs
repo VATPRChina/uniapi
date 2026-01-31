@@ -18,7 +18,6 @@ using Net.Vatprc.Uniapi.Controllers;
 using Net.Vatprc.Uniapi.Controllers.Atc;
 using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Services;
-using Net.Vatprc.Uniapi.Services.FlightPlan;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Utils;
 using Net.Vatprc.Uniapi.Utils.Toml;
@@ -190,6 +189,7 @@ MetarAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<VatsimAdapter>();
 DiscourseAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<TrackAudioAdapter>();
+builder.Services.AddScoped<DbNavdataAdapter>();
 builder.Services.AddScoped<RouteParseService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<RouteParserFactory>();
@@ -202,7 +202,6 @@ builder.Services.AddSingleton<AtcPositionStatusService>();
 builder.Services.AddScoped<AtcApplicationService>();
 SmtpEmailAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<VplaafAdapter>();
-Arinc424NavdataAdapter.ConfigureOn(builder);
 
 var app = builder.Build();
 
@@ -236,8 +235,8 @@ app.UseFileServer();
 app.MapControllers().RequireAuthorization(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 app.MapFallbackToController("/api/{**path}",
-    nameof(InternalController.EndpointNotFound),
-    nameof(InternalController).Replace("Controller", ""));
+    nameof(UniApi.Controllers.InternalController.EndpointNotFound),
+    nameof(UniApi.Controllers.InternalController).Replace("Controller", ""));
 
 var rootCommand = new RootCommand("Start VATPRC UniAPI");
 rootCommand.SetAction(async parseResult =>
@@ -259,6 +258,162 @@ migrateCommand.SetAction(async parseResult =>
     var sheetService = scope.ServiceProvider.GetRequiredService<SheetService>();
 
     await db.Database.MigrateAsync();
+
+    var allUsers = await db.User.ToListAsync();
+    var allPermissions = await db.UserAtcPermission.ToListAsync();
+    // 400	Airport Control Mentoring Permission
+    // 401	Radar Control Mentoring Permission
+    // 402	Procedural Control Mentoring Permission
+    // 403	TMA Control Mentoring Permission
+    // 404	En-route Control Mentoring Permission
+    // 405	FSS Control Mentoring Permission
+    var students = new List<(int, int)>() {
+        (1326158,400),
+        (1416247,400),
+        (1435267,400),
+        (1478847,400),
+        (1752734,400),
+        (1326158,401),
+        (1416247,401),
+        (1435267,401),
+        (1478847,401),
+        (1326158,402),
+        (1416247,402),
+        (1435267,402),
+        (1478847,402),
+        (1326158,403),
+        (1416247,403),
+        (1435267,403),
+        (1478847,403),
+        (1326158,404),
+        (1416247,404),
+        (1435267,404),
+        (1478847,404),
+        (1326158,405),
+        (1416247,405),
+        (1435267,405),
+        (1478847,405),
+    };
+
+    foreach (var (cid, targetRating) in students)
+    {
+        var user = allUsers.Single(u => u.Cid == cid.ToString());
+        var del = allPermissions.Where(p => p.UserId == user.Id && p.PositionKindId == "DEL").SingleOrDefault();
+        var gnd = allPermissions.Where(p => p.UserId == user.Id && p.PositionKindId == "GND").SingleOrDefault();
+        var twr = allPermissions.Where(p => p.UserId == user.Id && p.PositionKindId == "TWR").SingleOrDefault();
+        var app = allPermissions.Where(p => p.UserId == user.Id && p.PositionKindId == "APP").SingleOrDefault();
+        var t2 = allPermissions.Where(p => p.UserId == user.Id && p.PositionKindId == "T2").SingleOrDefault();
+        var ctr = allPermissions.Where(p => p.UserId == user.Id && p.PositionKindId == "CTR").SingleOrDefault();
+        var fss = allPermissions.Where(p => p.UserId == user.Id && p.PositionKindId == "FSS").SingleOrDefault();
+
+        if (targetRating == 400)
+        {
+            if (del == null)
+            {
+                del = new()
+                {
+                    UserId = user.Id,
+                    PositionKindId = "DEL",
+                    State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor,
+                };
+                db.UserAtcPermission.Add(del);
+            }
+            del.State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor;
+            if (gnd == null)
+            {
+                gnd = new()
+                {
+                    UserId = user.Id,
+                    PositionKindId = "GND",
+                    State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor,
+                };
+                db.UserAtcPermission.Add(gnd);
+            }
+            gnd.State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor;
+            if (twr == null)
+            {
+                twr = new()
+                {
+                    UserId = user.Id,
+                    PositionKindId = "TWR",
+                    State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor,
+                };
+                db.UserAtcPermission.Add(twr);
+            }
+            twr.State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor;
+        }
+        else if (targetRating == 401)
+        {
+            if (app == null)
+            {
+                app = new()
+                {
+                    UserId = user.Id,
+                    PositionKindId = "APP",
+                    State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor,
+                };
+                db.UserAtcPermission.Add(app);
+            }
+            app.State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor;
+        }
+        else if (targetRating == 402)
+        {
+            if (t2 == null)
+            {
+                t2 = new()
+                {
+                    UserId = user.Id,
+                    PositionKindId = "T2",
+                    State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor,
+                };
+                db.UserAtcPermission.Add(t2);
+            }
+            t2.State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor;
+        }
+        else if (targetRating == 403)
+        {
+            if (app == null)
+            {
+                app = new()
+                {
+                    UserId = user.Id,
+                    PositionKindId = "APP",
+                    State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor,
+                };
+                db.UserAtcPermission.Add(app);
+            }
+            app.State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor;
+        }
+        else if (targetRating == 404)
+        {
+            if (ctr == null)
+            {
+                ctr = new()
+                {
+                    UserId = user.Id,
+                    PositionKindId = "CTR",
+                    State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor,
+                };
+                db.UserAtcPermission.Add(ctr);
+            }
+            ctr.State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor;
+        }
+        else if (targetRating == 405)
+        {
+            if (fss == null)
+            {
+                fss = new()
+                {
+                    UserId = user.Id,
+                    PositionKindId = "FSS",
+                    State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor,
+                };
+                db.UserAtcPermission.Add(fss);
+            }
+            fss.State = UniApi.Models.Atc.UserAtcPermission.UserControllerState.Mentor;
+        }
+    }
+    await db.SaveChangesAsync();
 });
 
 return await rootCommand.Parse(args).InvokeAsync();

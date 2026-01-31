@@ -635,6 +635,171 @@ namespace Net.Vatprc.Uniapi.Migrations
                     b.ToTable("event_slot", (string)null);
                 });
 
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.Airport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Elevation")
+                        .HasColumnType("integer")
+                        .HasColumnName("elevation");
+
+                    b.Property<string>("Identifier")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("identifier");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.HasKey("Id")
+                        .HasName("pk_airport");
+
+                    b.HasIndex("Identifier")
+                        .IsUnique()
+                        .HasDatabaseName("ix_airport_identifier");
+
+                    b.ToTable("airport", "navdata");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.AirportGate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AirportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("airport_id");
+
+                    b.Property<string>("Identifier")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("identifier");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.HasKey("Id")
+                        .HasName("pk_airport_gate");
+
+                    b.HasIndex("AirportId")
+                        .HasDatabaseName("ix_airport_gate_airport_id");
+
+                    b.ToTable("airport_gate", "navdata");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.Airway", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Identifier")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("identifier");
+
+                    b.HasKey("Id")
+                        .HasName("pk_airway");
+
+                    b.ToTable("airway", "navdata");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.AirwayFix", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AirwayId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("airway_id");
+
+                    b.Property<string>("DescriptionCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description_code");
+
+                    b.Property<char>("DirectionalRestriction")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("character(1)")
+                        .HasDefaultValue(' ')
+                        .HasColumnName("directional_restriction");
+
+                    b.Property<string>("FixIcaoCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fix_icao_code");
+
+                    b.Property<string>("FixIdentifier")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fix_identifier");
+
+                    b.Property<long>("SequenceNumber")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sequence_number");
+
+                    b.HasKey("Id")
+                        .HasName("pk_airway_fix");
+
+                    b.HasIndex("AirwayId")
+                        .HasDatabaseName("ix_airway_fix_airway_id");
+
+                    b.ToTable("airway_fix", "navdata");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.NdbNavaid", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AirportIcaoIdent")
+                        .HasColumnType("text")
+                        .HasColumnName("airport_icao_ident");
+
+                    b.Property<string>("IcaoCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("icao_code");
+
+                    b.Property<string>("Identifier")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("identifier");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("SectionCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("section_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ndb_navaid");
+
+                    b.ToTable("ndb_navaid", "navdata");
+                });
+
             modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.PreferredRoute", b =>
                 {
                     b.Property<Guid>("Id")
@@ -687,6 +852,148 @@ namespace Net.Vatprc.Uniapi.Migrations
                         .HasName("pk_preferred_route");
 
                     b.ToTable("preferred_route", "navdata");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.Procedure", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AirportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("airport_id");
+
+                    b.Property<string>("Identifier")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("identifier");
+
+                    b.Property<char>("SubsectionCode")
+                        .HasColumnType("character(1)")
+                        .HasColumnName("subsection_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_procedure");
+
+                    b.HasIndex("AirportId")
+                        .HasDatabaseName("ix_procedure_airport_id");
+
+                    b.ToTable("procedure", "navdata");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.Runway", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AirportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("airport_id");
+
+                    b.Property<string>("Identifier")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("identifier");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.HasKey("Id")
+                        .HasName("pk_runway");
+
+                    b.HasIndex("AirportId")
+                        .HasDatabaseName("ix_runway_airport_id");
+
+                    b.ToTable("runway", "navdata");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.VhfNavaid", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("DmeIdentifier")
+                        .HasColumnType("text")
+                        .HasColumnName("dme_identifier");
+
+                    b.Property<double?>("DmeLatitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("dme_latitude");
+
+                    b.Property<double?>("DmeLongitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("dme_longitude");
+
+                    b.Property<string>("IcaoCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("icao_code");
+
+                    b.Property<string>("VorIdentifier")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("vor_identifier");
+
+                    b.Property<double?>("VorLatitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("vor_latitude");
+
+                    b.Property<double?>("VorLongitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("vor_longitude");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vhf_navaid");
+
+                    b.ToTable("vhf_navaid", "navdata");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.Waypoint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("IcaoCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("icao_code");
+
+                    b.Property<string>("Identifier")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("identifier");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("RegionCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("region_code");
+
+                    b.Property<string>("SectionCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("section_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_waypoint");
+
+                    b.ToTable("waypoint", "navdata");
                 });
 
             modelBuilder.Entity("Net.Vatprc.Uniapi.Models.RefreshToken", b =>
@@ -1150,6 +1457,54 @@ namespace Net.Vatprc.Uniapi.Migrations
                     b.Navigation("EventAirspace");
                 });
 
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.AirportGate", b =>
+                {
+                    b.HasOne("Net.Vatprc.Uniapi.Models.Navdata.Airport", "Airport")
+                        .WithMany("Gates")
+                        .HasForeignKey("AirportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_airport_gate_airport_airport_id");
+
+                    b.Navigation("Airport");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.AirwayFix", b =>
+                {
+                    b.HasOne("Net.Vatprc.Uniapi.Models.Navdata.Airway", "Airway")
+                        .WithMany("Fixes")
+                        .HasForeignKey("AirwayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_airway_fix_airway_airway_id");
+
+                    b.Navigation("Airway");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.Procedure", b =>
+                {
+                    b.HasOne("Net.Vatprc.Uniapi.Models.Navdata.Airport", "Airport")
+                        .WithMany("Procedures")
+                        .HasForeignKey("AirportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_procedure_airport_airport_id");
+
+                    b.Navigation("Airport");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.Runway", b =>
+                {
+                    b.HasOne("Net.Vatprc.Uniapi.Models.Navdata.Airport", "Airport")
+                        .WithMany("Runways")
+                        .HasForeignKey("AirportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_runway_airport_airport_id");
+
+                    b.Navigation("Airport");
+                });
+
             modelBuilder.Entity("Net.Vatprc.Uniapi.Models.RefreshToken", b =>
                 {
                     b.HasOne("Net.Vatprc.Uniapi.Models.User", "User")
@@ -1241,6 +1596,20 @@ namespace Net.Vatprc.Uniapi.Migrations
             modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Event.EventSlot", b =>
                 {
                     b.Navigation("Booking");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.Airport", b =>
+                {
+                    b.Navigation("Gates");
+
+                    b.Navigation("Procedures");
+
+                    b.Navigation("Runways");
+                });
+
+            modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Navdata.Airway", b =>
+                {
+                    b.Navigation("Fixes");
                 });
 
             modelBuilder.Entity("Net.Vatprc.Uniapi.Models.Sheet.Sheet", b =>

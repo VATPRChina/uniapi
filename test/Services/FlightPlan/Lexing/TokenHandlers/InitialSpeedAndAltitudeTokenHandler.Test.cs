@@ -22,8 +22,7 @@ public class InitialSpeedAndAltitudeTokenHandlerTests
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = input,
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
 
         var result = await handler.Resolve(mockContext.Object, mockNavdataProvider.Object);
@@ -42,8 +41,7 @@ public class InitialSpeedAndAltitudeTokenHandlerTests
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = input,
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
 
         var result = await handler.Resolve(mockContext.Object, mockNavdataProvider.Object);

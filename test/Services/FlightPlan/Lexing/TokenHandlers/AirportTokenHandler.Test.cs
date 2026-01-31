@@ -1,4 +1,3 @@
-using Arinc424.Ground;
 using Moq;
 using Net.Vatprc.Uniapi.Models.Navdata;
 
@@ -59,17 +58,16 @@ public class AirportTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "EGLL",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
 
-        var airport = new Airport
+        NavdataMock.Setup(p => p.FindAirport("EGLL")).ReturnsAsync(new Airport
         {
             Identifier = "EGLL",
-            Coordinates = new(51.4775, -0.461389),
+            Latitude = 51.4775,
+            Longitude = -0.461389,
             Elevation = 25,
-        };
-        NavdataMock.Setup(p => p.FindAirport("EGLL")).Returns(airport);
+        });
 
         await Handler.Resolve(Context, Navdata);
 
@@ -77,8 +75,7 @@ public class AirportTokenHandlerTest
 
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.AIRPORT);
         Context.CurrentSegment.Value.Should().Be("EGLL");
-        Context.CurrentSegment.Id.Should().NotBe(string.Empty);
-        Context.CurrentSegment.Geo.Should().Be(airport);
+        Context.CurrentSegment.Id.Should().NotBe(Ulid.Empty);
         ContextMock.VerifySet(c => c.CurrentLat = 51.4775, Times.Once);
         ContextMock.VerifySet(c => c.CurrentLon = -0.461389, Times.Once);
     }
@@ -91,8 +88,7 @@ public class AirportTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "EGLL",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
 
         await Handler.Resolve(Context, Navdata);
@@ -101,8 +97,7 @@ public class AirportTokenHandlerTest
 
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.UNKNOWN);
         Context.CurrentSegment.Value.Should().Be("EGLL");
-        Context.CurrentSegment.Id.Should().Be(string.Empty);
-        Context.CurrentSegment.Geo.Should().Be(null);
+        Context.CurrentSegment.Id.Should().Be(Ulid.Empty);
         ContextMock.VerifySet(c => c.CurrentLat = It.IsAny<double>(), Times.Never);
         ContextMock.VerifySet(c => c.CurrentLon = It.IsAny<double>(), Times.Never);
     }

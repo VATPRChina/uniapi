@@ -1,5 +1,3 @@
-using Arinc424.Procedures;
-using AwesomeAssertions.Execution;
 using Moq;
 
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Lexing.TokenHandlers;
@@ -28,8 +26,7 @@ public class StarTokenHandlerTest
         {
             Kind = RouteTokenKind.AIRPORT,
             Value = "EGLL",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
 
         var result = Handler.IsAllowed(Context, Navdata);
@@ -44,8 +41,7 @@ public class StarTokenHandlerTest
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "TOSID",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
 
         var result = Handler.IsAllowed(Context, Navdata);
@@ -60,31 +56,28 @@ public class StarTokenHandlerTest
         {
             Kind = RouteTokenKind.AIRPORT,
             Value = "ZYTX",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
         ContextMock.SetupGet(c => c.CurrentSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "TOS71A",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
 
-        var procedure = new Arrival
+        var procedure = new Models.Navdata.Procedure
         {
+            AirportId = Ulid.NewUlid(),
             Identifier = "TOS71A",
+            SubsectionCode = 'E',
         };
-        NavdataMock.Setup(n => n.FindStar("TOS71A", "ZYTX")).Returns(procedure);
+        NavdataMock.Setup(n => n.FindStar("TOS71A", "ZYTX")).ReturnsAsync(procedure);
 
         await Handler.Resolve(Context, Navdata);
 
-        using (new AssertionScope())
-        {
-            Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.STAR);
-            Context.CurrentSegment.Value.Should().Be("TOS71A");
-            Context.CurrentSegment.Id.Should().Be("0//0");
-        }
+        Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.STAR);
+        Context.CurrentSegment.Value.Should().Be("TOS71A");
+        Context.CurrentSegment.Id.Should().Be(procedure.Id);
         ContextMock.VerifySet(c => c.CurrentLat = It.IsAny<double>(), Times.Never);
         ContextMock.VerifySet(c => c.CurrentLon = It.IsAny<double>(), Times.Never);
     }
@@ -96,24 +89,22 @@ public class StarTokenHandlerTest
         {
             Kind = RouteTokenKind.AIRPORT,
             Value = "ZYTX",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
         ContextMock.SetupGet(c => c.CurrentSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "TOS71D",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
 
-        NavdataMock.Setup(n => n.FindStar("TOS71D", "ZYTX")).Returns(() => null);
+        NavdataMock.Setup(n => n.FindStar("TOS71D", "ZYTX")).ReturnsAsync(() => null);
 
         await Handler.Resolve(Context, Navdata);
 
         Context.CurrentSegment.Kind.Should().Be(RouteTokenKind.UNKNOWN);
         Context.CurrentSegment.Value.Should().Be("TOS71D");
-        Context.CurrentSegment.Id.Should().Be(string.Empty);
+        Context.CurrentSegment.Id.Should().Be(Ulid.Empty);
     }
 
     [Test]
@@ -123,15 +114,13 @@ public class StarTokenHandlerTest
         {
             Kind = RouteTokenKind.AIRPORT,
             Value = "ZYTX",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
         ContextMock.SetupGet(c => c.CurrentSegment).Returns(new RouteToken
         {
             Kind = RouteTokenKind.UNKNOWN,
             Value = "TOS71D",
-            Id = string.Empty,
-            Geo = null,
+            Id = Ulid.Empty,
         });
 
         await Handler.Resolve(Context, Navdata);

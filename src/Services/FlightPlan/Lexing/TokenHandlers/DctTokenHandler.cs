@@ -28,7 +28,7 @@ public class DctTokenHandler : ITokenHandler
         }
 
         context.CurrentSegment.Kind = RouteTokenKind.AIRWAY;
-        context.CurrentSegment.Id = string.Empty;
+        context.CurrentSegment.Id = Ulid.Empty;
         context.CurrentSegment.Value = context.CurrentSegment.Value;
         return Task.FromResult(true);
     }

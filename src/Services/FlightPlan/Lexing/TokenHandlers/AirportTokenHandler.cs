@@ -1,5 +1,3 @@
-using Net.Vatprc.Uniapi.Services.FlightPlan.Utility;
-
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Lexing.TokenHandlers;
 
 public class AirportTokenHandler : ITokenHandler
@@ -13,15 +11,14 @@ public class AirportTokenHandler : ITokenHandler
 
     public async Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
-        var airport = navdataProvider.FindAirport(context.CurrentSegment.Value);
+        var airport = await navdataProvider.FindAirport(context.CurrentSegment.Value);
         if (airport == null) return false;
 
         context.CurrentSegment.Kind = RouteTokenKind.AIRPORT;
         context.CurrentSegment.Value = airport.Identifier;
-        context.CurrentSegment.Id = airport.RecordId;
-        context.CurrentSegment.Geo = airport;
-        context.CurrentLon = airport.Coordinates.Longitude;
-        context.CurrentLat = airport.Coordinates.Latitude;
+        context.CurrentSegment.Id = airport.Id;
+        context.CurrentLon = airport.Longitude;
+        context.CurrentLat = airport.Latitude;
         return true;
     }
 }
