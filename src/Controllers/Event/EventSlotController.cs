@@ -21,6 +21,7 @@ public class EventSlotController(
             .Include(x => x.EventAirspace)
                 .ThenInclude(x => x.Event)
             .Include(x => x.Booking)
+                .ThenInclude(b => b!.User)
             .SingleOrDefaultAsync(x => x.Id == sid && x.EventAirspace.EventId == eid)
             ?? throw new ApiError.EventSlotNotFound(eid, sid);
         return slot;
@@ -36,11 +37,12 @@ public class EventSlotController(
             .ThenInclude(x => x.Booking)
             .SingleOrDefaultAsync(x => x.Id == eid)
             ?? throw new ApiError.EventNotFound(eid);
+        var includeBookingUser = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator, UserRoles.Controller);
         return eventt.Airspaces!
             .SelectMany(x => x.Slots)
             .OrderBy(x => x.EnterAt)
             .ThenBy(x => x.LeaveAt)
-            .Select(x => EventSlotDto.From(x))
+            .Select(x => EventSlotDto.From(x, includeBookingUser))
             .ToArray();
     }
 
@@ -66,7 +68,8 @@ public class EventSlotController(
     public async Task<EventSlotDto> Get(Ulid eid, Ulid sid)
     {
         var slot = await LoadAsync(eid, sid);
-        return EventSlotDto.From(slot);
+        var includeBookingUser = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator, UserRoles.Controller);
+        return EventSlotDto.From(slot, includeBookingUser);
     }
 
     [HttpGet("mine")]
@@ -82,7 +85,8 @@ public class EventSlotController(
             .Include(x => x.Booking)
             .FirstOrDefaultAsync(f => f.EventAirspace!.Id == eid && f.Booking!.UserId == user.Id)
             ?? throw new ApiError.EventSlotNotFoundForUser(eid, user.Id);
-        return EventSlotDto.From(slot);
+        var includeBookingUser = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator, UserRoles.Controller);
+        return EventSlotDto.From(slot, includeBookingUser);
     }
 
     [HttpPost]
@@ -102,7 +106,8 @@ public class EventSlotController(
         };
         DbContext.EventSlot.Add(slot);
         await DbContext.SaveChangesAsync();
-        return EventSlotDto.From(slot);
+        var includeBookingUser = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator, UserRoles.Controller);
+        return EventSlotDto.From(slot, includeBookingUser);
     }
 
     [HttpPut("{sid}")]
@@ -115,7 +120,8 @@ public class EventSlotController(
         slot.Callsign = dto.Callsign;
         slot.AircraftTypeIcao = dto.AircraftTypeIcao;
         await DbContext.SaveChangesAsync();
-        return EventSlotDto.From(slot);
+        var includeBookingUser = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator, UserRoles.Controller);
+        return EventSlotDto.From(slot, includeBookingUser);
     }
 
     [HttpDelete("{sid}")]
@@ -125,6 +131,7 @@ public class EventSlotController(
         var slot = await LoadAsync(eid, sid);
         DbContext.EventSlot.Remove(slot);
         await DbContext.SaveChangesAsync();
-        return EventSlotDto.From(slot);
+        var includeBookingUser = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator, UserRoles.Controller);
+        return EventSlotDto.From(slot, includeBookingUser);
     }
 }

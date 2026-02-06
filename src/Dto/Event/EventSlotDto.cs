@@ -16,7 +16,7 @@ public record EventSlotDto
     public required string? Callsign { get; set; }
     public required string? AircraftTypeIcao { get; set; }
 
-    public static EventSlotDto From(EventSlot slot)
+    public static EventSlotDto From(EventSlot slot, bool includeBookingUser = false)
     {
         return new()
         {
@@ -28,7 +28,7 @@ public record EventSlotDto
             CreatedAt = slot.CreatedAt,
             UpdatedAt = slot.UpdatedAt,
             LeaveAt = slot.LeaveAt,
-            Booking = EventBookingDto.From(slot.Booking),
+            Booking = EventBookingDto.From(slot.Booking, includeBookingUser),
             Callsign = slot.Callsign,
             AircraftTypeIcao = slot.AircraftTypeIcao,
         };

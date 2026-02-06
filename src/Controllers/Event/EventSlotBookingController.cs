@@ -28,6 +28,7 @@ public class EventSlotBookingController(
             .Include(x => x.EventAirspace)
                 .ThenInclude(x => x.Event)
             .Include(x => x.Booking)
+                .ThenInclude(b => b!.User)
             .SingleOrDefaultAsync(x => x.Id == sid && x.EventAirspace.EventId == eid)
             ?? throw new ApiError.EventSlotNotFound(eid, sid);
         return slot.Booking;
@@ -38,7 +39,8 @@ public class EventSlotBookingController(
     public async Task<EventBookingDto> Get(Ulid eid, Ulid sid)
     {
         var booking = await LoadAsync(eid, sid) ?? throw new ApiError.EventSlotNotBooked(eid, sid);
-        return EventBookingDto.From(booking);
+        var includeUser = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator, UserRoles.Controller);
+        return EventBookingDto.From(booking, includeUser);
     }
 
     [HttpPut]
@@ -66,7 +68,8 @@ public class EventSlotBookingController(
             };
             DbContext.EventBooking.Add(booking);
             await DbContext.SaveChangesAsync();
-            return EventBookingDto.From(booking);
+            var includeUser = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator, UserRoles.Controller);
+            return EventBookingDto.From(booking, includeUser);
         }
         finally
         {
@@ -92,7 +95,8 @@ public class EventSlotBookingController(
             }
             DbContext.EventBooking.Remove(booking);
             await DbContext.SaveChangesAsync();
-            return EventBookingDto.From(booking);
+            var includeUser = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator, UserRoles.Controller);
+            return EventBookingDto.From(booking, includeUser);
         }
         finally
         {
