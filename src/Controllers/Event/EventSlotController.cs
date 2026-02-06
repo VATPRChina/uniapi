@@ -34,7 +34,8 @@ public class EventSlotController(
         var eventt = await DbContext.Event
             .Include(x => x.Airspaces!)
             .ThenInclude(x => x.Slots)
-            .ThenInclude(x => x.Booking)
+                .ThenInclude(x => x.Booking!)
+                    .ThenInclude(b => b.User)
             .SingleOrDefaultAsync(x => x.Id == eid)
             ?? throw new ApiError.EventNotFound(eid);
         var includeBookingUser = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator, UserRoles.Controller);
@@ -42,8 +43,7 @@ public class EventSlotController(
             .SelectMany(x => x.Slots)
             .OrderBy(x => x.EnterAt)
             .ThenBy(x => x.LeaveAt)
-            .Select(x => EventSlotDto.From(x, includeBookingUser))
-            .ToArray();
+            .Select(x => EventSlotDto.From(x, includeBookingUser));
     }
 
     [HttpGet("bookings.csv")]
