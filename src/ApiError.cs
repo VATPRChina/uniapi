@@ -363,4 +363,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.Forbidden, "CANNOT_UPDATE_TRAINING_TRAINER_TRAINEE", "Cannot update training's trainer or trainee to another user.")]
     public class CannotUpdateTrainingTrainerTrainee() :
         ApiError($"Cannot update training's trainer or trainee to another user.");
+
+    [Error(HttpStatusCode.Forbidden, "CANNOT_DELETE_STARTED_TRAINING", "Cannot delete training that has already started.")]
+    public class CannotDeleteStartedTraining(Ulid trainingId) :
+        ApiError($"Cannot delete training {trainingId} that has already started.");
 }

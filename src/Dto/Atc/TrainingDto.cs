@@ -14,6 +14,7 @@ public record TrainingDto
     public required DateTimeOffset EndAt { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
+    public DateTimeOffset? DeletedAt { get; init; }
     public required Ulid? RecordSheetFilingId { get; init; }
     public required IEnumerable<SheetFieldAnswerDto>? RecordSheetFiling { get; init; }
 
@@ -51,6 +52,7 @@ public record TrainingDto
             EndAt = training.EndAt,
             CreatedAt = training.CreatedAt,
             UpdatedAt = training.UpdatedAt,
+            DeletedAt = training.DeletedAt,
             RecordSheetFilingId = training.RecordSheetFilingId,
             RecordSheetFiling = training.RecordSheetFiling?.Answers?.Select(SheetFieldAnswerDto.From),
         };

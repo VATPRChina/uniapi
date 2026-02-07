@@ -23,6 +23,8 @@ public class Training
 
     public required DateTimeOffset UpdatedAt { get; set; }
 
+    public DateTimeOffset? DeletedAt { get; set; }
+
     public Ulid? RecordSheetFilingId { get; set; }
     public SheetFiling? RecordSheetFiling { get; set; }
 

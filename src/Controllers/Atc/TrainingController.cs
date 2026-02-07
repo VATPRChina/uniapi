@@ -26,6 +26,7 @@ public class TrainingController(
         var isAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingMentor);
 
         var trainings = await database.Training
+            .Where(t => t.DeletedAt == null)
             .Where(t => t.RecordSheetFilingId == null)
             .Where(t => isAdmin ||
                 t.TrainerId == userAccessor.GetUserId() ||
@@ -48,7 +49,7 @@ public class TrainingController(
         var isAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingMentor);
 
         var trainings = await database.Training
-            .Where(t => t.RecordSheetFilingId != null)
+            .Where(t => t.RecordSheetFilingId != null || t.DeletedAt != null)
             .Where(t => isAdmin ||
                 t.TrainerId == userAccessor.GetUserId() ||
                 t.TraineeId == userAccessor.GetUserId())
@@ -206,5 +207,23 @@ public class TrainingController(
         }
 
         return training;
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = UserRoles.ControllerTrainingMentor)]
+    [ApiError.Has<ApiError.NotFound>]
+    public async Task Delete(Ulid id)
+    {
+        var training = await FindById(id);
+
+        await ValidateOwnership(training, requireTrainer: true);
+
+        if (training.StartAt <= DateTimeOffset.UtcNow)
+        {
+            throw new ApiError.CannotDeleteStartedTraining(id);
+        }
+
+        training.DeletedAt = DateTimeOffset.UtcNow;
+        await database.SaveChangesAsync();
     }
 }
