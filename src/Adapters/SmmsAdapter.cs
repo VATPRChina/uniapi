@@ -18,8 +18,7 @@ public class SmmsAdapter(IOptions<SmmsAdapter.Option> Options)
             .AppendPathSegment("upload")
             .WithHeader("Authorization", Options.Value.SecretToken)
             .PostMultipartAsync(mp => mp
-                .AddFile("smfile", imageStream, $"vatprc-{DateTimeOffset.UtcNow:yyyy-MM-dd}-{fileName}")
-                .AddString("custom_slug", $"vatprc-{DateTimeOffset.UtcNow:yyyy-MM-dd}-{fileName}"),
+                .AddFile("file", imageStream, $"vatprc-{DateTimeOffset.UtcNow:yyyy-MM-dd}-{fileName}"),
                 cancellationToken: ct)
             .ReceiveJson<SmmsResponse>();
         if (!response.Success)
