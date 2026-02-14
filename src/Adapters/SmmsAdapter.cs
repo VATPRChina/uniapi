@@ -6,7 +6,7 @@ namespace Net.Vatprc.Uniapi.Adapters;
 
 public class SmmsAdapter(IOptions<SmmsAdapter.Option> Options)
 {
-    public const string BASE_URL = "https://sm.ms/api/v2/";
+    public const string BASE_URL = "https://s.ee/api/v1/file";
 
     public async Task<string> UploadImageAsync(Stream imageStream, string fileName, CancellationToken ct = default)
     {
@@ -18,7 +18,9 @@ public class SmmsAdapter(IOptions<SmmsAdapter.Option> Options)
             .AppendPathSegment("upload")
             .WithHeader("Authorization", Options.Value.SecretToken)
             .PostMultipartAsync(mp => mp
-                .AddFile("smfile", imageStream, $"vatprc-{DateTimeOffset.UtcNow:yyyy-MM-dd}-{fileName}"), cancellationToken: ct)
+                .AddFile("smfile", imageStream, $"vatprc-{DateTimeOffset.UtcNow:yyyy-MM-dd}-{fileName}")
+                .AddString("custom_slug", $"vatprc-{DateTimeOffset.UtcNow:yyyy-MM-dd}-{fileName}"),
+                cancellationToken: ct)
             .ReceiveJson<SmmsResponse>();
         if (!response.Success)
         {
