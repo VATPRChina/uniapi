@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Flurl;
 using Flurl.Http;
 using Microsoft.Extensions.Options;
@@ -10,7 +11,7 @@ public class SmmsAdapter(IOptions<SmmsAdapter.Option> Options)
 
     public async Task<string> UploadImageAsync(Stream imageStream, string fileName, CancellationToken ct = default)
     {
-        if (fileName.Any(c => !char.IsAscii(c)))
+        if (fileName.Any(c => !char.IsLetterOrDigit(c)))
         {
             fileName = Ulid.NewUlid().ToString();
         }
@@ -21,29 +22,29 @@ public class SmmsAdapter(IOptions<SmmsAdapter.Option> Options)
                 .AddFile("file", imageStream, $"vatprc-{DateTimeOffset.UtcNow:yyyy-MM-dd}-{fileName}"),
                 cancellationToken: ct)
             .ReceiveJson<SmmsResponse>();
-        if (!response.Success)
+        if (response.Code != 200)
         {
-            if (response.Code == "image_repeated")
-            {
-                return response.Images;
-            }
             throw new Exception("Image upload to SM.MS failed: " + response.Message);
         }
-        return response.Data!.Url;
+        return response.Data?.Url ?? throw new Exception("Image upload to SM.MS failed: No URL returned");
     }
 
     public class SmmsResponse
     {
-        public required bool Success { get; set; }
-        public string Code { get; set; } = string.Empty;
-        public string Message { get; set; } = string.Empty;
-        public string Images { get; set; } = string.Empty;
+        [JsonPropertyName("code")]
+        public long Code { get; set; }
+
+        [JsonPropertyName("data")]
         public SmmsData? Data { get; set; }
+
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
     }
 
     public class SmmsData
     {
-        public required string Url { get; set; }
+        [JsonPropertyName("url")]
+        public string Url { get; set; } = string.Empty;
     }
 
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
