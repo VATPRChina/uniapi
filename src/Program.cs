@@ -1,8 +1,6 @@
 global using Microsoft.EntityFrameworkCore;
 global using Net.Vatprc.Uniapi;
 global using static Net.Vatprc.Uniapi.Utils.Utils;
-global using UniApi = Net.Vatprc.Uniapi;
-using System.Collections.Immutable;
 using System.CommandLine;
 using System.Reflection;
 using System.Text.Json;
@@ -11,12 +9,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Adapters.EmailAdapter;
 using Net.Vatprc.Uniapi.Controllers;
-using Net.Vatprc.Uniapi.Controllers.Atc;
-using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Utils;
@@ -203,6 +200,9 @@ builder.Services.AddScoped<AtcApplicationService>();
 SmtpEmailAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<VplaafAdapter>();
 
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<DatabaseAdapter>();
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
@@ -234,9 +234,11 @@ app.UseFileServer();
 
 app.MapControllers().RequireAuthorization(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
+app.MapHealthChecks("/healthz");
+
 app.MapFallbackToController("/api/{**path}",
-    nameof(UniApi.Controllers.InternalController.EndpointNotFound),
-    nameof(UniApi.Controllers.InternalController).Replace("Controller", ""));
+    nameof(InternalController.EndpointNotFound),
+    nameof(InternalController).Replace("Controller", ""));
 
 var rootCommand = new RootCommand("Start VATPRC UniAPI");
 rootCommand.SetAction(async parseResult =>
