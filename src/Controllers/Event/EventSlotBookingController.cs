@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Event;
@@ -13,7 +14,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// </summary>
 [ApiController, Route("api/events/{eid}/slots/{sid}/booking")]
 public class EventSlotBookingController(
-    Database DbContext,
+    DatabaseAdapter DbContext,
     IUserAccessor userAccessor) : ControllerBase
 {
     /// <summary>

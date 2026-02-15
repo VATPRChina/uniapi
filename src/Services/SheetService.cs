@@ -1,9 +1,10 @@
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models.Sheet;
 
 namespace Net.Vatprc.Uniapi.Services;
 
 public class SheetService(
-    Database dbContext
+    DatabaseAdapter dbContext
 )
 {
     public async Task<Sheet?> GetSheetByIdAsync(string sheetId, CancellationToken ct = default)

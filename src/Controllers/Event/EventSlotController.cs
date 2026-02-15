@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Event;
@@ -12,7 +13,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// </summary>
 [ApiController, Route("api/events/{eid}/slots")]
 public class EventSlotController(
-    Database DbContext,
+    DatabaseAdapter DbContext,
     IUserAccessor userAccessor) : ControllerBase
 {
     protected async Task<EventSlot> LoadAsync(Ulid eid, Ulid sid)

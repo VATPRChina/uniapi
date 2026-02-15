@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Event;
@@ -10,7 +11,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// Operate users.
 /// </summary>
 [ApiController, Route("api/events/{eid}/airspaces")]
-public class EventAirspaceController(Database DbContext) : ControllerBase
+public class EventAirspaceController(DatabaseAdapter DbContext) : ControllerBase
 {
     protected async Task<EventAirspace> LoadAsync(Ulid eid, Ulid aid)
     {

@@ -7,7 +7,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Discord;
 
 public class RoleModule(
     VatsimAdapter vatsimAdapter,
-    Database db,
+    DatabaseAdapter db,
     ILogger<RoleModule> Logger) : InteractionModuleBase
 {
     [CommandContextType([InteractionContextType.Guild, InteractionContextType.PrivateChannel])]

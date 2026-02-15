@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Atc;
@@ -14,7 +15,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// </summary>
 [ApiController, Route("api/events/{eventId}/controllers")]
 public class EventAtcPositionController(
-    Database DbContext,
+    DatabaseAdapter DbContext,
     IUserAccessor userAccessor,
     AtcPositionKindService positionKindService,
     AtcPositionStatusService positionStatusService) : ControllerBase

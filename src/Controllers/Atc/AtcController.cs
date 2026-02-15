@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Utils;
@@ -8,7 +9,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Atc;
 
 [ApiController, Route("api/atc/controllers")]
 public class AtcController(
-    Database DbContext) : Controller
+    DatabaseAdapter DbContext) : Controller
 {
     [HttpGet]
     [AllowAnonymous]

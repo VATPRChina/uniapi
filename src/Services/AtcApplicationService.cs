@@ -1,9 +1,10 @@
 using System.Linq.Expressions;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models.Atc;
 
 namespace Net.Vatprc.Uniapi.Services;
 
-public class AtcApplicationService(Database database)
+public class AtcApplicationService(DatabaseAdapter database)
 {
     public async Task<IEnumerable<AtcApplication>> GetApplications(Ulid? userId = null)
     {

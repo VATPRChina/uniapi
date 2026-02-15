@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
 
@@ -13,7 +14,7 @@ public interface IUserAccessor
     public Task EnsureCurrentUserAnyRoleOf(params string[] expectedRoles);
 }
 
-public class UserAccessor(IHttpContextAccessor httpContextAccessor, Database dbContext) : IUserAccessor
+public class UserAccessor(IHttpContextAccessor httpContextAccessor, DatabaseAdapter dbContext) : IUserAccessor
 {
     public Ulid GetUserId()
     {

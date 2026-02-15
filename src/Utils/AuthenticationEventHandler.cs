@@ -2,12 +2,13 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Net.Http.Headers;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
 
 namespace Net.Vatprc.Uniapi.Utils;
 
-public class AuthenticationEventHandler(Database DbContext) : JwtBearerEvents
+public class AuthenticationEventHandler(DatabaseAdapter DbContext) : JwtBearerEvents
 {
     public override async Task Challenge(JwtBearerChallengeContext context)
     {

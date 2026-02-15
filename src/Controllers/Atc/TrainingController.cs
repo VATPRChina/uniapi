@@ -1,6 +1,7 @@
 using Discord.Commands;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Atc;
@@ -13,7 +14,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Atc;
 [ApiController]
 [Route("api/atc/trainings")]
 public class TrainingController(
-    Database database,
+    DatabaseAdapter database,
     SheetService sheetService,
     IUserAccessor userAccessor
 ) : Controller

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Dto.Navdata;
 using Net.Vatprc.Uniapi.Models;
 
@@ -9,7 +10,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Navdata;
 [Route("api/navdata/preferred-routes")]
 [Authorize(Roles = UserRoles.Volunteer)]
 public class PreferredRouteController(
-    Database database
+    DatabaseAdapter database
 ) : Controller
 {
     [HttpGet]

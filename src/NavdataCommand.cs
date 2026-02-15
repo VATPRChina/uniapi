@@ -4,6 +4,7 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Arinc424;
 using Microsoft.Data.Sqlite;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Utils;
 using nietras.SeparatedValues;
@@ -302,7 +303,7 @@ public class NavdataCommand : Command
         var aipLocalPath = parseResult.GetValue(AipLocalPath) ?? throw new ArgumentNullException(nameof(AipLocalPath));
 
         using var scope = App.Services.CreateScope();
-        using var db = scope.ServiceProvider.GetRequiredService<Database>();
+        using var db = scope.ServiceProvider.GetRequiredService<DatabaseAdapter>();
 
         await db.Airport.ExecuteDeleteAsync();
         await db.AirportGate.ExecuteDeleteAsync();

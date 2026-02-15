@@ -16,7 +16,7 @@ public partial class CompatController(
     VatsimAdapter VatsimService,
     MetarAdapter MetarService,
     TrackAudioAdapter TrackAudioService,
-    Database database,
+    DatabaseAdapter database,
     VplaafAdapter vplaafAdapter) : ControllerBase
 {
 

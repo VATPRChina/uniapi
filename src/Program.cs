@@ -122,7 +122,7 @@ var connectionString = builder.Configuration.GetConnectionString("VATPRCContext"
 var dataSource = new NpgsqlDataSourceBuilder(connectionString)
     .EnableDynamicJson()
     .Build();
-builder.Services.AddDbContext<Database>(opt =>
+builder.Services.AddDbContext<DatabaseAdapter>(opt =>
 {
     opt.UseNpgsql(dataSource);
 });
@@ -254,7 +254,7 @@ rootCommand.Add(migrateCommand);
 migrateCommand.SetAction(async parseResult =>
 {
     using var scope = app.Services.CreateScope();
-    using var db = scope.ServiceProvider.GetRequiredService<Database>();
+    using var db = scope.ServiceProvider.GetRequiredService<DatabaseAdapter>();
     var sheetService = scope.ServiceProvider.GetRequiredService<SheetService>();
 
     await db.Database.MigrateAsync();

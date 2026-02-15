@@ -1,15 +1,16 @@
 using Microsoft.EntityFrameworkCore;
+using Net.Vatprc.Uniapi.Adapters;
 
 namespace Net.Vatprc.Uniapi.Test;
 
 public abstract class TestWithDatabase
 {
-    protected Database dbContext;
+    protected DatabaseAdapter dbContext;
 
     [SetUp]
     protected void DatabaseSetup()
     {
-        dbContext = new Database(new DbContextOptionsBuilder<Database>()
+        dbContext = new DatabaseAdapter(new DbContextOptionsBuilder<DatabaseAdapter>()
             .UseSnakeCaseNamingConvention()
             .UseNpgsql($"Host=localhost;Username=postgres;Database=vatprc-test-{Ulid.NewUlid()}")
             .Options);

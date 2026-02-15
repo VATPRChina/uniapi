@@ -6,9 +6,9 @@ using Net.Vatprc.Uniapi.Models.Navdata;
 using Net.Vatprc.Uniapi.Models.Sheet;
 using Net.Vatprc.Uniapi.Utils;
 
-namespace Net.Vatprc.Uniapi;
+namespace Net.Vatprc.Uniapi.Adapters;
 
-public class Database(DbContextOptions<Database> options) : DbContext(options)
+public class DatabaseAdapter(DbContextOptions<DatabaseAdapter> options) : DbContext(options)
 {
     public virtual DbSet<User> User { get; set; }
     public virtual DbSet<RefreshToken> Session { get; set; }

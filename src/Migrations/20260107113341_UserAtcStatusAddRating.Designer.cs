@@ -4,14 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Net.Vatprc.Uniapi;
+using Net.Vatprc.Uniapi.Adapters;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace Net.Vatprc.Uniapi.Migrations
 {
-    [DbContext(typeof(Database))]
+    [DbContext(typeof(DatabaseAdapter))]
     [Migration("20260107113341_UserAtcStatusAddRating")]
     partial class UserAtcStatusAddRating
     {

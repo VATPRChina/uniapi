@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Services;
 
@@ -11,7 +12,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Auth;
 /// </summary>
 [ApiController, Route("api/session")]
 public class SessionController(
-    Database DbContext
+    DatabaseAdapter DbContext
 ) : ControllerBase
 {
     /// <summary>Get Current</summary>

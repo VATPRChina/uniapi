@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Adapters.EmailAdapter;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
@@ -12,7 +13,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Atc;
 [ApiController]
 [Route("api/atc/applications")]
 public class AtcApplicationController(
-    Database database,
+    DatabaseAdapter database,
     SheetService sheetService,
     IUserAccessor userAccessor,
     AtcApplicationService atcApplicationService,

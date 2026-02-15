@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Utils;
 
 namespace Net.Vatprc.Uniapi.Controllers;
@@ -8,7 +9,7 @@ namespace Net.Vatprc.Uniapi.Controllers;
 /// </summary>
 [ApiController, Route("api/sectors")]
 public class SectorController(
-    Database database,
+    DatabaseAdapter database,
     IUserAccessor userAccessor) : ControllerBase
 {
     public record SectorPermissionResponse(

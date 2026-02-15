@@ -21,7 +21,7 @@ public class AuthController(
     IOptions<VatsimAuthAdapter.Option> Options,
     TokenService TokenService,
     VatsimAuthAdapter AuthService,
-    Database DbContext,
+    DatabaseAdapter DbContext,
     ILogger<AuthController> Logger) : Controller
 {
     public readonly TimeSpan AuthnStateExpires = TimeSpan.FromMinutes(10);

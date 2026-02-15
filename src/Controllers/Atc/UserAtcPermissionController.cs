@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Models.Atc;
@@ -11,7 +12,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Atc;
 [ApiController]
 [Route("api/users")]
 public class UserAtcPermissionController(
-    Database DbContext,
+    DatabaseAdapter DbContext,
     IUserAccessor userAccessor) : Controller
 {
     protected const string ADMIN_ROLES = $"{UserRoles.ControllerTrainingMentor},{UserRoles.ControllerTrainingDirectorAssistant}";

@@ -3,14 +3,14 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Net.Vatprc.Uniapi;
+using Net.Vatprc.Uniapi.Adapters;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace Net.Vatprc.Uniapi.Migrations
 {
-    [DbContext(typeof(Database))]
+    [DbContext(typeof(DatabaseAdapter))]
     partial class VATPRCContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)

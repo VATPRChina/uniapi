@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
@@ -13,7 +14,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Auth;
 /// </summary>
 [ApiController, Route("api/users")]
 public class UserController(
-    Database DbContext,
+    DatabaseAdapter DbContext,
     IUserAccessor userAccessor) : ControllerBase
 {
     [HttpGet]
