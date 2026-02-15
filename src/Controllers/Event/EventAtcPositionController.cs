@@ -159,7 +159,7 @@ public class EventAtcPositionController(
 
         var atcBooking = new AtcBooking
         {
-            Id = position.Booking.AtcBookingId,
+            Id = position.Booking.AtcBookingId.Value,
             UserId = userId,
             Callsign = position.Callsign,
             BookedAt = DateTimeOffset.UtcNow,

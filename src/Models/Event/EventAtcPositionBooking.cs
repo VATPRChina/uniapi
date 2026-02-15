@@ -11,7 +11,7 @@ public class EventAtcPositionBooking
     public required Ulid UserId { get; set; }
     public User? User { get; set; }
 
-    public required Ulid AtcBookingId { get; set; }
+    public required Ulid? AtcBookingId { get; set; }
     public AtcBooking? AtcBooking { get; set; }
 
     public required DateTimeOffset CreatedAt { get; set; }
@@ -34,8 +34,7 @@ public class EventAtcPositionBooking
 
             builder.HasOne(x => x.AtcBooking)
                 .WithOne()
-                .HasForeignKey<EventAtcPositionBooking>(x => x.AtcBookingId)
-                .IsRequired();
+                .HasForeignKey<EventAtcPositionBooking>(x => x.AtcBookingId);
         }
     }
 }
