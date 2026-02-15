@@ -27,6 +27,8 @@ public class EventAtcPositionController(
             .Include(x => x.Event)
             .Include(x => x.Booking)
                 .ThenInclude(x => x!.User)
+            .Include(x => x.Booking)
+                .ThenInclude(x => x!.AtcBooking)
             .SingleOrDefaultAsync(x => x.Id == controllerId && x.EventId == eventId)
             ?? throw new ApiError.EventAtcPositionNotFound(eventId, controllerId);
         return slot;
@@ -148,13 +150,15 @@ public class EventAtcPositionController(
 
         position.Booking = new EventAtcPositionBooking
         {
+            EventAtcPositionId = position.Id,
             UserId = userId,
+            AtcBookingId = Ulid.NewUlid(),
             CreatedAt = DateTimeOffset.UtcNow,
         };
 
         var atcBooking = new AtcBooking
         {
-            Id = Ulid.NewUlid(),
+            Id = position.Booking.AtcBookingId,
             UserId = userId,
             Callsign = position.Callsign,
             BookedAt = DateTimeOffset.UtcNow,
@@ -190,15 +194,9 @@ public class EventAtcPositionController(
             throw new ApiError.EventPositionBookedByAnotherUser(eventId, positionId);
         }
 
-        var atcBooking = await DbContext.AtcBooking
-            .SingleOrDefaultAsync(
-                x => x.UserId == user.Id
-                && x.Callsign == position.Callsign
-                && x.StartAt == position.StartAt
-                && x.EndAt == position.EndAt);
-        if (atcBooking != null)
+        if (position.Booking.AtcBooking != null)
         {
-            DbContext.AtcBooking.Remove(atcBooking);
+            DbContext.AtcBooking.Remove(position.Booking.AtcBooking);
         }
 
         DbContext.EventAtcPositionBooking.Remove(position.Booking);

@@ -367,4 +367,8 @@ public abstract class ApiError : Exception
     [Error(HttpStatusCode.Forbidden, "CANNOT_DELETE_STARTED_TRAINING", "Cannot delete training that has already started.")]
     public class CannotDeleteStartedTraining(Ulid trainingId) :
         ApiError($"Cannot delete training {trainingId} that has already started.");
+
+    [Error(HttpStatusCode.Conflict, "ATC_BOOKING_IS_EVENT_POSITION", "The ATC booking {bookingId} is associated with an event position and cannot be modified or deleted.")]
+    public class AtcBookingIsEventPosition(Ulid bookingId) :
+        ApiError($"The ATC booking {bookingId} is associated with an event position and cannot be modified or deleted.");
 }

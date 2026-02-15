@@ -92,6 +92,12 @@ public class AtcBookingController(
             throw new ApiError.StartMustBeBeforeEnd(nameof(req.StartTime), nameof(req.EndTime));
         }
 
+        var hasEvent = await DbContext.EventAtcPositionBooking.AnyAsync(b => b.AtcBookingId == id);
+        if (hasEvent)
+        {
+            throw new ApiError.AtcBookingIsEventPosition(id);
+        }
+
         booking.Callsign = req.Callsign;
         booking.StartAt = req.StartTime.ToUniversalTime();
         booking.EndAt = req.EndTime.ToUniversalTime();
@@ -112,6 +118,12 @@ public class AtcBookingController(
         if (booking.UserId != userId)
         {
             throw new ApiError.AtcBookingForbidden(id, booking.UserId);
+        }
+
+        var hasEvent = await DbContext.EventAtcPositionBooking.AnyAsync(b => b.AtcBookingId == id);
+        if (hasEvent)
+        {
+            throw new ApiError.AtcBookingIsEventPosition(id);
         }
 
         DbContext.AtcBooking.Remove(booking);
