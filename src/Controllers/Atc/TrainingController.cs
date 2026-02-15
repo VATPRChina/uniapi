@@ -65,6 +65,30 @@ public class TrainingController(
         return trainings;
     }
 
+    [HttpGet("by-user/{userId}")]
+    public async Task<IEnumerable<TrainingDto>> ListByUser(Ulid userId)
+    {
+        var isAdmin = await userAccessor.HasCurrentUserRole(UserRoles.ControllerTrainingMentor);
+
+        if (userId != userAccessor.GetUserId() && !isAdmin)
+        {
+            throw new ApiError.NotOwned(nameof(database.Training), userId, userAccessor.GetUserId());
+        }
+
+        var trainings = await database.Training
+            .Where(t => t.TraineeId == userId)
+            .OrderByDescending(t => t.CreatedAt)
+            .Include(t => t.Trainer)
+            .Include(t => t.Trainee)
+            .Include(t => t.RecordSheetFiling)
+                .ThenInclude(s => s!.Answers!)
+                    .ThenInclude(a => a.Field)
+            .Select(t => TrainingDto.From(t))
+            .ToListAsync();
+
+        return trainings;
+    }
+
     [HttpGet("{id}")]
     [ApiError.Has<ApiError.NotFound>]
     public async Task<TrainingDto> Get(Ulid id)
