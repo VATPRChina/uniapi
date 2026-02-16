@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Net.Vatprc.Uniapi.Migrations
 {
     [DbContext(typeof(DatabaseAdapter))]
-    [Migration("20260215084429_EventAtcBookingMarkAtcBookingNullable")]
-    partial class EventAtcBookingMarkAtcBookingNullable
+    [Migration("20260216042225_EventAtcBookingAddAtcBooking")]
+    partial class EventAtcBookingAddAtcBooking
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

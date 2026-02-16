@@ -15,8 +15,7 @@ namespace Net.Vatprc.Uniapi.Migrations
                 name: "atc_booking_id",
                 table: "event_atc_position_booking",
                 type: "uuid",
-                nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                nullable: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_event_atc_position_booking_atc_booking_id",
@@ -29,8 +28,7 @@ namespace Net.Vatprc.Uniapi.Migrations
                 table: "event_atc_position_booking",
                 column: "atc_booking_id",
                 principalTable: "atc_booking",
-                principalColumn: "id",
-                onDelete: ReferentialAction.Cascade);
+                principalColumn: "id");
         }
 
         /// <inheritdoc />
