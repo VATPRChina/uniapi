@@ -6,4 +6,5 @@ public enum AtcApplicationStatus
     InWaitlist,
     Approved,
     Rejected,
+    Aborted,
 }

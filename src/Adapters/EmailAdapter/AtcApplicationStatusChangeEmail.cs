@@ -44,6 +44,7 @@ public class AtcApplicationStatusChangeEmail : MjmlEmailBase
             AtcApplicationStatus.InWaitlist => "in the waitlist queue",
             AtcApplicationStatus.Approved => "approved",
             AtcApplicationStatus.Rejected => "rejected",
+            AtcApplicationStatus.Aborted => "training aborted",
             _ => "changed status"
         };
     }
