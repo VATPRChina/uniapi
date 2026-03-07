@@ -46,18 +46,23 @@ public class EventSlotBookingController(
 
     [HttpPut]
     [ApiError.Has<ApiError.EventNotFound>]
-    public async Task<EventBookingDto> Put(Ulid eid, Ulid sid, CancellationToken ct)
+    public async Task<EventBookingDto> Put(Ulid eid, Ulid sid, EventSlotBookingRequest req, CancellationToken ct)
     {
-        var lockObject = UserLevelLock.GetOrAdd(userAccessor.GetUserId(), new SemaphoreSlim(1, 1));
+        if (req.UserId != null)
+        {
+            await userAccessor.EnsureCurrentUserAnyRoleOf(UserRoles.EventCoordinator);
+        }
+
+        var uid = req.UserId ?? userAccessor.GetUserId();
+        var lockObject = UserLevelLock.GetOrAdd(uid, new SemaphoreSlim(1, 1));
         await lockObject.WaitAsync(ct);
         try
         {
-            var uid = userAccessor.GetUserId();
             var booking = await LoadAsync(eid, sid);
             if (booking != null) throw new ApiError.EventSlotBooked(eid, sid);
             var eventt = await DbContext.Event.FindAsync(eid) ??
                 throw new ApiError.EventNotFound(eid);
-            if (!eventt.IsInBookingPeriod)
+            if (!eventt.IsInBookingPeriod && req.UserId == null)
             {
                 throw new ApiError.EventNotInBookingTime(eid);
             }
@@ -81,16 +86,18 @@ public class EventSlotBookingController(
     [HttpDelete]
     public async Task<EventBookingDto> Delete(Ulid eid, Ulid sid)
     {
-        var lockObject = UserLevelLock.GetOrAdd(userAccessor.GetUserId(), new SemaphoreSlim(1, 1));
+        var booking = await LoadAsync(eid, sid) ?? throw new ApiError.EventSlotNotBooked(eid, sid);
+        var lockObject = UserLevelLock.GetOrAdd(booking.UserId, new SemaphoreSlim(1, 1));
         await lockObject.WaitAsync();
         try
         {
-            var booking = await LoadAsync(eid, sid) ?? throw new ApiError.EventSlotNotBooked(eid, sid);
             if (!booking.EventSlot.EventAirspace.Event.IsInBookingPeriod)
             {
                 throw new ApiError.EventNotInBookingTime(eid);
             }
-            if (booking.UserId != userAccessor.GetUserId() && !User.IsInRole(UserRoles.Staff))
+            var user = await userAccessor.GetUser();
+            var isAdmin = await userAccessor.HasCurrentUserAnyRoleOf(UserRoles.EventCoordinator);
+            if (booking.UserId != user.Id && !isAdmin)
             {
                 throw new ApiError.EventSlotBookedByAnotherUser(eid, sid);
             }
