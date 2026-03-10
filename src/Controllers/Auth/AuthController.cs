@@ -320,7 +320,7 @@ public class AuthController(
             .SetQueryParam("code_challenge_method", "S256")
             .SetQueryParam("scope", "full_name email");
 
-        Logger.LogInformation("Write cookie: code_verifier for VATSIM");
+        Logger.LogInformation("Write cookie: code_verifier {state} for VATSIM", state);
         Response.Cookies.Append($"auth-{state}-code_verifier", verifier, new CookieOptions
         {
             HttpOnly = true,
@@ -378,7 +378,7 @@ public class AuthController(
 
         Request.Cookies.TryGetValue($"auth-{state}-code_verifier", out var verifier);
         Response.Cookies.Delete($"auth-{state}-code_verifier");
-        Logger.LogInformation("Delete code_verifier cookie");
+        Logger.LogInformation("Delete code_verifier cookie {verifier} for state {state}", verifier, state);
 
         VatsimAuthAdapter.TokenResponse token;
         VatsimAuthAdapter.UserResponse vatsimUser;
