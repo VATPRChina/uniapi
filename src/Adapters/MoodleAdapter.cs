@@ -59,7 +59,7 @@ public class MoodleAdapter(IOptions<MoodleAdapter.Option> options, ActivitySourc
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)
     {
         builder.Services.Configure<Option>(builder.Configuration.GetSection(Option.LOCATION));
-        builder.Services.AddSingleton<DiscourseAdapter>();
+        builder.Services.AddSingleton<MoodleAdapter>();
         return builder;
     }
 
