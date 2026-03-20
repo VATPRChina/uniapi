@@ -98,7 +98,6 @@ public class UserController(
         {
             throw new ApiError.UserNotFound(userId);
         }
-        var moodleUser = (await moodleAdapter.GetUserByCid(user.Cid)).SingleOrDefault();
-        return UserDto.From(user, moodleAccount: moodleUser, showFullName: true);
+        return UserDto.From(user, showFullName: true);
     }
 }
