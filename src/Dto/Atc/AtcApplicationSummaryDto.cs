@@ -21,7 +21,7 @@ public record AtcApplicationSummaryDto
         {
             Id = application.Id,
             UserId = application.UserId,
-            User = UserDto.From(application.User, isAdmin || application.UserId == currentUserId),
+            User = UserDto.From(application.User, showFullName: isAdmin || application.UserId == currentUserId),
             AppliedAt = application.AppliedAt,
             Status = application.Status,
         };

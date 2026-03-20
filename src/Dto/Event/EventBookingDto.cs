@@ -19,7 +19,7 @@ public record EventBookingDto
         {
             Id = booking.Id,
             UserId = booking.UserId,
-            User = includeUser && booking.User != null ? UserDto.From(booking.User, false) : null,
+            User = includeUser && booking.User != null ? UserDto.From(booking.User, showFullName: false) : null,
             CreatedAt = booking.CreatedAt,
             UpdatedAt = booking.UpdatedAt,
         };

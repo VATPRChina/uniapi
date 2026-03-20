@@ -30,7 +30,7 @@ public record TrainingApplicationResponseDto
             Id = resp.Id,
             ApplicationId = resp.ApplicationId,
             TrainerId = resp.TrainerId,
-            Trainer = UserDto.From(resp.Trainer, true),
+            Trainer = UserDto.From(resp.Trainer, showFullName: true),
             IsAccepted = resp.SlotId != null,
             Comment = resp.Comment,
             CreatedAt = resp.CreatedAt,
