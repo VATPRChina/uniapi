@@ -199,6 +199,7 @@ builder.Services.AddSingleton<AtcPositionStatusService>();
 builder.Services.AddScoped<AtcApplicationService>();
 SmtpEmailAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<VplaafAdapter>();
+MoodleAdapter.ConfigureOn(builder);
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<DatabaseAdapter>();

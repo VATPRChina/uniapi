@@ -1,3 +1,4 @@
+using Net.Vatprc.Uniapi.Adapters.Moodle;
 using Net.Vatprc.Uniapi.Models;
 using Net.Vatprc.Uniapi.Services;
 
@@ -12,8 +13,9 @@ public record UserDto
     public required DateTimeOffset UpdatedAt { get; init; }
     public required ISet<UserRoleDto> Roles { get; init; }
     public required ISet<UserRoleDto> DirectRoles { get; init; }
+    public required UserMoodleInfoDto? MoodleAccount { get; init; }
 
-    public static UserDto From(User user, bool showFullName = false, IEnumerable<string>? roles = null)
+    public static UserDto From(User user, MoodleUser? moodleAccount = null, bool showFullName = false, IEnumerable<string>? roles = null)
     {
         return new()
         {
@@ -24,6 +26,10 @@ public record UserDto
             UpdatedAt = user.UpdatedAt,
             DirectRoles = user.Roles.Select(ConvertRole).ToHashSet(),
             Roles = (roles ?? UserRoleService.GetRoleClosure(user.Roles)).Select(ConvertRole).ToHashSet(),
+            MoodleAccount = moodleAccount == null ? null : new()
+            {
+                Id = moodleAccount.Id.ToString()
+            },
         };
     }
 

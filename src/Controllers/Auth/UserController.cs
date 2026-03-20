@@ -15,14 +15,16 @@ namespace Net.Vatprc.Uniapi.Controllers.Auth;
 [ApiController, Route("api/users")]
 public class UserController(
     DatabaseAdapter DbContext,
-    IUserAccessor userAccessor) : ControllerBase
+    IUserAccessor userAccessor,
+    MoodleAdapter moodleAdapter) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = UserRoles.Volunteer)]
     public async Task<IEnumerable<UserDto>> List()
     {
         var isStaff = await userAccessor.HasCurrentUserRole(UserRoles.Staff);
-        return await DbContext.User.OrderBy(u => u.Cid).Select(x => UserDto.From(x, isStaff)).ToListAsync();
+        var users = await DbContext.User.OrderBy(u => u.Cid).ToListAsync();
+        return users.Select(x => UserDto.From(x, showFullName: isStaff));
     }
 
     [HttpGet("{id}")]
@@ -92,6 +94,11 @@ public class UserController(
         var subject = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var userId = Ulid.Parse(subject);
         var user = await DbContext.User.FindAsync(userId);
-        return UserDto.From(user ?? throw new ApiError.UserNotFound(userId), true);
+        if (user == null)
+        {
+            throw new ApiError.UserNotFound(userId);
+        }
+        var moodleUser = (await moodleAdapter.GetUserByCid(user.Cid)).SingleOrDefault();
+        return UserDto.From(user, moodleAccount: moodleUser, showFullName: true);
     }
 }
