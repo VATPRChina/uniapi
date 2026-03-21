@@ -200,6 +200,7 @@ builder.Services.AddScoped<AtcApplicationService>();
 SmtpEmailAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<VplaafAdapter>();
 MoodleAdapter.ConfigureOn(builder);
+builder.Services.AddScoped<DiscordRoleMapper>();
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<DatabaseAdapter>();

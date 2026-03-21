@@ -8,21 +8,22 @@ namespace Net.Vatprc.Uniapi.Controllers.Discord;
 public class RoleModule(
     VatsimAdapter vatsimAdapter,
     DatabaseAdapter db,
-    ILogger<RoleModule> Logger) : InteractionModuleBase
+    ILogger<RoleModule> logger,
+    DiscordRoleMapper roleMapper) : InteractionModuleBase
 {
     [CommandContextType([InteractionContextType.Guild, InteractionContextType.PrivateChannel])]
     [DefaultMemberPermissions(GuildPermission.Administrator)]
     [SlashCommand("role", "Get VATPRC role information for a user")]
     public async Task GetRoleAsync(IUser discordUser)
     {
-        Logger.LogInformation("Role information requested for user {DiscordUserId}", discordUser.Id);
+        logger.LogInformation("Role information requested for user {DiscordUserId}", discordUser.Id);
 
         var cid = await vatsimAdapter.GetCidByDiscordUserId(discordUser.Id.ToString());
-        Logger.LogInformation("Got CID {Cid}", cid);
+        logger.LogInformation("Got CID {Cid}", cid);
 
         if (cid == null)
         {
-            Logger.LogInformation("No CID linked for Discord user {DiscordUserId}", discordUser.Id);
+            logger.LogInformation("No CID linked for Discord user {DiscordUserId}", discordUser.Id);
             var components = new ComponentBuilder()
                     .WithButton(label: "Link VATSIM Account", style: ButtonStyle.Link, url: "https://community.vatsim.net/")
                     .Build();
@@ -40,12 +41,18 @@ public class RoleModule(
 
         var roles = UserRoleService.GetRoleClosure(user.Roles);
 
+        var currentRoles = (await Context.Guild.GetUserAsync(discordUser.Id)).RoleIds;
+        var expectedRoles = (await roleMapper.GetUserRoles(user))
+            .LeftJoin(Context.Guild.Roles, r => r, gr => gr.Id, (r, gr) => new { Id = gr?.Id ?? r, gr?.Name }).ToList();
+        var managedRoles = roleMapper.GetAllManagedRoles();
+
         await RespondAsync($"""
             <@{discordUser.Id}>'s roles in VATPRC:
-            {string.Join("\n", roles.Select(r => $"- {r}"))}
+            {string.Join("\n", roles.Select(r => $"- {r} {(user.Roles.Contains(r) ? "" : "(Inherited)")}"))}
 
-            Assigned roles:
-            {string.Join("\n", user.Roles.Select(r => $"- {r}"))}
-            """);
+            Discord roles:
+            {string.Join("\n", expectedRoles.Select(r => $"- {(r.Name != null ? $"<@&{r.Id}> ({r.Name})" : r.Id.ToString())} {(managedRoles.Contains(r.Id) ? currentRoles.Contains(r.Id) ? "(Assigned)" : "(Missing)" : "(Unmanaged)")}"))}
+            {string.Join("\n", currentRoles.Where(r => !expectedRoles.Any(er => er.Id == r) && managedRoles.Contains(r)).Select(r => $"- <@&{r}> (Unexpected)"))}
+            """, allowedMentions: AllowedMentions.None);
     }
 }
