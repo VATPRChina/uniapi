@@ -16,7 +16,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Auth;
 public class UserController(
     DatabaseAdapter DbContext,
     IUserAccessor userAccessor,
-    MoodleAdapter moodleAdapter) : ControllerBase
+    IMoodleAdapter moodleAdapter) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = UserRoles.Volunteer)]

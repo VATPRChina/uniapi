@@ -13,7 +13,7 @@ namespace Net.Vatprc.Uniapi.Controllers.Auth;
 [ApiController, Route("api/session")]
 public class SessionController(
     DatabaseAdapter DbContext,
-    MoodleAdapter moodleAdapter
+    IMoodleAdapter moodleAdapter
 ) : ControllerBase
 {
     /// <summary>Get Current</summary>
