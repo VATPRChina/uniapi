@@ -123,28 +123,18 @@ public class DiscordRoleMapper(
             }
             else if (status.Rating == "S2")
             {
-                roles.Add(1246789698819461164); // S1 - Developing Controller
                 roles.Add(1246789524944846958); // S2 - Aerodrome Controller
             }
             else if (status.Rating == "S3")
             {
-                roles.Add(1246789698819461164); // S1 - Developing Controller
-                roles.Add(1246789524944846958); // S2 - Aerodrome Controller
                 roles.Add(1246789486172573717); // S3 - TMA Controller
             }
             else if (status.Rating == "C1")
             {
-                roles.Add(1246789698819461164); // S1 - Developing Controller
-                roles.Add(1246789524944846958); // S2 - Aerodrome Controller
-                roles.Add(1246789486172573717); // S3 - TMA Controller
                 roles.Add(1246789431059546132); // C1 - Enroute Controller
             }
             else if (status.Rating == "C3")
             {
-                roles.Add(1246789698819461164); // S1 - Developing Controller
-                roles.Add(1246789524944846958); // S2 - Aerodrome Controller
-                roles.Add(1246789486172573717); // S3 - TMA Controller
-                roles.Add(1246789431059546132); // C1 - Enroute Controller
                 roles.Add(1246789399606329405); // C3 - Senior Controller
             }
 
