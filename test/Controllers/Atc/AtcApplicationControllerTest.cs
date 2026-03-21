@@ -1,6 +1,7 @@
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Adapters.EmailAdapter;
 using Net.Vatprc.Uniapi.Controllers.Atc;
 using Net.Vatprc.Uniapi.Dto;
@@ -38,7 +39,9 @@ public class AtcApplicationControllerTest : TestWithDatabase
             sheetService.Object,
             userAccessor.Object,
             atcApplicationService,
-            new Mock<ISmtpEmailAdapter>().Object);
+            new Mock<ISmtpEmailAdapter>().Object,
+            new Mock<MoodleAdapter>().Object,
+            new Mock<ILogger<AtcApplicationController>>().Object);
 
         var u1 = new User
         {
@@ -336,7 +339,7 @@ public class AtcApplicationControllerTest : TestWithDatabase
         };
 
         // Act
-        var updatedAppDto = await controller.ReviewApplication(application.Id, reviewDto);
+        var updatedAppDto = await controller.ReviewApplication(application.Id, reviewDto, CancellationToken.None);
 
         // Assert
         updatedAppDto.ReviewFilingAnswers.Should().NotBeNull();
@@ -363,6 +366,7 @@ public class AtcApplicationControllerTest : TestWithDatabase
         };
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<ApiError.AtcApplicationNotFound>(async () => await controller.ReviewApplication(nonExistentId, reviewDto));
+        var ex = Assert.ThrowsAsync<ApiError.AtcApplicationNotFound>(async () =>
+            await controller.ReviewApplication(nonExistentId, reviewDto, CancellationToken.None));
     }
 }
