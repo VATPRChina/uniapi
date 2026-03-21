@@ -8,7 +8,13 @@ using Net.Vatprc.Uniapi.Models;
 
 namespace Net.Vatprc.Uniapi.Adapters;
 
-public class MoodleAdapter(IOptions<MoodleAdapter.Option> options, ActivitySource activitySource)
+public interface IMoodleAdapter
+{
+    Task<IEnumerable<MoodleCreateUserResponseItem>> CreateUser(User user, CancellationToken ct = default);
+    Task<MoodleUser?> GetUserByCid(string cid, CancellationToken ct = default);
+}
+
+public class MoodleAdapter(IOptions<MoodleAdapter.Option> options, ActivitySource activitySource) : IMoodleAdapter
 {
     protected const string MOODLE_ENDPOINT = "https://moodle.vatprc.net/";
 

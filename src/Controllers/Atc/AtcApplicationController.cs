@@ -18,7 +18,7 @@ public class AtcApplicationController(
     IUserAccessor userAccessor,
     AtcApplicationService atcApplicationService,
     ISmtpEmailAdapter emailAdapter,
-    MoodleAdapter moodleAdapter,
+    IMoodleAdapter moodleAdapter,
     ILogger<AtcApplicationController> logger
 ) : Controller
 {

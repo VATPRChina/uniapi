@@ -40,7 +40,7 @@ public class AtcApplicationControllerTest : TestWithDatabase
             userAccessor.Object,
             atcApplicationService,
             new Mock<ISmtpEmailAdapter>().Object,
-            new Mock<MoodleAdapter>().Object,
+            new Mock<IMoodleAdapter>().Object,
             new Mock<ILogger<AtcApplicationController>>().Object);
 
         var u1 = new User
