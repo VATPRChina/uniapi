@@ -17,7 +17,9 @@ public class AtcApplicationController(
     SheetService sheetService,
     IUserAccessor userAccessor,
     AtcApplicationService atcApplicationService,
-    ISmtpEmailAdapter emailAdapter
+    ISmtpEmailAdapter emailAdapter,
+    MoodleAdapter moodleAdapter,
+    ILogger<AtcApplicationController> logger
 ) : Controller
 {
     public const string ATC_APPLICATION_SHEET_ID = "atc-application";
@@ -150,7 +152,8 @@ public class AtcApplicationController(
     [Authorize(Roles = UserRoles.ControllerTrainingDirectorAssistant)]
     public async Task<AtcApplicationDto> ReviewApplication(
         Ulid id,
-        AtcApplicationReviewRequest reviewDto)
+        AtcApplicationReviewRequest reviewDto,
+        CancellationToken ct)
     {
         var userId = userAccessor.GetUserId();
         var application = await atcApplicationService.GetApplication(id);
@@ -158,6 +161,10 @@ public class AtcApplicationController(
         if (application == null)
         {
             throw new ApiError.AtcApplicationNotFound(id);
+        }
+        if (application.User == null)
+        {
+            throw new InvalidOperationException("Application user is not loaded.");
         }
 
         application.Status = reviewDto.Status;
@@ -173,13 +180,28 @@ public class AtcApplicationController(
 
         await database.SaveChangesAsync();
 
-        var userEmail = application.User?.Email;
+        var userEmail = application.User.Email;
         if (userEmail != null)
         {
             await emailAdapter.SendEmailAsync(
                 userEmail,
                 new AtcApplicationStatusChangeEmail(application),
                 CancellationToken.None);
+        }
+
+        if (application.Status == AtcApplicationStatus.Approved)
+        {
+            var moodleUser = await moodleAdapter.GetUserByCid(application.User.Cid, ct);
+            if (moodleUser == null)
+            {
+                logger.LogInformation("No Moodle user found for CID {Cid}, creating new user", application.User.Cid);
+                await moodleAdapter.CreateUser(application.User, ct);
+            }
+            else
+            {
+                logger.LogInformation("Moodle user {Id} found for CID {Cid}, skipping user creation",
+                    moodleUser.Id, application.User.Cid);
+            }
         }
 
         return AtcApplicationDto.From(application, true, userId);
