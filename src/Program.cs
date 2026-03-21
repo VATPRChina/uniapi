@@ -249,8 +249,6 @@ rootCommand.SetAction(async parseResult =>
         app.Services.GetRequiredService<ILogger<Program>>().LogInformation("See API document on: https://localhost:5001/scalar/v1");
     }
 
-    var user = await app.Services.GetRequiredService<MoodleAdapter>().GetUserByCid("1573922");
-
     await app.RunAsync();
 });
 rootCommand.TreatUnmatchedTokensAsErrors = false;
