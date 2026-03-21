@@ -16,6 +16,7 @@ public enum UserRoleDto
     OperationSectorEditor,
     OperationLoaEditor,
     EventDirector,
+    LeadEventCoordinator,
     EventCoordinator,
     EventGraphicsDesigner,
     TechDirector,

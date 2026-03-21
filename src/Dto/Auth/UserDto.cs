@@ -50,6 +50,7 @@ public record UserDto
         UserRoles.OperationLoaEditor => UserRoleDto.OperationLoaEditor,
         UserRoles.EventDirector => UserRoleDto.EventDirector,
         UserRoles.EventCoordinator => UserRoleDto.EventCoordinator,
+        UserRoles.LeadEventCoordinator => UserRoleDto.LeadEventCoordinator,
         UserRoles.EventGraphicsDesigner => UserRoleDto.EventGraphicsDesigner,
         UserRoles.TechDirector => UserRoleDto.TechDirector,
         UserRoles.TechDirectorAssistant => UserRoleDto.TechDirectorAssistant,

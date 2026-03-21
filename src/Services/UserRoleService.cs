@@ -47,6 +47,7 @@ public class UserRoleService
                 UserRoles.EventCoordinator,
                 UserRoles.EventGraphicsDesigner,
             ] },
+            { UserRoles.LeadEventCoordinator, [UserRoles.EventCoordinator] },
             { UserRoles.EventCoordinator, [UserRoles.Volunteer] },
             { UserRoles.EventGraphicsDesigner, [UserRoles.Volunteer] },
 

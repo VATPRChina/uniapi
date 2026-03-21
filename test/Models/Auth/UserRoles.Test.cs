@@ -21,6 +21,7 @@ public class UserTest
             UserRoles.OperationSectorEditor,
             UserRoles.OperationLoaEditor,
             UserRoles.EventDirector,
+            UserRoles.LeadEventCoordinator,
             UserRoles.EventCoordinator,
             UserRoles.EventGraphicsDesigner,
             UserRoles.TechDirector,

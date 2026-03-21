@@ -24,6 +24,7 @@ public static class UserRoles
     public const string OperationLoaEditor = "operation-loa-editor";
 
     public const string EventDirector = "event-director";
+    public const string LeadEventCoordinator = "lead-event-coordinator";
     public const string EventCoordinator = "event-coordinator";
     public const string EventGraphicsDesigner = "event-graphics-designer";
 
