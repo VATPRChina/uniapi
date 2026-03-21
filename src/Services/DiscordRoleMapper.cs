@@ -9,9 +9,10 @@ public class DiscordRoleMapper(
 {
     public async Task<IEnumerable<ulong>> GetUserRoles(User user)
     {
+        var userRoles = UserRoleService.GetRoleClosure(user.Roles);
         var roles = new HashSet<ulong>();
 
-        foreach (var role in user.Roles)
+        foreach (var role in userRoles)
         {
             switch (role)
             {

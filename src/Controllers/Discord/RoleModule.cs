@@ -42,8 +42,6 @@ public class RoleModule(
         var roles = UserRoleService.GetRoleClosure(user.Roles);
 
         var currentRoles = (await Context.Guild.GetUserAsync(discordUser.Id)).RoleIds;
-        var expectedRoles = (await roleMapper.GetUserRoles(user))
-            .LeftJoin(Context.Guild.Roles, r => r, gr => gr.Id, (r, gr) => new { Id = gr?.Id ?? r, gr?.Name }).ToList();
         var managedRoles = roleMapper.GetAllManagedRoles();
 
         await RespondAsync($"""
@@ -51,8 +49,8 @@ public class RoleModule(
             {string.Join("\n", roles.Select(r => $"- {r} {(user.Roles.Contains(r) ? "" : "(Inherited)")}"))}
 
             Discord roles:
-            {string.Join("\n", expectedRoles.Select(r => $"- {(r.Name != null ? $"<@&{r.Id}> ({r.Name})" : r.Id.ToString())} {(managedRoles.Contains(r.Id) ? currentRoles.Contains(r.Id) ? "(Assigned)" : "(Missing)" : "(Unmanaged)")}"))}
-            {string.Join("\n", currentRoles.Where(r => !expectedRoles.Any(er => er.Id == r) && managedRoles.Contains(r)).Select(r => $"- <@&{r}> (Unexpected)"))}
+            {string.Join("\n", currentRoles.Select(r => $"- {(managedRoles.Contains(r) ? currentRoles.Contains(r) ? "✅" : "❌" : "⚠️")} <@&{r}> {(managedRoles.Contains(r) ? currentRoles.Contains(r) ? "(As expected)" : "(Should add)" : "(Unmanaged)")}"))}
+            {string.Join("\n", currentRoles.Where(r => !currentRoles.Any(er => er == r) && managedRoles.Contains(r)).Select(r => $"- 🚫 <@&{r}> (Should remove)"))}
             """, allowedMentions: AllowedMentions.None);
     }
 }
