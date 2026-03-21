@@ -12,7 +12,8 @@ namespace Net.Vatprc.Uniapi.Controllers.Auth;
 /// </summary>
 [ApiController, Route("api/session")]
 public class SessionController(
-    DatabaseAdapter DbContext
+    DatabaseAdapter DbContext,
+    MoodleAdapter moodleAdapter
 ) : ControllerBase
 {
     /// <summary>Get Current</summary>
@@ -27,9 +28,10 @@ public class SessionController(
         var user = await DbContext.User.FindAsync(userId);
         var identity = HttpContext.User.Identity as ClaimsIdentity;
         var roles = identity?.FindAll(ClaimTypes.Role).Select(x => x.Value).ToHashSet();
+        var moodleUser = await moodleAdapter.GetUserByCid(user!.Cid);
         return new()
         {
-            User = UserDto.From(user!, showFullName: true, roles: roles),
+            User = UserDto.From(user!, moodleAccount: moodleUser, showFullName: true, roles: roles),
             IssuedAt = DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(issued)),
             ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(expires)),
         };

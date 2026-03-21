@@ -12,27 +12,37 @@ public class MoodleAdapter(IOptions<MoodleAdapter.Option> options, ActivitySourc
 {
     protected const string MOODLE_ENDPOINT = "https://moodle.vatprc.net/";
 
-    public async Task<IEnumerable<MoodleUser>> GetUserByCid(string cid, CancellationToken ct = default)
+    public async Task<MoodleUser?> GetUserByCid(string cid, CancellationToken ct = default)
     {
         using var activity = activitySource.StartActivity($"{nameof(MoodleAdapter)}.{nameof(GetUserByCid)}", ActivityKind.Client);
-        var result = await MOODLE_ENDPOINT
-            .AppendPathSegment("webservice/rest/server.php")
-            .PostUrlEncodedAsync(new
-            {
-                wstoken = options.Value.ApiKey,
-                wsfunction = "core_user_get_users_by_field",
-                moodlewsrestformat = "json",
-                field = "idnumber",
-                values = new string[] { cid },
-            }, cancellationToken: ct)
-            .ReceiveJson<IEnumerable<MoodleUser>>();
-        return result;
+        try
+        {
+            var result = await MOODLE_ENDPOINT
+                .AppendPathSegment("webservice/rest/server.php")
+                .PostUrlEncodedAsync(new Dictionary<string, string>()
+                {
+                    {"wstoken", options.Value.ApiKey},
+                    {"wsfunction", "core_user_get_users_by_field"},
+                    {"moodlewsrestformat", "json"},
+                    {"field", "idnumber"},
+                    {"values[0]", cid},
+                }, cancellationToken: ct)
+                .ReceiveJson<IEnumerable<MoodleUser>>();
+            return result.SingleOrDefault();
+        }
+        catch (FlurlParsingException ex)
+        {
+            var error = await ex.GetResponseStringAsync();
+            throw new Exception($"Moodle API error: {error}", ex);
+        }
     }
 
     public async Task<IEnumerable<MoodleCreateUserResponseItem>> CreateUser(User user, CancellationToken ct = default)
     {
         using var activity = activitySource.StartActivity($"{nameof(MoodleAdapter)}.{nameof(CreateUser)}", ActivityKind.Client);
-        var result = await MOODLE_ENDPOINT
+        try
+        {
+            var result = await MOODLE_ENDPOINT
             .AppendPathSegment("webservice/rest/server.php")
             .PostUrlEncodedAsync(new
             {
@@ -53,7 +63,13 @@ public class MoodleAdapter(IOptions<MoodleAdapter.Option> options, ActivitySourc
                 },
             }, cancellationToken: ct)
             .ReceiveJson<IEnumerable<MoodleCreateUserResponseItem>>();
-        return result;
+            return result;
+        }
+        catch (FlurlParsingException ex)
+        {
+            var error = await ex.GetResponseStringAsync();
+            throw new Exception($"Moodle API error: {error}", ex);
+        }
     }
 
     public static WebApplicationBuilder ConfigureOn(WebApplicationBuilder builder)

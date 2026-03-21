@@ -80,10 +80,10 @@ public record MoodleUser
     public string? Auth { get; init; }
 
     [JsonPropertyName("suspended")]
-    public int? Suspended { get; init; }
+    public bool? Suspended { get; init; }
 
     [JsonPropertyName("confirmed")]
-    public int? Confirmed { get; init; }
+    public bool? Confirmed { get; init; }
 
     [JsonPropertyName("lang")]
     public string? Lang { get; init; }

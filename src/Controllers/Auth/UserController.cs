@@ -32,8 +32,11 @@ public class UserController(
     [Authorize(Roles = UserRoles.Volunteer)]
     public async Task<UserDto> Get(Ulid id)
     {
+        var user = await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id);
+        var moodleUser = await moodleAdapter.GetUserByCid(user.Cid);
         return UserDto.From(
-            await DbContext.User.FindAsync(id) ?? throw new ApiError.UserNotFound(id),
+            user,
+            moodleAccount: moodleUser,
             showFullName: await userAccessor.HasCurrentUserRole(UserRoles.Staff));
     }
 
@@ -93,11 +96,8 @@ public class UserController(
     {
         var subject = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var userId = Ulid.Parse(subject);
-        var user = await DbContext.User.FindAsync(userId);
-        if (user == null)
-        {
-            throw new ApiError.UserNotFound(userId);
-        }
-        return UserDto.From(user, showFullName: true);
+        var user = await DbContext.User.FindAsync(userId) ?? throw new ApiError.UserNotFound(userId);
+        var moodleUser = await moodleAdapter.GetUserByCid(user.Cid);
+        return UserDto.From(user, moodleAccount: moodleUser, showFullName: true);
     }
 }
