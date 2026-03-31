@@ -32,6 +32,8 @@ public class Event
 
     public string? VatsimLink { get; set; }
 
+    public bool? IsApproved { get; set; }
+
     public IEnumerable<EventAirspace>? Airspaces { get; set; }
 
     public IEnumerable<EventAtcPosition>? AtcPositions { get; set; }
@@ -78,6 +80,9 @@ public class Event
                 .IsRequired(false);
 
             builder.Property(x => x.TitleEn)
+                .IsRequired(false);
+
+            builder.Property(x => x.IsApproved)
                 .IsRequired(false);
         }
     }

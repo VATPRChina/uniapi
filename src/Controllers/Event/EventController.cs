@@ -18,6 +18,7 @@ public class EventController(DatabaseAdapter DbContext) : ControllerBase
     public async Task<IEnumerable<EventDto>> List()
     {
         var query = DbContext.Event.AsQueryable()
+            .Where(x => x.IsApproved == true || x.IsApproved == null)
             .Where(x => DateTimeOffset.UtcNow < x.EndAt);
         return await query
             .OrderBy(x => x.StartAt)
@@ -29,6 +30,7 @@ public class EventController(DatabaseAdapter DbContext) : ControllerBase
     public async Task<IEnumerable<EventDto>> ListPast(DateTimeOffset? until = null)
     {
         var query = DbContext.Event.AsQueryable()
+            .Where(x => x.IsApproved == true || x.IsApproved == null)
             .Where(x => x.StartAt < DateTimeOffset.UtcNow
                 && (until == null || x.StartAt <= until))
             .OrderByDescending(x => x.StartAt)
