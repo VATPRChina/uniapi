@@ -157,7 +157,8 @@ public class Validator(
             {
                 Field = ValidationMessage.FieldType.Route,
                 Type = ValidationMessage.ViolationType.RouteMatchPreferred,
-                Param = Flight.RawRoute ?? string.Empty,
+                Param = (matchingRoute.Remarks.Contains("AIP Route", StringComparison.InvariantCultureIgnoreCase) ?
+                    Flight.RawRoute : matchingRoute.Remarks) ?? string.Empty,
             });
         }
 
