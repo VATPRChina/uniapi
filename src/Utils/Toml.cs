@@ -57,7 +57,7 @@ internal class TomlConfigurationFileParser : Tomlyn.Syntax.SyntaxVisitor
         Data.Clear();
 
         using var reader = new StreamReader(stream);
-        var toml = Tomlyn.Toml.Parse(reader.ReadToEnd()).ToModel();
+        var toml = TomlSerializer.Deserialize<TomlTable>(reader.ReadToEnd()) ?? [];
         // A TOML table maps to a TomlTable object and is in practice a IDictionary<string, object?>.
         // A TOML table array maps to a TomlTableArray object
         // A TOML array maps to a TomlArray object and is in practice a IList<object?>.
