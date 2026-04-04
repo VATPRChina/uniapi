@@ -15,13 +15,7 @@ public class Validator(
     ILogger<Validator> Logger,
     ILoggerFactory loggerFactory)
 {
-    protected readonly Flight Flight = flight;
-    protected readonly IList<FlightLeg> Legs = legs;
-    protected readonly INavdataProvider Navdata = navdata;
-
-    protected readonly IList<ValidationMessage> Messages = [];
-
-    protected readonly RouteParserFactory RouteParserFactory = routeParserFactory;
+    protected readonly IList<ValidationMessage> messages = [];
 
     public async Task<IList<ValidationMessage>> Validate(CancellationToken ct = default)
     {
@@ -35,21 +29,21 @@ public class Validator(
 
         foreach (var pv in planValidators)
         {
-            foreach (var m in pv.Validate(Flight))
+            foreach (var m in pv.Validate(flight))
             {
-                Messages.Add(m);
+                messages.Add(m);
             }
         }
 
-        var prefRoutes = await Navdata.GetRecommendedRoutes(Flight.Departure, Flight.Arrival);
+        var prefRoutes = await navdata.GetRecommendedRoutes(flight.Departure, flight.Arrival);
         Logger.LogInformation("Recommended routes for {Dep} to {Arr}: {Routes}",
-            Flight.Departure, Flight.Arrival, prefRoutes.Select(r => r.RawRoute));
+            flight.Departure, flight.Arrival, prefRoutes.Select(r => r.RawRoute));
 
         PreferredRoute? matchingRoute = null;
         foreach (var prefRte in prefRoutes)
         {
-            var prefRteParsed = await RouteParserFactory.Create(prefRte.RawRoute, Navdata).Parse(ct);
-            var matching = EnrouteRouteComparator.IsRouteMatchingExpected(Legs, prefRteParsed, loggerFactory.CreateLogger<EnrouteRouteComparator>(), ct);
+            var prefRteParsed = await routeParserFactory.Create(prefRte.RawRoute, navdata).Parse(ct);
+            var matching = EnrouteRouteComparator.IsRouteMatchingExpected(legs, prefRteParsed, loggerFactory.CreateLogger<EnrouteRouteComparator>(), ct);
             if (matching)
             {
                 matchingRoute = prefRte;
@@ -67,18 +61,18 @@ public class Validator(
         };
         foreach (var pv in preferredRouteValidators)
         {
-            foreach (var m in pv.Validate(Flight, matchingRoute, prefRoutes))
+            foreach (var m in pv.Validate(flight, matchingRoute, prefRoutes))
             {
-                Messages.Add(m);
+                messages.Add(m);
             }
         }
 
-        foreach (var (leg, index) in Legs.Select((l, i) => (l, i)))
+        foreach (var (leg, index) in legs.Select((l, i) => (l, i)))
         {
             if (ct.IsCancellationRequested)
             {
                 Logger.LogWarning("Validation cancelled.");
-                return Messages;
+                return messages;
             }
 
             AirwayFix? fromLeg = null;
@@ -86,9 +80,9 @@ public class Validator(
             if (leg.LegId != null)
             {
                 var (fromLegId, toLegId) = leg.LegId.Value;
-                fromLeg = await Navdata.GetAirwayFix(fromLegId)
+                fromLeg = await navdata.GetAirwayFix(fromLegId)
                     ?? throw new InvalidOperationException($"Unexpected null airway leg: {fromLegId}");
-                toLeg = await Navdata.GetAirwayFix(toLegId)
+                toLeg = await navdata.GetAirwayFix(toLegId)
                     ?? throw new InvalidOperationException($"Unexpected null airway leg: {toLegId}");
             }
 
@@ -101,13 +95,13 @@ public class Validator(
 
             foreach (var pv in legValidators)
             {
-                await foreach (var m in pv.Validate(leg, index, Navdata, fromLeg, toLeg))
+                await foreach (var m in pv.Validate(leg, index, navdata, fromLeg, toLeg))
                 {
-                    Messages.Add(m);
+                    messages.Add(m);
                 }
             }
         }
 
-        return Messages;
+        return messages;
     }
 }
