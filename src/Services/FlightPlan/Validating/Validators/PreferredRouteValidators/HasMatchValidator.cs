@@ -13,7 +13,7 @@ public class HasMatchValidator : IPreferredRouteMatchValidator
             {
                 Field = ValidationMessage.FieldType.Route,
                 Type = ValidationMessage.ViolationType.RouteMatchPreferred,
-                Param = (prefRoute.IsPublic ? plan.RawRoute : prefRoute.Remarks) ?? string.Empty,
+                Param = (prefRoute.IsPublic ? prefRoute.RawRoute : plan.RawRoute) ?? string.Empty,
             };
         }
 
