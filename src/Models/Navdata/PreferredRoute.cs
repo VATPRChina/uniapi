@@ -18,6 +18,8 @@ public class PreferredRoute
     public DateTimeOffset? ValidFrom { get; set; }
     public DateTimeOffset? ValidUntil { get; set; }
 
+    public bool IsPublic => Remarks.Contains("AIP Route", StringComparison.InvariantCultureIgnoreCase);
+
     public enum LevelRestrictionType
     {
         StandardEven,

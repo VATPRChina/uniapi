@@ -6,6 +6,7 @@ public class ValidationMessage
     public int? FieldParam { get; set; }
     public required ViolationType Type { get; set; }
     public string? Param { get; set; }
+    public string? DebugMessage { get; set; }
 
     public enum FieldType
     {
