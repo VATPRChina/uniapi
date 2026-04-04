@@ -45,12 +45,18 @@ public class Validator(
         Logger.LogInformation("Recommended routes for {Dep} to {Arr}: {Routes}",
             Flight.Departure, Flight.Arrival, prefRoutes.Select(r => r.RawRoute));
 
-        PreferredRoute? matchingRoute = (await Task.WhenAll(prefRoutes.Select(async prefRte =>
+        PreferredRoute? matchingRoute = null;
+        foreach (var prefRte in prefRoutes)
         {
             var prefRteParsed = await RouteParserFactory.Create(prefRte.RawRoute, Navdata).Parse(ct);
             var matching = EnrouteRouteComparator.IsRouteMatchingExpected(Legs, prefRteParsed, loggerFactory.CreateLogger<EnrouteRouteComparator>(), ct);
-            return new { PrefRoute = prefRte, IsMatching = matching };
-        }))).Where(x => x.IsMatching).Select(x => x.PrefRoute).FirstOrDefault();
+            if (matching)
+            {
+                matchingRoute = prefRte;
+                Logger.LogInformation("Found matching route: {Route}", matchingRoute.RawRoute);
+                break;
+            }
+        }
         Logger.LogInformation("Found matching route: {Route}", matchingRoute?.RawRoute);
 
         var preferredRouteValidators = new IPreferredRouteMatchValidator[]
