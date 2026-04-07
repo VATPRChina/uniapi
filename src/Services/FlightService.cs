@@ -48,7 +48,6 @@ public class FlightService(ILogger<FlightService> logger, VatsimAdapter vatsimAd
 
     protected Flight? TryMapVatsimFlight(Adapters.VatsimAdapterModels.Prefile prefile)
     {
-        using var activity = activitySource.StartActivity($"{nameof(FlightService)}.{nameof(TryMapVatsimFlight)}");
         try
         {
             return MapVatsimFlight(prefile);

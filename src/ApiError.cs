@@ -89,6 +89,8 @@ public abstract class ApiError : Exception
             var exception = context.Exception;
             if (exception is not ApiError)
             {
+                Activity.Current?.SetStatus(ActivityStatusCode.Error, exception.Message);
+                Activity.Current?.AddException(exception);
                 Logger.LogError(exception, "Internal error occurred.");
             }
 
