@@ -67,6 +67,8 @@ public class DiscordWorker(
             {
                 Activity.Current = null;
                 using var activity = ActivitySource.StartActivity($"DiscordWorker.Client.InteractionCreated", ActivityKind.Server);
+                activity?.AddTag("interaction_type", x.Type.ToString());
+                activity?.AddTag("interaction_user_id", x.User.Id.ToString());
                 var ctx = new SocketInteractionContext(Client, x);
                 try
                 {
