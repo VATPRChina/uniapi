@@ -3,7 +3,7 @@ using Discord.Interactions;
 
 namespace Net.Vatprc.Uniapi.Controllers.Discord;
 
-public class MessageModule : InteractionModuleBase
+public class MessageModule(ILogger<MessageModule> logger) : InteractionModuleBase
 {
     protected const string MESSAGE_MODAL_ID = "edit_message_modal";
 
@@ -96,12 +96,14 @@ public class MessageModule : InteractionModuleBase
                 msg.Content = modal.Message;
                 msg.Components = builder?.Build();
             });
+            logger.LogInformation("Message updated: {ChannelId}/{MessageId}", channel.Id, message.Id);
         }
         else
         {
             if (string.IsNullOrEmpty(modal.MessageId))
             {
-                await channel.SendMessageAsync(modal.Message, components: builder?.Build());
+                var sentMessage = await channel.SendMessageAsync(modal.Message, components: builder?.Build());
+                logger.LogInformation("Message sent: {ChannelId}/{MessageId}", channel.Id, sentMessage.Id);
             }
             else
             {
