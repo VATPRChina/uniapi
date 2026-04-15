@@ -44,6 +44,16 @@ public class RoleModule(
         var currentRoles = (await Context.Guild.GetUserAsync(discordUser.Id)).RoleIds;
         var managedRoles = roleMapper.GetAllManagedRoles();
 
+        var guilds = await Context.Client.GetGuildsAsync();
+        foreach (var guild in guilds)
+        {
+            if (guild.Id != 1246778352749121648)
+            {
+                await guild.LeaveAsync();
+                logger.LogInformation("Leaving Guild: {GuildName} {GuildId}", guild.Name, guild.Id);
+            }
+        }
+
         await RespondAsync($"""
             <@{discordUser.Id}>'s roles in VATPRC:
             {string.Join("\n", roles.Select(r => $"- {r} {(user.Roles.Contains(r) ? "" : "(Inherited)")}"))}
