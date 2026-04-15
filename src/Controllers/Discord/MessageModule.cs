@@ -93,7 +93,7 @@ public class MessageModule(ILogger<MessageModule> logger) : InteractionModuleBas
         {
             await message.ModifyAsync(msg =>
             {
-                msg.Content = modal.Message;
+                msg.Content = modal.Message + $"\n\n*Last updated by @<{Context.User.Id}>";
                 msg.Components = builder?.Build();
             });
             logger.LogInformation("Message updated: {ChannelId}/{MessageId}", channel.Id, message.Id);
@@ -102,7 +102,9 @@ public class MessageModule(ILogger<MessageModule> logger) : InteractionModuleBas
         {
             if (string.IsNullOrEmpty(modal.MessageId))
             {
-                var sentMessage = await channel.SendMessageAsync(modal.Message, components: builder?.Build());
+                var sentMessage = await channel.SendMessageAsync(
+                    modal.Message + $"\n\n*Created by @<{Context.User.Id}>",
+                    components: builder?.Build());
                 logger.LogInformation("Message sent: {ChannelId}/{MessageId}", channel.Id, sentMessage.Id);
             }
             else

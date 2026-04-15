@@ -44,16 +44,6 @@ public class RoleModule(
         var currentRoles = (await Context.Guild.GetUserAsync(discordUser.Id)).RoleIds;
         var managedRoles = roleMapper.GetAllManagedRoles();
 
-        var guilds = await Context.Client.GetGuildsAsync();
-        foreach (var guild in guilds)
-        {
-            if (guild.Id != 1246778352749121648)
-            {
-                await guild.LeaveAsync();
-                logger.LogInformation("Leaving Guild: {GuildName} {GuildId}", guild.Name, guild.Id);
-            }
-        }
-
         await RespondAsync($"""
             <@{discordUser.Id}>'s roles in VATPRC:
             {string.Join("\n", roles.Select(r => $"- {r} {(user.Roles.Contains(r) ? "" : "(Inherited)")}"))}
@@ -61,8 +51,6 @@ public class RoleModule(
             Discord roles:
             {string.Join("\n", currentRoles.Select(r => $"- {(managedRoles.Contains(r) ? currentRoles.Contains(r) ? "✅" : "❌" : "⚠️")} <@&{r}> {(managedRoles.Contains(r) ? currentRoles.Contains(r) ? "(As expected)" : "(Should add)" : "(Unmanaged)")}"))}
             {string.Join("\n", currentRoles.Where(r => !currentRoles.Any(er => er == r) && managedRoles.Contains(r)).Select(r => $"- 🚫 <@&{r}> (Should remove)"))}
-
-            {string.Join(';', (await Context.Client.GetGuildsAsync()).Select(g => $"{g.Name} {g.Id}"))}
             """, allowedMentions: AllowedMentions.None);
     }
 }
