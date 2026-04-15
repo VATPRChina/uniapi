@@ -51,6 +51,8 @@ public class RoleModule(
             Discord roles:
             {string.Join("\n", currentRoles.Select(r => $"- {(managedRoles.Contains(r) ? currentRoles.Contains(r) ? "✅" : "❌" : "⚠️")} <@&{r}> {(managedRoles.Contains(r) ? currentRoles.Contains(r) ? "(As expected)" : "(Should add)" : "(Unmanaged)")}"))}
             {string.Join("\n", currentRoles.Where(r => !currentRoles.Any(er => er == r) && managedRoles.Contains(r)).Select(r => $"- 🚫 <@&{r}> (Should remove)"))}
+
+            {string.Join(';', (await Context.Client.GetGuildsAsync()).Select(g => $"{g.Name} {g.Id}"))}
             """, allowedMentions: AllowedMentions.None);
     }
 }
