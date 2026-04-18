@@ -6,7 +6,7 @@ public interface ILexerContext
 
     public int SegmentCount { get; }
 
-    public RouteToken CurrentSegment { get; }
+    public RouteToken CurrentSegment { get; set; }
 
     public RouteToken? LastSegment { get; }
 

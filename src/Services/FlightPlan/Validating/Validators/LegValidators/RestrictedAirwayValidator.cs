@@ -1,5 +1,5 @@
 using Net.Vatprc.Uniapi.Models.Navdata;
-using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
+using Net.Vatprc.Uniapi.Models.Navdata.Legs;
 
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Validating.Validators.LegValidators;
 
@@ -7,13 +7,13 @@ public class RestrictedAirwayValidator : ILegValidator
 {
     public bool RunOnMatchedRoute => false;
 
-    public async IAsyncEnumerable<ValidationMessage> Validate(FlightLeg leg, int index, INavdataProvider navdata, AirwayFix? fromLeg, AirwayFix? toLeg)
+    public async IAsyncEnumerable<ValidationMessage> Validate(Leg leg, int index, INavdataProvider navdata)
     {
-        if (fromLeg == null || toLeg == null) yield break;
+        if (leg is not AirwayLeg airwayLeg) yield break;
 
-        if (fromLeg.FixIcaoCode.StartsWith("Z")
-            && toLeg.FixIcaoCode.StartsWith("Z")
-            && (fromLeg.AirwayIdentifier!.StartsWith("V") || fromLeg.AirwayIdentifier!.StartsWith("X")))
+        if (airwayLeg.From.Identifier.StartsWith('Z')
+            && airwayLeg.To.Identifier.StartsWith('Z')
+            && (airwayLeg.Identifier.StartsWith('V') || airwayLeg.Identifier.StartsWith('X')))
         {
             yield return new ValidationMessage
             {

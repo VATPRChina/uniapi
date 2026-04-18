@@ -1,5 +1,3 @@
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
-
 namespace Net.Vatprc.Uniapi.Models.Navdata;
 
 /// <summary>
@@ -28,16 +26,5 @@ public class PreferredRoute
         FlightLevelEven,
         FlightLevelOdd,
         FlightLevel,
-    }
-
-    public class Configuration : IEntityTypeConfiguration<PreferredRoute>
-    {
-        public void Configure(EntityTypeBuilder<PreferredRoute> builder)
-        {
-            builder.ToTable("preferred_route", "navdata");
-
-            builder.Property(p => p.CruisingLevelRestriction)
-                .HasConversion<string>();
-        }
     }
 }

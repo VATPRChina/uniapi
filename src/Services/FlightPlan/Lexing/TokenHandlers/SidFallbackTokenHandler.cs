@@ -1,19 +1,24 @@
+using Net.Vatprc.Uniapi.Models.Navdata.Fixes;
+
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Lexing.TokenHandlers;
 
 public class SidFallbackTokenHandler : ITokenHandler
 {
     public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
-        return context.LastSegment?.Kind == RouteTokenKind.AIRPORT
-            && context.CurrentSegment.Kind == RouteTokenKind.UNKNOWN
+        return context.LastSegment is FixToken lastFix && lastFix.Fix is Airport
+            && context.CurrentSegment is UnknownToken
             && context.CurrentSegmentIndex == 1
-            && (context.NextSegment?.Kind.IsFix() ?? false);
+            && context.NextSegment is FixToken;
     }
 
     public Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
-        context.CurrentSegment.Kind = RouteTokenKind.SID;
-        context.CurrentSegment.Id = Ulid.Empty;
+        context.CurrentSegment = new SidLegToken
+        {
+            Value = context.CurrentSegment.Value,
+            Procedure = null,
+        };
         return Task.FromResult(true);
     }
 }

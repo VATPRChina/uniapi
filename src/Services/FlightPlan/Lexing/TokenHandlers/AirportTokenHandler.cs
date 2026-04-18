@@ -5,7 +5,7 @@ public class AirportTokenHandler : ITokenHandler
     public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
         return context.CurrentSegmentIndex == 0
-            || (context.CurrentSegmentIndex == 1 && context.LastSegment?.Kind == RouteTokenKind.SPEED_AND_ALTITUDE)
+            || (context.CurrentSegmentIndex == 1 && context.LastSegment is SpeedAndAltitudeToken)
             || context.CurrentSegmentIndex == context.SegmentCount - 1;
     }
 
@@ -14,9 +14,11 @@ public class AirportTokenHandler : ITokenHandler
         var airport = await navdataProvider.FindAirport(context.CurrentSegment.Value);
         if (airport == null) return false;
 
-        context.CurrentSegment.Kind = RouteTokenKind.AIRPORT;
-        context.CurrentSegment.Value = airport.Identifier;
-        context.CurrentSegment.Id = airport.Id;
+        context.CurrentSegment = new FixToken
+        {
+            Value = airport.Identifier,
+            Fix = airport,
+        };
         context.CurrentLon = airport.Longitude;
         context.CurrentLat = airport.Latitude;
         return true;

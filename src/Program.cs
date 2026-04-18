@@ -13,10 +13,12 @@ using Microsoft.IdentityModel.Tokens;
 using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Adapters.EmailAdapter;
 using Net.Vatprc.Uniapi.Controllers;
+using Net.Vatprc.Uniapi.Models.Navdata.Fixes;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Utils;
 using Net.Vatprc.Uniapi.Utils.Toml;
+using nietras.SeparatedValues;
 using Npgsql;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
@@ -185,7 +187,6 @@ MetarAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<VatsimAdapter>();
 DiscourseAdapter.ConfigureOn(builder);
 builder.Services.AddSingleton<TrackAudioAdapter>();
-builder.Services.AddScoped<DbNavdataAdapter>();
 builder.Services.AddScoped<RouteParseService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<RouteParserFactory>();
@@ -263,6 +264,11 @@ migrateCommand.SetAction(async parseResult =>
 
     await db.Database.MigrateAsync();
 });
-rootCommand.Add(new NavdataCommand(app));
+
+var writer = Sep.Writer().ToFile("test.csv");
+var list = new List<Net.Vatprc.Uniapi.Models.Navdata.Fix> {
+    new Waypoint("ZY","TOSID",1.0,2.0),
+    new Waypoint("ZS","SASAN",1.0,2.0),
+};
 
 return await rootCommand.Parse(args).InvokeAsync();

@@ -1,3 +1,5 @@
+using Net.Vatprc.Uniapi.Models.Navdata.Fixes;
+
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Lexing.TokenHandlers;
 
 public class Geo11CharTokenHandler : ITokenHandler
@@ -41,8 +43,11 @@ public class Geo11CharTokenHandler : ITokenHandler
             : context.CurrentSegment.Value[10] == 'W' ? -1
             : throw new InvalidOperationException("Invalid longitude sign in geo coordinate");
 
-        context.CurrentSegment.Kind = RouteTokenKind.GEO_COORD;
-        context.CurrentSegment.Id = Ulid.Empty;
+        context.CurrentSegment = new FixToken
+        {
+            Value = context.CurrentSegment.Value,
+            Fix = new GeoPoint(lat * latSign, lon * lonSign),
+        };
         context.CurrentLat = lat * latSign;
         context.CurrentLon = lon * lonSign;
         return Task.FromResult(true);

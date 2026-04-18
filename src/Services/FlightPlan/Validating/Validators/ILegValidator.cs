@@ -6,5 +6,5 @@ namespace Net.Vatprc.Uniapi.Services.FlightPlan.Validating.Validators;
 public interface ILegValidator
 {
     public bool RunOnMatchedRoute { get; }
-    public IAsyncEnumerable<ValidationMessage> Validate(FlightLeg leg, int index, INavdataProvider navdata, AirwayFix? fromLeg, AirwayFix? toLeg);
+    public IAsyncEnumerable<ValidationMessage> Validate(Leg leg, int index, INavdataProvider navdata);
 }

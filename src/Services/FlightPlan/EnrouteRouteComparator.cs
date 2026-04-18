@@ -1,25 +1,27 @@
-using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
+using Net.Vatprc.Uniapi.Models.Navdata;
+using Net.Vatprc.Uniapi.Models.Navdata.Fixes;
+using Net.Vatprc.Uniapi.Models.Navdata.Legs;
 
 namespace Net.Vatprc.Uniapi.Services.FlightPlan;
 
 public class EnrouteRouteComparator
 {
     public static bool IsRouteMatchingExpected(
-        IList<FlightLeg> actual,
-        IList<FlightLeg> expected,
+        IList<Leg> actual,
+        IList<Leg> expected,
         ILogger<EnrouteRouteComparator> logger,
         CancellationToken ct = default)
     {
-        var actualFirstEnroute = actual.FirstOrDefault(l => l.Type != FlightLeg.LegType.Sid && l.From.Type != FlightFix.FixType.Airport);
+        var actualFirstEnroute = actual.FirstOrDefault(l => l is not ProcedureLeg && l.From is not Airport);
         int actualLeft = actualFirstEnroute != null ? actual.IndexOf(actualFirstEnroute) : 0;
-        var actualLastEnroute = actual.LastOrDefault(l => l.Type != FlightLeg.LegType.Star && l.To.Type != FlightFix.FixType.Airport);
+        var actualLastEnroute = actual.LastOrDefault(l => l is not ProcedureLeg && l.To is not Airport);
         int actualRight = actualLastEnroute != null ? actual.IndexOf(actualLastEnroute) : actual.Count - 1;
 
-        var expectedFirstMatching = expected.FirstOrDefault(i => actual[actualLeft].From.Identifier == i.From.Identifier);
+        var expectedFirstMatching = expected.FirstOrDefault(i => actual[actualLeft].From == i.From);
         if (expectedFirstMatching == null)
         {
             logger.LogWarning("Expected route does not start with actual route segment: {ActualSegment}",
-                actual[actualLeft].From.Identifier);
+                actual[actualLeft].From.Name);
             return false;
         }
         int expectedIndex = expected.IndexOf(expectedFirstMatching);
@@ -36,9 +38,10 @@ public class EnrouteRouteComparator
             {
                 break;
             }
-            if (expected[expectedIndex].From.Identifier != actual[i].From.Identifier
-                || expected[expectedIndex].To.Identifier != actual[i].To.Identifier
-                || expected[expectedIndex].LegIdentifier != actual[i].LegIdentifier)
+            if (expected[expectedIndex].From != actual[i].From
+                || expected[expectedIndex].To != actual[i].To
+                || (expected[expectedIndex] is AirwayLeg expectedAirwayLeg &&
+                    expectedAirwayLeg.Identifier != (actual[i] as AirwayLeg)?.Identifier))
             {
                 return false;
             }
@@ -53,8 +56,8 @@ public class EnrouteRouteComparator
         }
 
         logger.LogInformation("Route matches expected route from {From} to {To} for expected route segments: {FromIdent} to {ToIdent}",
-            actual[actualLeft].From.Identifier, actual[actualRight].To.Identifier,
-            expected[expectedStart].From.Identifier, expected[expectedIndex - 1].To.Identifier);
+            actual[actualLeft].From.Name, actual[actualRight].To.Name,
+            expected[expectedStart].From.Name, expected[expectedIndex - 1].To.Name);
 
         return true;
     }

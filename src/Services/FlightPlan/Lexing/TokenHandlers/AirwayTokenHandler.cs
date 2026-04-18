@@ -6,13 +6,8 @@ public class AirwayTokenHandler : ITokenHandler
 
     public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
-        return (context.LastSegment?.Kind == RouteTokenKind.VHF
-            || context.LastSegment?.Kind == RouteTokenKind.NDB
-            || context.LastSegment?.Kind == RouteTokenKind.WAYPOINT
-            ) && (context.NextSegment?.Kind == RouteTokenKind.VHF
-                || context.NextSegment?.Kind == RouteTokenKind.NDB
-                || context.NextSegment?.Kind == RouteTokenKind.WAYPOINT
-            );
+        return context.LastSegment is FixToken
+            && context.NextSegment is FixToken;
     }
 
     public async Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
@@ -27,9 +22,10 @@ public class AirwayTokenHandler : ITokenHandler
             context.NextSegment.Value);
         if (!existsLeft || !existsRight) return false;
 
-        context.CurrentSegment.Kind = RouteTokenKind.AIRWAY;
-        context.CurrentSegment.Id = Ulid.Empty;
-        context.CurrentSegment.Value = context.CurrentSegment.Value;
+        context.CurrentSegment = new AirwayLegToken
+        {
+            Value = context.CurrentSegment.Value,
+        };
         return true;
     }
 }

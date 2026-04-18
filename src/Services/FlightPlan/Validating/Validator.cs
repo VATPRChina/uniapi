@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Net.Vatprc.Uniapi.Models.Acdm;
 using Net.Vatprc.Uniapi.Models.Navdata;
+using Net.Vatprc.Uniapi.Models.Navdata.Legs;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Validating.Validators;
 using Net.Vatprc.Uniapi.Utils;
@@ -9,7 +10,7 @@ namespace Net.Vatprc.Uniapi.Services.FlightPlan.Validating;
 
 public class Validator(
     Flight flight,
-    IList<FlightLeg> legs,
+    IList<Leg> legs,
     INavdataProvider navdata,
     RouteParserFactory routeParserFactory,
     ILogger<Validator> Logger,
@@ -75,17 +76,6 @@ public class Validator(
                 return messages;
             }
 
-            AirwayFix? fromLeg = null;
-            AirwayFix? toLeg = null;
-            if (leg.LegId != null)
-            {
-                var (fromLegId, toLegId) = leg.LegId.Value;
-                fromLeg = await navdata.GetAirwayFix(fromLegId)
-                    ?? throw new InvalidOperationException($"Unexpected null airway leg: {fromLegId}");
-                toLeg = await navdata.GetAirwayFix(toLegId)
-                    ?? throw new InvalidOperationException($"Unexpected null airway leg: {toLegId}");
-            }
-
             var legValidators = new ILegValidator[]
             {
                 new Validators.LegValidators.DirectValidator(),
@@ -95,7 +85,7 @@ public class Validator(
 
             foreach (var pv in legValidators)
             {
-                await foreach (var m in pv.Validate(leg, index, navdata, fromLeg, toLeg))
+                await foreach (var m in pv.Validate(leg, index, navdata))
                 {
                     messages.Add(m);
                 }

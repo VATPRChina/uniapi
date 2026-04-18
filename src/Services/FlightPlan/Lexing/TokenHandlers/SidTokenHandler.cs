@@ -1,10 +1,12 @@
+using Net.Vatprc.Uniapi.Models.Navdata.Fixes;
+
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Lexing.TokenHandlers;
 
 public class SidTokenHandler : ITokenHandler
 {
     public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
-        return context.LastSegment?.Kind == RouteTokenKind.AIRPORT;
+        return context.LastSegment is FixToken lastFix && lastFix.Fix is Airport;
     }
 
     public async Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
@@ -13,9 +15,11 @@ public class SidTokenHandler : ITokenHandler
         var proc = await navdataProvider.FindSid(context.CurrentSegment.Value, context.LastSegment.Value);
         if (proc == null) return false;
 
-        context.CurrentSegment.Kind = RouteTokenKind.SID;
-        context.CurrentSegment.Id = proc.Id;
-        context.CurrentSegment.Value = proc.Identifier;
+        context.CurrentSegment = new SidLegToken
+        {
+            Value = proc.Identifier,
+            Procedure = proc,
+        };
         return true;
     }
 }

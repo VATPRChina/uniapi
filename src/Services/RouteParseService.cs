@@ -1,22 +1,23 @@
-using Net.Vatprc.Uniapi.Adapters;
 using Net.Vatprc.Uniapi.Models.Acdm;
+using Net.Vatprc.Uniapi.Models.Navdata;
+using Net.Vatprc.Uniapi.Services.FlightPlan;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Parsing;
 using Net.Vatprc.Uniapi.Services.FlightPlan.Validating;
 
 namespace Net.Vatprc.Uniapi.Services;
 
-public class RouteParseService(DbNavdataAdapter navdata, RouteParserFactory routeParserFactory, ILoggerFactory loggerFactory)
+public class RouteParseService(INavdataProvider navdata, RouteParserFactory routeParserFactory, ILoggerFactory loggerFactory)
 {
-    protected DbNavdataAdapter Navdata => navdata;
+    protected INavdataProvider Navdata => navdata;
     protected RouteParserFactory RouteParserFactory => routeParserFactory;
 
-    public async Task<IList<FlightLeg>> ParseRouteAsync(string route, string dep, string arr, CancellationToken ct = default)
+    public async Task<IList<Leg>> ParseRouteAsync(string route, string dep, string arr, CancellationToken ct = default)
     {
         var parser = RouteParserFactory.Create($"{dep} {route} {arr}", Navdata);
         return await parser.Parse(ct);
     }
 
-    public async Task<IList<ValidationMessage>> ValidateFlight(Flight flight, IList<FlightLeg> legs, CancellationToken ct = default)
+    public async Task<IList<ValidationMessage>> ValidateFlight(Flight flight, IList<Leg> legs, CancellationToken ct = default)
     {
         var validator = new Validator(
             flight,

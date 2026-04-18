@@ -1,3 +1,5 @@
+using Net.Vatprc.Uniapi.Models.Navdata.Fixes;
+
 namespace Net.Vatprc.Uniapi.Services.FlightPlan.Lexing.TokenHandlers;
 
 public class StarFallbackTokenHandler : ITokenHandler
@@ -6,16 +8,19 @@ public class StarFallbackTokenHandler : ITokenHandler
 
     public bool IsAllowed(ILexerContext context, INavdataProvider navdataProvider)
     {
-        return context.NextSegment?.Kind == RouteTokenKind.AIRPORT
-            && context.CurrentSegment.Kind == RouteTokenKind.UNKNOWN
+        return context.NextSegment is FixToken nextFix && nextFix.Fix is Airport
+            && context.CurrentSegment is UnknownToken
             && context.CurrentSegmentIndex == context.SegmentCount - 2
-            && (context.LastSegment?.Kind.IsFix() ?? false);
+            && context.LastSegment is FixToken;
     }
 
     public Task<bool> Resolve(ILexerContext context, INavdataProvider navdataProvider)
     {
-        context.CurrentSegment.Kind = RouteTokenKind.STAR;
-        context.CurrentSegment.Id = Ulid.Empty;
+        context.CurrentSegment = new StarLegToken
+        {
+            Value = context.CurrentSegment.Value,
+            Procedure = null,
+        };
         return Task.FromResult(true);
     }
 }

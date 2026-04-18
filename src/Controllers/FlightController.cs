@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Net.Vatprc.Uniapi.Dto;
 using Net.Vatprc.Uniapi.Models.Acdm;
+using Net.Vatprc.Uniapi.Models.Navdata.Legs;
 using Net.Vatprc.Uniapi.Services;
 using Net.Vatprc.Uniapi.Utils;
 
@@ -73,13 +74,13 @@ public partial class FlightController(
             {
                 From = new FlightFix
                 {
-                    Identifier = leg.From.Identifier,
+                    Identifier = leg.From.Name,
                 },
                 To = new FlightFix
                 {
-                    Identifier = leg.To.Identifier,
+                    Identifier = leg.To.Name,
                 },
-                LegIdentifier = leg.LegIdentifier,
+                LegIdentifier = leg is AirwayLeg airwayLeg ? airwayLeg.Identifier : "DCT",
             }).ToList();
         }
         catch (Exception e)

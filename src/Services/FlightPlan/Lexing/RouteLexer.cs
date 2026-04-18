@@ -36,11 +36,9 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<Route
                 }
                 segment = segment.Trim();
 
-                return new RouteToken
+                return new UnknownToken
                 {
-                    Kind = RouteTokenKind.UNKNOWN,
                     Value = segment,
-                    Id = Ulid.Empty,
                 };
             })
             .ToArray();
@@ -53,7 +51,11 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<Route
 
     public int SegmentCount => Tokens.Count;
 
-    public RouteToken CurrentSegment => Tokens[CurrentSegmentIndex];
+    public RouteToken CurrentSegment
+    {
+        get => Tokens[CurrentSegmentIndex];
+        set => Tokens[CurrentSegmentIndex] = value;
+    }
 
     public RouteToken? LastSegment => CurrentSegmentIndex > 0
         ? Tokens[CurrentSegmentIndex - 1]
@@ -62,8 +64,6 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<Route
     public RouteToken? NextSegment => CurrentSegmentIndex + 1 < SegmentCount
         ? Tokens[CurrentSegmentIndex + 1]
         : null;
-
-    RouteToken ILexerContext.CurrentSegment => CurrentSegment;
 
     public void MoveToNextSegment()
     {
@@ -80,9 +80,6 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<Route
         Logger.LogDebug("Parsing segment {Index}/{TotalSegmentCount}: {Segment}",
             CurrentSegmentIndex, SegmentCount, CurrentSegment.Value);
 
-        CurrentSegment.Kind = RouteTokenKind.UNKNOWN;
-        CurrentSegment.Id = Ulid.Empty;
-
         foreach (var handler in TokenHandlers)
         {
             if (skipRequireNextSegment && handler.NeedParseNextSegment) { continue; }
@@ -93,9 +90,9 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<Route
                 Logger.LogTrace("Handler {Handler} is allowed for segment {Segment}",
                     handler.GetType().Name, CurrentSegment.Value);
                 var resolved = await handler.Resolve(this, NavdataProvider);
-                Logger.LogTrace("Handler {Handler} resolved segment {Segment} to kind {Kind} and id {Id}",
-                    handler.GetType().Name, CurrentSegment.Value, CurrentSegment.Kind, CurrentSegment.Id);
-                if (CurrentSegment.Kind != RouteTokenKind.UNKNOWN && resolved)
+                Logger.LogTrace("Handler {Handler} resolved segment {Segment} to kind {Type}",
+                    handler.GetType().Name, CurrentSegment.Value, CurrentSegment.GetType().Name);
+                if (CurrentSegment is not UnknownToken && resolved)
                 {
                     break;
                 }
@@ -137,8 +134,8 @@ public class RouteLexer(string rawRoute, INavdataProvider navdata, ILogger<Route
         {
             foreach (var token in Tokens)
             {
-                Logger.LogDebug("Segment {Index}: {Kind} - {Value} (Id: {Id})",
-                    Tokens.IndexOf(token), token.Kind, token.Value, token.Id);
+                Logger.LogDebug("Segment {Index}: {Kind} - {Value}",
+                    Tokens.IndexOf(token), token.GetType().Name, token.Value);
             }
         }
     }

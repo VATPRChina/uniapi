@@ -16,75 +16,33 @@ public class PreferredRouteController(
     [HttpGet]
     public async Task<IEnumerable<PreferredRouteDto>> GetPreferredRoutes()
     {
-        return await database.PreferredRoute
-            .Select(r => PreferredRouteDto.FromModel(r))
-            .ToListAsync();
+        throw new NotImplementedException();
     }
 
     [HttpGet("{id}")]
     public async Task<PreferredRouteDto> GetById(Ulid id)
     {
-        return await database.PreferredRoute
-            .Where(r => r.Id == id)
-            .Select(r => PreferredRouteDto.FromModel(r))
-            .SingleAsync();
+        throw new NotImplementedException();
     }
 
     [HttpPost]
     [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<PreferredRouteDto> CreatePreferredRoute(PreferredRouteSaveRequest dto)
     {
-        var route = new Models.Navdata.PreferredRoute
-        {
-            Departure = dto.Departure,
-            Arrival = dto.Arrival,
-            RawRoute = dto.RawRoute,
-            CruisingLevelRestriction = dto.CruisingLevelRestriction,
-            AllowedAltitudes = dto.AllowedAltitudes,
-            MinimalAltitude = dto.MinimalAltitude,
-            Remarks = dto.Remarks,
-            ValidFrom = dto.ValidFrom,
-            ValidUntil = dto.ValidUntil,
-        };
-
-        database.PreferredRoute.Add(route);
-        await database.SaveChangesAsync();
-
-        return PreferredRouteDto.FromModel(route);
+        throw new NotImplementedException();
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<PreferredRouteDto> UpdatePreferredRoute(Ulid id, PreferredRouteSaveRequest dto)
     {
-        var route = await database.PreferredRoute.FindAsync(id)
-            ?? throw new ArgumentException("preferred route not found", nameof(id));
-
-        route.Departure = dto.Departure;
-        route.Arrival = dto.Arrival;
-        route.RawRoute = dto.RawRoute;
-        route.CruisingLevelRestriction = dto.CruisingLevelRestriction;
-        route.AllowedAltitudes = dto.AllowedAltitudes;
-        route.MinimalAltitude = dto.MinimalAltitude;
-        route.Remarks = dto.Remarks;
-        route.ValidFrom = dto.ValidFrom;
-        route.ValidUntil = dto.ValidUntil;
-
-        await database.SaveChangesAsync();
-
-        return PreferredRouteDto.FromModel(route);
+        throw new NotImplementedException();
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = UserRoles.EventCoordinator)]
     public async Task<PreferredRouteDto> DeletePreferredRoute(Ulid id)
     {
-        var route = await database.PreferredRoute.FindAsync(id)
-            ?? throw new ArgumentException("preferred route not found", nameof(id));
-
-        database.PreferredRoute.Remove(route);
-        await database.SaveChangesAsync();
-
-        return PreferredRouteDto.FromModel(route);
+        throw new NotImplementedException();
     }
 }

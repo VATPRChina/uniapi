@@ -1,26 +1,15 @@
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Net.Vatprc.Uniapi.Models.Navdata.Legs;
 
 namespace Net.Vatprc.Uniapi.Models.Navdata;
 
-/// <summary>
-/// A continous segment of ARINC 424 enroute airway.
-/// </summary>
 public class Airway
 {
-    public Ulid Id { get; set; } = Ulid.NewUlid();
+    public string Identifier { get; set; }
+    public IList<AirwayLeg> Legs { get; set; }
 
-    /// <summary>
-    /// Route identifier. (Section 5.8)
-    /// </summary>
-    public string Identifier { get; set; } = string.Empty;
-
-    public IList<AirwayFix> Fixes { get; set; } = [];
-
-    public class Configuration : IEntityTypeConfiguration<Airway>
+    public Airway(string identifier, IList<AirwayLeg> legs)
     {
-        public void Configure(EntityTypeBuilder<Airway> builder)
-        {
-            builder.ToTable("airway", "navdata");
-        }
+        Identifier = identifier;
+        Legs = legs;
     }
 }
