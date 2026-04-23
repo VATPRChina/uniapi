@@ -7,34 +7,93 @@ namespace Net.Vatprc.Uniapi.Adapters;
 
 public class NavdataProvider(NavadataAdapter adapter) : INavdataProvider
 {
-    public Task<bool> ExistsAirwayWithFix(string ident, string fixIdent)
+    public async Task<bool> ExistsAirwayWithFix(string ident, string fixIdent)
     {
-        throw new NotImplementedException();
+        var airways = await adapter.GetAirwayLegLookupAsync();
+        return airways.TryGetValue(ident, out var legs)
+            && legs.Any(leg =>
+                string.Equals(leg.From.Identifier, fixIdent, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(leg.To.Identifier, fixIdent, StringComparison.OrdinalIgnoreCase));
     }
 
-    public Task<Airport?> FindAirport(string ident)
+    public async Task<Airport?> FindAirport(string ident)
     {
-        throw new NotImplementedException();
+        var airports = await adapter.GetAirportsAsync();
+        return airports.TryGetValue(ident, out var airport) ? airport : null;
     }
 
-    public Task<Fix?> FindFix(string ident, double lat, double lon)
+    public async Task<Fix?> FindFix(string ident, double lat, double lon)
     {
-        throw new NotImplementedException();
+        var candidates = new List<FixWithIdentifier>();
+
+        var waypoints = await adapter.GetWaypointsAsync();
+        if (waypoints.TryGetValue(ident, out var waypointMatches))
+        {
+            candidates.AddRange(waypointMatches);
+        }
+
+        var vhfNavaids = await adapter.GetVhfNavaidsAsync();
+        if (vhfNavaids.TryGetValue(ident, out var vhfMatches))
+        {
+            candidates.AddRange(vhfMatches);
+        }
+
+        var ndbNavaids = await adapter.GetNdbNavaidsAsync();
+        if (ndbNavaids.TryGetValue(ident, out var ndbMatches))
+        {
+            candidates.AddRange(ndbMatches);
+        }
+
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        if (candidates.Count == 1)
+        {
+            return candidates[0];
+        }
+
+        return candidates
+            .OrderBy(fix =>
+            {
+                var dLat = fix.Latitude - lat;
+                var dLon = fix.Longitude - lon;
+                return (dLat * dLat) + (dLon * dLon);
+            })
+            .First();
     }
 
-    public Task<Procedure?> FindSid(string ident, string airportIdent)
+    public async Task<Procedure?> FindSid(string ident, string airportIdent)
     {
-        throw new NotImplementedException();
+        var procedures = await adapter.GetProceduresByAirportAsync('D');
+        return procedures.TryGetValue(airportIdent, out var airportProcedures)
+            && airportProcedures.TryGetValue(ident, out var procedure)
+            ? procedure
+            : null;
     }
 
-    public Task<Procedure?> FindStar(string ident, string airportIdent)
+    public async Task<Procedure?> FindStar(string ident, string airportIdent)
     {
-        throw new NotImplementedException();
+        var procedures = await adapter.GetProceduresByAirportAsync('E');
+        return procedures.TryGetValue(airportIdent, out var airportProcedures)
+            && airportProcedures.TryGetValue(ident, out var procedure)
+            ? procedure
+            : null;
     }
 
-    public IAsyncEnumerable<AirwayLeg> GetAirwayLegs(string ident)
+    public async IAsyncEnumerable<AirwayLeg> GetAirwayLegs(string ident)
     {
-        throw new NotImplementedException();
+        var airways = await adapter.GetAirwayLegLookupAsync();
+        if (!airways.TryGetValue(ident, out var legs))
+        {
+            yield break;
+        }
+
+        foreach (var leg in legs)
+        {
+            yield return leg;
+        }
     }
 
     public Task<IList<PreferredRoute>> GetRecommendedRoutes(string dep, string arr)
