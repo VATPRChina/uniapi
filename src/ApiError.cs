@@ -232,6 +232,18 @@ public abstract class ApiError : Exception
     public class EventNotFound(Ulid event_id) :
         ApiError($"Event {event_id} not found.");
 
+    [Error(HttpStatusCode.BadRequest, "EVENT_PAST_INVALID_TIME_RANGE", "since must be earlier than or equal to until.")]
+    public class EventPastInvalidTimeRange() :
+        ApiError("since must be earlier than or equal to until.");
+
+    [Error(HttpStatusCode.BadRequest, "EVENT_PAST_TIME_RANGE_TOO_LARGE", "The selected time range must not exceed 3 months.")]
+    public class EventPastTimeRangeTooLarge() :
+        ApiError("The selected time range must not exceed 3 months.");
+
+    [Error(HttpStatusCode.BadRequest, "EVENT_BOOKING_TIME_INCOMPLETE", "Both StartBookingAt and EndBookingAt must be set or both must be null.")]
+    public class EventBookingTimeIncomplete() :
+        ApiError("Both StartBookingAt and EndBookingAt must be set or both must be null.");
+
     [Error(HttpStatusCode.NotFound, "EVENT_AIRSPACE_NOT_FOUND", "Event {event_id}'s airspace {airspace_id} not found.")]
     public class EventAirspaceNotFound(Ulid event_id, Ulid airspace_id) :
         ApiError($"Event {event_id}'s airspace {airspace_id} not found.");

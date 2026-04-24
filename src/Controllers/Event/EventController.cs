@@ -27,12 +27,28 @@ public class EventController(DatabaseAdapter DbContext) : ControllerBase
 
     [HttpGet("past")]
     [AllowAnonymous]
-    public async Task<IEnumerable<EventDto>> ListPast(DateTimeOffset? until = null)
+    [ApiError.Has<ApiError.EventPastInvalidTimeRange>]
+    [ApiError.Has<ApiError.EventPastTimeRangeTooLarge>]
+    public async Task<IEnumerable<EventDto>> ListPast(DateTimeOffset? since = null, DateTimeOffset? until = null)
     {
+        var effectiveUntil = until?.ToUniversalTime() ?? DateTimeOffset.UtcNow;
+        var effectiveSince = since?.ToUniversalTime() ?? effectiveUntil.AddMonths(-3);
+
+        if (effectiveSince > effectiveUntil)
+        {
+            throw new ApiError.EventPastInvalidTimeRange();
+        }
+
+        if (effectiveSince.AddMonths(3) < effectiveUntil)
+        {
+            throw new ApiError.EventPastTimeRangeTooLarge();
+        }
+
         var query = DbContext.Event.AsQueryable()
             .Where(x => x.IsApproved == true || x.IsApproved == null)
             .Where(x => x.StartAt < DateTimeOffset.UtcNow
-                && (until == null || x.StartAt <= until))
+                && effectiveSince <= x.StartAt
+                && x.StartAt <= effectiveUntil)
             .OrderByDescending(x => x.StartAt)
             .Select(x => EventDto.From(x));
         return await query.ToListAsync();
@@ -52,7 +68,7 @@ public class EventController(DatabaseAdapter DbContext) : ControllerBase
     {
         if (dto.StartBookingAt == null ^ dto.EndBookingAt == null)
         {
-            throw new ApiError.BadRequest("Both StartBookingAt and EndBookingAt must be set or both must be null.");
+            throw new ApiError.EventBookingTimeIncomplete();
         }
 
         var eventt = new Event()
@@ -80,7 +96,7 @@ public class EventController(DatabaseAdapter DbContext) : ControllerBase
     {
         if (dto.StartBookingAt == null ^ dto.EndBookingAt == null)
         {
-            throw new ApiError.BadRequest("Both StartBookingAt and EndBookingAt must be set or both must be null.");
+            throw new ApiError.EventBookingTimeIncomplete();
         }
 
         var eventt = await DbContext.Event.FindAsync(eid) ?? throw new ApiError.EventNotFound(eid);
