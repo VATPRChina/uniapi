@@ -7,6 +7,14 @@ public class SheetService(
     DatabaseAdapter dbContext
 )
 {
+    public async Task<IEnumerable<Sheet>> GetSheetsAsync(CancellationToken ct = default)
+    {
+        return await dbContext.Sheet
+            .Include(s => s.Fields!.OrderBy(f => !f.IsDeleted).ThenBy(f => f.Sequence))
+            .OrderBy(s => s.Id)
+            .ToListAsync(ct);
+    }
+
     public async Task<Sheet?> GetSheetByIdAsync(string sheetId, CancellationToken ct = default)
     {
         return await dbContext.Sheet
@@ -43,18 +51,34 @@ public class SheetService(
         IEnumerable<SheetField> fields,
         CancellationToken ct = default)
     {
+        return await SetSheetAsync(sheetId, sheetId, fields, ct);
+    }
+
+    public async Task<Sheet> SetSheetAsync(
+        string sheetId,
+        string sheetName,
+        IEnumerable<SheetField> fields,
+        CancellationToken ct = default)
+    {
         var sheet = await GetSheetByIdAsync(sheetId, ct)
             ?? new Sheet
             {
                 Id = sheetId,
-                Name = sheetId,
+                Name = sheetName,
                 Fields = [],
             };
+
+        if (dbContext.Entry(sheet).State == EntityState.Detached)
+        {
+            dbContext.Sheet.Add(sheet);
+        }
 
         if (sheet.Fields == null)
         {
             throw new InvalidOperationException("Sheet.Fields is not loaded");
         }
+
+        sheet.Name = sheetName;
 
         foreach (var field in fields)
         {
@@ -193,27 +217,32 @@ public class SheetService(
     }
 
     public class SheetNotFoundException(string paramName) :
-        ArgumentException("Sheet not found", paramName)
-    {
-    }
+        ArgumentException("Sheet not found", paramName);
 
     public class FieldNotFoundException(string fieldId, string sheetId, string paramName) :
         ArgumentException($"Field {fieldId} not found in sheet {sheetId}", paramName)
     {
+        public string FieldId { get; } = fieldId;
+        public string SheetId { get; } = sheetId;
     }
 
     public class SingleChoiceOptionMissingException(string fieldId, string sheetId, string paramName) :
         ArgumentException($"Single choice field {fieldId} must have at least one option in sheet {sheetId}", paramName)
     {
+        public string FieldId { get; } = fieldId;
+        public string SheetId { get; } = sheetId;
     }
 
     public class RequiredFieldMissingException(string fieldId, string sheetId, string paramName) :
         ArgumentException($"Required field {fieldId} is missing or empty for sheet {sheetId}", paramName)
     {
+        public string FieldId { get; } = fieldId;
+        public string SheetId { get; } = sheetId;
     }
 
     public class SheetFilingNotFoundException(Ulid filingId, string paramName) :
         ArgumentException($"Sheet filing {filingId} not found", paramName)
     {
+        public Ulid FilingId { get; } = filingId;
     }
 }

@@ -252,6 +252,18 @@ public abstract class ApiError : Exception
     public class EventSlotNotFound(Ulid event_id, Ulid slot_id) :
         ApiError($"Event {event_id}'s slot {slot_id} not found.");
 
+    [Error(HttpStatusCode.NotFound, "SHEET_NOT_FOUND", "Sheet {sheetId} not found.")]
+    public class SheetNotFound(string sheetId) :
+        ApiError($"Sheet {sheetId} not found.");
+
+    [Error(HttpStatusCode.BadRequest, "SHEET_FIELD_DUPLICATE_ID", "Sheet {sheetId} contains duplicate field id {fieldId}.")]
+    public class SheetFieldDuplicateId(string sheetId, string fieldId) :
+        ApiError($"Sheet {sheetId} contains duplicate field id {fieldId}.");
+
+    [Error(HttpStatusCode.BadRequest, "SHEET_SINGLE_CHOICE_OPTIONS_MISSING", "Sheet {sheetId} field {fieldId} must define at least one single-choice option.")]
+    public class SheetSingleChoiceOptionsMissing(string sheetId, string fieldId) :
+        ApiError($"Sheet {sheetId} field {fieldId} must define at least one single-choice option.");
+
     [Error(HttpStatusCode.NotFound, "EVENT_SLOT_NOT_BOOKED", "Event {event_id}'s slot {slot_id} has not been booked.")]
     public class EventSlotNotBooked(Ulid event_id, Ulid slot_id) :
         ApiError($"Event {event_id}'s slot {slot_id} has not been booked.");
