@@ -5,8 +5,20 @@ use std::env;
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub bind_address: String,
+    pub authentication: Authentication,
     pub database: Database,
     pub storage: Storage,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Authentication {
+    pub jwt: JwtAuthentication,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct JwtAuthentication {
+    pub public_key: String,
+    pub issuer: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

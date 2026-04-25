@@ -1,1 +1,8 @@
 bind_address = "[::1]:5000"
+
+[authentication.jwt]
+public_key = ""
+issuer = "https://uniapi.vatprc.net"
+
+[storage.image.smms]
+secret_token = ""

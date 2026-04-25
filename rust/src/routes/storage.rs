@@ -5,10 +5,12 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde::Serialize;
 
-use crate::{adapter::smms::SmmsError, services::Services};
+use crate::{
+    adapter::smms::SmmsError, auth::CurrentUser, models::user_role::UserRole, services::Services,
+};
 
 pub fn build_storage_routes() -> Router<Services> {
-    Router::new().route("/api/storage/images", post(upload_image))
+    Router::new().route("/images", post(upload_image))
 }
 
 #[derive(Serialize)]
@@ -23,8 +25,19 @@ struct ErrorResponse {
 
 pub async fn upload_image(
     State(services): State<Services>,
+    current_user: CurrentUser,
     mut multipart: Multipart,
 ) -> Result<Json<UploadImageResponse>, StorageError> {
+    if !current_user.has_role(UserRole::Volunteer) {
+        return Err(StorageError::Forbidden);
+    }
+    tracing::debug!(
+        subject = %current_user.subject,
+        user_id = ?current_user.user_id,
+        roles = ?current_user.roles().collect::<Vec<_>>(),
+        "authenticated storage image upload"
+    );
+
     while let Some(field) = multipart
         .next_field()
         .await
@@ -61,6 +74,7 @@ pub async fn upload_image(
 #[derive(Debug)]
 pub enum StorageError {
     BadRequest(String),
+    Forbidden,
     Multipart(axum::extract::multipart::MultipartError),
     Smms(SmmsError),
 }
@@ -69,6 +83,7 @@ impl IntoResponse for StorageError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
             StorageError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
+            StorageError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
             StorageError::Multipart(error) => (StatusCode::BAD_REQUEST, error.to_string()),
             StorageError::Smms(SmmsError::MissingSecretToken) => (
                 StatusCode::INTERNAL_SERVER_ERROR,

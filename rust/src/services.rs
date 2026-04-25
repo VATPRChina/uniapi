@@ -1,10 +1,11 @@
 use sqlx::{PgPool, postgres::PgPoolOptions};
 
-use crate::{adapter::smms::SmmsClient, settings::Settings};
+use crate::{adapter::smms::SmmsClient, jwt::JwtService, settings::Settings};
 
 #[derive(Clone)]
 pub struct Services {
     db: PgPool,
+    jwt: JwtService,
     smms: SmmsClient,
 }
 
@@ -17,6 +18,7 @@ impl Services {
 
         Ok(Self {
             db,
+            jwt: JwtService::new(&settings.authentication.jwt),
             smms: SmmsClient::new(settings.storage.image.smms.secret_token.clone()),
         })
     }
@@ -27,5 +29,9 @@ impl Services {
 
     pub fn smms(&self) -> &SmmsClient {
         &self.smms
+    }
+
+    pub fn jwt(&self) -> &JwtService {
+        &self.jwt
     }
 }

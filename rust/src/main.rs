@@ -1,5 +1,8 @@
 mod adapter;
 mod app;
+mod auth;
+mod jwt;
+mod models;
 mod routes;
 mod services;
 mod settings;

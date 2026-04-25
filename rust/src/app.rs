@@ -1,10 +1,12 @@
 use axum::extract::State;
 use axum::http::StatusCode;
+use axum::middleware;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
 
+use crate::auth;
 use crate::routes::storage::build_storage_routes;
 use crate::services::Services;
 
@@ -18,7 +20,13 @@ pub fn router(services: Services) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/health", get(health))
-        .nest("/storage", build_storage_routes())
+        .nest(
+            "/api/storage",
+            build_storage_routes().route_layer(middleware::from_fn_with_state(
+                services.clone(),
+                auth::authenticate,
+            )),
+        )
         .with_state(services)
 }
 
