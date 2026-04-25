@@ -14,6 +14,7 @@ pub struct Settings {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Authentication {
     pub jwt: JwtAuthentication,
+    pub vatsim: VatsimAuthentication,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -34,6 +35,14 @@ pub struct JwtClient {
     pub client_id: String,
     pub client_secret: Option<String>,
     pub redirect_uri: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct VatsimAuthentication {
+    pub endpoint: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub redirect_uri: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -2554,6 +2554,7 @@ name = "vatprc-uniapi"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "base64",
  "chrono",
  "config",
  "jsonwebtoken",
@@ -2562,12 +2563,14 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
  "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "ulid",
+ "url",
  "uuid",
 ]
 
