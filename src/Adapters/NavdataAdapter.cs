@@ -32,75 +32,94 @@ public class NavadataAdapter(IMemoryCache cache, IOptions<NavadataAdapter.Option
         return await streamReader.ReadToEndAsync(ct);
     }
 
-    protected record RouteData
-    {
-        public required string Dep;
-        public required string Arr;
-        public required string Name;
-        public required string EvenOdd;
-        public required string AltList;
-        public required string MinAlt;
-        public required string Route;
-        public required string Remarks;
-    }
-
     public async Task<IDictionary<string, IDictionary<string, IList<PreferredRoute>>>> GetPreferredRoutesAsync(CancellationToken ct = default)
     {
         var routesText = await GetRoutesAsync(ct);
         using var reader = Sep.Reader().FromText(routesText);
-        var route = reader.ParallelEnumerate(row =>
+
+        var routes = new Dictionary<string, IDictionary<string, IList<PreferredRoute>>>();
+        foreach (var row in reader)
         {
-            return new RouteData
+            var departure = row["Dep"].Span.ToString();
+            var arrival = row["Arr"].Span.ToString();
+            var preferredRoute = new PreferredRoute
             {
-                Dep = row["Dep"].Parse<string>(),
-                Arr = row["Arr"].Parse<string>(),
-                Name = row["Name"].Parse<string>(),
-                EvenOdd = row["EvenOdd"].Parse<string>(),
-                AltList = row["AltList"].Parse<string>(),
-                MinAlt = row["MinAlt"].Parse<string>(),
-                Route = row["Route"].Parse<string>(),
-                Remarks = row["Remarks"].Parse<string>(),
+                Id = Ulid.NewUlid(),
+                Departure = departure,
+                Arrival = arrival,
+                RawRoute = row["Route"].Span.ToString(),
+                CruisingLevelRestriction = ParseLevelRestriction(row["EvenOdd"].Span),
+                AllowedAltitudes = ParseAllowedAltitudes(row["AltList"].Span),
+                MinimalAltitude = ParseMinimalAltitude(row["MinAlt"].Span),
+                Remarks = row["Remarks"].Span.ToString(),
             };
-        }).ToList();
-        var routes = route.Select(routeData => new PreferredRoute
+
+            if (!routes.TryGetValue(departure, out var arrivalRoutes))
+            {
+                arrivalRoutes = new Dictionary<string, IList<PreferredRoute>>();
+                routes.Add(departure, arrivalRoutes);
+            }
+
+            if (!arrivalRoutes.TryGetValue(arrival, out var preferredRoutes))
+            {
+                preferredRoutes = [];
+                arrivalRoutes.Add(arrival, preferredRoutes);
+            }
+            preferredRoutes.Add(preferredRoute);
+        }
+
+        return routes;
+    }
+
+    private static PreferredRoute.LevelRestrictionType ParseLevelRestriction(ReadOnlySpan<char> value)
+    {
+        return value switch
         {
-            Id = Ulid.NewUlid(),
-            Departure = routeData.Dep,
-            Arrival = routeData.Arr,
-            RawRoute = routeData.Route,
-            CruisingLevelRestriction = routeData.EvenOdd switch
+            "SE" => PreferredRoute.LevelRestrictionType.StandardEven,
+            "SO" => PreferredRoute.LevelRestrictionType.StandardOdd,
+            "FE" => PreferredRoute.LevelRestrictionType.FlightLevelEven,
+            "FO" => PreferredRoute.LevelRestrictionType.FlightLevelOdd,
+            _ => PreferredRoute.LevelRestrictionType.Standard,
+        };
+    }
+
+    private static IList<int> ParseAllowedAltitudes(ReadOnlySpan<char> value)
+    {
+        var altitudes = new List<int>();
+        while (!value.IsEmpty)
+        {
+            var separatorIndex = value.IndexOf('/');
+            var token = separatorIndex >= 0 ? value[..separatorIndex] : value;
+            value = separatorIndex >= 0 ? value[(separatorIndex + 1)..] : [];
+
+            if (token.IsWhiteSpace())
             {
-                "SE" => PreferredRoute.LevelRestrictionType.StandardEven,
-                "SO" => PreferredRoute.LevelRestrictionType.StandardOdd,
-                "FE" => PreferredRoute.LevelRestrictionType.FlightLevelEven,
-                "FO" => PreferredRoute.LevelRestrictionType.FlightLevelOdd,
-                _ => PreferredRoute.LevelRestrictionType.Standard,
-            },
-            AllowedAltitudes = routeData.AltList.Split('/').Where(s => !string.IsNullOrWhiteSpace(s)).Select(alt =>
-            {
-                if (alt.StartsWith('S') && int.TryParse(alt[1..], out var standardAltitude))
-                {
-                    return AltitudeHelper.StandardAltitudesToFlightLevel[standardAltitude * 100];
-                }
-                else if (alt.StartsWith('F') && int.TryParse(alt[1..], out var flightLevel))
-                {
-                    return flightLevel * 100;
-                }
-                else
-                {
-                    throw new FormatException($"Invalid altitude format: '{alt}'");
-                }
-            }).ToList(),
-            MinimalAltitude = !string.IsNullOrWhiteSpace(routeData.MinAlt) ? int.Parse(routeData.MinAlt) : 0,
-            Remarks = routeData.Remarks,
-        });
-        return (IDictionary<string, IDictionary<string, IList<PreferredRoute>>>)routes
-            .GroupBy(r => r.Departure)
-            .ToDictionary(
-                g => g.Key,
-                g => g
-                    .GroupBy(r => r.Arrival)
-                    .ToDictionary(g2 => g2.Key, g2 => g2.First()));
+                continue;
+            }
+
+            altitudes.Add(ParseAllowedAltitude(token));
+        }
+        return altitudes;
+    }
+
+    private static int ParseAllowedAltitude(ReadOnlySpan<char> value)
+    {
+        if (value.Length < 2 || !int.TryParse(value[1..], out var altitude))
+        {
+            throw new FormatException($"Invalid altitude format: '{value}'");
+        }
+
+        return value[0] switch
+        {
+            'S' => AltitudeHelper.StandardAltitudesToFlightLevel[altitude * 100],
+            'F' => altitude * 100,
+            _ => throw new FormatException($"Invalid altitude format: '{value}'"),
+        };
+    }
+
+    private static int ParseMinimalAltitude(ReadOnlySpan<char> value)
+    {
+        return value.IsWhiteSpace() ? 0 : int.Parse(value);
     }
 
     public async Task<IDictionary<string, IDictionary<string, IList<PreferredRoute>>>> GetPreferredRouteWithCacheAsync(CancellationToken ct = default)
