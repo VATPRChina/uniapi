@@ -1,6 +1,7 @@
 use chrono::Utc;
 use reqwest::multipart::{Form, Part};
 use serde::Deserialize;
+use thiserror::Error;
 use ulid::Ulid;
 
 const BASE_URL: &str = "https://s.ee/api/v1/file";
@@ -11,11 +12,18 @@ pub struct SmmsClient {
     secret_token: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum SmmsError {
+    #[error("SM.MS secret token is not configured.")]
     MissingSecretToken,
-    Request(reqwest::Error),
+
+    #[error(transparent)]
+    Request(#[from] reqwest::Error),
+
+    #[error("{0}")]
     Rejected(String),
+
+    #[error("No URL returned")]
     MissingUrl,
 }
 
@@ -53,13 +61,10 @@ impl SmmsClient {
             .header("Authorization", &self.secret_token)
             .multipart(Form::new().part("file", part))
             .send()
-            .await
-            .map_err(SmmsError::Request)?
-            .error_for_status()
-            .map_err(SmmsError::Request)?
+            .await?
+            .error_for_status()?
             .json::<SmmsResponse>()
-            .await
-            .map_err(SmmsError::Request)?;
+            .await?;
 
         if response.code != 200 {
             return Err(SmmsError::Rejected(response.message));

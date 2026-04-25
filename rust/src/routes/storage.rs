@@ -72,19 +72,11 @@ impl IntoResponse for StorageError {
             StorageError::Multipart(error) => (StatusCode::BAD_REQUEST, error.to_string()),
             StorageError::Smms(SmmsError::MissingSecretToken) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "SM.MS secret token is not configured.".into(),
+                SmmsError::MissingSecretToken.to_string(),
             ),
-            StorageError::Smms(SmmsError::Request(error)) => (
-                StatusCode::BAD_GATEWAY,
+            StorageError::Smms(error) => (
+                StatusCode::SERVICE_UNAVAILABLE,
                 format!("Image upload to SM.MS failed: {error}"),
-            ),
-            StorageError::Smms(SmmsError::Rejected(message)) => (
-                StatusCode::BAD_GATEWAY,
-                format!("Image upload to SM.MS failed: {message}"),
-            ),
-            StorageError::Smms(SmmsError::MissingUrl) => (
-                StatusCode::BAD_GATEWAY,
-                "Image upload to SM.MS failed: No URL returned".into(),
             ),
         };
 

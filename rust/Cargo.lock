@@ -2444,6 +2444,7 @@ dependencies = [
  "reqwest",
  "serde",
  "sqlx",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
