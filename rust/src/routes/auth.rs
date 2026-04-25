@@ -3,18 +3,15 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use chrono::{DateTime, Duration, Utc};
+use chrono::{Duration, Utc};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use ulid::Ulid;
-use uuid::Uuid;
 
-use crate::{
-    adapter::vatsim_auth::{VatsimAuthError, generate_pkce},
-    jwt::JwtError,
-    services::Services,
-};
+use crate::adapter::database::auth as auth_repository;
+use crate::adapter::vatsim_auth::{VatsimAuthError, generate_pkce};
+use crate::jwt::JwtError;
+use crate::services::Services;
 
 const USER_CODE_ALPHABET: &[u8] = b"BCDFGHJKLMNPQRSTVWXZ";
 
@@ -86,17 +83,15 @@ async fn device_authorization(
     let user_code = random_user_code();
     let expires_at = Utc::now() + Duration::seconds(services.jwt().device_authz_expires_seconds());
 
-    sqlx::query(
-        r#"
-        INSERT INTO device_authorization (device_code, user_code, expires_at, client_id)
-        VALUES ($1, $2, $3, $4)
-        "#,
+    auth_repository::create_device_authorization(
+        services.db(),
+        auth_repository::NewDeviceAuthorization {
+            device_code,
+            user_code: &user_code,
+            expires_at,
+            client_id: &request.client_id,
+        },
     )
-    .bind(Uuid::from(device_code))
-    .bind(&user_code)
-    .bind(expires_at)
-    .bind(&request.client_id)
-    .execute(services.db())
     .await
     .map_err(AuthEndpointError::Database)?;
 
@@ -123,17 +118,10 @@ async fn device_confirm(
     }
 
     let code = normalize_user_code(query.user_code.as_deref());
-    let Some(device_authz) = sqlx::query_as::<_, DeviceAuthorizationConfirmRow>(
-        r#"
-        SELECT device_code, user_code, expires_at, user_id
-        FROM device_authorization
-        WHERE user_code = $1
-        "#,
-    )
-    .bind(&code)
-    .fetch_optional(services.db())
-    .await
-    .map_err(AuthEndpointError::Database)?
+    let Some(device_authz) =
+        auth_repository::find_device_authorization_by_user_code(services.db(), &code)
+            .await
+            .map_err(AuthEndpointError::Database)?
     else {
         return Ok(render_callback_ui(
             "Error",
@@ -314,12 +302,13 @@ async fn vatsim_callback(
                     Some("/auth/device"),
                 ));
             };
-            sqlx::query("UPDATE device_authorization SET user_id = $1 WHERE user_code = $2")
-                .bind(user.id)
-                .bind(user_code)
-                .execute(services.db())
-                .await
-                .map_err(AuthEndpointError::Database)?;
+            auth_repository::associate_device_authorization_user(
+                services.db(),
+                &user_code,
+                user.id,
+            )
+            .await
+            .map_err(AuthEndpointError::Database)?;
             render_callback_ui(
                 "Welcome",
                 &format!("Hello {}", vatsim_user.data.cid),
@@ -369,20 +358,10 @@ async fn device_code_grant(
         return Ok(token_error("invalid_grant", "Device code not found"));
     };
 
-    let Some(device_authz) = sqlx::query_as::<_, DeviceAuthorizationRow>(
-        r#"
-        SELECT device_authorization.device_code, device_authorization.user_code,
-               device_authorization.expires_at, device_authorization.client_id,
-               device_authorization.user_id, "user".updated_at AS user_updated_at
-        FROM device_authorization
-        LEFT JOIN "user" ON "user".id = device_authorization.user_id
-        WHERE device_authorization.device_code = $1
-        "#,
-    )
-    .bind(Uuid::from(device_code))
-    .fetch_optional(services.db())
-    .await
-    .map_err(AuthEndpointError::Database)?
+    let Some(device_authz) =
+        auth_repository::find_device_authorization_for_grant(services.db(), device_code)
+            .await
+            .map_err(AuthEndpointError::Database)?
     else {
         return Ok(token_error("invalid_grant", "Device code not found"));
     };
@@ -551,127 +530,58 @@ fn client_credentials_grant(
 
 async fn issue_refresh_token(
     services: &Services,
-    user_id: Uuid,
-    user_updated_at: DateTime<Utc>,
+    user_id: uuid::Uuid,
+    user_updated_at: chrono::DateTime<Utc>,
     client_id: &str,
     old_token: Option<Ulid>,
     create_code: bool,
-) -> Result<RefreshSessionIssue, AuthEndpointError> {
-    let token = Ulid::new();
-    let code = create_code.then(Ulid::new);
+) -> Result<auth_repository::RefreshSessionIssue, AuthEndpointError> {
     let expires_in = Utc::now() + Duration::days(services.jwt().refresh_expires_days());
 
-    let mut transaction = services
-        .db()
-        .begin()
-        .await
-        .map_err(AuthEndpointError::Database)?;
-    sqlx::query(
-        r#"
-        INSERT INTO session (token, user_id, user_updated_at, expires_in, code, client_id)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        "#,
+    auth_repository::issue_refresh_token(
+        services.db(),
+        user_id,
+        user_updated_at,
+        expires_in,
+        client_id,
+        old_token,
+        create_code,
     )
-    .bind(Uuid::from(token))
-    .bind(user_id)
-    .bind(user_updated_at)
-    .bind(expires_in)
-    .bind(code.map(Uuid::from))
-    .bind(client_id)
-    .execute(&mut *transaction)
     .await
-    .map_err(AuthEndpointError::Database)?;
-
-    if let Some(old_token) = old_token {
-        sqlx::query("DELETE FROM session WHERE token = $1")
-            .bind(Uuid::from(old_token))
-            .execute(&mut *transaction)
-            .await
-            .map_err(AuthEndpointError::Database)?;
-    }
-
-    sqlx::query("DELETE FROM session WHERE user_id = $1 AND expires_in < now()")
-        .bind(user_id)
-        .execute(&mut *transaction)
-        .await
-        .map_err(AuthEndpointError::Database)?;
-    sqlx::query(
-        r#"
-        DELETE FROM session
-        WHERE user_id = $1
-          AND user_updated_at <> (SELECT updated_at FROM "user" WHERE id = $1)
-        "#,
-    )
-    .bind(user_id)
-    .execute(&mut *transaction)
-    .await
-    .map_err(AuthEndpointError::Database)?;
-
-    transaction
-        .commit()
-        .await
-        .map_err(AuthEndpointError::Database)?;
-
-    Ok(RefreshSessionIssue { token, code })
+    .map_err(AuthEndpointError::Database)
 }
 
 async fn find_refresh_session(
     services: &Services,
     token: Ulid,
-) -> Result<Option<RefreshSessionRow>, AuthEndpointError> {
-    sqlx::query_as::<_, RefreshSessionRow>(
-        r#"
-        SELECT session.token, session.user_id, session.user_updated_at, session.expires_in,
-               session.code, session.client_id, "user".updated_at
-        FROM session
-        JOIN "user" ON "user".id = session.user_id
-        WHERE session.token = $1
-        "#,
-    )
-    .bind(Uuid::from(token))
-    .fetch_optional(services.db())
-    .await
-    .map_err(AuthEndpointError::Database)
+) -> Result<Option<auth_repository::RefreshSessionRow>, AuthEndpointError> {
+    auth_repository::find_refresh_session(services.db(), token)
+        .await
+        .map_err(AuthEndpointError::Database)
 }
 
 async fn find_refresh_session_by_code(
     services: &Services,
     code: Ulid,
-) -> Result<Option<RefreshSessionRow>, AuthEndpointError> {
-    sqlx::query_as::<_, RefreshSessionRow>(
-        r#"
-        SELECT session.token, session.user_id, session.user_updated_at, session.expires_in,
-               session.code, session.client_id, "user".updated_at
-        FROM session
-        JOIN "user" ON "user".id = session.user_id
-        WHERE session.code = $1
-        "#,
-    )
-    .bind(Uuid::from(code))
-    .fetch_optional(services.db())
-    .await
-    .map_err(AuthEndpointError::Database)
+) -> Result<Option<auth_repository::RefreshSessionRow>, AuthEndpointError> {
+    auth_repository::find_refresh_session_by_code(services.db(), code)
+        .await
+        .map_err(AuthEndpointError::Database)
 }
 
 async fn clear_session_code(services: &Services, code: Ulid) -> Result<(), AuthEndpointError> {
-    sqlx::query("UPDATE session SET code = NULL WHERE code = $1")
-        .bind(Uuid::from(code))
-        .execute(services.db())
+    auth_repository::clear_session_code(services.db(), code)
         .await
-        .map_err(AuthEndpointError::Database)?;
-    Ok(())
+        .map_err(AuthEndpointError::Database)
 }
 
 async fn delete_device_authorization(
     services: &Services,
     device_code: Ulid,
 ) -> Result<(), AuthEndpointError> {
-    sqlx::query("DELETE FROM device_authorization WHERE device_code = $1")
-        .bind(Uuid::from(device_code))
-        .execute(services.db())
+    auth_repository::delete_device_authorization(services.db(), device_code)
         .await
-        .map_err(AuthEndpointError::Database)?;
-    Ok(())
+        .map_err(AuthEndpointError::Database)
 }
 
 fn parse_required_ulid(
@@ -887,26 +797,10 @@ async fn upsert_user(
     cid: &str,
     full_name: &str,
     email: &str,
-) -> Result<UserLoginRow, AuthEndpointError> {
-    sqlx::query_as::<_, UserLoginRow>(
-        r#"
-        INSERT INTO "user" (id, cid, full_name, email, roles)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (cid) DO UPDATE
-        SET full_name = EXCLUDED.full_name,
-            email = EXCLUDED.email,
-            updated_at = CURRENT_TIMESTAMP
-        RETURNING id, updated_at
-        "#,
-    )
-    .bind(Uuid::from(Ulid::new()))
-    .bind(cid)
-    .bind(full_name)
-    .bind(email)
-    .bind(Vec::<String>::new())
-    .fetch_one(services.db())
-    .await
-    .map_err(AuthEndpointError::Database)
+) -> Result<auth_repository::UserLoginRow, AuthEndpointError> {
+    auth_repository::upsert_user(services.db(), cid, full_name, email)
+        .await
+        .map_err(AuthEndpointError::Database)
 }
 
 #[derive(Deserialize)]
@@ -1009,52 +903,6 @@ struct TokenResponse {
 struct TokenErrorResponse {
     error: &'static str,
     error_description: &'static str,
-}
-
-struct RefreshSessionIssue {
-    token: Ulid,
-    #[allow(dead_code)]
-    code: Option<Ulid>,
-}
-
-#[derive(FromRow)]
-struct RefreshSessionRow {
-    #[sqlx(try_from = "Uuid")]
-    token: Ulid,
-    user_id: Uuid,
-    user_updated_at: DateTime<Utc>,
-    expires_in: DateTime<Utc>,
-    #[allow(dead_code)]
-    code: Option<Uuid>,
-    client_id: String,
-    updated_at: DateTime<Utc>,
-}
-
-#[derive(FromRow)]
-struct DeviceAuthorizationRow {
-    #[allow(dead_code)]
-    #[sqlx(try_from = "Uuid")]
-    device_code: Ulid,
-    #[allow(dead_code)]
-    user_code: String,
-    expires_at: DateTime<Utc>,
-    client_id: String,
-    user_id: Option<Uuid>,
-    user_updated_at: Option<DateTime<Utc>>,
-}
-
-#[derive(FromRow)]
-struct DeviceAuthorizationConfirmRow {
-    device_code: Uuid,
-    user_code: String,
-    expires_at: DateTime<Utc>,
-    user_id: Option<Uuid>,
-}
-
-#[derive(FromRow)]
-struct UserLoginRow {
-    id: Uuid,
-    updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug)]

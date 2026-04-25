@@ -6,11 +6,11 @@ use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
 
-use crate::auth;
 use crate::routes::auth::build_auth_routes;
 use crate::routes::compat::build_compat_routes;
 use crate::routes::storage::build_storage_routes;
 use crate::services::Services;
+use crate::{adapter::database::health as health_repository, auth};
 
 #[derive(Serialize)]
 struct HealthResponse {
@@ -39,12 +39,7 @@ async fn root() -> &'static str {
 }
 
 async fn health(State(services): State<Services>) -> impl IntoResponse {
-    let database_is_healthy = matches!(
-        sqlx::query_scalar::<_, i32>("SELECT 1")
-            .fetch_one(services.db())
-            .await,
-        Ok(1)
-    );
+    let database_is_healthy = health_repository::is_healthy(services.db()).await;
 
     let status = if database_is_healthy {
         StatusCode::OK

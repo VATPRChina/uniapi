@@ -6,10 +6,11 @@ use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use std::sync::LazyLock;
 
-use crate::{adapter::compat::CompatClientError, services::Services};
+use crate::adapter::compat::CompatClientError;
+use crate::adapter::database::compat::{self as compat_repository, FutureControllerRow};
+use crate::services::Services;
 
 static VATPRC_CONTROLLER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(Z[BSGUHWJPLYM][A-Z0-9]{2}(_[A-Z0-9]*)?_(DEL|GND|TWR|APP|DEP|CTR))|(PRC_FSS)$")
@@ -33,20 +34,12 @@ async fn online_status(
     State(services): State<Services>,
 ) -> Result<Json<CompatVatprcStatusDto>, CompatError> {
     let vatsim_data = services.compat().get_online_data().await?;
-    let future_controllers = sqlx::query_as::<_, FutureControllerRow>(
-        r#"
-        SELECT atc_booking.callsign, "user".full_name AS name, atc_booking.start_at, atc_booking.end_at
-        FROM atc_booking
-        JOIN "user" ON "user".id = atc_booking.user_id
-        WHERE atc_booking.start_at >= now()
-        "#,
-    )
-    .fetch_all(services.db())
-    .await
-    .map_err(CompatError::Database)?
-    .into_iter()
-    .map(CompatFutureControllerDto::from)
-    .collect();
+    let future_controllers = compat_repository::future_controllers(services.db())
+        .await
+        .map_err(CompatError::Database)?
+        .into_iter()
+        .map(CompatFutureControllerDto::from)
+        .collect();
 
     let pilots = vatsim_data
         .pilots
@@ -161,14 +154,6 @@ fn json_text_response(content: Result<String, CompatClientError>) -> Result<Resp
 #[derive(Deserialize)]
 struct MetarQuery {
     id: String,
-}
-
-#[derive(FromRow)]
-struct FutureControllerRow {
-    callsign: String,
-    name: String,
-    start_at: DateTime<Utc>,
-    end_at: DateTime<Utc>,
 }
 
 #[derive(Serialize)]
