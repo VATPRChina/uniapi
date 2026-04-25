@@ -185,6 +185,7 @@ ClientBin/
 orleans.codegen.cs
 
 /node_modules
+/rust/target/
 
 # RIA/Silverlight projects
 Generated_Code/
