@@ -8,6 +8,7 @@ pub struct Settings {
     pub authentication: Authentication,
     pub database: Database,
     pub storage: Storage,
+    pub utils: Utils,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -40,6 +41,16 @@ pub struct ImageStorage {
 pub struct SmmsStorage {
     pub base_url: String,
     pub secret_token: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Utils {
+    pub metar: Metar,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Metar {
+    pub endpoint: String,
 }
 
 impl Settings {
