@@ -1,8 +1,13 @@
 bind_address = "[::1]:5000"
 
 [authentication.jwt]
+private_key = ""
 public_key = ""
 issuer = "https://uniapi.vatprc.net"
+audience_first_party = "https://uniapi.vatprc.net"
+first_party_expires_seconds = 3600
+refresh_expires_days = 7
+device_authz_expires_seconds = 3600
 
 [storage.image.smms]
 base_url = "https://s.ee/api/v1/file"

@@ -7,6 +7,7 @@ use axum::{Json, Router};
 use serde::Serialize;
 
 use crate::auth;
+use crate::routes::auth::build_auth_routes;
 use crate::routes::compat::build_compat_routes;
 use crate::routes::storage::build_storage_routes;
 use crate::services::Services;
@@ -21,6 +22,7 @@ pub fn router(services: Services) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/health", get(health))
+        .nest("/auth", build_auth_routes())
         .nest("/api/compat", build_compat_routes())
         .nest(
             "/api/storage",

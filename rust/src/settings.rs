@@ -18,8 +18,22 @@ pub struct Authentication {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct JwtAuthentication {
+    pub private_key: String,
     pub public_key: String,
     pub issuer: String,
+    pub audience_first_party: String,
+    pub first_party_expires_seconds: i64,
+    pub refresh_expires_days: i64,
+    pub device_authz_expires_seconds: i64,
+    #[serde(default)]
+    pub clients: Vec<JwtClient>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct JwtClient {
+    pub client_id: String,
+    pub client_secret: Option<String>,
+    pub redirect_uri: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
