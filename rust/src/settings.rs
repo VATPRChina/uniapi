@@ -6,11 +6,27 @@ use std::env;
 pub struct Settings {
     pub bind_address: String,
     pub database: Database,
+    pub storage: Storage,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Database {
     pub url: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Storage {
+    pub image: ImageStorage,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ImageStorage {
+    pub smms: SmmsStorage,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SmmsStorage {
+    pub secret_token: String,
 }
 
 impl Settings {

@@ -1,6 +1,11 @@
-use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::get};
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::routing::get;
+use axum::{Json, Router};
 use serde::Serialize;
 
+use crate::routes::storage::build_storage_routes;
 use crate::services::Services;
 
 #[derive(Serialize)]
@@ -13,6 +18,7 @@ pub fn router(services: Services) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/health", get(health))
+        .nest("/storage", build_storage_routes())
         .with_state(services)
 }
 

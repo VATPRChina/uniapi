@@ -1,12 +1,10 @@
+mod adapter;
 mod app;
+mod routes;
 mod services;
 mod settings;
 
-use std::env;
-use std::net::SocketAddr;
-
 use services::Services;
-use tokio::net::TcpListener;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -22,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let settings = settings::Settings::new().expect("failed to load settings");
 
-    let services = Services::connect(&settings.database.url).await?;
+    let services = Services::connect(&settings).await?;
 
     let listener = tokio::net::TcpListener::bind(&settings.bind_address)
         .await
