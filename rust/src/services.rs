@@ -19,7 +19,10 @@ impl Services {
         Ok(Self {
             db,
             jwt: JwtService::new(&settings.authentication.jwt),
-            smms: SmmsClient::new(settings.storage.image.smms.secret_token.clone()),
+            smms: SmmsClient::new(
+                settings.storage.image.smms.base_url.clone(),
+                settings.storage.image.smms.secret_token.clone(),
+            ),
         })
     }
 

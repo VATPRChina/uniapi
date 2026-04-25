@@ -5,4 +5,5 @@ public_key = ""
 issuer = "https://uniapi.vatprc.net"
 
 [storage.image.smms]
+base_url = "https://s.ee/api/v1/file"
 secret_token = ""

@@ -4,10 +4,9 @@ use serde::Deserialize;
 use thiserror::Error;
 use ulid::Ulid;
 
-const BASE_URL: &str = "https://s.ee/api/v1/file";
-
 #[derive(Clone)]
 pub struct SmmsClient {
+    base_url: String,
     http: reqwest::Client,
     secret_token: String,
 }
@@ -28,8 +27,9 @@ pub enum SmmsError {
 }
 
 impl SmmsClient {
-    pub fn new(secret_token: String) -> Self {
+    pub fn new(base_url: String, secret_token: String) -> Self {
         Self {
+            base_url,
             http: reqwest::Client::new(),
             secret_token,
         }
@@ -46,7 +46,7 @@ impl SmmsClient {
         }
 
         let file_name = normalize_file_name(file_name);
-        let upload_name = format!("vatprc-{}-{file_name}", Utc::now().format("%Y-%m-%d"));
+        let upload_name = upload_file_name(&file_name);
 
         let mut part = Part::bytes(image).file_name(upload_name);
         if let Some(content_type) = content_type {
@@ -57,7 +57,7 @@ impl SmmsClient {
 
         let response = self
             .http
-            .post(format!("{BASE_URL}/upload"))
+            .post(format!("{}/upload", self.base_url.trim_end_matches('/')))
             .header("Authorization", &self.secret_token)
             .multipart(Form::new().part("file", part))
             .send()
@@ -66,14 +66,7 @@ impl SmmsClient {
             .json::<SmmsResponse>()
             .await?;
 
-        if response.code != 200 {
-            return Err(SmmsError::Rejected(response.message));
-        }
-
-        response
-            .data
-            .map(|data| data.url)
-            .ok_or(SmmsError::MissingUrl)
+        uploaded_url_from_response(response)
     }
 }
 
@@ -82,6 +75,21 @@ fn normalize_file_name(file_name: Option<String>) -> String {
         Some(file_name) if file_name.chars().all(char::is_alphanumeric) => file_name,
         _ => Ulid::new().to_string(),
     }
+}
+
+fn upload_file_name(file_name: &str) -> String {
+    format!("vatprc-{}-{file_name}", Utc::now().format("%Y-%m-%d"))
+}
+
+fn uploaded_url_from_response(response: SmmsResponse) -> Result<String, SmmsError> {
+    if response.code != 200 {
+        return Err(SmmsError::Rejected(response.message));
+    }
+
+    response
+        .data
+        .map(|data| data.url)
+        .ok_or(SmmsError::MissingUrl)
 }
 
 #[derive(Deserialize)]
@@ -94,4 +102,103 @@ struct SmmsResponse {
 #[derive(Deserialize)]
 struct SmmsData {
     url: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_file_name_keeps_alphanumeric_names() {
+        assert_eq!(
+            normalize_file_name(Some("Vatprc2026".to_string())),
+            "Vatprc2026"
+        );
+    }
+
+    #[test]
+    fn normalize_file_name_replaces_unsafe_names_with_ulid() {
+        let file_name = normalize_file_name(Some("event-banner.png".to_string()));
+
+        assert_ne!(file_name, "event-banner.png");
+        assert!(file_name.parse::<Ulid>().is_ok());
+    }
+
+    #[test]
+    fn upload_file_name_adds_vatprc_prefix_and_date() {
+        let upload_name = upload_file_name("image");
+
+        assert!(upload_name.starts_with("vatprc-"));
+        assert!(upload_name.ends_with("-image"));
+    }
+
+    #[tokio::test]
+    async fn upload_image_fails_when_secret_token_is_missing() {
+        let client = SmmsClient::new(String::new(), String::new());
+
+        let error = client
+            .upload_image(
+                vec![1, 2, 3],
+                Some("image".to_string()),
+                Some("image/png".to_string()),
+            )
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, SmmsError::MissingSecretToken));
+    }
+
+    #[tokio::test]
+    async fn upload_image_fails_on_invalid_content_type() {
+        let client = SmmsClient::new(String::new(), "secret".to_string());
+
+        let error = client
+            .upload_image(
+                vec![1, 2, 3],
+                Some("image".to_string()),
+                Some("not a mime".to_string()),
+            )
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, SmmsError::Rejected(_)));
+    }
+
+    #[test]
+    fn uploaded_url_from_response_returns_uploaded_url() {
+        let url = uploaded_url_from_response(SmmsResponse {
+            code: 200,
+            message: "success".to_string(),
+            data: Some(SmmsData {
+                url: "https://example.test/image.png".to_string(),
+            }),
+        })
+        .unwrap();
+
+        assert_eq!(url, "https://example.test/image.png");
+    }
+
+    #[test]
+    fn uploaded_url_from_response_returns_rejected_error_for_non_success_smms_response() {
+        let error = uploaded_url_from_response(SmmsResponse {
+            code: 400,
+            message: "invalid image".to_string(),
+            data: None,
+        })
+        .unwrap_err();
+
+        assert!(matches!(error, SmmsError::Rejected(message) if message == "invalid image"));
+    }
+
+    #[test]
+    fn uploaded_url_from_response_returns_missing_url_when_success_response_has_no_data() {
+        let error = uploaded_url_from_response(SmmsResponse {
+            code: 200,
+            message: "success".to_string(),
+            data: None,
+        })
+        .unwrap_err();
+
+        assert!(matches!(error, SmmsError::MissingUrl));
+    }
 }

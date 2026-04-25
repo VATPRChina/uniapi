@@ -38,6 +38,7 @@ pub struct ImageStorage {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SmmsStorage {
+    pub base_url: String,
     pub secret_token: String,
 }
 
