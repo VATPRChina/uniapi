@@ -1,5 +1,6 @@
 mod app;
 mod services;
+mod settings;
 
 use std::env;
 use std::net::SocketAddr;
@@ -14,19 +15,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "rust=debug,tower_http=debug,axum=debug".into()),
+                .unwrap_or_else(|_| "warn,vatprc_uniapi=info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let database_url =
-        env::var("DATABASE_URL").unwrap_or_else(|_| "postgresql://localhost/vatprc".to_string());
-    let services = Services::connect(&database_url).await?;
+    let settings = settings::Settings::new().expect("failed to load settings");
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let listener = TcpListener::bind(addr).await?;
+    let services = Services::connect(&settings.database.url).await?;
 
-    tracing::info!("listening on http://{addr}");
+    let listener = tokio::net::TcpListener::bind(&settings.bind_address)
+        .await
+        .unwrap();
+
+    tracing::info!("listening on http://{}", settings.bind_address);
 
     axum::serve(listener, app::router(services))
         .with_graceful_shutdown(shutdown_signal())
