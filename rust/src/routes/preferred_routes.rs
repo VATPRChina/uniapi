@@ -8,6 +8,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::{auth::CurrentUser, models::user_role::UserRole, services::Services};
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(
+    list_preferred_routes,
+    create_preferred_route,
+    get_preferred_route,
+    update_preferred_route,
+    delete_preferred_route
+))]
+pub(crate) struct ApiDoc;
+
 pub fn build_preferred_route_routes() -> Router<Services> {
     Router::new()
         .route("/", get(list_preferred_routes).post(create_preferred_route))
@@ -19,11 +29,13 @@ pub fn build_preferred_route_routes() -> Router<Services> {
         )
 }
 
+#[utoipa::path(get, path = "api/navdata/preferred-routes", tag = "Navdata", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<PreferredRouteDto>)))]
 async fn list_preferred_routes(current_user: CurrentUser) -> Result<Response, PreferredRouteError> {
     require_role(&current_user, UserRole::Volunteer)?;
     Err(PreferredRouteError::NotImplemented)
 }
 
+#[utoipa::path(get, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Preferred route ULID")), responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn get_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
@@ -32,6 +44,7 @@ async fn get_preferred_route(
     Err(PreferredRouteError::NotImplemented)
 }
 
+#[utoipa::path(post, path = "api/navdata/preferred-routes", tag = "Navdata", security(("bearerAuth" = [])), request_body = PreferredRouteSaveRequest, responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn create_preferred_route(
     current_user: CurrentUser,
     Json(_request): Json<PreferredRouteSaveRequest>,
@@ -40,6 +53,7 @@ async fn create_preferred_route(
     Err(PreferredRouteError::NotImplemented)
 }
 
+#[utoipa::path(put, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Preferred route ULID")), request_body = PreferredRouteSaveRequest, responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn update_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
@@ -49,6 +63,7 @@ async fn update_preferred_route(
     Err(PreferredRouteError::NotImplemented)
 }
 
+#[utoipa::path(delete, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Preferred route ULID")), responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn delete_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
@@ -65,7 +80,7 @@ fn require_role(current_user: &CurrentUser, role: UserRole) -> Result<(), Prefer
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 #[allow(dead_code)]
 struct PreferredRouteSaveRequest {
     departure: String,
@@ -80,7 +95,7 @@ struct PreferredRouteSaveRequest {
     valid_until: Option<DateTime<Utc>>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 enum LevelRestrictionType {
     StandardEven,
@@ -89,6 +104,21 @@ enum LevelRestrictionType {
     FlightLevelEven,
     FlightLevelOdd,
     FlightLevel,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+#[allow(dead_code)]
+struct PreferredRouteDto {
+    id: String,
+    departure: String,
+    arrival: String,
+    raw_route: String,
+    cruising_level_restriction: LevelRestrictionType,
+    allowed_altitudes: Vec<i32>,
+    minimal_altitude: i32,
+    remarks: String,
+    valid_from: Option<DateTime<Utc>>,
+    valid_until: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug)]
@@ -110,7 +140,7 @@ impl IntoResponse for PreferredRouteError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

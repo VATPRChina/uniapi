@@ -18,10 +18,15 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(list_controllers))]
+pub(crate) struct ApiDoc;
+
 pub fn build_atc_routes() -> Router<Services> {
     Router::new().route("/", get(list_controllers))
 }
 
+#[utoipa::path(get, path = "api/atc/controllers", tag = "ATC", responses((status = 200, description = "Successful response", body = Vec<AtcStatusDto>)))]
 async fn list_controllers(
     State(services): State<Services>,
 ) -> Result<Json<Vec<AtcStatusDto>>, AtcRouteError> {
@@ -77,7 +82,7 @@ impl AtcStatusBuilder {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct AtcStatusDto {
     user_id: String,
     user: UserDto,
@@ -100,7 +105,7 @@ impl From<AtcStatusBuilder> for AtcStatusDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct AtcPermissionDto {
     position_kind_id: String,
     state: UserControllerState,
@@ -120,7 +125,7 @@ impl From<&AtcControllerPermissionRecord> for AtcPermissionDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -166,7 +171,7 @@ impl IntoResponse for AtcRouteError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

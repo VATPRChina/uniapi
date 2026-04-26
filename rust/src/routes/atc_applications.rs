@@ -18,6 +18,18 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(
+    list_applications,
+    create_application,
+    get_application_sheet,
+    get_review_sheet,
+    get_application,
+    update_application,
+    review_application
+))]
+pub(crate) struct ApiDoc;
+
 const APPLICATION_SHEET_ID: &str = "atc-application";
 const REVIEW_SHEET_ID: &str = "atc-application-review";
 
@@ -30,6 +42,7 @@ pub fn build_atc_application_routes() -> Router<Services> {
         .route("/{id}/review", axum::routing::put(review_application))
 }
 
+#[utoipa::path(get, path = "api/atc/applications", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<AtcApplicationSummaryDto>)))]
 async fn list_applications(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -51,6 +64,7 @@ async fn list_applications(
     Ok(Json(applications))
 }
 
+#[utoipa::path(post, path = "api/atc/applications", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = AtcApplicationSummaryDto)))]
 async fn create_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -102,6 +116,7 @@ async fn create_application(
     )))
 }
 
+#[utoipa::path(get, path = "api/atc/applications/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Application ULID")), responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
 async fn get_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -119,6 +134,7 @@ async fn get_application(
         .map(Json)
 }
 
+#[utoipa::path(put, path = "api/atc/applications/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Application ULID")), responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
 async fn update_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -169,6 +185,7 @@ async fn update_application(
         .map(Json)
 }
 
+#[utoipa::path(get, path = "api/atc/applications/sheet", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
 async fn get_application_sheet(
     State(services): State<Services>,
 ) -> Result<Json<SheetDto>, AtcApplicationRouteError> {
@@ -177,6 +194,7 @@ async fn get_application_sheet(
         .map(Json)
 }
 
+#[utoipa::path(get, path = "api/atc/applications/review-sheet", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
 async fn get_review_sheet(
     State(services): State<Services>,
 ) -> Result<Json<SheetDto>, AtcApplicationRouteError> {
@@ -185,6 +203,7 @@ async fn get_review_sheet(
         .map(Json)
 }
 
+#[utoipa::path(put, path = "api/atc/applications/{id}/review", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Application ULID")), responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
 async fn review_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -334,18 +353,18 @@ fn parse_ulid_uuid(id: &str) -> Result<Uuid, AtcApplicationRouteError> {
         .map_err(|_| AtcApplicationRouteError::InvalidId)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct AtcApplicationRequest {
     request_answers: Vec<SheetRequestField>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct AtcApplicationReviewRequest {
     status: AtcApplicationStatus,
     review_answers: Vec<SheetRequestField>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct SheetRequestField {
     id: String,
     answer: String,
@@ -360,7 +379,7 @@ impl From<SheetRequestField> for SheetAnswerSave {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 enum AtcApplicationStatus {
     Submitted,
@@ -392,7 +411,7 @@ fn parse_status(status: &str) -> AtcApplicationStatus {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct AtcApplicationSummaryDto {
     id: String,
     user_id: String,
@@ -420,7 +439,7 @@ impl AtcApplicationSummaryDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct AtcApplicationDto {
     id: String,
     user_id: String,
@@ -454,14 +473,14 @@ impl AtcApplicationDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct SheetDto {
     id: String,
     name: String,
     fields: Vec<SheetFieldDto>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct SheetFieldAnswerDto {
     field: SheetFieldDto,
     answer: String,
@@ -487,7 +506,7 @@ impl From<SheetAnswerRecord> for SheetFieldAnswerDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct SheetFieldDto {
     sheet_id: String,
     id: String,
@@ -518,7 +537,7 @@ impl From<SheetFieldRecord> for SheetFieldDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -608,7 +627,7 @@ impl IntoResponse for AtcApplicationRouteError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

@@ -18,6 +18,10 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(list_airspaces, create_airspace, update_airspace, delete_airspace))]
+pub(crate) struct ApiDoc;
+
 pub fn build_public_event_airspace_routes() -> Router<Services> {
     Router::new()
         .route("/{eid}/airspaces", get(list_airspaces))
@@ -33,6 +37,7 @@ pub fn build_protected_event_airspace_routes() -> Router<Services> {
         )
 }
 
+#[utoipa::path(get, path = "api/events/{event_id}/airspaces", tag = "Events", params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = Vec<EventAirspaceDto>)))]
 async fn list_airspaces(
     State(services): State<Services>,
     Path(eid): Path<String>,
@@ -64,6 +69,7 @@ async fn get_airspace(
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
 
+#[utoipa::path(post, path = "api/events/{event_id}/airspaces", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventAirspaceDto)))]
 async fn create_airspace(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -81,6 +87,7 @@ async fn create_airspace(
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
 
+#[utoipa::path(put, path = "api/events/{event_id}/airspaces/{airspace_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("airspace_id" = String, Path, description = "Airspace ULID")), responses((status = 200, description = "Successful response", body = EventAirspaceDto)))]
 async fn update_airspace(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -103,6 +110,7 @@ async fn update_airspace(
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
 
+#[utoipa::path(delete, path = "api/events/{event_id}/airspaces/{airspace_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("airspace_id" = String, Path, description = "Airspace ULID")), responses((status = 204, description = "No content")))]
 async fn delete_airspace(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -145,7 +153,7 @@ fn parse_ulid_uuid(id: &str, error: EventAirspaceError) -> Result<Uuid, EventAir
     id.parse::<Ulid>().map(Uuid::from).map_err(|_| error)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct EventAirspaceSaveRequest {
     name: String,
     icao_codes: Vec<String>,
@@ -162,7 +170,7 @@ impl From<EventAirspaceSaveRequest> for EventAirspaceSave {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct EventAirspaceDto {
     id: String,
     event_id: String,
@@ -220,7 +228,7 @@ impl IntoResponse for EventAirspaceError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

@@ -1,8 +1,11 @@
+#![recursion_limit = "256"]
+
 mod adapter;
 mod app;
 mod auth;
 mod jwt;
 mod models;
+mod openapi;
 mod routes;
 mod services;
 mod settings;

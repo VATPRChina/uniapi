@@ -7,10 +7,15 @@ use serde::Serialize;
 
 use crate::{adapter::discourse::DiscourseError, services::Services};
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(list_notams))]
+pub(crate) struct ApiDoc;
+
 pub fn build_notam_routes() -> Router<Services> {
     Router::new().route("/", get(list_notams))
 }
 
+#[utoipa::path(get, path = "api/notams", tag = "NOTAM", responses((status = 200, description = "Successful response", body = Vec<NotamDto>)))]
 async fn list_notams(
     State(services): State<Services>,
 ) -> Result<Json<Vec<NotamDto>>, NotamRouteError> {
@@ -37,7 +42,7 @@ async fn list_notams(
     Ok(Json(notams))
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct NotamDto {
     title: String,
     language_code: &'static str,
@@ -59,7 +64,7 @@ impl IntoResponse for NotamRouteError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

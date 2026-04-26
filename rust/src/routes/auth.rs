@@ -13,6 +13,10 @@ use crate::adapter::vatsim_auth::{VatsimAuthError, generate_pkce};
 use crate::jwt::JwtError;
 use crate::services::Services;
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(authorize, device_authorization, token))]
+pub(crate) struct ApiDoc;
+
 const USER_CODE_ALPHABET: &[u8] = b"BCDFGHJKLMNPQRSTVWXZ";
 
 pub fn build_auth_routes() -> Router<Services> {
@@ -25,6 +29,7 @@ pub fn build_auth_routes() -> Router<Services> {
         .route("/token", post(token))
 }
 
+#[utoipa::path(get, path = "auth/authorize", tag = "Auth", responses((status = 302, description = "Redirects to authorization destination")))]
 async fn authorize(
     State(services): State<Services>,
     Query(query): Query<AuthorizeQuery>,
@@ -63,6 +68,7 @@ async fn authorize(
     Ok(response)
 }
 
+#[utoipa::path(post, path = "auth/device_authorization", tag = "Auth", responses((status = 200, description = "Successful response", body = serde_json::Value)))]
 async fn device_authorization(
     State(services): State<Services>,
     headers: HeaderMap,
@@ -331,6 +337,7 @@ async fn vatsim_callback(
     Ok(response)
 }
 
+#[utoipa::path(post, path = "auth/token", tag = "Auth", responses((status = 200, description = "Successful response", body = serde_json::Value)))]
 async fn token(
     State(services): State<Services>,
     Form(request): Form<AccessTokenRequest>,
@@ -803,7 +810,7 @@ async fn upsert_user(
         .map_err(AuthEndpointError::Database)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct AuthorizeQuery {
     response_type: String,
     client_id: String,
@@ -811,7 +818,7 @@ struct AuthorizeQuery {
     state: Option<String>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, utoipa::ToSchema)]
 struct AuthenticationState {
     #[serde(rename = "Type")]
     auth_type: AuthenticationStateType,
@@ -825,7 +832,7 @@ struct AuthenticationState {
     state: Option<String>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, utoipa::ToSchema)]
 enum AuthenticationStateType {
     #[serde(rename = "CODE")]
     Code,
@@ -833,32 +840,32 @@ enum AuthenticationStateType {
     Device,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct DeviceConfirmQuery {
     user_code: Option<String>,
     confirm: Option<bool>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct LoginQuery {
     state: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct VatsimCallbackQuery {
     code: Option<String>,
     state: Option<String>,
     error: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct DeviceAuthorizationRequest {
     client_id: String,
     #[allow(dead_code)]
     scope: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct DeviceAuthorizationResponse {
     device_code: String,
     user_code: String,
@@ -870,7 +877,7 @@ struct DeviceAuthorizationResponse {
     interval: Option<u32>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct AccessTokenRequest {
     #[serde(default)]
     grant_type: String,
@@ -889,7 +896,7 @@ struct AccessTokenRequest {
     client_secret: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct TokenResponse {
     access_token: String,
     token_type: &'static str,
@@ -899,7 +906,7 @@ struct TokenResponse {
     scope: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct TokenErrorResponse {
     error: &'static str,
     error_description: &'static str,
@@ -992,7 +999,7 @@ impl IntoResponse for AuthEndpointError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct InternalErrorResponse {
     message: String,
 }

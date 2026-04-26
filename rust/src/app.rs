@@ -5,7 +5,10 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_scalar::{Scalar, Servable};
 
+use crate::openapi::{openapi, openapi_json};
 use crate::routes::atc::build_atc_routes;
 use crate::routes::atc_applications::build_atc_application_routes;
 use crate::routes::atc_bookings::build_atc_booking_routes;
@@ -38,14 +41,18 @@ use crate::routes::users::build_user_routes;
 use crate::services::Services;
 use crate::{adapter::database::health as health_repository, auth};
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct HealthResponse {
     status: &'static str,
     database: &'static str,
 }
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(health))]
+pub(crate) struct ApiDoc;
+
 pub fn router(services: Services) -> Router {
-    Router::new()
+    let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health))
         .nest("/auth", build_auth_routes())
@@ -169,13 +176,21 @@ pub fn router(services: Services) -> Router {
                 auth::authenticate,
             )),
         )
-        .with_state(services)
+        .with_state(services);
+    let (router, openapi) = OpenApiRouter::with_openapi(openapi())
+        .merge(app.into())
+        .split_for_parts();
+
+    router
+        .route("/openapi.json", get(openapi_json))
+        .merge(Scalar::with_url("/docs", openapi))
 }
 
 async fn root() -> &'static str {
     "vatprc uniapi rust service"
 }
 
+#[utoipa::path(get, path = "health", tag = "Health", responses((status = 200, description = "Successful response", body = HealthResponse)))]
 async fn health(State(services): State<Services>) -> impl IntoResponse {
     let database_is_healthy = health_repository::is_healthy(services.db()).await;
 

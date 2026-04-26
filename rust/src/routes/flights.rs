@@ -17,6 +17,17 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(
+    active_flights,
+    flight_by_callsign,
+    warnings_by_callsign,
+    route_by_callsign,
+    my_flight,
+    temporary_warnings
+))]
+pub(crate) struct ApiDoc;
+
 pub fn build_public_flight_routes() -> Router<Services> {
     Router::new()
         .route("/active", get(active_flights))
@@ -34,6 +45,7 @@ pub fn build_protected_flight_routes() -> Router<Services> {
         .route("/temporary/by-plan/warnings", get(temporary_warnings))
 }
 
+#[utoipa::path(get, path = "api/flights/active", tag = "Flights", responses((status = 200, description = "Successful response", body = Vec<FlightDto>)))]
 async fn active_flights(
     State(services): State<Services>,
 ) -> Result<Json<Vec<FlightDto>>, FlightRouteError> {
@@ -46,6 +58,7 @@ async fn active_flights(
     ))
 }
 
+#[utoipa::path(get, path = "api/flights/by-callsign/{callsign}", tag = "Flights", params(("callsign" = String, Path, description = "Callsign")), responses((status = 200, description = "Successful response", body = FlightDto)))]
 async fn flight_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
@@ -56,6 +69,7 @@ async fn flight_by_callsign(
         .map(Json)
 }
 
+#[utoipa::path(get, path = "api/flights/by-callsign/{callsign}/warnings", tag = "Flights", params(("callsign" = String, Path, description = "Callsign")), responses((status = 200, description = "Successful response", body = Vec<WarningMessage>)))]
 async fn warnings_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
@@ -64,6 +78,7 @@ async fn warnings_by_callsign(
     Err(FlightRouteError::RouteParsingNotImplemented)
 }
 
+#[utoipa::path(get, path = "api/flights/by-callsign/{callsign}/route", tag = "Flights", params(("callsign" = String, Path, description = "Callsign")), responses((status = 200, description = "Successful response", body = Vec<FlightLeg>)))]
 async fn route_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
@@ -72,6 +87,7 @@ async fn route_by_callsign(
     Err(FlightRouteError::RouteParsingNotImplemented)
 }
 
+#[utoipa::path(get, path = "api/flights/temporary/by-plan/warnings", tag = "Flights", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<WarningMessage>)))]
 async fn temporary_warnings(
     current_user: CurrentUser,
     Query(_query): Query<TemporaryFlightQuery>,
@@ -80,6 +96,7 @@ async fn temporary_warnings(
     Err(FlightRouteError::RouteParsingNotImplemented)
 }
 
+#[utoipa::path(get, path = "api/flights/mine", tag = "Flights", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = FlightDto)))]
 async fn my_flight(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -124,7 +141,7 @@ fn require_role(current_user: &CurrentUser, role: UserRole) -> Result<(), Flight
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 #[allow(dead_code)]
 struct TemporaryFlightQuery {
     departure: String,
@@ -143,7 +160,7 @@ struct TemporaryFlightQuery {
     cruising_level: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct FlightDto {
     id: String,
     cid: String,
@@ -178,6 +195,24 @@ impl From<Flight> for FlightDto {
             cruising_level: flight.cruising_level,
         }
     }
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+struct FlightLeg {
+    from: FlightFix,
+    to: FlightFix,
+    leg_identifier: String,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+struct FlightFix {
+    identifier: String,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+struct WarningMessage {
+    level: Option<String>,
+    message: Option<String>,
 }
 
 #[derive(Debug)]
@@ -218,7 +253,7 @@ impl IntoResponse for FlightRouteError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

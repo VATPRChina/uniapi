@@ -32,5 +32,8 @@ thiserror = "2"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 ulid = { version = "1", features = ["uuid"] }
+utoipa = { version = "5", features = ["chrono", "uuid"] }
+utoipa-axum = "0.2"
+utoipa-scalar = { version = "0.3", features = ["axum"] }
 url = "2"
 uuid = { version = "1", features = ["serde"] }

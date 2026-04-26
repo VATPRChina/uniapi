@@ -17,6 +17,17 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(
+    list_bookings,
+    create_booking,
+    list_my_bookings,
+    get_booking,
+    update_booking,
+    delete_booking
+))]
+pub(crate) struct ApiDoc;
+
 pub fn build_atc_booking_routes() -> Router<Services> {
     Router::new()
         .route("/", get(list_bookings).post(create_booking))
@@ -27,6 +38,7 @@ pub fn build_atc_booking_routes() -> Router<Services> {
         )
 }
 
+#[utoipa::path(get, path = "api/atc/bookings", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<AtcBookingDto>)))]
 async fn list_bookings(
     State(services): State<Services>,
 ) -> Result<Json<Vec<AtcBookingDto>>, AtcBookingRouteError> {
@@ -40,6 +52,7 @@ async fn list_bookings(
     ))
 }
 
+#[utoipa::path(get, path = "api/atc/bookings/mine", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<AtcBookingDto>)))]
 async fn list_my_bookings(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -57,6 +70,7 @@ async fn list_my_bookings(
     ))
 }
 
+#[utoipa::path(post, path = "api/atc/bookings", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
 async fn create_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -73,6 +87,7 @@ async fn create_booking(
     Ok(Json(AtcBookingDto::from(booking)))
 }
 
+#[utoipa::path(get, path = "api/atc/bookings/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Booking ULID")), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
 async fn get_booking(
     State(services): State<Services>,
     Path(id): Path<String>,
@@ -86,6 +101,7 @@ async fn get_booking(
     Ok(Json(AtcBookingDto::from(booking)))
 }
 
+#[utoipa::path(put, path = "api/atc/bookings/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Booking ULID")), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
 async fn update_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -112,6 +128,7 @@ async fn update_booking(
     Ok(Json(AtcBookingDto::from(booking)))
 }
 
+#[utoipa::path(delete, path = "api/atc/bookings/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Booking ULID")), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
 async fn delete_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -173,7 +190,7 @@ fn parse_ulid_uuid(id: &str) -> Result<Uuid, AtcBookingRouteError> {
         .map_err(|_| AtcBookingRouteError::InvalidBookingId)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct AtcBookingSaveRequest {
     callsign: String,
     start_time: DateTime<Utc>,
@@ -196,7 +213,7 @@ impl TryFrom<AtcBookingSaveRequest> for AtcBookingSave {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct AtcBookingDto {
     id: String,
     user: UserDto,
@@ -228,7 +245,7 @@ impl From<AtcBookingRecord> for AtcBookingDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -300,7 +317,7 @@ impl IntoResponse for AtcBookingRouteError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

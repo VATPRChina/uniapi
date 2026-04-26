@@ -19,6 +19,10 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(list_slots, create_slot, update_slot, delete_slot))]
+pub(crate) struct ApiDoc;
+
 pub fn build_public_event_slot_routes() -> Router<Services> {
     Router::new()
         .route("/{eid}/slots", get(list_slots))
@@ -33,6 +37,7 @@ pub fn build_protected_event_slot_routes() -> Router<Services> {
         .route("/{eid}/slots/{sid}", put(update_slot).delete(delete_slot))
 }
 
+#[utoipa::path(get, path = "api/events/{event_id}/slots", tag = "Events", params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = Vec<EventSlotDto>)))]
 async fn list_slots(
     State(services): State<Services>,
     Path(eid): Path<String>,
@@ -105,6 +110,7 @@ async fn export_bookings(
         .into_response())
 }
 
+#[utoipa::path(post, path = "api/events/{event_id}/slots", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventSlotDto)))]
 async fn create_slot(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -123,6 +129,7 @@ async fn create_slot(
     )))
 }
 
+#[utoipa::path(put, path = "api/events/{event_id}/slots/{slot_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventSlotDto)))]
 async fn update_slot(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -143,6 +150,7 @@ async fn update_slot(
     )))
 }
 
+#[utoipa::path(delete, path = "api/events/{event_id}/slots/{slot_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 204, description = "No content")))]
 async fn delete_slot(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -238,7 +246,7 @@ fn event_booking_dto(slot: &EventSlotRecord, include_user: bool) -> Option<Event
     })
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct EventSlotSaveRequest {
     airspace_id: String,
     enter_at: DateTime<Utc>,
@@ -261,7 +269,7 @@ impl TryFrom<EventSlotSaveRequest> for EventSlotSave {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct EventSlotDto {
     id: String,
     event_id: String,
@@ -276,7 +284,7 @@ struct EventSlotDto {
     aircraft_type_icao: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct EventAirspaceDto {
     id: String,
     event_id: String,
@@ -287,7 +295,7 @@ struct EventAirspaceDto {
     description: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct EventBookingDto {
     id: String,
     user_id: String,
@@ -296,7 +304,7 @@ struct EventBookingDto {
     updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -341,7 +349,7 @@ impl IntoResponse for EventSlotError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

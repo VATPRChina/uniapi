@@ -15,6 +15,10 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(get_booking, put_booking, delete_booking))]
+pub(crate) struct ApiDoc;
+
 pub fn build_public_event_slot_booking_routes() -> Router<Services> {
     Router::new().route("/{eid}/slots/{sid}/booking", get(get_booking))
 }
@@ -26,6 +30,7 @@ pub fn build_protected_event_slot_booking_routes() -> Router<Services> {
     )
 }
 
+#[utoipa::path(get, path = "api/events/{event_id}/slots/{slot_id}/booking", tag = "Events", params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventBookingDto)))]
 async fn get_booking(
     State(services): State<Services>,
     Path((eid, sid)): Path<(String, String)>,
@@ -40,6 +45,7 @@ async fn get_booking(
     Ok(Json(event_booking_dto(booking, false)))
 }
 
+#[utoipa::path(put, path = "api/events/{event_id}/slots/{slot_id}/booking", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventBookingDto)))]
 async fn put_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -99,6 +105,7 @@ async fn put_booking(
     )))
 }
 
+#[utoipa::path(delete, path = "api/events/{event_id}/slots/{slot_id}/booking", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventBookingDto)))]
 async fn delete_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -180,12 +187,12 @@ fn event_booking_dto(booking: EventBookingRecord, include_user: bool) -> EventBo
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct EventSlotBookingRequest {
     user_id: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct EventBookingDto {
     id: String,
     user_id: String,
@@ -194,7 +201,7 @@ struct EventBookingDto {
     updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -266,7 +273,7 @@ impl IntoResponse for EventSlotBookingError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

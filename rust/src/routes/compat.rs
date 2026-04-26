@@ -12,6 +12,17 @@ use crate::adapter::compat::CompatClientError;
 use crate::adapter::database::compat::{self as compat_repository, FutureControllerRow};
 use crate::services::Services;
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(
+    vplaaf_areas,
+    trackaudio_version,
+    vatsim_events,
+    get_metar_by_query,
+    get_metar_by_path,
+    online_status
+))]
+pub(crate) struct ApiDoc;
+
 static VATPRC_CONTROLLER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(Z[BSGUHWJPLYM][A-Z0-9]{2}(_[A-Z0-9]*)?_(DEL|GND|TWR|APP|DEP|CTR))|(PRC_FSS)$")
         .expect("VATPRC controller regex should compile")
@@ -30,6 +41,7 @@ pub fn build_compat_routes() -> Router<Services> {
         .route("/vplaaf/areas.json", get(vplaaf_areas))
 }
 
+#[utoipa::path(get, path = "api/compat/online-status", tag = "Compat", responses((status = 200, description = "Successful response", body = CompatVatprcStatusDto)))]
 async fn online_status(
     State(services): State<Services>,
 ) -> Result<Json<CompatVatprcStatusDto>, CompatError> {
@@ -90,10 +102,12 @@ async fn online_status(
     }))
 }
 
+#[utoipa::path(get, path = "api/compat/euroscope/metar/{icao}", tag = "Compat", params(("icao" = String, Path, description = "ICAO code")), responses((status = 200, description = "Successful response", body = String)))]
 async fn get_metar_by_path(State(services): State<Services>, Path(icao): Path<String>) -> Response {
     metar_response(services, icao).await
 }
 
+#[utoipa::path(get, path = "api/compat/euroscope/metar/metar.php", tag = "Compat", params(("icao" = Option<String>, Query, description = "ICAO code")), responses((status = 200, description = "Successful response", body = String)))]
 async fn get_metar_by_query(
     State(services): State<Services>,
     Query(query): Query<MetarQuery>,
@@ -121,14 +135,17 @@ async fn metar_response(services: Services, icao: String) -> Response {
         .into_response()
 }
 
+#[utoipa::path(get, path = "api/compat/homepage/events/vatsim", tag = "Compat", responses((status = 200, description = "Successful response", body = serde_json::Value)))]
 async fn vatsim_events(State(services): State<Services>) -> Result<Response, CompatError> {
     json_text_response(services.compat().get_vatsim_events().await)
 }
 
+#[utoipa::path(get, path = "api/compat/trackaudio/mandatory_version", tag = "Compat", responses((status = 200, description = "Successful response", body = String)))]
 async fn trackaudio_version(State(services): State<Services>) -> Result<Response, CompatError> {
     text_response(services.compat().get_track_audio_version().await)
 }
 
+#[utoipa::path(get, path = "api/compat/vplaaf/areas.json", tag = "Compat", responses((status = 200, description = "Successful response", body = serde_json::Value)))]
 async fn vplaaf_areas(State(services): State<Services>) -> Result<Response, CompatError> {
     json_text_response(services.compat().get_vplaaf_areas().await)
 }
@@ -151,12 +168,12 @@ fn json_text_response(content: Result<String, CompatClientError>) -> Result<Resp
         .into_response())
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct MetarQuery {
     id: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct CompatVatprcStatusDto {
     last_updated: DateTime<Utc>,
     pilots: Vec<CompatPilotDto>,
@@ -164,7 +181,7 @@ struct CompatVatprcStatusDto {
     future_controllers: Vec<CompatFutureControllerDto>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct CompatPilotDto {
     cid: i32,
     name: String,
@@ -174,7 +191,7 @@ struct CompatPilotDto {
     aircraft: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct CompatControllerDto {
     cid: i32,
     name: String,
@@ -182,7 +199,7 @@ struct CompatControllerDto {
     frequency: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct CompatFutureControllerDto {
     callsign: String,
     name: String,
@@ -235,7 +252,7 @@ impl IntoResponse for CompatError {
 mod serde_error {
     use serde::Serialize;
 
-    #[derive(Serialize)]
+    #[derive(Serialize, utoipa::ToSchema)]
     pub struct ErrorResponse {
         pub message: String,
     }

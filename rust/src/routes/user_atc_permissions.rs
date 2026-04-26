@@ -21,6 +21,10 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(get_my_status, get_status, set_status, delete_status))]
+pub(crate) struct ApiDoc;
+
 const ALLOWED_RATINGS: &[&str] = &["OBS", "S1", "S2", "S3", "C1", "C3", "I1", "I3"];
 
 pub fn build_user_atc_permission_routes() -> Router<Services> {
@@ -32,6 +36,7 @@ pub fn build_user_atc_permission_routes() -> Router<Services> {
         )
 }
 
+#[utoipa::path(get, path = "api/users/me/atc/status", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
 async fn get_my_status(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -42,6 +47,7 @@ async fn get_my_status(
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
+#[utoipa::path(get, path = "api/users/{id}/atc/status", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
 async fn get_status(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -52,6 +58,7 @@ async fn get_status(
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
+#[utoipa::path(put, path = "api/users/{id}/atc/status", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "User ULID")), request_body = AtcStatusRequest, responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
 async fn set_status(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -86,6 +93,7 @@ async fn set_status(
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
+#[utoipa::path(delete, path = "api/users/{id}/atc/status", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 204, description = "No content")))]
 async fn delete_status(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -154,7 +162,7 @@ fn parse_ulid_uuid(id: &str) -> Result<Uuid, UserAtcPermissionRouteError> {
         .map_err(|_| UserAtcPermissionRouteError::InvalidUserId)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct AtcStatusRequest {
     is_visiting: bool,
     is_absent: bool,
@@ -189,7 +197,7 @@ impl TryFrom<AtcStatusRequest> for AtcStatusSave {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct AtcPermissionRequest {
     position_kind_id: String,
     state: UserControllerState,
@@ -206,7 +214,7 @@ impl From<AtcPermissionRequest> for AtcPermissionSave {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct AtcStatusDto {
     user_id: String,
     user: UserDto,
@@ -241,7 +249,7 @@ impl AtcStatusDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct AtcPermissionDto {
     position_kind_id: String,
     state: UserControllerState,
@@ -261,7 +269,7 @@ impl From<AtcPermissionRecord> for AtcPermissionDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -334,7 +342,7 @@ impl IntoResponse for UserAtcPermissionRouteError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

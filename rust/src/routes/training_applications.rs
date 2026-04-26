@@ -22,6 +22,18 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(
+    list_applications,
+    create_application,
+    get_application,
+    update_application,
+    delete_application,
+    list_responses,
+    respond_to_application
+))]
+pub(crate) struct ApiDoc;
+
 pub fn build_training_application_routes() -> Router<Services> {
     Router::new()
         .route("/", get(list_applications).post(create_application))
@@ -35,6 +47,7 @@ pub fn build_training_application_routes() -> Router<Services> {
         .route("/{id}/response", axum::routing::put(respond_to_application))
 }
 
+#[utoipa::path(get, path = "api/atc/trainings/applications", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingApplicationDto>)))]
 async fn list_applications(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -51,6 +64,7 @@ async fn list_applications(
     applications_to_dto(&services, applications).await.map(Json)
 }
 
+#[utoipa::path(get, path = "api/atc/trainings/applications/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
 async fn get_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -60,6 +74,7 @@ async fn get_application(
     application_to_dto(&services, application).await.map(Json)
 }
 
+#[utoipa::path(delete, path = "api/atc/trainings/applications/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
 async fn delete_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -77,6 +92,7 @@ async fn delete_application(
     application_to_dto(&services, application).await.map(Json)
 }
 
+#[utoipa::path(post, path = "api/atc/trainings/applications", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
 async fn create_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -122,6 +138,7 @@ async fn create_application(
     application_to_dto(&services, application).await.map(Json)
 }
 
+#[utoipa::path(put, path = "api/atc/trainings/applications/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
 async fn update_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -159,6 +176,7 @@ async fn update_application(
     application_to_dto(&services, application).await.map(Json)
 }
 
+#[utoipa::path(get, path = "api/atc/trainings/applications/{id}/responses", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = Vec<TrainingApplicationResponseDto>)))]
 async fn list_responses(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -175,6 +193,7 @@ async fn list_responses(
     Ok(Json(responses))
 }
 
+#[utoipa::path(put, path = "api/atc/trainings/applications/{id}/response", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationResponseDto)))]
 async fn respond_to_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -301,13 +320,13 @@ fn parse_ulid_uuid(id: &str) -> Result<Uuid, TrainingApplicationRouteError> {
         .map_err(|_| TrainingApplicationRouteError::InvalidId)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct TrainingApplicationCreateRequest {
     name: String,
     slots: Vec<TrainingApplicationCreateRequestSlot>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct TrainingApplicationCreateRequestSlot {
     start_at: DateTime<Utc>,
     end_at: DateTime<Utc>,
@@ -322,13 +341,13 @@ impl From<TrainingApplicationCreateRequestSlot> for TrainingApplicationSlotSave 
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct TrainingApplicationResponseRequest {
     slot_id: Option<String>,
     comment: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct TrainingApplicationDto {
     id: String,
     trainee_id: String,
@@ -373,7 +392,7 @@ impl TrainingApplicationDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 enum TrainingApplicationStatus {
     Pending,
@@ -402,7 +421,7 @@ fn application_status(
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct TrainingApplicationSlotDto {
     id: String,
     application_id: String,
@@ -421,7 +440,7 @@ impl From<TrainingApplicationSlotRecord> for TrainingApplicationSlotDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct TrainingApplicationResponseDto {
     id: String,
     application_id: String,
@@ -457,7 +476,7 @@ impl From<TrainingApplicationResponseRecord> for TrainingApplicationResponseDto 
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -528,7 +547,7 @@ impl IntoResponse for TrainingApplicationRouteError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

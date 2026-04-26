@@ -19,6 +19,10 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(list_users, me, get_user, set_roles, get_user_by_cid, assume_by_cid))]
+pub(crate) struct ApiDoc;
+
 pub fn build_user_routes() -> Router<Services> {
     Router::new()
         .route("/", get(list_users))
@@ -28,6 +32,7 @@ pub fn build_user_routes() -> Router<Services> {
         .route("/by-cid/{cid}", get(get_user_by_cid).post(assume_by_cid))
 }
 
+#[utoipa::path(get, path = "api/users", tag = "Users", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<UserDto>)))]
 async fn list_users(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -44,6 +49,7 @@ async fn list_users(
     Ok(Json(users))
 }
 
+#[utoipa::path(get, path = "api/users/{id}", tag = "Users", security(("bearerAuth" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = UserDto)))]
 async fn get_user(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -65,6 +71,7 @@ async fn get_user(
     )))
 }
 
+#[utoipa::path(get, path = "api/users/by-cid/{cid}", tag = "Users", security(("bearerAuth" = [])), params(("cid" = String, Path, description = "VATSIM CID")), responses((status = 200, description = "Successful response", body = UserDto)))]
 async fn get_user_by_cid(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -84,6 +91,7 @@ async fn get_user_by_cid(
     )))
 }
 
+#[utoipa::path(post, path = "api/users/by-cid/{cid}", tag = "Users", security(("bearerAuth" = [])), params(("cid" = String, Path, description = "VATSIM CID")), responses((status = 200, description = "Successful response", body = UserDto)))]
 async fn assume_by_cid(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -97,6 +105,7 @@ async fn assume_by_cid(
     Ok(Json(user_dto(user, None, false, None)))
 }
 
+#[utoipa::path(put, path = "api/users/{id}/roles", tag = "Users", security(("bearerAuth" = [])), params(("id" = String, Path, description = "User ULID")), request_body = Vec<String>, responses((status = 200, description = "Successful response", body = UserDto)))]
 async fn set_roles(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -127,6 +136,7 @@ async fn set_roles(
     Ok(Json(user_dto(user, None, false, None)))
 }
 
+#[utoipa::path(get, path = "api/users/me", tag = "Users", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = UserDto)))]
 async fn me(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -215,7 +225,7 @@ fn role_to_dto(role: UserRole) -> String {
     role.as_str().to_string()
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -227,7 +237,7 @@ struct UserDto {
     moodle_account: Option<UserMoodleInfoDto>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserMoodleInfoDto {
     id: String,
 }
@@ -266,7 +276,7 @@ impl IntoResponse for UserRouteError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

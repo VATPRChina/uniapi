@@ -18,6 +18,20 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(
+    create_training,
+    list_active,
+    list_finished,
+    list_by_user,
+    get_record_sheet,
+    get_training,
+    update_training,
+    delete_training,
+    set_record_sheet
+))]
+pub(crate) struct ApiDoc;
+
 const RECORD_SHEET_ID: &str = "training-record";
 
 pub fn build_training_routes() -> Router<Services> {
@@ -36,6 +50,7 @@ pub fn build_training_routes() -> Router<Services> {
         .route("/{id}/record", axum::routing::put(set_record_sheet))
 }
 
+#[utoipa::path(get, path = "api/atc/trainings/active", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
 async fn list_active(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -57,6 +72,7 @@ async fn list_active(
     .map(Json)
 }
 
+#[utoipa::path(get, path = "api/atc/trainings/finished", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
 async fn list_finished(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -78,6 +94,7 @@ async fn list_finished(
     .map(Json)
 }
 
+#[utoipa::path(get, path = "api/atc/trainings/by-user/{user_id}", tag = "ATC", security(("bearerAuth" = [])), params(("user_id" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
 async fn list_by_user(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -101,6 +118,7 @@ async fn list_by_user(
     .map(Json)
 }
 
+#[utoipa::path(get, path = "api/atc/trainings/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn get_training(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -111,6 +129,7 @@ async fn get_training(
     training_to_dto(&services, training).await.map(Json)
 }
 
+#[utoipa::path(post, path = "api/atc/trainings", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn create_training(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -133,6 +152,7 @@ async fn create_training(
     training_to_dto(&services, training).await.map(Json)
 }
 
+#[utoipa::path(put, path = "api/atc/trainings/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn update_training(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -158,6 +178,7 @@ async fn update_training(
     training_to_dto(&services, training).await.map(Json)
 }
 
+#[utoipa::path(get, path = "api/atc/trainings/record-sheet", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
 async fn get_record_sheet(
     State(services): State<Services>,
 ) -> Result<Json<SheetDto>, TrainingRouteError> {
@@ -183,6 +204,7 @@ async fn get_record_sheet(
     }))
 }
 
+#[utoipa::path(put, path = "api/atc/trainings/{id}/record", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn set_record_sheet(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -228,6 +250,7 @@ async fn set_record_sheet(
     training_to_dto(&services, training).await.map(Json)
 }
 
+#[utoipa::path(delete, path = "api/atc/trainings/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 204, description = "No content")))]
 async fn delete_training(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -325,7 +348,7 @@ fn parse_ulid_uuid(id: &str) -> Result<Uuid, TrainingRouteError> {
         .map_err(|_| TrainingRouteError::InvalidId)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct TrainingSaveRequest {
     name: String,
     trainer_id: String,
@@ -348,12 +371,12 @@ impl TryFrom<TrainingSaveRequest> for TrainingSave {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct TrainingRecordRequest {
     request_answers: Vec<SheetRequestField>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct SheetRequestField {
     id: String,
     answer: String,
@@ -368,7 +391,7 @@ impl From<SheetRequestField> for SheetAnswerSave {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct TrainingDto {
     id: String,
     name: String,
@@ -424,14 +447,14 @@ impl TrainingDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct SheetDto {
     id: String,
     name: String,
     fields: Vec<SheetFieldDto>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct SheetFieldAnswerDto {
     field: SheetFieldDto,
     answer: String,
@@ -457,7 +480,7 @@ impl From<SheetAnswerRecord> for SheetFieldAnswerDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct SheetFieldDto {
     sheet_id: String,
     id: String,
@@ -488,7 +511,7 @@ impl From<SheetFieldRecord> for SheetFieldDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -583,7 +606,7 @@ impl IntoResponse for TrainingRouteError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

@@ -17,10 +17,15 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(get_current, logout))]
+pub(crate) struct ApiDoc;
+
 pub fn build_session_routes() -> Router<Services> {
     Router::new().route("/", get(get_current).delete(logout))
 }
 
+#[utoipa::path(get, path = "api/session", tag = "Session", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = TokenDto)))]
 async fn get_current(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -69,6 +74,7 @@ async fn get_current(
     }))
 }
 
+#[utoipa::path(delete, path = "api/session", tag = "Session", security(("bearerAuth" = [])), responses((status = 204, description = "No content")))]
 async fn logout(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -89,14 +95,14 @@ async fn logout(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct TokenDto {
     user: UserDto,
     issued_at: DateTime<Utc>,
     expires_at: DateTime<Utc>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -108,7 +114,7 @@ struct UserDto {
     moodle_account: Option<UserMoodleInfoDto>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserMoodleInfoDto {
     id: String,
 }
@@ -149,7 +155,7 @@ impl IntoResponse for SessionError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

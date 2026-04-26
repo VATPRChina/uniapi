@@ -18,6 +18,17 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(
+    list_positions,
+    create_position,
+    update_position,
+    delete_position,
+    book_position,
+    cancel_position_booking
+))]
+pub(crate) struct ApiDoc;
+
 const POSITION_KINDS: &[&str] = &["DEL", "GND", "TWR", "T2", "APP", "CTR", "FSS", "FMP"];
 
 pub fn build_public_event_atc_position_routes() -> Router<Services> {
@@ -37,6 +48,7 @@ pub fn build_protected_event_atc_position_routes() -> Router<Services> {
         )
 }
 
+#[utoipa::path(get, path = "api/events/{event_id}/controllers", tag = "Events", params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = Vec<EventAtcPositionDto>)))]
 async fn list_positions(
     State(services): State<Services>,
     Path(event_id): Path<String>,
@@ -52,6 +64,7 @@ async fn list_positions(
     ))
 }
 
+#[utoipa::path(post, path = "api/events/{event_id}/controllers", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionDto)))]
 async fn create_position(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -67,6 +80,7 @@ async fn create_position(
     Ok(Json(EventAtcPositionDto::from(position)))
 }
 
+#[utoipa::path(put, path = "api/events/{event_id}/controllers/{position_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionDto)))]
 async fn update_position(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -85,6 +99,7 @@ async fn update_position(
     Ok(Json(EventAtcPositionDto::from(position)))
 }
 
+#[utoipa::path(delete, path = "api/events/{event_id}/controllers/{position_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 204, description = "No content")))]
 async fn delete_position(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -103,6 +118,7 @@ async fn delete_position(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(put, path = "api/events/{event_id}/controllers/{position_id}/booking", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionBookingDto)))]
 async fn book_position(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -155,6 +171,7 @@ async fn book_position(
     EventAtcPositionBookingDto::try_from(position).map(Json)
 }
 
+#[utoipa::path(delete, path = "api/events/{event_id}/controllers/{position_id}/booking", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionBookingDto)))]
 async fn cancel_position_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -250,7 +267,7 @@ fn parse_ulid_uuid(id: &str, error: EventAtcPositionError) -> Result<Uuid, Event
     id.parse::<Ulid>().map(Uuid::from).map_err(|_| error)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct EventAtcPositionSaveRequest {
     callsign: String,
     start_at: DateTime<Utc>,
@@ -279,12 +296,12 @@ impl TryFrom<EventAtcPositionSaveRequest> for EventAtcPositionSave {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct EventAtcPositionBookRequest {
     user_id: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct EventAtcPositionDto {
     id: String,
     event: EventDto,
@@ -315,7 +332,7 @@ impl From<EventAtcPositionRecord> for EventAtcPositionDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct EventAtcPositionBookingDto {
     user_id: String,
     user: UserDto,
@@ -352,7 +369,7 @@ impl TryFrom<EventAtcPositionRecord> for EventAtcPositionBookingDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct EventDto {
     id: String,
     created_at: DateTime<Utc>,
@@ -391,7 +408,7 @@ impl From<&EventAtcPositionRecord> for EventDto {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct UserDto {
     id: String,
     cid: String,
@@ -467,7 +484,7 @@ impl IntoResponse for EventAtcPositionError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }

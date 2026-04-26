@@ -9,21 +9,26 @@ use crate::{
     adapter::smms::SmmsError, auth::CurrentUser, models::user_role::UserRole, services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(upload_image))]
+pub(crate) struct ApiDoc;
+
 pub fn build_storage_routes() -> Router<Services> {
     Router::new().route("/images", post(upload_image))
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct UploadImageResponse {
     url: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }
 
-pub async fn upload_image(
+#[utoipa::path(post, path = "api/storage/images", tag = "Storage", security(("bearerAuth" = [])), request_body(content = String, content_type = "multipart/form-data"), responses((status = 200, description = "Successful response", body = UploadImageResponse)))]
+async fn upload_image(
     State(services): State<Services>,
     current_user: CurrentUser,
     mut multipart: Multipart,

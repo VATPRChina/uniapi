@@ -15,6 +15,10 @@ use crate::{
     services::Services,
 };
 
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(list_events, create_event, get_event, update_event, delete_event))]
+pub(crate) struct ApiDoc;
+
 pub fn build_public_event_routes() -> Router<Services> {
     Router::new()
         .route("/", get(list_events))
@@ -28,6 +32,7 @@ pub fn build_protected_event_routes() -> Router<Services> {
         .route("/{eid}", post(update_event).delete(delete_event))
 }
 
+#[utoipa::path(get, path = "api/events", tag = "Events", responses((status = 200, description = "Successful response", body = Vec<EventDto>)))]
 async fn list_events(State(services): State<Services>) -> Result<Json<Vec<EventDto>>, EventError> {
     Ok(Json(
         event_repository::list_current(services.db())
@@ -53,6 +58,7 @@ async fn list_past_events(
     ))
 }
 
+#[utoipa::path(get, path = "api/events/{id}", tag = "Events", params(("id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventDto)))]
 async fn get_event(
     State(services): State<Services>,
     Path(eid): Path<String>,
@@ -66,6 +72,7 @@ async fn get_event(
     Ok(Json(EventDto::from(event)))
 }
 
+#[utoipa::path(post, path = "api/events", tag = "Events", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = EventDto)))]
 async fn create_event(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -79,6 +86,7 @@ async fn create_event(
     Ok(Json(EventDto::from(event)))
 }
 
+#[utoipa::path(put, path = "api/events/{id}", tag = "Events", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventDto)))]
 async fn update_event(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -95,6 +103,7 @@ async fn update_event(
     Ok(Json(EventDto::from(event)))
 }
 
+#[utoipa::path(delete, path = "api/events/{id}", tag = "Events", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Event ULID")), responses((status = 204, description = "No content")))]
 async fn delete_event(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -124,12 +133,12 @@ fn parse_ulid_uuid(id: &str) -> Result<Uuid, EventError> {
         .map_err(|_| EventError::InvalidEventId)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct ListPastQuery {
     until: Option<DateTime<Utc>>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 struct EventSaveRequest {
     title: String,
     title_en: Option<String>,
@@ -170,7 +179,7 @@ impl TryFrom<EventSaveRequest> for EventSave {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct EventDto {
     id: String,
     created_at: DateTime<Utc>,
@@ -232,7 +241,7 @@ impl IntoResponse for EventError {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 struct ErrorResponse {
     message: String,
 }
