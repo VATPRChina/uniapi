@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr};
+use std::{collections::HashSet, fmt, str::FromStr};
 
 use thiserror::Error;
 
@@ -117,5 +117,83 @@ impl FromStr for UserRole {
             "user" => Ok(UserRole::User),
             _ => Err(ParseUserRoleError::InvalidString(value.to_owned())),
         }
+    }
+}
+
+pub fn role_closure(roles: impl IntoIterator<Item = UserRole>) -> HashSet<UserRole> {
+    let mut all_roles = HashSet::new();
+    let mut stack = roles.into_iter().collect::<Vec<_>>();
+
+    while let Some(role) = stack.pop() {
+        if !all_roles.insert(role) {
+            continue;
+        }
+
+        stack.extend(implied_roles(role));
+    }
+
+    all_roles
+}
+
+pub fn role_closure_from_strings<'a>(
+    roles: impl IntoIterator<Item = &'a str>,
+) -> HashSet<UserRole> {
+    role_closure(
+        roles
+            .into_iter()
+            .filter_map(|role| role.parse::<UserRole>().ok()),
+    )
+}
+
+pub fn implied_roles(role: UserRole) -> &'static [UserRole] {
+    match role {
+        UserRole::Staff => &[UserRole::Volunteer],
+        UserRole::DivisionDirector => &[
+            UserRole::Staff,
+            UserRole::ControllerTrainingDirector,
+            UserRole::OperationDirector,
+            UserRole::EventDirector,
+            UserRole::TechDirector,
+        ],
+        UserRole::ControllerTrainingDirector => &[
+            UserRole::Staff,
+            UserRole::ControllerTrainingDirectorAssistant,
+            UserRole::ControllerTrainingInstructor,
+            UserRole::ControllerTrainingMentor,
+            UserRole::ControllerTrainingSopEditor,
+        ],
+        UserRole::ControllerTrainingDirectorAssistant => &[UserRole::Volunteer],
+        UserRole::ControllerTrainingInstructor => {
+            &[UserRole::Volunteer, UserRole::ControllerTrainingMentor]
+        }
+        UserRole::ControllerTrainingMentor => &[UserRole::Volunteer],
+        UserRole::ControllerTrainingSopEditor => &[UserRole::Volunteer],
+        UserRole::CommunityDirector => &[UserRole::Staff],
+        UserRole::OperationDirector => &[
+            UserRole::Staff,
+            UserRole::OperationDirectorAssistant,
+            UserRole::OperationSectorEditor,
+            UserRole::OperationLoaEditor,
+        ],
+        UserRole::OperationDirectorAssistant => &[UserRole::Volunteer],
+        UserRole::OperationSectorEditor => &[UserRole::Volunteer],
+        UserRole::OperationLoaEditor => &[UserRole::Volunteer],
+        UserRole::EventDirector => &[
+            UserRole::Staff,
+            UserRole::EventCoordinator,
+            UserRole::LeadEventCoordinator,
+            UserRole::EventGraphicsDesigner,
+        ],
+        UserRole::LeadEventCoordinator => &[UserRole::EventCoordinator],
+        UserRole::EventCoordinator => &[UserRole::Volunteer],
+        UserRole::EventGraphicsDesigner => &[UserRole::Volunteer],
+        UserRole::TechDirector => &[
+            UserRole::Staff,
+            UserRole::TechDirectorAssistant,
+            UserRole::TechAfvFacilityEngineer,
+        ],
+        UserRole::TechDirectorAssistant => &[UserRole::Volunteer],
+        UserRole::TechAfvFacilityEngineer => &[UserRole::Volunteer],
+        _ => &[],
     }
 }

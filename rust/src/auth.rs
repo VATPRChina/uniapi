@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::{
     adapter::database::{user, user_atc_permission},
     jwt::JwtError,
-    models::user_role::UserRole,
+    models::user_role::{UserRole, role_closure_from_strings},
     services::Services,
 };
 
@@ -113,7 +113,9 @@ async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentU
 
     if let Some(user) = user::find_by_id(services.db(), user_id).await? {
         roles.insert(UserRole::User);
-        roles.extend(role_closure(user.roles));
+        roles.extend(role_closure_from_strings(
+            user.roles.iter().map(String::as_str),
+        ));
 
         if user_atc_permission::has_any_by_user_id(services.db(), user.id).await? {
             roles.insert(UserRole::Controller);
@@ -143,77 +145,6 @@ async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentU
             user_id: None,
             roles,
         })
-    }
-}
-
-fn role_closure(roles: Vec<String>) -> HashSet<UserRole> {
-    let mut all_roles = HashSet::new();
-    let mut stack = roles
-        .into_iter()
-        .filter_map(|role| role.parse::<UserRole>().ok())
-        .collect::<Vec<_>>();
-
-    while let Some(role) = stack.pop() {
-        if !all_roles.insert(role) {
-            continue;
-        }
-
-        stack.extend(implied_roles(role));
-    }
-
-    all_roles
-}
-
-fn implied_roles(role: UserRole) -> &'static [UserRole] {
-    match role {
-        UserRole::Staff => &[UserRole::Volunteer],
-        UserRole::DivisionDirector => &[
-            UserRole::Staff,
-            UserRole::ControllerTrainingDirector,
-            UserRole::OperationDirector,
-            UserRole::EventDirector,
-            UserRole::TechDirector,
-        ],
-        UserRole::ControllerTrainingDirector => &[
-            UserRole::Staff,
-            UserRole::ControllerTrainingDirectorAssistant,
-            UserRole::ControllerTrainingInstructor,
-            UserRole::ControllerTrainingMentor,
-            UserRole::ControllerTrainingSopEditor,
-        ],
-        UserRole::ControllerTrainingDirectorAssistant => &[UserRole::Volunteer],
-        UserRole::ControllerTrainingInstructor => {
-            &[UserRole::Volunteer, UserRole::ControllerTrainingMentor]
-        }
-        UserRole::ControllerTrainingMentor => &[UserRole::Volunteer],
-        UserRole::ControllerTrainingSopEditor => &[UserRole::Volunteer],
-        UserRole::CommunityDirector => &[UserRole::Staff],
-        UserRole::OperationDirector => &[
-            UserRole::Staff,
-            UserRole::OperationDirectorAssistant,
-            UserRole::OperationSectorEditor,
-            UserRole::OperationLoaEditor,
-        ],
-        UserRole::OperationDirectorAssistant => &[UserRole::Volunteer],
-        UserRole::OperationSectorEditor => &[UserRole::Volunteer],
-        UserRole::OperationLoaEditor => &[UserRole::Volunteer],
-        UserRole::EventDirector => &[
-            UserRole::Staff,
-            UserRole::EventCoordinator,
-            UserRole::LeadEventCoordinator,
-            UserRole::EventGraphicsDesigner,
-        ],
-        UserRole::LeadEventCoordinator => &[UserRole::EventCoordinator],
-        UserRole::EventCoordinator => &[UserRole::Volunteer],
-        UserRole::EventGraphicsDesigner => &[UserRole::Volunteer],
-        UserRole::TechDirector => &[
-            UserRole::Staff,
-            UserRole::TechDirectorAssistant,
-            UserRole::TechAfvFacilityEngineer,
-        ],
-        UserRole::TechDirectorAssistant => &[UserRole::Volunteer],
-        UserRole::TechAfvFacilityEngineer => &[UserRole::Volunteer],
-        _ => &[],
     }
 }
 
