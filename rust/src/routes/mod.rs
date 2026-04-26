@@ -9,6 +9,7 @@ pub mod event_slot_bookings;
 pub mod event_slots;
 pub mod events;
 pub mod internal;
+pub mod sectors;
 pub mod session;
 pub mod storage;
 pub mod training_applications;

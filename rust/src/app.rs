@@ -25,6 +25,7 @@ use crate::routes::event_slots::{
 };
 use crate::routes::events::{build_protected_event_routes, build_public_event_routes};
 use crate::routes::internal::build_internal_routes;
+use crate::routes::sectors::build_sector_routes;
 use crate::routes::session::build_session_routes;
 use crate::routes::storage::build_storage_routes;
 use crate::routes::training_applications::build_training_application_routes;
@@ -103,6 +104,13 @@ pub fn router(services: Services) -> Router {
         .nest(
             "/api/session",
             build_session_routes().route_layer(middleware::from_fn_with_state(
+                services.clone(),
+                auth::authenticate,
+            )),
+        )
+        .nest(
+            "/api/sectors",
+            build_sector_routes().route_layer(middleware::from_fn_with_state(
                 services.clone(),
                 auth::authenticate,
             )),
