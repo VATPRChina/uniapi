@@ -10,5 +10,6 @@ pub mod events;
 pub mod session;
 pub mod storage;
 pub mod training_applications;
+pub mod trainings;
 pub mod user_atc_permissions;
 pub mod users;

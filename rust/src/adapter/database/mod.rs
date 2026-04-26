@@ -8,6 +8,8 @@ pub mod event_atc_position;
 pub mod event_slot;
 pub mod event_slot_booking;
 pub mod health;
+pub mod sheet;
+pub mod training;
 pub mod training_application;
 pub mod user;
 pub mod user_atc_permission;
