@@ -8,6 +8,9 @@ use serde::Serialize;
 
 use crate::routes::auth::build_auth_routes;
 use crate::routes::compat::build_compat_routes;
+use crate::routes::event_airspaces::{
+    build_protected_event_airspace_routes, build_public_event_airspace_routes,
+};
 use crate::routes::events::{build_protected_event_routes, build_public_event_routes};
 use crate::routes::session::build_session_routes;
 use crate::routes::storage::build_storage_routes;
@@ -28,9 +31,17 @@ pub fn router(services: Services) -> Router {
         .nest("/auth", build_auth_routes())
         .nest("/api/compat", build_compat_routes())
         .nest("/api/events", build_public_event_routes())
+        .nest("/api/events", build_public_event_airspace_routes())
         .nest(
             "/api/events",
             build_protected_event_routes().route_layer(middleware::from_fn_with_state(
+                services.clone(),
+                auth::authenticate,
+            )),
+        )
+        .nest(
+            "/api/events",
+            build_protected_event_airspace_routes().route_layer(middleware::from_fn_with_state(
                 services.clone(),
                 auth::authenticate,
             )),

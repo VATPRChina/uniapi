@@ -88,6 +88,21 @@ pub async fn find_by_id(db: &PgPool, id: Uuid) -> Result<Option<EventRecord>, sq
     .await
 }
 
+pub async fn exists(db: &PgPool, id: Uuid) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM public.event
+            WHERE id = $1
+        )
+        "#,
+    )
+    .bind(id)
+    .fetch_one(db)
+    .await
+}
+
 pub async fn create(db: &PgPool, event: EventSave) -> Result<EventRecord, sqlx::Error> {
     sqlx::query_as::<_, EventRecord>(
         r#"
