@@ -10,8 +10,8 @@ use uuid::Uuid;
 
 use crate::{
     adapter::database::user_atc_permission::{
-        self as atc_permission_repository, AtcPermissionRecord, AtcPermissionSave,
-        AtcStatusRecord, AtcStatusSave,
+        self as atc_permission_repository, AtcPermissionRecord, AtcPermissionSave, AtcStatusRecord,
+        AtcStatusSave,
     },
     auth::CurrentUser,
     models::{
@@ -130,9 +130,10 @@ async fn get_status_for_user(
         .await
         .map_err(UserAtcPermissionRouteError::Database)?
         .ok_or(UserAtcPermissionRouteError::UserNotFound)?;
-    let permissions = atc_permission_repository::list_permissions_by_user_id(services.db(), user_id)
-        .await
-        .map_err(UserAtcPermissionRouteError::Database)?;
+    let permissions =
+        atc_permission_repository::list_permissions_by_user_id(services.db(), user_id)
+            .await
+            .map_err(UserAtcPermissionRouteError::Database)?;
 
     Ok(AtcStatusDto::from_records(status, permissions))
 }
@@ -170,8 +171,7 @@ impl TryFrom<AtcStatusRequest> for AtcStatusSave {
         }
 
         if request.permissions.iter().any(|permission| {
-            permission.state == UserControllerState::Solo
-                && permission.solo_expires_at.is_none()
+            permission.state == UserControllerState::Solo && permission.solo_expires_at.is_none()
         }) {
             return Err(UserAtcPermissionRouteError::SoloExpirationNotProvided);
         }
@@ -233,7 +233,10 @@ impl AtcStatusDto {
             is_visiting: status.is_visiting.unwrap_or(false),
             is_absent: status.is_absent.unwrap_or(false),
             rating: status.rating.unwrap_or_else(|| "OBS".to_owned()),
-            permissions: permissions.into_iter().map(AtcPermissionDto::from).collect(),
+            permissions: permissions
+                .into_iter()
+                .map(AtcPermissionDto::from)
+                .collect(),
         }
     }
 }
@@ -308,9 +311,7 @@ impl IntoResponse for UserAtcPermissionRouteError {
             UserAtcPermissionRouteError::Database(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
             }
-            UserAtcPermissionRouteError::Forbidden => {
-                (StatusCode::FORBIDDEN, "forbidden".into())
-            }
+            UserAtcPermissionRouteError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
             UserAtcPermissionRouteError::InvalidAtcRating => {
                 (StatusCode::BAD_REQUEST, "invalid ATC rating".into())
             }

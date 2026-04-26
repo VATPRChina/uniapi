@@ -67,7 +67,9 @@ impl FromStr for UserControllerState {
             "Solo" => Ok(Self::Solo),
             "Certified" => Ok(Self::Certified),
             "Mentor" => Ok(Self::Mentor),
-            _ => Err(ParseUserControllerStateError::InvalidString(value.to_owned())),
+            _ => Err(ParseUserControllerStateError::InvalidString(
+                value.to_owned(),
+            )),
         }
     }
 }

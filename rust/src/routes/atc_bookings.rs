@@ -21,7 +21,10 @@ pub fn build_atc_booking_routes() -> Router<Services> {
     Router::new()
         .route("/", get(list_bookings).post(create_booking))
         .route("/mine", get(list_my_bookings))
-        .route("/{id}", get(get_booking).put(update_booking).delete(delete_booking))
+        .route(
+            "/{id}",
+            get(get_booking).put(update_booking).delete(delete_booking),
+        )
 }
 
 async fn list_bookings(
@@ -148,10 +151,7 @@ async fn ensure_not_event_position_booking(
     Ok(())
 }
 
-fn ensure_owner(
-    booking: &AtcBookingRecord,
-    user_id: Uuid,
-) -> Result<(), AtcBookingRouteError> {
+fn ensure_owner(booking: &AtcBookingRecord, user_id: Uuid) -> Result<(), AtcBookingRouteError> {
     if booking.user_id == user_id {
         Ok(())
     } else {
@@ -159,10 +159,7 @@ fn ensure_owner(
     }
 }
 
-fn require_role(
-    current_user: &CurrentUser,
-    role: UserRole,
-) -> Result<(), AtcBookingRouteError> {
+fn require_role(current_user: &CurrentUser, role: UserRole) -> Result<(), AtcBookingRouteError> {
     if current_user.has_role(role) {
         Ok(())
     } else {
@@ -296,9 +293,7 @@ impl IntoResponse for AtcBookingRouteError {
                 StatusCode::BAD_REQUEST,
                 "start time must be before end time".into(),
             ),
-            AtcBookingRouteError::Unauthorized => {
-                (StatusCode::UNAUTHORIZED, "unauthorized".into())
-            }
+            AtcBookingRouteError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".into()),
         };
 
         (status, Json(ErrorResponse { message })).into_response()
