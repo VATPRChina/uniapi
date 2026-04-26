@@ -11,7 +11,10 @@ use uuid::Uuid;
 
 use crate::{
     adapter::database::atc::{self as atc_repository, AtcControllerPermissionRecord},
-    models::user_role::{UserRole, role_closure_from_strings},
+    models::{
+        user_controller_state::UserControllerState,
+        user_role::{UserRole, role_closure_from_strings},
+    },
     services::Services,
 };
 
@@ -100,7 +103,7 @@ impl From<AtcStatusBuilder> for AtcStatusDto {
 #[derive(Serialize)]
 struct AtcPermissionDto {
     position_kind_id: String,
-    state: String,
+    state: UserControllerState,
     solo_expires_at: Option<DateTime<Utc>>,
 }
 
@@ -108,7 +111,10 @@ impl From<&AtcControllerPermissionRecord> for AtcPermissionDto {
     fn from(permission: &AtcControllerPermissionRecord) -> Self {
         Self {
             position_kind_id: permission.position_kind_id.clone(),
-            state: permission.state.clone(),
+            state: permission
+                .state
+                .parse()
+                .unwrap_or(UserControllerState::Student),
             solo_expires_at: permission.solo_expires_at,
         }
     }

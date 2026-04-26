@@ -9,4 +9,5 @@ pub mod event_slots;
 pub mod events;
 pub mod session;
 pub mod storage;
+pub mod user_atc_permissions;
 pub mod users;

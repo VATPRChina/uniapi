@@ -14,7 +14,7 @@ use crate::{
         UserAtcPermissionRecord,
     },
     auth::CurrentUser,
-    models::user_role::UserRole,
+    models::{user_controller_state::UserControllerState, user_role::UserRole},
     services::Services,
 };
 
@@ -250,38 +250,6 @@ fn parse_ulid_uuid(id: &str, error: EventAtcPositionError) -> Result<Uuid, Event
     id.parse::<Ulid>().map(Uuid::from).map_err(|_| error)
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-enum UserControllerState {
-    Student,
-    UnderMentor,
-    Solo,
-    Certified,
-    Mentor,
-}
-
-impl UserControllerState {
-    fn to_db(self) -> i32 {
-        match self {
-            Self::Student => 0,
-            Self::UnderMentor => 1,
-            Self::Solo => 2,
-            Self::Certified => 3,
-            Self::Mentor => 4,
-        }
-    }
-
-    fn from_db(value: i32) -> Self {
-        match value {
-            1 => Self::UnderMentor,
-            2 => Self::Solo,
-            3 => Self::Certified,
-            4 => Self::Mentor,
-            _ => Self::Student,
-        }
-    }
-}
-
 #[derive(Deserialize)]
 struct EventAtcPositionSaveRequest {
     callsign: String,
@@ -306,7 +274,7 @@ impl TryFrom<EventAtcPositionSaveRequest> for EventAtcPositionSave {
             end_at: request.end_at,
             remarks: request.remarks,
             position_kind_id: request.position_kind_id,
-            minimum_controller_state: request.minimum_controller_state.to_db(),
+            minimum_controller_state: request.minimum_controller_state.to_db_value(),
         })
     }
 }
@@ -339,7 +307,7 @@ impl From<EventAtcPositionRecord> for EventAtcPositionDto {
             end_at: position.end_at,
             remarks: position.remarks.clone(),
             position_kind_id: position.position_kind_id.clone(),
-            minimum_controller_state: UserControllerState::from_db(
+            minimum_controller_state: UserControllerState::from_db_value(
                 position.minimum_controller_state,
             ),
             booking: EventAtcPositionBookingDto::try_from(position).ok(),

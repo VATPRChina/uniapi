@@ -25,6 +25,7 @@ use crate::routes::event_slots::{
 use crate::routes::events::{build_protected_event_routes, build_public_event_routes};
 use crate::routes::session::build_session_routes;
 use crate::routes::storage::build_storage_routes;
+use crate::routes::user_atc_permissions::build_user_atc_permission_routes;
 use crate::routes::users::build_user_routes;
 use crate::services::Services;
 use crate::{adapter::database::health as health_repository, auth};
@@ -104,6 +105,13 @@ pub fn router(services: Services) -> Router {
         .nest(
             "/api/users",
             build_user_routes().route_layer(middleware::from_fn_with_state(
+                services.clone(),
+                auth::authenticate,
+            )),
+        )
+        .nest(
+            "/api/users",
+            build_user_atc_permission_routes().route_layer(middleware::from_fn_with_state(
                 services.clone(),
                 auth::authenticate,
             )),
