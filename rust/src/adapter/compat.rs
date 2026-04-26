@@ -122,6 +122,8 @@ fn metar_time(metar: &str) -> Option<chrono::DateTime<Utc>> {
 pub struct VatsimData {
     pub general: General,
     pub pilots: Vec<Pilot>,
+    #[serde(default)]
+    pub prefiles: Vec<Pilot>,
     pub controllers: Vec<Controller>,
 }
 
@@ -135,14 +137,21 @@ pub struct Pilot {
     pub cid: i64,
     pub name: String,
     pub callsign: String,
+    pub altitude: Option<i64>,
+    pub last_updated: chrono::DateTime<Utc>,
     pub flight_plan: Option<FlightPlan>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct FlightPlan {
+    pub flight_rules: Option<String>,
+    pub aircraft: Option<String>,
     pub aircraft_short: Option<String>,
     pub departure: Option<String>,
     pub arrival: Option<String>,
+    pub altitude: Option<String>,
+    pub remarks: Option<String>,
+    pub route: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -24,6 +24,7 @@ use crate::routes::event_slots::{
     build_protected_event_slot_routes, build_public_event_slot_routes,
 };
 use crate::routes::events::{build_protected_event_routes, build_public_event_routes};
+use crate::routes::flights::{build_protected_flight_routes, build_public_flight_routes};
 use crate::routes::internal::build_internal_routes;
 use crate::routes::notams::build_notam_routes;
 use crate::routes::preferred_routes::build_preferred_route_routes;
@@ -69,6 +70,14 @@ pub fn router(services: Services) -> Router {
         .nest(
             "/api/navdata/preferred-routes",
             build_preferred_route_routes().route_layer(middleware::from_fn_with_state(
+                services.clone(),
+                auth::authenticate,
+            )),
+        )
+        .nest("/api/flights", build_public_flight_routes())
+        .nest(
+            "/api/flights",
+            build_protected_flight_routes().route_layer(middleware::from_fn_with_state(
                 services.clone(),
                 auth::authenticate,
             )),
