@@ -24,6 +24,7 @@ use crate::routes::event_slots::{
     build_protected_event_slot_routes, build_public_event_slot_routes,
 };
 use crate::routes::events::{build_protected_event_routes, build_public_event_routes};
+use crate::routes::internal::build_internal_routes;
 use crate::routes::session::build_session_routes;
 use crate::routes::storage::build_storage_routes;
 use crate::routes::training_applications::build_training_application_routes;
@@ -44,6 +45,7 @@ pub fn router(services: Services) -> Router {
         .route("/", get(root))
         .route("/health", get(health))
         .nest("/auth", build_auth_routes())
+        .nest("/api/__internal", build_internal_routes())
         .nest("/api/atc/controllers", build_atc_routes())
         .nest(
             "/api/atc/bookings",
