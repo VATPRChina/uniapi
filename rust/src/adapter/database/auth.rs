@@ -237,6 +237,15 @@ pub async fn clear_session_code(db: &PgPool, code: Ulid) -> Result<(), sqlx::Err
     Ok(())
 }
 
+pub async fn delete_refresh_session(db: &PgPool, token: Ulid) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query("DELETE FROM session WHERE token = $1")
+        .bind(Uuid::from(token))
+        .execute(db)
+        .await?;
+
+    Ok(result.rows_affected() > 0)
+}
+
 pub async fn upsert_user(
     db: &PgPool,
     cid: &str,

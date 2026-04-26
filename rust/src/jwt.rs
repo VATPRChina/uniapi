@@ -25,8 +25,9 @@ pub struct JwtService {
 #[derive(Debug, Deserialize)]
 struct Claims {
     sub: String,
-    #[serde(rename = "exp")]
-    _exp: usize,
+    iat: i64,
+    exp: i64,
+    sid: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -69,6 +70,13 @@ pub struct ValidatedAuthCode {
     pub client_id: String,
 }
 
+pub struct ValidatedAccessToken {
+    pub subject: String,
+    pub issued_at: i64,
+    pub expires_at: i64,
+    pub session_id: Option<String>,
+}
+
 #[derive(Debug, Error)]
 pub enum JwtError {
     #[error("invalid token: {0}")]
@@ -91,14 +99,26 @@ impl JwtService {
         }
     }
 
+    #[allow(dead_code)]
     pub fn validate_access_token(&self, token: &str) -> Result<String, JwtError> {
+        Ok(self.validate_access_token_claims(token)?.subject)
+    }
+
+    pub fn validate_access_token_claims(
+        &self,
+        token: &str,
+    ) -> Result<ValidatedAccessToken, JwtError> {
         let mut validation = Validation::new(Algorithm::ES256);
         validation.set_issuer(&[&self.issuer]);
         validation.validate_aud = false;
 
-        Ok(decode::<Claims>(token, &self.decoding_key, &validation)?
-            .claims
-            .sub)
+        let claims = decode::<Claims>(token, &self.decoding_key, &validation)?.claims;
+        Ok(ValidatedAccessToken {
+            subject: claims.sub,
+            issued_at: claims.iat,
+            expires_at: claims.exp,
+            session_id: claims.sid,
+        })
     }
 
     pub fn issue_access_token(

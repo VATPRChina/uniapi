@@ -22,6 +22,9 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct CurrentUser {
     pub subject: String,
+    pub issued_at: i64,
+    pub expires_at: i64,
+    pub session_id: Option<String>,
     pub user_id: Option<Uuid>,
     roles: HashSet<UserRole>,
 }
@@ -99,8 +102,9 @@ fn bearer_token(headers: &HeaderMap) -> Result<&str, AuthError> {
 }
 
 async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentUser, AuthError> {
-    let subject = services.jwt().validate_access_token(token)?;
-    let user_ulid = subject
+    let token = services.jwt().validate_access_token_claims(token)?;
+    let user_ulid = token
+        .subject
         .parse::<Ulid>()
         .map_err(|_| AuthError::InvalidSubject)?;
     let user_id = Uuid::from(user_ulid);
@@ -121,7 +125,10 @@ async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentU
         }
 
         Ok(CurrentUser {
-            subject,
+            subject: token.subject,
+            issued_at: token.issued_at,
+            expires_at: token.expires_at,
+            session_id: token.session_id,
             user_id: Some(user.id),
             roles,
         })
@@ -129,7 +136,10 @@ async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentU
         roles.insert(UserRole::ApiClient);
 
         Ok(CurrentUser {
-            subject,
+            subject: token.subject,
+            issued_at: token.issued_at,
+            expires_at: token.expires_at,
+            session_id: token.session_id,
             user_id: None,
             roles,
         })

@@ -7,6 +7,7 @@ pub struct Settings {
     pub bind_address: String,
     pub authentication: Authentication,
     pub database: Database,
+    pub moodle: Moodle,
     pub storage: Storage,
     pub utils: Utils,
 }
@@ -64,6 +65,11 @@ pub struct ImageStorage {
 pub struct SmmsStorage {
     pub base_url: String,
     pub secret_token: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Moodle {
+    pub api_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

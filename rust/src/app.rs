@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use crate::routes::auth::build_auth_routes;
 use crate::routes::compat::build_compat_routes;
+use crate::routes::session::build_session_routes;
 use crate::routes::storage::build_storage_routes;
 use crate::services::Services;
 use crate::{adapter::database::health as health_repository, auth};
@@ -24,6 +25,13 @@ pub fn router(services: Services) -> Router {
         .route("/health", get(health))
         .nest("/auth", build_auth_routes())
         .nest("/api/compat", build_compat_routes())
+        .nest(
+            "/api/session",
+            build_session_routes().route_layer(middleware::from_fn_with_state(
+                services.clone(),
+                auth::authenticate,
+            )),
+        )
         .nest(
             "/api/storage",
             build_storage_routes().route_layer(middleware::from_fn_with_state(
