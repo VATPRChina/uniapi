@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod compat;
 pub mod event_airspaces;
+pub mod event_atc_positions;
 pub mod event_slot_bookings;
 pub mod event_slots;
 pub mod events;

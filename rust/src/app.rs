@@ -11,6 +11,9 @@ use crate::routes::compat::build_compat_routes;
 use crate::routes::event_airspaces::{
     build_protected_event_airspace_routes, build_public_event_airspace_routes,
 };
+use crate::routes::event_atc_positions::{
+    build_protected_event_atc_position_routes, build_public_event_atc_position_routes,
+};
 use crate::routes::event_slot_bookings::{
     build_protected_event_slot_booking_routes, build_public_event_slot_booking_routes,
 };
@@ -38,6 +41,7 @@ pub fn router(services: Services) -> Router {
         .nest("/api/compat", build_compat_routes())
         .nest("/api/events", build_public_event_routes())
         .nest("/api/events", build_public_event_airspace_routes())
+        .nest("/api/events", build_public_event_atc_position_routes())
         .nest("/api/events", build_public_event_slot_booking_routes())
         .nest("/api/events", build_public_event_slot_routes())
         .nest(
@@ -57,6 +61,12 @@ pub fn router(services: Services) -> Router {
         .nest(
             "/api/events",
             build_protected_event_slot_booking_routes().route_layer(
+                middleware::from_fn_with_state(services.clone(), auth::authenticate),
+            ),
+        )
+        .nest(
+            "/api/events",
+            build_protected_event_atc_position_routes().route_layer(
                 middleware::from_fn_with_state(services.clone(), auth::authenticate),
             ),
         )
