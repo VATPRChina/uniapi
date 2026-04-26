@@ -6,6 +6,7 @@ use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
 
+use crate::routes::atc::build_atc_routes;
 use crate::routes::auth::build_auth_routes;
 use crate::routes::compat::build_compat_routes;
 use crate::routes::event_airspaces::{
@@ -38,6 +39,7 @@ pub fn router(services: Services) -> Router {
         .route("/", get(root))
         .route("/health", get(health))
         .nest("/auth", build_auth_routes())
+        .nest("/api/atc/controllers", build_atc_routes())
         .nest("/api/compat", build_compat_routes())
         .nest("/api/events", build_public_event_routes())
         .nest("/api/events", build_public_event_airspace_routes())
