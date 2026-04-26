@@ -25,6 +25,7 @@ use crate::routes::event_slots::{
 };
 use crate::routes::events::{build_protected_event_routes, build_public_event_routes};
 use crate::routes::internal::build_internal_routes;
+use crate::routes::notams::build_notam_routes;
 use crate::routes::sectors::build_sector_routes;
 use crate::routes::session::build_session_routes;
 use crate::routes::storage::build_storage_routes;
@@ -63,6 +64,7 @@ pub fn router(services: Services) -> Router {
             )),
         )
         .nest("/api/compat", build_compat_routes())
+        .nest("/api/notams", build_notam_routes())
         .nest("/api/events", build_public_event_routes())
         .nest("/api/events", build_public_event_airspace_routes())
         .nest("/api/events", build_public_event_atc_position_routes())

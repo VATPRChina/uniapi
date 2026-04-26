@@ -13,3 +13,7 @@ redirect_uri = "https://example.com/auth/callback/vatsim"
 
 [storage.image.smms]
 base_url = "https://s.ee/api/v1/file"
+
+[discourse]
+endpoint = "https://community.vatprc.net"
+api_key = ""

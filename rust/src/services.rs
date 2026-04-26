@@ -2,7 +2,8 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 
 use crate::{
     adapter::{
-        compat::CompatClient, moodle::MoodleClient, smms::SmmsClient, vatsim_auth::VatsimAuthClient,
+        compat::CompatClient, discourse::DiscourseClient, moodle::MoodleClient, smms::SmmsClient,
+        vatsim_auth::VatsimAuthClient,
     },
     jwt::JwtService,
     settings::Settings,
@@ -14,6 +15,7 @@ pub struct Services {
     jwt: JwtService,
     smms: SmmsClient,
     compat: CompatClient,
+    discourse: DiscourseClient,
     moodle: MoodleClient,
     vatsim_auth: VatsimAuthClient,
 }
@@ -33,6 +35,10 @@ impl Services {
                 settings.storage.image.smms.secret_token.clone(),
             ),
             compat: CompatClient::new(settings.utils.metar.endpoint.clone()),
+            discourse: DiscourseClient::new(
+                settings.discourse.endpoint.clone(),
+                settings.discourse.api_key.clone(),
+            ),
             moodle: MoodleClient::new(settings.moodle.api_key.clone()),
             vatsim_auth: VatsimAuthClient::new(settings.authentication.vatsim.clone()),
         })
@@ -52,6 +58,10 @@ impl Services {
 
     pub fn compat(&self) -> &CompatClient {
         &self.compat
+    }
+
+    pub fn discourse(&self) -> &DiscourseClient {
+        &self.discourse
     }
 
     pub fn moodle(&self) -> &MoodleClient {
