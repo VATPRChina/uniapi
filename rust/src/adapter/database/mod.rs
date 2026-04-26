@@ -1,4 +1,5 @@
 pub mod atc;
+pub mod atc_application;
 pub mod atc_booking;
 pub mod auth;
 pub mod compat;

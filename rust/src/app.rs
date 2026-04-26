@@ -7,6 +7,7 @@ use axum::{Json, Router};
 use serde::Serialize;
 
 use crate::routes::atc::build_atc_routes;
+use crate::routes::atc_applications::build_atc_application_routes;
 use crate::routes::atc_bookings::build_atc_booking_routes;
 use crate::routes::auth::build_auth_routes;
 use crate::routes::compat::build_compat_routes;
@@ -47,6 +48,13 @@ pub fn router(services: Services) -> Router {
         .nest(
             "/api/atc/bookings",
             build_atc_booking_routes().route_layer(middleware::from_fn_with_state(
+                services.clone(),
+                auth::authenticate,
+            )),
+        )
+        .nest(
+            "/api/atc/applications",
+            build_atc_application_routes().route_layer(middleware::from_fn_with_state(
                 services.clone(),
                 auth::authenticate,
             )),
