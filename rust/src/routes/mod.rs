@@ -10,6 +10,7 @@ pub mod event_slots;
 pub mod events;
 pub mod internal;
 pub mod notams;
+pub mod preferred_routes;
 pub mod sectors;
 pub mod session;
 pub mod storage;
