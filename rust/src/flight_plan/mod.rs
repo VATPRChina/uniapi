@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 pub mod lexer;
 pub mod parser;
+pub mod validator;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Fix {
@@ -103,13 +104,6 @@ impl RouteToken {
     pub fn is_fix(&self) -> bool {
         matches!(self, Self::Fix { .. })
     }
-
-    pub fn as_fix(&self) -> Option<&Fix> {
-        match self {
-            Self::Fix { fix, .. } => Some(fix),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -156,6 +150,7 @@ pub enum AirwayDirection {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PreferredRoute {
     pub id: Uuid,
     pub departure: String,

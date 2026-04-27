@@ -16,6 +16,7 @@ use crate::{
     flight_plan::{
         Leg,
         parser::{self, ParserError},
+        validator::{self, ValidatorError},
     },
     models::user_role::UserRole,
     services::Services,
@@ -73,13 +74,13 @@ async fn flight_by_callsign(
         .map(Json)
 }
 
-#[utoipa::path(get, path = "api/flights/by-callsign/{callsign}/warnings", tag = "Flights", params(("callsign" = String, Path, description = "Callsign")), responses((status = 200, description = "Successful response", body = Vec<WarningMessage>)))]
+#[utoipa::path(get, path = "api/flights/by-callsign/{callsign}/warnings", tag = "Flights", params(("callsign" = String, Path, description = "Callsign")), responses((status = 200, description = "Successful response", body = Vec<validator::WarningMessage>)))]
 async fn warnings_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
-) -> Result<Response, FlightRouteError> {
-    find_by_callsign(&services, &callsign).await?;
-    Err(FlightRouteError::RouteParsingNotImplemented)
+) -> Result<Json<Vec<validator::WarningMessage>>, FlightRouteError> {
+    let flight = find_by_callsign(&services, &callsign).await?;
+    warnings_for_flight(&services, &flight).await
 }
 
 #[utoipa::path(get, path = "api/flights/by-callsign/{callsign}/route", tag = "Flights", params(("callsign" = String, Path, description = "Callsign")), responses((status = 200, description = "Successful response", body = Vec<FlightLeg>)))]
@@ -95,13 +96,14 @@ async fn route_by_callsign(
     Ok(Json(legs.into_iter().map(FlightLeg::from).collect()))
 }
 
-#[utoipa::path(get, path = "api/flights/temporary/by-plan/warnings", tag = "Flights", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<WarningMessage>)))]
+#[utoipa::path(get, path = "api/flights/temporary/by-plan/warnings", tag = "Flights", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<validator::WarningMessage>)))]
 async fn temporary_warnings(
     current_user: CurrentUser,
-    Query(_query): Query<TemporaryFlightQuery>,
-) -> Result<Response, FlightRouteError> {
+    State(services): State<Services>,
+    Query(query): Query<TemporaryFlightQuery>,
+) -> Result<Json<Vec<validator::WarningMessage>>, FlightRouteError> {
     require_role(&current_user, UserRole::ApiClient)?;
-    Err(FlightRouteError::RouteParsingNotImplemented)
+    warnings_for_flight(&services, &Flight::from(query)).await
 }
 
 #[utoipa::path(get, path = "api/flights/mine", tag = "Flights", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = FlightDto)))]
@@ -154,6 +156,40 @@ fn route_string(flight: &Flight) -> String {
         "{} {} {}",
         flight.departure, flight.raw_route, flight.arrival
     )
+}
+
+async fn warnings_for_flight(
+    services: &Services,
+    flight: &Flight,
+) -> Result<Json<Vec<validator::WarningMessage>>, FlightRouteError> {
+    let route = route_string(flight);
+    let legs = parser::parse_route(services.db(), &route)
+        .await
+        .map_err(FlightRouteError::RouteParser)?;
+    let messages = validator::validate_route(services.db(), flight, &legs)
+        .await
+        .map_err(FlightRouteError::RouteValidator)?;
+    Ok(Json(messages))
+}
+
+impl From<TemporaryFlightQuery> for Flight {
+    fn from(query: TemporaryFlightQuery) -> Self {
+        Self {
+            id: ulid::Ulid::new(),
+            cid: String::new(),
+            callsign: String::new(),
+            last_observed_at: Utc::now(),
+            departure: query.departure,
+            arrival: query.arrival,
+            equipment: query.equipment,
+            navigation_performance: query.navigation_performance,
+            transponder: query.transponder,
+            raw_route: query.raw_route,
+            aircraft: query.aircraft,
+            altitude: 0,
+            cruising_level: query.cruising_level,
+        }
+    }
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -246,12 +282,6 @@ impl From<&crate::flight_plan::Fix> for FlightFix {
     }
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
-struct WarningMessage {
-    level: Option<String>,
-    message: Option<String>,
-}
-
 #[derive(Debug)]
 enum FlightRouteError {
     CallsignNotFound,
@@ -260,7 +290,7 @@ enum FlightRouteError {
     FlightNotFoundForCid,
     Forbidden,
     RouteParser(ParserError),
-    RouteParsingNotImplemented,
+    RouteValidator(ValidatorError),
     Unauthorized,
     UserNotFound,
 }
@@ -282,10 +312,9 @@ impl IntoResponse for FlightRouteError {
             FlightRouteError::RouteParser(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
             }
-            FlightRouteError::RouteParsingNotImplemented => (
-                StatusCode::NOT_IMPLEMENTED,
-                "flight route parsing is not implemented in Rust yet".into(),
-            ),
+            FlightRouteError::RouteValidator(error) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+            }
             FlightRouteError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".into()),
             FlightRouteError::UserNotFound => (StatusCode::NOT_FOUND, "user not found".into()),
         };
