@@ -185,7 +185,8 @@ impl RouteLexer {
         if !last.is_fix() || !next.is_fix() {
             return Ok(false);
         }
-        let exists_left = navdata::exists_airway_with_fix(db, self.value(index), last.value()).await?;
+        let exists_left =
+            navdata::exists_airway_with_fix(db, self.value(index), last.value()).await?;
         let exists_right =
             navdata::exists_airway_with_fix(db, self.value(index), next.value()).await?;
         if !exists_left || !exists_right {
@@ -217,7 +218,10 @@ impl RouteLexer {
             return Ok(false);
         };
         self.tokens[index] = RouteToken::Fix {
-            value: fix.identifier.clone().unwrap_or_else(|| self.value(index).to_owned()),
+            value: fix
+                .identifier
+                .clone()
+                .unwrap_or_else(|| self.value(index).to_owned()),
             fix,
         };
         Ok(true)
@@ -352,7 +356,9 @@ impl RouteLexer {
     }
 
     fn last(&self, index: usize) -> Option<&RouteToken> {
-        index.checked_sub(1).and_then(|index| self.tokens.get(index))
+        index
+            .checked_sub(1)
+            .and_then(|index| self.tokens.get(index))
     }
 
     fn next(&self, index: usize) -> Option<&RouteToken> {

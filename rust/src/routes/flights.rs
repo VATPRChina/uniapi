@@ -13,6 +13,10 @@ use crate::{
         flight::{Flight, flights_from_vatsim},
     },
     auth::CurrentUser,
+    flight_plan::{
+        Leg,
+        parser::{self, ParserError},
+    },
     models::user_role::UserRole,
     services::Services,
 };
@@ -82,9 +86,13 @@ async fn warnings_by_callsign(
 async fn route_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
-) -> Result<Response, FlightRouteError> {
-    find_by_callsign(&services, &callsign).await?;
-    Err(FlightRouteError::RouteParsingNotImplemented)
+) -> Result<Json<Vec<FlightLeg>>, FlightRouteError> {
+    let flight = find_by_callsign(&services, &callsign).await?;
+    let route = route_string(&flight);
+    let legs = parser::parse_route(services.db(), &route)
+        .await
+        .map_err(FlightRouteError::RouteParser)?;
+    Ok(Json(legs.into_iter().map(FlightLeg::from).collect()))
 }
 
 #[utoipa::path(get, path = "api/flights/temporary/by-plan/warnings", tag = "Flights", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<WarningMessage>)))]
@@ -139,6 +147,13 @@ fn require_role(current_user: &CurrentUser, role: UserRole) -> Result<(), Flight
     } else {
         Err(FlightRouteError::Forbidden)
     }
+}
+
+fn route_string(flight: &Flight) -> String {
+    format!(
+        "{} {} {}",
+        flight.departure, flight.raw_route, flight.arrival
+    )
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -204,9 +219,31 @@ struct FlightLeg {
     leg_identifier: String,
 }
 
+impl From<Leg> for FlightLeg {
+    fn from(leg: Leg) -> Self {
+        let leg_identifier = match &leg {
+            Leg::Airway(airway) => airway.identifier.clone(),
+            Leg::Direct(_) => "DCT".to_owned(),
+        };
+        Self {
+            from: FlightFix::from(leg.from()),
+            to: FlightFix::from(leg.to()),
+            leg_identifier,
+        }
+    }
+}
+
 #[derive(Serialize, utoipa::ToSchema)]
 struct FlightFix {
     identifier: String,
+}
+
+impl From<&crate::flight_plan::Fix> for FlightFix {
+    fn from(fix: &crate::flight_plan::Fix) -> Self {
+        Self {
+            identifier: fix.name(),
+        }
+    }
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -222,6 +259,7 @@ enum FlightRouteError {
     Database(sqlx::Error),
     FlightNotFoundForCid,
     Forbidden,
+    RouteParser(ParserError),
     RouteParsingNotImplemented,
     Unauthorized,
     UserNotFound,
@@ -241,6 +279,9 @@ impl IntoResponse for FlightRouteError {
                 (StatusCode::NOT_FOUND, "flight not found for cid".into())
             }
             FlightRouteError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
+            FlightRouteError::RouteParser(error) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+            }
             FlightRouteError::RouteParsingNotImplemented => (
                 StatusCode::NOT_IMPLEMENTED,
                 "flight route parsing is not implemented in Rust yet".into(),

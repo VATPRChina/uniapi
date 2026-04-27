@@ -5,6 +5,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 pub mod lexer;
+pub mod parser;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Fix {
@@ -43,9 +44,9 @@ impl Fix {
     }
 
     pub fn name(&self) -> String {
-        self.identifier.clone().unwrap_or_else(|| {
-            format!("{:.6},{:.6}", self.latitude, self.longitude)
-        })
+        self.identifier
+            .clone()
+            .unwrap_or_else(|| format!("{:.6},{:.6}", self.latitude, self.longitude))
     }
 }
 
@@ -60,13 +61,30 @@ pub enum FixKind {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RouteToken {
-    Unknown { value: String },
-    Fix { value: String, fix: Fix },
-    DirectLeg { value: String },
-    AirwayLeg { value: String },
-    SidLeg { value: String, procedure: Option<String> },
-    StarLeg { value: String, procedure: Option<String> },
-    SpeedAndAltitude { value: String },
+    Unknown {
+        value: String,
+    },
+    Fix {
+        value: String,
+        fix: Fix,
+    },
+    DirectLeg {
+        value: String,
+    },
+    AirwayLeg {
+        value: String,
+    },
+    SidLeg {
+        value: String,
+        procedure: Option<String>,
+    },
+    StarLeg {
+        value: String,
+        procedure: Option<String>,
+    },
+    SpeedAndAltitude {
+        value: String,
+    },
 }
 
 impl RouteToken {
@@ -153,9 +171,7 @@ pub struct PreferredRoute {
 
 impl PreferredRoute {
     pub fn is_public(&self) -> bool {
-        self.remarks
-            .to_ascii_lowercase()
-            .contains("aip route")
+        self.remarks.to_ascii_lowercase().contains("aip route")
     }
 }
 
@@ -177,9 +193,7 @@ impl FromStr for LevelRestrictionType {
         Ok(match value {
             "StandardEven" | "standard_even" | "standard-even" => Self::StandardEven,
             "StandardOdd" | "standard_odd" | "standard-odd" => Self::StandardOdd,
-            "FlightLevelEven" | "flight_level_even" | "flight-level-even" => {
-                Self::FlightLevelEven
-            }
+            "FlightLevelEven" | "flight_level_even" | "flight-level-even" => Self::FlightLevelEven,
             "FlightLevelOdd" | "flight_level_odd" | "flight-level-odd" => Self::FlightLevelOdd,
             "FlightLevel" | "flight_level" | "flight-level" => Self::FlightLevel,
             _ => Self::Standard,
