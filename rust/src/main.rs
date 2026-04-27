@@ -3,6 +3,7 @@
 mod adapter;
 mod app;
 mod auth;
+mod flight_plan;
 mod jwt;
 mod models;
 mod openapi;

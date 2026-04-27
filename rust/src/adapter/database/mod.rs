@@ -9,6 +9,7 @@ pub mod event_atc_position;
 pub mod event_slot;
 pub mod event_slot_booking;
 pub mod health;
+pub mod navdata;
 pub mod sector;
 pub mod sheet;
 pub mod training;
