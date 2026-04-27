@@ -9,11 +9,9 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::atc_booking::{
-        self as booking_repository, AtcBookingRecord, AtcBookingSave,
-    },
     auth::CurrentUser,
     models::user_role::{UserRole, role_closure_from_strings},
+    repository::atc_booking::{self as booking_repository, AtcBookingRecord, AtcBookingSave},
     services::Services,
 };
 

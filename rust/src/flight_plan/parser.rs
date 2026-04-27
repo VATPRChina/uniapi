@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use sqlx::PgPool;
 
 use crate::{
-    adapter::database::navdata,
     flight_plan::{
         AirwayDirection, AirwayLeg, DirectLeg, Fix, Leg, RouteToken,
         lexer::{LexerError, lex_route},
     },
+    repository::airway,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -71,7 +71,7 @@ impl<'a> RouteParser<'a> {
     }
 
     async fn handle_airway(&mut self, index: usize, ident: &str) -> Result<(), ParserError> {
-        let leg_lookup = airway_leg_lookup(navdata::airway_legs(self.db, ident).await?);
+        let leg_lookup = airway_leg_lookup(airway::legs(self.db, ident).await?);
         let Some(from_fix) = index.checked_sub(1).and_then(|i| self.tokens.get(i)) else {
             return Ok(());
         };

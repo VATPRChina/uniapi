@@ -39,7 +39,7 @@ use crate::routes::trainings::build_training_routes;
 use crate::routes::user_atc_permissions::build_user_atc_permission_routes;
 use crate::routes::users::build_user_routes;
 use crate::services::Services;
-use crate::{adapter::database::health as health_repository, auth};
+use crate::{auth, repository::health as health_repository};
 
 #[derive(Serialize, utoipa::ToSchema)]
 struct HealthResponse {

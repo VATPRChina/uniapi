@@ -13,9 +13,9 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::{user, user_atc_permission},
     jwt::JwtError,
     models::user_role::{UserRole, role_closure_from_strings},
+    repository::{user, user_atc_permission},
     services::Services,
 };
 

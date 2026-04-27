@@ -10,12 +10,12 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::{
+    auth::CurrentUser,
+    models::user_role::UserRole,
+    repository::{
         event as event_repository,
         event_slot::{self as slot_repository, EventSlotRecord, EventSlotSave},
     },
-    auth::CurrentUser,
-    models::user_role::UserRole,
     services::Services,
 };
 

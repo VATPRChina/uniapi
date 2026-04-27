@@ -10,11 +10,11 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::atc::{self as atc_repository, AtcControllerPermissionRecord},
     models::{
         user_controller_state::UserControllerState,
         user_role::{UserRole, role_closure_from_strings},
     },
+    repository::atc::{self as atc_repository, AtcControllerPermissionRecord},
     services::Services,
 };
 

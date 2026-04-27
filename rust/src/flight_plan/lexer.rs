@@ -1,8 +1,8 @@
 use sqlx::PgPool;
 
 use crate::{
-    adapter::database::navdata,
     flight_plan::{Fix, FixKind, RouteToken},
+    repository::{airport, airway, ndb_navaid, procedure, vhf_navaid, waypoint},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -132,7 +132,7 @@ impl RouteLexer {
         if !self.is_airport_position(index) {
             return Ok(false);
         }
-        let Some(airport) = navdata::find_airport(db, self.value(index)).await? else {
+        let Some(airport) = airport::find(db, self.value(index)).await? else {
             return Ok(false);
         };
         self.current_lat = airport.latitude;
@@ -151,7 +151,7 @@ impl RouteLexer {
         if fix.kind != FixKind::Airport {
             return Ok(false);
         }
-        let Some(proc_ident) = navdata::find_sid(db, self.value(index), value).await? else {
+        let Some(proc_ident) = procedure::find_sid(db, self.value(index), value).await? else {
             return Ok(false);
         };
         self.tokens[index] = RouteToken::SidLeg {
@@ -168,7 +168,7 @@ impl RouteLexer {
         if fix.kind != FixKind::Airport {
             return Ok(false);
         }
-        let Some(proc_ident) = navdata::find_star(db, self.value(index), value).await? else {
+        let Some(proc_ident) = procedure::find_star(db, self.value(index), value).await? else {
             return Ok(false);
         };
         self.tokens[index] = RouteToken::StarLeg {
@@ -185,10 +185,8 @@ impl RouteLexer {
         if !last.is_fix() || !next.is_fix() {
             return Ok(false);
         }
-        let exists_left =
-            navdata::exists_airway_with_fix(db, self.value(index), last.value()).await?;
-        let exists_right =
-            navdata::exists_airway_with_fix(db, self.value(index), next.value()).await?;
+        let exists_left = airway::exists_with_fix(db, self.value(index), last.value()).await?;
+        let exists_right = airway::exists_with_fix(db, self.value(index), next.value()).await?;
         if !exists_left || !exists_right {
             return Ok(false);
         }
@@ -212,8 +210,7 @@ impl RouteLexer {
     }
 
     async fn resolve_waypoint(&mut self, db: &PgPool, index: usize) -> Result<bool, LexerError> {
-        let Some(fix) =
-            navdata::find_fix(db, self.value(index), self.current_lat, self.current_lon).await?
+        let Some(fix) = find_fix(db, self.value(index), self.current_lat, self.current_lon).await?
         else {
             return Ok(false);
         };
@@ -392,4 +389,25 @@ fn cruise_altitude_len(token: &str) -> Option<usize> {
         return Some(3);
     }
     None
+}
+
+async fn find_fix(
+    db: &PgPool,
+    ident: &str,
+    lat: f64,
+    lon: f64,
+) -> Result<Option<Fix>, sqlx::Error> {
+    let mut fixes = waypoint::find(db, ident).await?;
+    fixes.extend(vhf_navaid::find(db, ident).await?);
+    fixes.extend(ndb_navaid::find(db, ident).await?);
+
+    Ok(fixes.into_iter().min_by(|left, right| {
+        let left_distance = squared_distance(left, lat, lon);
+        let right_distance = squared_distance(right, lat, lon);
+        left_distance.total_cmp(&right_distance)
+    }))
+}
+
+fn squared_distance(fix: &Fix, lat: f64, lon: f64) -> f64 {
+    ((lat - fix.latitude) * (lat - fix.latitude)) + ((lon - fix.longitude) * (lon - fix.longitude))
 }

@@ -8,9 +8,13 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
-use crate::adapter::database::auth as auth_repository;
 use crate::adapter::vatsim_auth::{VatsimAuthError, generate_pkce};
 use crate::jwt::JwtError;
+use crate::repository::{
+    device_authorization::{self as device_authorization_repository, NewDeviceAuthorization},
+    session::{self as session_repository, RefreshSessionIssue, RefreshSessionRow},
+    user::{self as user_repository, UserLoginRow},
+};
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -89,9 +93,9 @@ async fn device_authorization(
     let user_code = random_user_code();
     let expires_at = Utc::now() + Duration::seconds(services.jwt().device_authz_expires_seconds());
 
-    auth_repository::create_device_authorization(
+    device_authorization_repository::create(
         services.db(),
-        auth_repository::NewDeviceAuthorization {
+        NewDeviceAuthorization {
             device_code,
             user_code: &user_code,
             expires_at,
@@ -125,7 +129,7 @@ async fn device_confirm(
 
     let code = normalize_user_code(query.user_code.as_deref());
     let Some(device_authz) =
-        auth_repository::find_device_authorization_by_user_code(services.db(), &code)
+        device_authorization_repository::find_by_user_code(services.db(), &code)
             .await
             .map_err(AuthEndpointError::Database)?
     else {
@@ -308,13 +312,9 @@ async fn vatsim_callback(
                     Some("/auth/device"),
                 ));
             };
-            auth_repository::associate_device_authorization_user(
-                services.db(),
-                &user_code,
-                user.id,
-            )
-            .await
-            .map_err(AuthEndpointError::Database)?;
+            device_authorization_repository::associate_user(services.db(), &user_code, user.id)
+                .await
+                .map_err(AuthEndpointError::Database)?;
             render_callback_ui(
                 "Welcome",
                 &format!("Hello {}", vatsim_user.data.cid),
@@ -366,7 +366,7 @@ async fn device_code_grant(
     };
 
     let Some(device_authz) =
-        auth_repository::find_device_authorization_for_grant(services.db(), device_code)
+        device_authorization_repository::find_for_grant(services.db(), device_code)
             .await
             .map_err(AuthEndpointError::Database)?
     else {
@@ -426,7 +426,7 @@ async fn refresh_token_grant(
         return Ok(token_error("invalid_grant", "Refresh token not found"));
     };
 
-    let Some(refresh) = find_refresh_session(&services, refresh_token).await? else {
+    let Some(refresh) = find_session(&services, refresh_token).await? else {
         return Ok(token_error("invalid_grant", "Refresh token not found"));
     };
     if refresh.user_updated_at != refresh.updated_at {
@@ -480,10 +480,10 @@ async fn authorization_code_grant(
         return Ok(token_error("invalid_grant", "Invalid authorization code"));
     };
 
-    let Some(session) = find_refresh_session_by_code(&services, validated_code.code).await? else {
+    let Some(session) = find_session_by_code(&services, validated_code.code).await? else {
         return Ok(token_error("invalid_grant", "Invalid authorization code"));
     };
-    clear_session_code(&services, validated_code.code).await?;
+    clear_code(&services, validated_code.code).await?;
 
     let access_token = services.jwt().issue_access_token(
         session.user_id,
@@ -542,10 +542,10 @@ async fn issue_refresh_token(
     client_id: &str,
     old_token: Option<Ulid>,
     create_code: bool,
-) -> Result<auth_repository::RefreshSessionIssue, AuthEndpointError> {
+) -> Result<RefreshSessionIssue, AuthEndpointError> {
     let expires_in = Utc::now() + Duration::days(services.jwt().refresh_expires_days());
 
-    auth_repository::issue_refresh_token(
+    session_repository::issue_refresh_token(
         services.db(),
         user_id,
         user_updated_at,
@@ -558,26 +558,26 @@ async fn issue_refresh_token(
     .map_err(AuthEndpointError::Database)
 }
 
-async fn find_refresh_session(
+async fn find_session(
     services: &Services,
     token: Ulid,
-) -> Result<Option<auth_repository::RefreshSessionRow>, AuthEndpointError> {
-    auth_repository::find_refresh_session(services.db(), token)
+) -> Result<Option<RefreshSessionRow>, AuthEndpointError> {
+    session_repository::find(services.db(), token)
         .await
         .map_err(AuthEndpointError::Database)
 }
 
-async fn find_refresh_session_by_code(
+async fn find_session_by_code(
     services: &Services,
     code: Ulid,
-) -> Result<Option<auth_repository::RefreshSessionRow>, AuthEndpointError> {
-    auth_repository::find_refresh_session_by_code(services.db(), code)
+) -> Result<Option<RefreshSessionRow>, AuthEndpointError> {
+    session_repository::find_by_code(services.db(), code)
         .await
         .map_err(AuthEndpointError::Database)
 }
 
-async fn clear_session_code(services: &Services, code: Ulid) -> Result<(), AuthEndpointError> {
-    auth_repository::clear_session_code(services.db(), code)
+async fn clear_code(services: &Services, code: Ulid) -> Result<(), AuthEndpointError> {
+    session_repository::clear_code(services.db(), code)
         .await
         .map_err(AuthEndpointError::Database)
 }
@@ -586,7 +586,7 @@ async fn delete_device_authorization(
     services: &Services,
     device_code: Ulid,
 ) -> Result<(), AuthEndpointError> {
-    auth_repository::delete_device_authorization(services.db(), device_code)
+    device_authorization_repository::delete(services.db(), device_code)
         .await
         .map_err(AuthEndpointError::Database)
 }
@@ -804,8 +804,8 @@ async fn upsert_user(
     cid: &str,
     full_name: &str,
     email: &str,
-) -> Result<auth_repository::UserLoginRow, AuthEndpointError> {
-    auth_repository::upsert_user(services.db(), cid, full_name, email)
+) -> Result<UserLoginRow, AuthEndpointError> {
+    user_repository::upsert_login(services.db(), cid, full_name, email)
         .await
         .map_err(AuthEndpointError::Database)
 }

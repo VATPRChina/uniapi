@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
+use ulid::Ulid;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, FromRow)]
@@ -16,6 +17,12 @@ pub struct UserDetailRecord {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub roles: Vec<String>,
+}
+
+#[derive(FromRow)]
+pub struct UserLoginRow {
+    pub id: Uuid,
+    pub updated_at: DateTime<Utc>,
 }
 
 pub async fn find_by_id(db: &PgPool, id: Uuid) -> Result<Option<UserRecord>, sqlx::Error> {
@@ -112,5 +119,31 @@ pub async fn set_roles(
     .bind(id)
     .bind(roles)
     .fetch_optional(db)
+    .await
+}
+
+pub async fn upsert_login(
+    db: &PgPool,
+    cid: &str,
+    full_name: &str,
+    email: &str,
+) -> Result<UserLoginRow, sqlx::Error> {
+    sqlx::query_as::<_, UserLoginRow>(
+        r#"
+        INSERT INTO "user" (id, cid, full_name, email, roles)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (cid) DO UPDATE
+        SET full_name = EXCLUDED.full_name,
+            email = EXCLUDED.email,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING id, updated_at
+        "#,
+    )
+    .bind(Uuid::from(Ulid::new()))
+    .bind(cid)
+    .bind(full_name)
+    .bind(email)
+    .bind(Vec::<String>::new())
+    .fetch_one(db)
     .await
 }

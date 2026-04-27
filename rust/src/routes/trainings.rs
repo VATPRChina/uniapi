@@ -9,12 +9,17 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::{
-        sheet::{self as sheet_repository, SheetAnswerRecord, SheetAnswerSave, SheetFieldRecord},
-        training::{self as training_repository, TrainingRecord, TrainingSave},
-    },
     auth::CurrentUser,
     models::user_role::{UserRole, role_closure_from_strings},
+    repository::{
+        sheet as sheet_repository,
+        sheet_field::{self as sheet_field_repository, SheetFieldRecord},
+        sheet_filing as sheet_filing_repository,
+        sheet_filing_answer::{
+            self as sheet_filing_answer_repository, SheetAnswerRecord, SheetAnswerSave,
+        },
+        training::{self as training_repository, TrainingRecord, TrainingSave},
+    },
     services::Services,
 };
 
@@ -182,14 +187,14 @@ async fn update_training(
 async fn get_record_sheet(
     State(services): State<Services>,
 ) -> Result<Json<SheetDto>, TrainingRouteError> {
-    sheet_repository::ensure_sheet(services.db(), RECORD_SHEET_ID, "Training Record Sheet")
+    sheet_repository::ensure(services.db(), RECORD_SHEET_ID, "Training Record Sheet")
         .await
         .map_err(TrainingRouteError::Database)?;
-    let sheet = sheet_repository::find_sheet(services.db(), RECORD_SHEET_ID)
+    let sheet = sheet_repository::find(services.db(), RECORD_SHEET_ID)
         .await
         .map_err(TrainingRouteError::Database)?
         .ok_or(TrainingRouteError::SheetNotFound)?;
-    let fields = sheet_repository::list_fields(services.db(), RECORD_SHEET_ID)
+    let fields = sheet_field_repository::list(services.db(), RECORD_SHEET_ID)
         .await
         .map_err(TrainingRouteError::Database)?;
 
@@ -229,7 +234,7 @@ async fn set_record_sheet(
         .begin()
         .await
         .map_err(TrainingRouteError::Database)?;
-    let filing_id = sheet_repository::set_filing(
+    let filing_id = sheet_filing_repository::set(
         &mut transaction,
         RECORD_SHEET_ID,
         training.record_sheet_filing_id,
@@ -300,7 +305,7 @@ async fn training_to_dto(
 ) -> Result<TrainingDto, TrainingRouteError> {
     let record_sheet_filing = match training.record_sheet_filing_id {
         Some(filing_id) => Some(
-            sheet_repository::list_answers_by_filing(services.db(), filing_id)
+            sheet_filing_answer_repository::list_by_filing(services.db(), filing_id)
                 .await
                 .map_err(TrainingRouteError::Database)?
                 .into_iter()

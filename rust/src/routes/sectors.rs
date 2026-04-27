@@ -6,11 +6,11 @@ use axum::{Json, Router};
 use serde::Serialize;
 
 use crate::{
-    adapter::database::{
+    auth::CurrentUser,
+    repository::{
         sector as sector_repository,
         user::{self as user_repository},
     },
-    auth::CurrentUser,
     services::Services,
 };
 

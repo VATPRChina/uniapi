@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 
 use crate::adapter::compat::CompatClientError;
-use crate::adapter::database::compat::{self as compat_repository, FutureControllerRow};
+use crate::repository::compat::{self as compat_repository, FutureControllerRow};
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]

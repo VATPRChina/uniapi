@@ -9,9 +9,9 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::event::{self as event_repository, EventRecord, EventSave},
     auth::CurrentUser,
     models::user_role::UserRole,
+    repository::event::{self as event_repository, EventRecord, EventSave},
     services::Services,
 };
 

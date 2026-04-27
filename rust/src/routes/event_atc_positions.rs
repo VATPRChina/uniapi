@@ -9,12 +9,12 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::event_atc_position::{
+    auth::CurrentUser,
+    models::{user_controller_state::UserControllerState, user_role::UserRole},
+    repository::event_atc_position::{
         self as position_repository, EventAtcPositionRecord, EventAtcPositionSave,
         UserAtcPermissionRecord,
     },
-    auth::CurrentUser,
-    models::{user_controller_state::UserControllerState, user_role::UserRole},
     services::Services,
 };
 

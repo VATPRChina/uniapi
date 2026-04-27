@@ -9,12 +9,17 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::{
-        atc_application::{self as application_repository, AtcApplicationRecord},
-        sheet::{self as sheet_repository, SheetAnswerRecord, SheetAnswerSave, SheetFieldRecord},
-    },
     auth::CurrentUser,
     models::user_role::{UserRole, role_closure_from_strings},
+    repository::{
+        atc_application::{self as application_repository, AtcApplicationRecord},
+        sheet as sheet_repository,
+        sheet_field::{self as sheet_field_repository, SheetFieldRecord},
+        sheet_filing as sheet_filing_repository,
+        sheet_filing_answer::{
+            self as sheet_filing_answer_repository, SheetAnswerRecord, SheetAnswerSave,
+        },
+    },
     services::Services,
 };
 
@@ -91,7 +96,7 @@ async fn create_application(
         .begin()
         .await
         .map_err(AtcApplicationRouteError::Database)?;
-    let filing_id = sheet_repository::set_filing(
+    let filing_id = sheet_filing_repository::set(
         &mut transaction,
         APPLICATION_SHEET_ID,
         None,
@@ -162,7 +167,7 @@ async fn update_application(
         .begin()
         .await
         .map_err(AtcApplicationRouteError::Database)?;
-    sheet_repository::set_filing(
+    sheet_filing_repository::set(
         &mut transaction,
         APPLICATION_SHEET_ID,
         Some(application.application_filing_id),
@@ -229,7 +234,7 @@ async fn review_application(
         .begin()
         .await
         .map_err(AtcApplicationRouteError::Database)?;
-    let filing_id = sheet_repository::set_filing(
+    let filing_id = sheet_filing_repository::set(
         &mut transaction,
         REVIEW_SHEET_ID,
         application.review_filing_id,
@@ -281,16 +286,18 @@ async fn application_to_dto(
     is_admin: bool,
     current_user_id: Uuid,
 ) -> Result<AtcApplicationDto, AtcApplicationRouteError> {
-    let application_filing_answers =
-        sheet_repository::list_answers_by_filing(services.db(), application.application_filing_id)
-            .await
-            .map_err(AtcApplicationRouteError::Database)?
-            .into_iter()
-            .map(SheetFieldAnswerDto::from)
-            .collect();
+    let application_filing_answers = sheet_filing_answer_repository::list_by_filing(
+        services.db(),
+        application.application_filing_id,
+    )
+    .await
+    .map_err(AtcApplicationRouteError::Database)?
+    .into_iter()
+    .map(SheetFieldAnswerDto::from)
+    .collect();
     let review_filing_answers = match application.review_filing_id {
         Some(review_filing_id) => Some(
-            sheet_repository::list_answers_by_filing(services.db(), review_filing_id)
+            sheet_filing_answer_repository::list_by_filing(services.db(), review_filing_id)
                 .await
                 .map_err(AtcApplicationRouteError::Database)?
                 .into_iter()
@@ -314,14 +321,14 @@ async fn sheet_dto(
     sheet_id: &str,
     sheet_name: &str,
 ) -> Result<SheetDto, AtcApplicationRouteError> {
-    sheet_repository::ensure_sheet(services.db(), sheet_id, sheet_name)
+    sheet_repository::ensure(services.db(), sheet_id, sheet_name)
         .await
         .map_err(AtcApplicationRouteError::Database)?;
-    let sheet = sheet_repository::find_sheet(services.db(), sheet_id)
+    let sheet = sheet_repository::find(services.db(), sheet_id)
         .await
         .map_err(AtcApplicationRouteError::Database)?
         .ok_or(AtcApplicationRouteError::SheetNotFound)?;
-    let fields = sheet_repository::list_fields(services.db(), sheet_id)
+    let fields = sheet_field_repository::list(services.db(), sheet_id)
         .await
         .map_err(AtcApplicationRouteError::Database)?;
 

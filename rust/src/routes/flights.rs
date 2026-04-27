@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     adapter::{
         compat::CompatClientError,
-        database::user::{self as user_repository},
         flight::{Flight, flights_from_vatsim},
     },
     auth::CurrentUser,
@@ -19,6 +18,7 @@ use crate::{
         validator::{self, ValidatorError},
     },
     models::user_role::UserRole,
+    repository::user as user_repository,
     services::Services,
 };
 

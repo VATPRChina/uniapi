@@ -2,11 +2,12 @@ use serde::Serialize;
 use sqlx::PgPool;
 
 use crate::{
-    adapter::{database::navdata, flight::Flight},
+    adapter::flight::Flight,
     flight_plan::{
         AirwayDirection, FixKind, Leg, LevelRestrictionType, PreferredRoute,
         parser::{self, ParserError},
     },
+    repository::preferred_route,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -62,7 +63,7 @@ pub async fn validate_route(
     let mut messages = validate_plan(flight);
 
     let preferred_routes =
-        navdata::recommended_routes(db, &flight.departure, &flight.arrival).await?;
+        preferred_route::recommended(db, &flight.departure, &flight.arrival).await?;
     let matching_route = find_matching_route(db, legs, &preferred_routes).await?;
     messages.extend(validate_preferred_route_match(
         flight,

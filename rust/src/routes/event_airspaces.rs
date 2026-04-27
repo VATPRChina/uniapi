@@ -9,12 +9,12 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::{
+    auth::CurrentUser,
+    models::user_role::UserRole,
+    repository::{
         event as event_repository,
         event_airspace::{self as airspace_repository, EventAirspaceRecord, EventAirspaceSave},
     },
-    auth::CurrentUser,
-    models::user_role::UserRole,
     services::Services,
 };
 

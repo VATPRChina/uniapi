@@ -9,16 +9,21 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::{
+    auth::CurrentUser,
+    models::user_role::{UserRole, role_closure_from_strings},
+    repository::{
         training_application::{
             self as training_application_repository, TrainingApplicationRecord,
-            TrainingApplicationResponseRecord, TrainingApplicationSlotRecord,
+        },
+        training_application_response::{
+            self as training_application_response_repository, TrainingApplicationResponseRecord,
+        },
+        training_application_slot::{
+            self as training_application_slot_repository, TrainingApplicationSlotRecord,
             TrainingApplicationSlotSave,
         },
         user_atc_permission as atc_permission_repository,
     },
-    auth::CurrentUser,
-    models::user_role::{UserRole, role_closure_from_strings},
     services::Services,
 };
 
@@ -183,7 +188,7 @@ async fn list_responses(
     Path(id): Path<String>,
 ) -> Result<Json<Vec<TrainingApplicationResponseDto>>, TrainingApplicationRouteError> {
     let application = find_visible_application(&services, &current_user, &id).await?;
-    let responses = training_application_repository::list_responses(services.db(), application.id)
+    let responses = training_application_response_repository::list(services.db(), application.id)
         .await
         .map_err(TrainingApplicationRouteError::Database)?
         .into_iter()
@@ -218,7 +223,7 @@ async fn respond_to_application(
 
     let slot = match request.slot_id.as_deref() {
         Some(slot_id) => Some(
-            training_application_repository::find_slot(
+            training_application_slot_repository::find(
                 services.db(),
                 application.id,
                 parse_ulid_uuid(slot_id)?,
@@ -235,7 +240,7 @@ async fn respond_to_application(
         .begin()
         .await
         .map_err(TrainingApplicationRouteError::Database)?;
-    let response_id = training_application_repository::create_response(
+    let response_id = training_application_response_repository::create(
         &mut transaction,
         &application,
         trainer_id,
@@ -248,7 +253,7 @@ async fn respond_to_application(
         .commit()
         .await
         .map_err(TrainingApplicationRouteError::Database)?;
-    let response = training_application_repository::find_response_by_id(services.db(), response_id)
+    let response = training_application_response_repository::find(services.db(), response_id)
         .await
         .map_err(TrainingApplicationRouteError::Database)?
         .ok_or(TrainingApplicationRouteError::NotFound)?;
@@ -291,7 +296,7 @@ async fn application_to_dto(
     services: &Services,
     application: TrainingApplicationRecord,
 ) -> Result<TrainingApplicationDto, TrainingApplicationRouteError> {
-    let slots = training_application_repository::list_slots(services.db(), application.id)
+    let slots = training_application_slot_repository::list(services.db(), application.id)
         .await
         .map_err(TrainingApplicationRouteError::Database)?;
 

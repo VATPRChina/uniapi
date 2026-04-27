@@ -1,5 +1,4 @@
 pub mod compat;
-pub mod database;
 pub mod discourse;
 pub mod flight;
 pub mod moodle;

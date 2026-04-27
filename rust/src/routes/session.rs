@@ -8,12 +8,10 @@ use serde::Serialize;
 use ulid::Ulid;
 
 use crate::{
-    adapter::{
-        database::{auth as auth_repository, user as user_repository},
-        moodle::MoodleError,
-    },
+    adapter::moodle::MoodleError,
     auth::CurrentUser,
     models::user_role::UserRole,
+    repository::{session as session_repository, user as user_repository},
     services::Services,
 };
 
@@ -85,7 +83,7 @@ async fn logout(
         .parse::<Ulid>()
         .map_err(|_| SessionError::InvalidSessionId)?;
 
-    if !auth_repository::delete_refresh_session(services.db(), session_id)
+    if !session_repository::delete(services.db(), session_id)
         .await
         .map_err(SessionError::Database)?
     {

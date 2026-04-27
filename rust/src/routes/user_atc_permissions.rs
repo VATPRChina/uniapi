@@ -9,14 +9,16 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::user_atc_permission::{
-        self as atc_permission_repository, AtcPermissionRecord, AtcPermissionSave, AtcStatusRecord,
-        AtcStatusSave,
-    },
     auth::CurrentUser,
     models::{
         user_controller_state::UserControllerState,
         user_role::{UserRole, role_closure_from_strings},
+    },
+    repository::{
+        user_atc_permission::{
+            self as atc_permission_repository, AtcPermissionRecord, AtcPermissionSave,
+        },
+        user_atc_status::{self as atc_status_repository, AtcStatusRecord, AtcStatusSave},
     },
     services::Services,
 };
@@ -69,7 +71,7 @@ async fn set_status(
     let user_id = parse_ulid_uuid(&id)?;
     let status = AtcStatusSave::try_from(request)?;
 
-    if atc_permission_repository::find_status_by_user_id(services.db(), user_id)
+    if atc_status_repository::find_by_user_id(services.db(), user_id)
         .await
         .map_err(UserAtcPermissionRouteError::Database)?
         .is_none()
@@ -82,7 +84,7 @@ async fn set_status(
         .begin()
         .await
         .map_err(UserAtcPermissionRouteError::Database)?;
-    atc_permission_repository::upsert_status(&mut transaction, user_id, &status)
+    atc_status_repository::upsert(&mut transaction, user_id, &status)
         .await
         .map_err(UserAtcPermissionRouteError::Database)?;
     transaction
@@ -102,7 +104,7 @@ async fn delete_status(
     require_admin_role(&current_user)?;
     let user_id = parse_ulid_uuid(&id)?;
 
-    if atc_permission_repository::find_status_by_user_id(services.db(), user_id)
+    if atc_status_repository::find_by_user_id(services.db(), user_id)
         .await
         .map_err(UserAtcPermissionRouteError::Database)?
         .is_none()
@@ -115,10 +117,9 @@ async fn delete_status(
         .begin()
         .await
         .map_err(UserAtcPermissionRouteError::Database)?;
-    let deleted =
-        atc_permission_repository::delete_status_and_permissions(&mut transaction, user_id)
-            .await
-            .map_err(UserAtcPermissionRouteError::Database)?;
+    let deleted = atc_status_repository::delete_with_permissions(&mut transaction, user_id)
+        .await
+        .map_err(UserAtcPermissionRouteError::Database)?;
     transaction
         .commit()
         .await
@@ -134,14 +135,13 @@ async fn get_status_for_user(
     services: &Services,
     user_id: Uuid,
 ) -> Result<AtcStatusDto, UserAtcPermissionRouteError> {
-    let status = atc_permission_repository::find_status_by_user_id(services.db(), user_id)
+    let status = atc_status_repository::find_by_user_id(services.db(), user_id)
         .await
         .map_err(UserAtcPermissionRouteError::Database)?
         .ok_or(UserAtcPermissionRouteError::UserNotFound)?;
-    let permissions =
-        atc_permission_repository::list_permissions_by_user_id(services.db(), user_id)
-            .await
-            .map_err(UserAtcPermissionRouteError::Database)?;
+    let permissions = atc_permission_repository::list_by_user_id(services.db(), user_id)
+        .await
+        .map_err(UserAtcPermissionRouteError::Database)?;
 
     Ok(AtcStatusDto::from_records(status, permissions))
 }

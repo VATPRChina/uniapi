@@ -9,9 +9,9 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::{
-    adapter::database::event_slot_booking::{self as booking_repository, EventBookingRecord},
     auth::CurrentUser,
     models::user_role::UserRole,
+    repository::event_slot_booking::{self as booking_repository, EventBookingRecord},
     services::Services,
 };
 
