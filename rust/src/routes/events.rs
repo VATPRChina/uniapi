@@ -19,15 +19,11 @@ use crate::{
 #[openapi(paths(list_events, create_event, get_event, update_event, delete_event))]
 pub(crate) struct ApiDoc;
 
-pub fn build_public_event_routes() -> Router<Services> {
+pub fn build_event_routes() -> Router<Services> {
     Router::new()
         .route("/", get(list_events))
         .route("/past", get(list_past_events))
         .route("/{eid}", get(get_event))
-}
-
-pub fn build_protected_event_routes() -> Router<Services> {
-    Router::new()
         .route("/", post(create_event))
         .route("/{eid}", post(update_event).delete(delete_event))
 }

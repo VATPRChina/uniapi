@@ -23,14 +23,10 @@ use crate::{
 #[openapi(paths(list_slots, create_slot, update_slot, delete_slot))]
 pub(crate) struct ApiDoc;
 
-pub fn build_public_event_slot_routes() -> Router<Services> {
+pub fn build_event_slot_routes() -> Router<Services> {
     Router::new()
         .route("/{eid}/slots", get(list_slots))
         .route("/{eid}/slots/{sid}", get(get_slot))
-}
-
-pub fn build_protected_event_slot_routes() -> Router<Services> {
-    Router::new()
         .route("/{eid}/slots/bookings.csv", get(export_bookings))
         .route("/{eid}/slots/mine", get(get_my_slot))
         .route("/{eid}/slots", post(create_slot))

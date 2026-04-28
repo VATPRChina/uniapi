@@ -33,7 +33,7 @@ use crate::{
 ))]
 pub(crate) struct ApiDoc;
 
-pub fn build_public_flight_routes() -> Router<Services> {
+pub fn build_flight_routes() -> Router<Services> {
     Router::new()
         .route("/active", get(active_flights))
         .route("/by-callsign/{callsign}", get(flight_by_callsign))
@@ -42,10 +42,6 @@ pub fn build_public_flight_routes() -> Router<Services> {
             get(warnings_by_callsign),
         )
         .route("/by-callsign/{callsign}/route", get(route_by_callsign))
-}
-
-pub fn build_protected_flight_routes() -> Router<Services> {
-    Router::new()
         .route("/mine", get(my_flight))
         .route("/temporary/by-plan/warnings", get(temporary_warnings))
 }

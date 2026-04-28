@@ -84,20 +84,24 @@ pub async fn authenticate(
     mut request: axum::extract::Request,
     next: Next,
 ) -> Result<Response, AuthError> {
-    let token = bearer_token(request.headers())?;
-    let user = authenticate_token(&services, token).await?;
-    request.extensions_mut().insert(user);
+    if let Some(token) = bearer_token(request.headers())? {
+        let user = authenticate_token(&services, token).await?;
+        request.extensions_mut().insert(user);
+    }
     Ok(next.run(request).await)
 }
 
-fn bearer_token(headers: &HeaderMap) -> Result<&str, AuthError> {
-    let authorization = headers
+fn bearer_token(headers: &HeaderMap) -> Result<Option<&str>, AuthError> {
+    let Some(authorization) = headers
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
-        .ok_or(AuthError::MissingBearerToken)?;
+    else {
+        return Ok(None);
+    };
 
     authorization
         .strip_prefix("Bearer ")
+        .map(Some)
         .ok_or(AuthError::InvalidBearerToken)
 }
 

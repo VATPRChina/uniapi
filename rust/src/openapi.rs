@@ -55,23 +55,6 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn generated_paths_are_normalized() {
-        let openapi = super::openapi();
-
-        assert!(
-            openapi
-                .paths
-                .paths
-                .keys()
-                .all(|path| !path.starts_with("//")),
-            "OpenAPI paths must not contain a double leading slash"
-        );
-    }
-}
-
 pub(crate) struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {

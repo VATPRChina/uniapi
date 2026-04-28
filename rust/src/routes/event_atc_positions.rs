@@ -31,12 +31,9 @@ pub(crate) struct ApiDoc;
 
 const POSITION_KINDS: &[&str] = &["DEL", "GND", "TWR", "T2", "APP", "CTR", "FSS", "FMP"];
 
-pub fn build_public_event_atc_position_routes() -> Router<Services> {
-    Router::new().route("/{event_id}/controllers", get(list_positions))
-}
-
-pub fn build_protected_event_atc_position_routes() -> Router<Services> {
+pub fn build_event_atc_position_routes() -> Router<Services> {
     Router::new()
+        .route("/{event_id}/controllers", get(list_positions))
         .route("/{event_id}/controllers", post(create_position))
         .route(
             "/{event_id}/controllers/{position_id}",

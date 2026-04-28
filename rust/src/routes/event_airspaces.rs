@@ -22,14 +22,10 @@ use crate::{
 #[openapi(paths(list_airspaces, create_airspace, update_airspace, delete_airspace))]
 pub(crate) struct ApiDoc;
 
-pub fn build_public_event_airspace_routes() -> Router<Services> {
+pub fn build_event_airspace_routes() -> Router<Services> {
     Router::new()
         .route("/{eid}/airspaces", get(list_airspaces))
         .route("/{eid}/airspaces/{aid}", get(get_airspace))
-}
-
-pub fn build_protected_event_airspace_routes() -> Router<Services> {
-    Router::new()
         .route("/{eid}/airspaces", post(create_airspace))
         .route(
             "/{eid}/airspaces/{aid}",

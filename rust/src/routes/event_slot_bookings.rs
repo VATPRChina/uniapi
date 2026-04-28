@@ -1,7 +1,7 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, put};
+use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -19,14 +19,10 @@ use crate::{
 #[openapi(paths(get_booking, put_booking, delete_booking))]
 pub(crate) struct ApiDoc;
 
-pub fn build_public_event_slot_booking_routes() -> Router<Services> {
-    Router::new().route("/{eid}/slots/{sid}/booking", get(get_booking))
-}
-
-pub fn build_protected_event_slot_booking_routes() -> Router<Services> {
+pub fn build_event_slot_booking_routes() -> Router<Services> {
     Router::new().route(
         "/{eid}/slots/{sid}/booking",
-        put(put_booking).delete(delete_booking),
+        get(get_booking).put(put_booking).delete(delete_booking),
     )
 }
 
