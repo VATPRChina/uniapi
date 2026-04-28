@@ -27,7 +27,6 @@ use utoipa::OpenApi;
         (path = "/", api = crate::routes::preferred_routes::ApiDoc),
         (path = "/", api = crate::routes::sectors::ApiDoc),
         (path = "/", api = crate::routes::storage::ApiDoc),
-        (path = "/", api = crate::routes::internal::ApiDoc)
     ),
     modifiers(&SecurityAddon),
     tags(

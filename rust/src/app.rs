@@ -20,7 +20,6 @@ use crate::routes::event_slot_bookings::build_event_slot_booking_routes;
 use crate::routes::event_slots::build_event_slot_routes;
 use crate::routes::events::build_event_routes;
 use crate::routes::flights::build_flight_routes;
-use crate::routes::internal::build_internal_routes;
 use crate::routes::notams::build_notam_routes;
 use crate::routes::preferred_routes::build_preferred_route_routes;
 use crate::routes::sectors::build_sector_routes;
@@ -49,7 +48,6 @@ pub fn router(services: Services) -> Router {
         .route("/", get(root))
         .route("/health", get(health))
         .nest("/auth", build_auth_routes())
-        .nest("/api/__internal", build_internal_routes())
         .nest("/api/atc/controllers", build_atc_routes())
         .nest("/api/atc/bookings", build_atc_booking_routes())
         .nest("/api/atc/applications", build_atc_application_routes())

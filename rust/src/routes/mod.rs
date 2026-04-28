@@ -9,7 +9,6 @@ pub mod event_slot_bookings;
 pub mod event_slots;
 pub mod events;
 pub mod flights;
-pub mod internal;
 pub mod notams;
 pub mod preferred_routes;
 pub mod sectors;
