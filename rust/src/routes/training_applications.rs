@@ -205,7 +205,9 @@ async fn respond_to_application(
     Path(id): Path<String>,
     Json(request): Json<TrainingApplicationResponseRequest>,
 ) -> Result<Json<TrainingApplicationResponseDto>, TrainingApplicationRouteError> {
-    require_role(&current_user, UserRole::ControllerTrainingMentor)?;
+    current_user
+        .require_role(UserRole::ControllerTrainingMentor)
+        .map_err(|_| TrainingApplicationRouteError::Forbidden)?;
     let application_id = parse_ulid_uuid(&id)?;
     let trainer_id = current_user
         .user_id
@@ -304,19 +306,12 @@ async fn application_to_dto(
 }
 
 fn is_admin(current_user: &CurrentUser) -> bool {
-    current_user.has_role(UserRole::ControllerTrainingDirectorAssistant)
-        || current_user.has_role(UserRole::ControllerTrainingMentor)
-}
-
-fn require_role(
-    current_user: &CurrentUser,
-    role: UserRole,
-) -> Result<(), TrainingApplicationRouteError> {
-    if current_user.has_role(role) {
-        Ok(())
-    } else {
-        Err(TrainingApplicationRouteError::Forbidden)
-    }
+    current_user
+        .require_any_role(&[
+            UserRole::ControllerTrainingDirectorAssistant,
+            UserRole::ControllerTrainingMentor,
+        ])
+        .is_ok()
 }
 
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, TrainingApplicationRouteError> {

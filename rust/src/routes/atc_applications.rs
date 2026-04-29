@@ -215,7 +215,9 @@ async fn review_application(
     Path(id): Path<String>,
     Json(request): Json<AtcApplicationReviewRequest>,
 ) -> Result<Json<AtcApplicationDto>, AtcApplicationRouteError> {
-    require_role(&current_user, UserRole::ControllerTrainingDirectorAssistant)?;
+    current_user
+        .require_role(UserRole::ControllerTrainingDirectorAssistant)
+        .map_err(|_| AtcApplicationRouteError::Forbidden)?;
     let current_user_id = current_user
         .user_id
         .ok_or(AtcApplicationRouteError::Unauthorized)?;
@@ -341,17 +343,6 @@ async fn sheet_dto(
             .map(SheetFieldDto::from)
             .collect(),
     })
-}
-
-fn require_role(
-    current_user: &CurrentUser,
-    role: UserRole,
-) -> Result<(), AtcApplicationRouteError> {
-    if current_user.has_role(role) {
-        Ok(())
-    } else {
-        Err(AtcApplicationRouteError::Forbidden)
-    }
 }
 
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, AtcApplicationRouteError> {

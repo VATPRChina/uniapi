@@ -35,7 +35,9 @@ async fn list_users(
     State(services): State<Services>,
     current_user: CurrentUser,
 ) -> Result<Json<Vec<UserDto>>, UserRouteError> {
-    require_role(&current_user, UserRole::Volunteer)?;
+    current_user
+        .require_role(UserRole::Volunteer)
+        .map_err(|_| UserRouteError::Forbidden)?;
     let show_full_name = current_user.has_role(UserRole::Staff);
     let users = user_repository::list_details_ordered_by_cid(services.db())
         .await
@@ -53,7 +55,9 @@ async fn get_user(
     current_user: CurrentUser,
     Path(id): Path<String>,
 ) -> Result<Json<UserDto>, UserRouteError> {
-    require_role(&current_user, UserRole::Volunteer)?;
+    current_user
+        .require_role(UserRole::Volunteer)
+        .map_err(|_| UserRouteError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let user = user_repository::find_detail_by_id(services.db(), id)
         .await
@@ -75,7 +79,9 @@ async fn get_user_by_cid(
     current_user: CurrentUser,
     Path(cid): Path<String>,
 ) -> Result<Json<UserDto>, UserRouteError> {
-    require_role(&current_user, UserRole::Volunteer)?;
+    current_user
+        .require_role(UserRole::Volunteer)
+        .map_err(|_| UserRouteError::Forbidden)?;
     let user = user_repository::find_detail_by_cid(services.db(), &cid)
         .await
         .map_err(UserRouteError::Database)?
@@ -95,7 +101,9 @@ async fn assume_by_cid(
     current_user: CurrentUser,
     Path(cid): Path<String>,
 ) -> Result<Json<UserDto>, UserRouteError> {
-    require_role(&current_user, UserRole::Staff)?;
+    current_user
+        .require_role(UserRole::Staff)
+        .map_err(|_| UserRouteError::Forbidden)?;
     let user = user_repository::create_assumed_user(services.db(), Uuid::from(Ulid::new()), &cid)
         .await
         .map_err(UserRouteError::Database)?;
@@ -110,7 +118,9 @@ async fn set_roles(
     Path(id): Path<String>,
     Json(roles): Json<BTreeSet<String>>,
 ) -> Result<Json<UserDto>, UserRouteError> {
-    require_role(&current_user, UserRole::Staff)?;
+    current_user
+        .require_role(UserRole::Staff)
+        .map_err(|_| UserRouteError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let user = user_repository::find_detail_by_id(services.db(), id)
         .await
@@ -202,14 +212,6 @@ fn user_dto(
         roles,
         direct_roles,
         moodle_account,
-    }
-}
-
-fn require_role(current_user: &CurrentUser, role: UserRole) -> Result<(), UserRouteError> {
-    if current_user.has_role(role) {
-        Ok(())
-    } else {
-        Err(UserRouteError::Forbidden)
     }
 }
 

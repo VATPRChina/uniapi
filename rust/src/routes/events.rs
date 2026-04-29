@@ -74,7 +74,9 @@ async fn create_event(
     current_user: CurrentUser,
     Json(request): Json<EventSaveRequest>,
 ) -> Result<Json<EventDto>, EventError> {
-    require_event_coordinator(&current_user)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| EventError::Forbidden)?;
     let event = event_repository::create(services.db(), request.try_into()?)
         .await
         .map_err(EventError::Database)?;
@@ -89,7 +91,9 @@ async fn update_event(
     Path(eid): Path<String>,
     Json(request): Json<EventSaveRequest>,
 ) -> Result<Json<EventDto>, EventError> {
-    require_event_coordinator(&current_user)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| EventError::Forbidden)?;
     let id = parse_ulid_uuid(&eid)?;
     let event = event_repository::update(services.db(), id, request.try_into()?)
         .await
@@ -105,7 +109,9 @@ async fn delete_event(
     current_user: CurrentUser,
     Path(eid): Path<String>,
 ) -> Result<Json<EventDto>, EventError> {
-    require_event_coordinator(&current_user)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| EventError::Forbidden)?;
     let id = parse_ulid_uuid(&eid)?;
     let event = event_repository::delete(services.db(), id)
         .await
@@ -113,14 +119,6 @@ async fn delete_event(
         .ok_or(EventError::EventNotFound)?;
 
     Ok(Json(EventDto::from(event)))
-}
-
-fn require_event_coordinator(current_user: &CurrentUser) -> Result<(), EventError> {
-    if current_user.has_role(UserRole::EventCoordinator) {
-        Ok(())
-    } else {
-        Err(EventError::Forbidden)
-    }
 }
 
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, EventError> {

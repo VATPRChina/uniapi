@@ -31,7 +31,9 @@ pub fn build_preferred_route_routes() -> Router<Services> {
 
 #[utoipa::path(get, path = "api/navdata/preferred-routes", tag = "Navdata", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<PreferredRouteDto>)))]
 async fn list_preferred_routes(current_user: CurrentUser) -> Result<Response, PreferredRouteError> {
-    require_role(&current_user, UserRole::Volunteer)?;
+    current_user
+        .require_role(UserRole::Volunteer)
+        .map_err(|_| PreferredRouteError::Forbidden)?;
     Err(PreferredRouteError::NotImplemented)
 }
 
@@ -40,7 +42,9 @@ async fn get_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
 ) -> Result<Response, PreferredRouteError> {
-    require_role(&current_user, UserRole::Volunteer)?;
+    current_user
+        .require_role(UserRole::Volunteer)
+        .map_err(|_| PreferredRouteError::Forbidden)?;
     Err(PreferredRouteError::NotImplemented)
 }
 
@@ -49,7 +53,9 @@ async fn create_preferred_route(
     current_user: CurrentUser,
     Json(_request): Json<PreferredRouteSaveRequest>,
 ) -> Result<Response, PreferredRouteError> {
-    require_role(&current_user, UserRole::EventCoordinator)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| PreferredRouteError::Forbidden)?;
     Err(PreferredRouteError::NotImplemented)
 }
 
@@ -59,7 +65,9 @@ async fn update_preferred_route(
     Path(_id): Path<String>,
     Json(_request): Json<PreferredRouteSaveRequest>,
 ) -> Result<Response, PreferredRouteError> {
-    require_role(&current_user, UserRole::EventCoordinator)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| PreferredRouteError::Forbidden)?;
     Err(PreferredRouteError::NotImplemented)
 }
 
@@ -68,16 +76,10 @@ async fn delete_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
 ) -> Result<Response, PreferredRouteError> {
-    require_role(&current_user, UserRole::EventCoordinator)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| PreferredRouteError::Forbidden)?;
     Err(PreferredRouteError::NotImplemented)
-}
-
-fn require_role(current_user: &CurrentUser, role: UserRole) -> Result<(), PreferredRouteError> {
-    if current_user.has_role(role) {
-        Ok(())
-    } else {
-        Err(PreferredRouteError::Forbidden)
-    }
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]

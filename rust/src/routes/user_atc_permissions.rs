@@ -147,13 +147,12 @@ async fn get_status_for_user(
 }
 
 fn require_admin_role(current_user: &CurrentUser) -> Result<(), UserAtcPermissionRouteError> {
-    if current_user.has_role(UserRole::ControllerTrainingMentor)
-        || current_user.has_role(UserRole::ControllerTrainingDirectorAssistant)
-    {
-        Ok(())
-    } else {
-        Err(UserAtcPermissionRouteError::Forbidden)
-    }
+    current_user
+        .require_any_role(&[
+            UserRole::ControllerTrainingMentor,
+            UserRole::ControllerTrainingDirectorAssistant,
+        ])
+        .map_err(|_| UserAtcPermissionRouteError::Forbidden)
 }
 
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, UserAtcPermissionRouteError> {

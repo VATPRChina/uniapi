@@ -33,9 +33,9 @@ async fn upload_image(
     current_user: CurrentUser,
     mut multipart: Multipart,
 ) -> Result<Json<UploadImageResponse>, StorageError> {
-    if !current_user.has_role(UserRole::Volunteer) {
-        return Err(StorageError::Forbidden);
-    }
+    current_user
+        .require_role(UserRole::Volunteer)
+        .map_err(|_| StorageError::Forbidden)?;
     tracing::debug!(
         subject = %current_user.subject,
         user_id = ?current_user.user_id,

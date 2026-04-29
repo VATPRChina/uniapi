@@ -98,7 +98,9 @@ async fn temporary_warnings(
     State(services): State<Services>,
     Query(query): Query<TemporaryFlightQuery>,
 ) -> Result<Json<Vec<validator::WarningMessage>>, FlightRouteError> {
-    require_role(&current_user, UserRole::ApiClient)?;
+    current_user
+        .require_role(UserRole::ApiClient)
+        .map_err(|_| FlightRouteError::Forbidden)?;
     warnings_for_flight(&services, &Flight::from(query)).await
 }
 
@@ -137,14 +139,6 @@ async fn find_by_callsign(services: &Services, callsign: &str) -> Result<Flight,
         .into_iter()
         .find(|flight| flight.callsign.eq_ignore_ascii_case(callsign))
         .ok_or(FlightRouteError::CallsignNotFound)
-}
-
-fn require_role(current_user: &CurrentUser, role: UserRole) -> Result<(), FlightRouteError> {
-    if current_user.has_role(role) {
-        Ok(())
-    } else {
-        Err(FlightRouteError::Forbidden)
-    }
 }
 
 fn route_string(flight: &Flight) -> String {

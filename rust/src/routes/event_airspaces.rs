@@ -72,7 +72,9 @@ async fn create_airspace(
     Path(eid): Path<String>,
     Json(request): Json<EventAirspaceSaveRequest>,
 ) -> Result<Json<EventAirspaceDto>, EventAirspaceError> {
-    require_event_coordinator(&current_user)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| EventAirspaceError::Forbidden)?;
     let event_id = parse_ulid_uuid(&eid, EventAirspaceError::InvalidEventId)?;
     ensure_event_exists(&services, event_id).await?;
     let airspace =
@@ -90,7 +92,9 @@ async fn update_airspace(
     Path((eid, aid)): Path<(String, String)>,
     Json(request): Json<EventAirspaceSaveRequest>,
 ) -> Result<Json<EventAirspaceDto>, EventAirspaceError> {
-    require_event_coordinator(&current_user)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| EventAirspaceError::Forbidden)?;
     let event_id = parse_ulid_uuid(&eid, EventAirspaceError::InvalidEventId)?;
     let airspace_id = parse_ulid_uuid(&aid, EventAirspaceError::InvalidAirspaceId)?;
     let airspace = airspace_repository::update(
@@ -112,7 +116,9 @@ async fn delete_airspace(
     current_user: CurrentUser,
     Path((eid, aid)): Path<(String, String)>,
 ) -> Result<Json<EventAirspaceDto>, EventAirspaceError> {
-    require_event_coordinator(&current_user)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| EventAirspaceError::Forbidden)?;
     let event_id = parse_ulid_uuid(&eid, EventAirspaceError::InvalidEventId)?;
     let airspace_id = parse_ulid_uuid(&aid, EventAirspaceError::InvalidAirspaceId)?;
     let airspace = airspace_repository::delete(services.db(), event_id, airspace_id)
@@ -134,14 +140,6 @@ async fn ensure_event_exists(
         Ok(())
     } else {
         Err(EventAirspaceError::EventNotFound)
-    }
-}
-
-fn require_event_coordinator(current_user: &CurrentUser) -> Result<(), EventAirspaceError> {
-    if current_user.has_role(UserRole::EventCoordinator) {
-        Ok(())
-    } else {
-        Err(EventAirspaceError::Forbidden)
     }
 }
 

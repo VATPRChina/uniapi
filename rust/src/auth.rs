@@ -37,6 +37,21 @@ impl CurrentUser {
     pub fn roles(&self) -> impl Iterator<Item = UserRole> + '_ {
         self.roles.iter().copied()
     }
+
+    pub fn require_role(&self, role: UserRole) -> Result<(), AuthError> {
+        if self.has_role(role) {
+            Ok(())
+        } else {
+            Err(AuthError::MissingRole(role))
+        }
+    }
+
+    pub fn require_any_role(&self, required_roles: &[UserRole]) -> Result<(), AuthError> {
+        if required_roles.iter().any(|role| self.has_role(*role)) {
+            return Ok(());
+        }
+        Err(AuthError::MissingAnyRole(required_roles.to_vec()))
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -60,6 +75,12 @@ pub enum AuthError {
 
     #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
+
+    #[error("missing role {0}")]
+    MissingRole(UserRole),
+
+    #[error("missing any role of {0:?}")]
+    MissingAnyRole(Vec<UserRole>),
 }
 
 impl IntoResponse for AuthError {

@@ -140,7 +140,9 @@ async fn create_training(
     current_user: CurrentUser,
     Json(request): Json<TrainingSaveRequest>,
 ) -> Result<Json<TrainingDto>, TrainingRouteError> {
-    require_role(&current_user, UserRole::ControllerTrainingMentor)?;
+    current_user
+        .require_role(UserRole::ControllerTrainingMentor)
+        .map_err(|_| TrainingRouteError::Forbidden)?;
     let current_user_id = current_user
         .user_id
         .ok_or(TrainingRouteError::Unauthorized)?;
@@ -164,7 +166,9 @@ async fn update_training(
     Path(id): Path<String>,
     Json(request): Json<TrainingSaveRequest>,
 ) -> Result<Json<TrainingDto>, TrainingRouteError> {
-    require_role(&current_user, UserRole::ControllerTrainingMentor)?;
+    current_user
+        .require_role(UserRole::ControllerTrainingMentor)
+        .map_err(|_| TrainingRouteError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let training = training_repository::find_by_id(services.db(), id)
         .await
@@ -216,7 +220,9 @@ async fn set_record_sheet(
     Path(id): Path<String>,
     Json(request): Json<TrainingRecordRequest>,
 ) -> Result<Json<TrainingDto>, TrainingRouteError> {
-    require_role(&current_user, UserRole::ControllerTrainingMentor)?;
+    current_user
+        .require_role(UserRole::ControllerTrainingMentor)
+        .map_err(|_| TrainingRouteError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let training = training_repository::find_by_id(services.db(), id)
         .await
@@ -261,7 +267,9 @@ async fn delete_training(
     current_user: CurrentUser,
     Path(id): Path<String>,
 ) -> Result<StatusCode, TrainingRouteError> {
-    require_role(&current_user, UserRole::ControllerTrainingMentor)?;
+    current_user
+        .require_role(UserRole::ControllerTrainingMentor)
+        .map_err(|_| TrainingRouteError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let training = training_repository::find_by_id(services.db(), id)
         .await
@@ -337,14 +345,6 @@ fn validate_ownership(
     }
 
     Err(TrainingRouteError::NotOwned)
-}
-
-fn require_role(current_user: &CurrentUser, role: UserRole) -> Result<(), TrainingRouteError> {
-    if current_user.has_role(role) {
-        Ok(())
-    } else {
-        Err(TrainingRouteError::Forbidden)
-    }
 }
 
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, TrainingRouteError> {

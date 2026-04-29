@@ -122,7 +122,9 @@ async fn book_position(
     Path((event_id, position_id)): Path<(String, String)>,
     Json(request): Json<EventAtcPositionBookRequest>,
 ) -> Result<Json<EventAtcPositionBookingDto>, EventAtcPositionError> {
-    require_role(&current_user, UserRole::Controller)?;
+    current_user
+        .require_role(UserRole::Controller)
+        .map_err(|_| EventAtcPositionError::Forbidden)?;
     let event_id = parse_ulid_uuid(&event_id, EventAtcPositionError::InvalidEventId)?;
     let position_id = parse_ulid_uuid(&position_id, EventAtcPositionError::InvalidPositionId)?;
     if request.user_id.is_some() && !has_booking_admin_role(&current_user) {
@@ -174,7 +176,9 @@ async fn cancel_position_booking(
     current_user: CurrentUser,
     Path((event_id, position_id)): Path<(String, String)>,
 ) -> Result<Json<EventAtcPositionBookingDto>, EventAtcPositionError> {
-    require_role(&current_user, UserRole::Controller)?;
+    current_user
+        .require_role(UserRole::Controller)
+        .map_err(|_| EventAtcPositionError::Forbidden)?;
     let event_id = parse_ulid_uuid(&event_id, EventAtcPositionError::InvalidEventId)?;
     let position_id = parse_ulid_uuid(&position_id, EventAtcPositionError::InvalidPositionId)?;
     let position = load_position(&services, event_id, position_id).await?;
@@ -216,28 +220,23 @@ async fn load_position(
 }
 
 fn require_edit_role(current_user: &CurrentUser) -> Result<(), EventAtcPositionError> {
-    if current_user.has_role(UserRole::EventCoordinator)
-        || current_user.has_role(UserRole::ControllerTrainingDirectorAssistant)
-        || current_user.has_role(UserRole::OperationDirectorAssistant)
-    {
-        Ok(())
-    } else {
-        Err(EventAtcPositionError::Forbidden)
-    }
+    current_user
+        .require_any_role(&[
+            UserRole::EventCoordinator,
+            UserRole::ControllerTrainingDirectorAssistant,
+            UserRole::OperationDirectorAssistant,
+        ])
+        .map_err(|_| EventAtcPositionError::Forbidden)
 }
 
 fn has_booking_admin_role(current_user: &CurrentUser) -> bool {
-    current_user.has_role(UserRole::EventCoordinator)
-        || current_user.has_role(UserRole::ControllerTrainingDirectorAssistant)
-        || current_user.has_role(UserRole::ControllerTrainingMentor)
-}
-
-fn require_role(current_user: &CurrentUser, role: UserRole) -> Result<(), EventAtcPositionError> {
-    if current_user.has_role(role) {
-        Ok(())
-    } else {
-        Err(EventAtcPositionError::Forbidden)
-    }
+    current_user
+        .require_any_role(&[
+            UserRole::EventCoordinator,
+            UserRole::ControllerTrainingDirectorAssistant,
+            UserRole::ControllerTrainingMentor,
+        ])
+        .is_ok()
 }
 
 fn permission_satisfies(permission: &UserAtcPermissionRecord, minimum_state: i32) -> bool {

@@ -74,7 +74,9 @@ async fn create_booking(
     current_user: CurrentUser,
     Json(request): Json<AtcBookingSaveRequest>,
 ) -> Result<Json<AtcBookingDto>, AtcBookingRouteError> {
-    require_role(&current_user, UserRole::Controller)?;
+    current_user
+        .require_role(UserRole::Controller)
+        .map_err(|_| AtcBookingRouteError::Forbidden)?;
     let user_id = current_user
         .user_id
         .ok_or(AtcBookingRouteError::Unauthorized)?;
@@ -106,7 +108,9 @@ async fn update_booking(
     Path(id): Path<String>,
     Json(request): Json<AtcBookingSaveRequest>,
 ) -> Result<Json<AtcBookingDto>, AtcBookingRouteError> {
-    require_role(&current_user, UserRole::Controller)?;
+    current_user
+        .require_role(UserRole::Controller)
+        .map_err(|_| AtcBookingRouteError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let user_id = current_user
         .user_id
@@ -132,7 +136,9 @@ async fn delete_booking(
     current_user: CurrentUser,
     Path(id): Path<String>,
 ) -> Result<Json<AtcBookingDto>, AtcBookingRouteError> {
-    require_role(&current_user, UserRole::Controller)?;
+    current_user
+        .require_role(UserRole::Controller)
+        .map_err(|_| AtcBookingRouteError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let user_id = current_user
         .user_id
@@ -171,14 +177,6 @@ fn ensure_owner(booking: &AtcBookingRecord, user_id: Uuid) -> Result<(), AtcBook
         Ok(())
     } else {
         Err(AtcBookingRouteError::BookingForbidden)
-    }
-}
-
-fn require_role(current_user: &CurrentUser, role: UserRole) -> Result<(), AtcBookingRouteError> {
-    if current_user.has_role(role) {
-        Ok(())
-    } else {
-        Err(AtcBookingRouteError::Forbidden)
     }
 }
 

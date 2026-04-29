@@ -86,7 +86,9 @@ async fn export_bookings(
     current_user: CurrentUser,
     Path(eid): Path<String>,
 ) -> Result<Response, EventSlotError> {
-    require_event_coordinator(&current_user)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| EventSlotError::Forbidden)?;
     let event_id = parse_ulid_uuid(&eid, EventSlotError::InvalidEventId)?;
     let rows = slot_repository::booking_export_rows(services.db(), event_id)
         .await
@@ -113,7 +115,9 @@ async fn create_slot(
     Path(eid): Path<String>,
     Json(request): Json<EventSlotSaveRequest>,
 ) -> Result<Json<EventSlotDto>, EventSlotError> {
-    require_event_coordinator(&current_user)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| EventSlotError::Forbidden)?;
     let _event_id = parse_ulid_uuid(&eid, EventSlotError::InvalidEventId)?;
     let slot = slot_repository::create(services.db(), request.try_into()?)
         .await
@@ -132,7 +136,9 @@ async fn update_slot(
     Path((eid, sid)): Path<(String, String)>,
     Json(request): Json<EventSlotSaveRequest>,
 ) -> Result<Json<EventSlotDto>, EventSlotError> {
-    require_event_coordinator(&current_user)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| EventSlotError::Forbidden)?;
     let event_id = parse_ulid_uuid(&eid, EventSlotError::InvalidEventId)?;
     let slot_id = parse_ulid_uuid(&sid, EventSlotError::InvalidSlotId)?;
     let slot = slot_repository::update(services.db(), event_id, slot_id, request.try_into()?)
@@ -152,7 +158,9 @@ async fn delete_slot(
     current_user: CurrentUser,
     Path((eid, sid)): Path<(String, String)>,
 ) -> Result<Json<EventSlotDto>, EventSlotError> {
-    require_event_coordinator(&current_user)?;
+    current_user
+        .require_role(UserRole::EventCoordinator)
+        .map_err(|_| EventSlotError::Forbidden)?;
     let event_id = parse_ulid_uuid(&eid, EventSlotError::InvalidEventId)?;
     let slot_id = parse_ulid_uuid(&sid, EventSlotError::InvalidSlotId)?;
     let slot = slot_repository::delete(services.db(), event_id, slot_id)
@@ -177,16 +185,10 @@ async fn ensure_event_exists(services: &Services, event_id: Uuid) -> Result<(), 
     }
 }
 
-fn require_event_coordinator(current_user: &CurrentUser) -> Result<(), EventSlotError> {
-    if current_user.has_role(UserRole::EventCoordinator) {
-        Ok(())
-    } else {
-        Err(EventSlotError::Forbidden)
-    }
-}
-
 fn include_booking_user(current_user: &CurrentUser) -> bool {
-    current_user.has_role(UserRole::EventCoordinator) || current_user.has_role(UserRole::Controller)
+    current_user
+        .require_any_role(&[UserRole::EventCoordinator, UserRole::Controller])
+        .is_ok()
 }
 
 fn parse_ulid_uuid(id: &str, error: EventSlotError) -> Result<Uuid, EventSlotError> {

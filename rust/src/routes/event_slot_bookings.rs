@@ -153,7 +153,9 @@ async fn delete_booking(
 }
 
 fn include_user(current_user: &CurrentUser) -> bool {
-    current_user.has_role(UserRole::EventCoordinator) || current_user.has_role(UserRole::Controller)
+    current_user
+        .require_any_role(&[UserRole::EventCoordinator, UserRole::Controller])
+        .is_ok()
 }
 
 fn parse_ulid_uuid(id: &str, error: EventSlotBookingError) -> Result<Uuid, EventSlotBookingError> {
