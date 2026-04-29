@@ -33,7 +33,18 @@ pub fn build_auth_routes() -> Router<Services> {
         .route("/token", post(token))
 }
 
-#[utoipa::path(get, path = "auth/authorize", tag = "Auth", responses((status = 302, description = "Redirects to authorization destination")))]
+#[utoipa::path(
+    get,
+    path = "auth/authorize",
+    tag = "Auth",
+    params(
+        ("response_type" = String, Query, description = "OAuth response type. Must be code."),
+        ("client_id" = String, Query, description = "OAuth client identifier"),
+        ("redirect_uri" = String, Query, description = "Client redirect URI"),
+        ("state" = Option<String>, Query, description = "Opaque client state")
+    ),
+    responses((status = 302, description = "Redirects to authorization destination"))
+)]
 async fn authorize(
     State(services): State<Services>,
     Query(query): Query<AuthorizeQuery>,
@@ -78,7 +89,13 @@ async fn authorize(
     Ok(response)
 }
 
-#[utoipa::path(post, path = "auth/device_authorization", tag = "Auth", responses((status = 200, description = "Successful response", body = serde_json::Value)))]
+#[utoipa::path(
+    post,
+    path = "auth/device_authorization",
+    tag = "Auth",
+    request_body(content = DeviceAuthorizationRequest, content_type = "application/x-www-form-urlencoded"),
+    responses((status = 200, description = "Successful response", body = DeviceAuthorizationResponse))
+)]
 async fn device_authorization(
     State(services): State<Services>,
     headers: HeaderMap,
@@ -339,7 +356,13 @@ async fn vatsim_callback(
     Ok(response)
 }
 
-#[utoipa::path(post, path = "auth/token", tag = "Auth", responses((status = 200, description = "Successful response", body = serde_json::Value)))]
+#[utoipa::path(
+    post,
+    path = "auth/token",
+    tag = "Auth",
+    request_body(content = AccessTokenRequest, content_type = "application/x-www-form-urlencoded"),
+    responses((status = 200, description = "Successful response", body = TokenResponse))
+)]
 async fn token(
     State(services): State<Services>,
     Form(request): Form<AccessTokenRequest>,
