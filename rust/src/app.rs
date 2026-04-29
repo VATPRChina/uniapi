@@ -5,6 +5,7 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
+use tower_http::trace::TraceLayer;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
@@ -85,6 +86,7 @@ pub fn router(services: Services) -> Router {
             auth_services,
             auth::authenticate,
         ))
+        .layer(TraceLayer::new_for_http())
 }
 
 async fn root() -> &'static str {

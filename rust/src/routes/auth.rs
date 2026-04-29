@@ -4,7 +4,7 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{Duration, Utc};
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
@@ -841,23 +841,16 @@ struct AuthorizeQuery {
 
 #[derive(Deserialize, Serialize, utoipa::ToSchema)]
 struct AuthenticationState {
-    #[serde(rename = "Type")]
     auth_type: AuthenticationStateType,
-    #[serde(rename = "ClientId")]
     client_id: Option<String>,
-    #[serde(rename = "RedirectUri")]
     redirect_uri: Option<String>,
-    #[serde(rename = "UserCode")]
     user_code: Option<String>,
-    #[serde(rename = "State")]
     state: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, utoipa::ToSchema)]
 enum AuthenticationStateType {
-    #[serde(rename = "CODE")]
     Code,
-    #[serde(rename = "DEVICE")]
     Device,
 }
 

@@ -1,2 +1,21 @@
 [database]
 url = "postgres://localhost/vatprc"
+
+[[authentication.jwt.clients]]
+client_id = "01J2ED6BDX9J9BTYS2RVW83ME7"
+redirect_uri = ["http://localhost:3000/auth/callback"]
+
+[[authentication.jwt.clients]]
+client_id = "01K7XDHJGMYQWZ029T85BGDZ28"
+redirect_uri = ["http://localhost:3000/docs"]
+
+[[authentication.jwt.clients]]
+client_id = "01K7X723S04R1F5P2P8NJV5QT5"
+client_secret = "urn:vatprc:client_secret:01K7X71YQQXWSDT2XK1ZNYMS2J"
+redirect_uri = []
+
+[authentication.vatsim]
+endpoint = "https://auth-dev.vatsim.net"
+client_id = "1392"
+client_secret = "fDMUqXa4gGuQRq4MxR8NNXVIUGcD3WpEwNZPSiLz"
+redirect_uri = "http://localhost:3000/auth/callback/vatsim"

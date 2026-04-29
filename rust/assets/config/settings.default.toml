@@ -1,4 +1,4 @@
-bind_address = "[::1]:5000"
+bind_address = "[::1]:3000"
 
 [authentication.jwt]
 issuer = "https://uniapi.vatprc.net"
