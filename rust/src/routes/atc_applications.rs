@@ -1,6 +1,4 @@
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
@@ -8,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::routes::ApiError;
 use crate::{
     auth::CurrentUser,
     models::user_role::{UserRole, role_closure_from_strings},
@@ -53,14 +52,12 @@ pub fn build_atc_application_routes() -> Router<Services> {
 async fn list_applications(
     State(services): State<Services>,
     current_user: CurrentUser,
-) -> Result<Json<Vec<AtcApplicationSummaryDto>>, AtcApplicationRouteError> {
-    let current_user_id = current_user
-        .user_id
-        .ok_or(AtcApplicationRouteError::Unauthorized)?;
+) -> Result<Json<Vec<AtcApplicationSummaryDto>>, ApiError> {
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin = current_user.has_role(UserRole::ControllerTrainingDirectorAssistant);
     let applications = application_repository::list(services.db())
         .await
-        .map_err(AtcApplicationRouteError::Database)?
+        .map_err(ApiError::Database)?
         .into_iter()
         .filter(|application| is_admin || application.user_id == current_user_id)
         .map(|application| {
@@ -76,16 +73,14 @@ async fn create_application(
     State(services): State<Services>,
     current_user: CurrentUser,
     Json(request): Json<AtcApplicationRequest>,
-) -> Result<Json<AtcApplicationSummaryDto>, AtcApplicationRouteError> {
-    let current_user_id = current_user
-        .user_id
-        .ok_or(AtcApplicationRouteError::Unauthorized)?;
+) -> Result<Json<AtcApplicationSummaryDto>, ApiError> {
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     if application_repository::count_active_by_user(services.db(), current_user_id)
         .await
-        .map_err(AtcApplicationRouteError::Database)?
+        .map_err(ApiError::Database)?
         > 0
     {
-        return Err(AtcApplicationRouteError::ApplicationAlreadyExists);
+        return Err(ApiError::ApplicationAlreadyExists);
     }
 
     let answers = request
@@ -93,11 +88,7 @@ async fn create_application(
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let mut transaction = services
-        .db()
-        .begin()
-        .await
-        .map_err(AtcApplicationRouteError::Database)?;
+    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
     let filing_id = sheet_filing_repository::set(
         &mut transaction,
         APPLICATION_SHEET_ID,
@@ -106,15 +97,12 @@ async fn create_application(
         &answers,
     )
     .await
-    .map_err(AtcApplicationRouteError::Database)?;
-    transaction
-        .commit()
-        .await
-        .map_err(AtcApplicationRouteError::Database)?;
+    .map_err(ApiError::Database)?;
+    transaction.commit().await.map_err(ApiError::Database)?;
 
     let application = application_repository::create(services.db(), current_user_id, filing_id)
         .await
-        .map_err(AtcApplicationRouteError::Database)?;
+        .map_err(ApiError::Database)?;
 
     Ok(Json(AtcApplicationSummaryDto::from_record(
         application,
@@ -128,10 +116,8 @@ async fn get_application(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(id): Path<String>,
-) -> Result<Json<AtcApplicationDto>, AtcApplicationRouteError> {
-    let current_user_id = current_user
-        .user_id
-        .ok_or(AtcApplicationRouteError::Unauthorized)?;
+) -> Result<Json<AtcApplicationDto>, ApiError> {
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin = current_user.has_role(UserRole::ControllerTrainingDirectorAssistant);
     let application =
         get_visible_application(&services, parse_ulid_uuid(&id)?, current_user_id, is_admin)
@@ -147,16 +133,14 @@ async fn update_application(
     current_user: CurrentUser,
     Path(id): Path<String>,
     Json(request): Json<AtcApplicationRequest>,
-) -> Result<Json<AtcApplicationDto>, AtcApplicationRouteError> {
-    let current_user_id = current_user
-        .user_id
-        .ok_or(AtcApplicationRouteError::Unauthorized)?;
+) -> Result<Json<AtcApplicationDto>, ApiError> {
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin = current_user.has_role(UserRole::ControllerTrainingDirectorAssistant);
     let application =
         get_visible_application(&services, parse_ulid_uuid(&id)?, current_user_id, is_admin)
             .await?;
     if parse_status(&application.status) != AtcApplicationStatus::Submitted {
-        return Err(AtcApplicationRouteError::ApplicationCannotUpdate);
+        return Err(ApiError::ApplicationCannotUpdate);
     }
 
     let answers = request
@@ -164,11 +148,7 @@ async fn update_application(
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let mut transaction = services
-        .db()
-        .begin()
-        .await
-        .map_err(AtcApplicationRouteError::Database)?;
+    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
     sheet_filing_repository::set(
         &mut transaction,
         APPLICATION_SHEET_ID,
@@ -177,16 +157,13 @@ async fn update_application(
         &answers,
     )
     .await
-    .map_err(AtcApplicationRouteError::Database)?;
-    transaction
-        .commit()
-        .await
-        .map_err(AtcApplicationRouteError::Database)?;
+    .map_err(ApiError::Database)?;
+    transaction.commit().await.map_err(ApiError::Database)?;
 
     let application = application_repository::find_by_id(services.db(), application.id)
         .await
-        .map_err(AtcApplicationRouteError::Database)?
-        .ok_or(AtcApplicationRouteError::ApplicationNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::ApplicationNotFound)?;
     application_to_dto(&services, application, false, current_user_id)
         .await
         .map(Json)
@@ -195,16 +172,14 @@ async fn update_application(
 #[utoipa::path(get, path = "api/atc/applications/sheet", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
 async fn get_application_sheet(
     State(services): State<Services>,
-) -> Result<Json<SheetDto>, AtcApplicationRouteError> {
+) -> Result<Json<SheetDto>, ApiError> {
     sheet_dto(&services, APPLICATION_SHEET_ID, "ATC Application Sheet")
         .await
         .map(Json)
 }
 
 #[utoipa::path(get, path = "api/atc/applications/review-sheet", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
-async fn get_review_sheet(
-    State(services): State<Services>,
-) -> Result<Json<SheetDto>, AtcApplicationRouteError> {
+async fn get_review_sheet(State(services): State<Services>) -> Result<Json<SheetDto>, ApiError> {
     sheet_dto(&services, REVIEW_SHEET_ID, "ATC Application Review Sheet")
         .await
         .map(Json)
@@ -216,28 +191,22 @@ async fn review_application(
     current_user: CurrentUser,
     Path(id): Path<String>,
     Json(request): Json<AtcApplicationReviewRequest>,
-) -> Result<Json<AtcApplicationDto>, AtcApplicationRouteError> {
+) -> Result<Json<AtcApplicationDto>, ApiError> {
     current_user
         .require_role(UserRole::ControllerTrainingDirectorAssistant)
-        .map_err(|_| AtcApplicationRouteError::Forbidden)?;
-    let current_user_id = current_user
-        .user_id
-        .ok_or(AtcApplicationRouteError::Unauthorized)?;
+        .map_err(|_| ApiError::Forbidden)?;
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let application_id = parse_ulid_uuid(&id)?;
     let application = application_repository::find_by_id(services.db(), application_id)
         .await
-        .map_err(AtcApplicationRouteError::Database)?
-        .ok_or(AtcApplicationRouteError::ApplicationNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::ApplicationNotFound)?;
     let answers = request
         .review_answers
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let mut transaction = services
-        .db()
-        .begin()
-        .await
-        .map_err(AtcApplicationRouteError::Database)?;
+    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
     let filing_id = sheet_filing_repository::set(
         &mut transaction,
         REVIEW_SHEET_ID,
@@ -246,11 +215,8 @@ async fn review_application(
         &answers,
     )
     .await
-    .map_err(AtcApplicationRouteError::Database)?;
-    transaction
-        .commit()
-        .await
-        .map_err(AtcApplicationRouteError::Database)?;
+    .map_err(ApiError::Database)?;
+    transaction.commit().await.map_err(ApiError::Database)?;
 
     let application = application_repository::set_review(
         services.db(),
@@ -259,8 +225,8 @@ async fn review_application(
         filing_id,
     )
     .await
-    .map_err(AtcApplicationRouteError::Database)?
-    .ok_or(AtcApplicationRouteError::ApplicationNotFound)?;
+    .map_err(ApiError::Database)?
+    .ok_or(ApiError::ApplicationNotFound)?;
 
     application_to_dto(&services, application, true, current_user_id)
         .await
@@ -272,13 +238,13 @@ async fn get_visible_application(
     id: Uuid,
     current_user_id: Uuid,
     is_admin: bool,
-) -> Result<AtcApplicationRecord, AtcApplicationRouteError> {
+) -> Result<AtcApplicationRecord, ApiError> {
     let application = application_repository::find_by_id(services.db(), id)
         .await
-        .map_err(AtcApplicationRouteError::Database)?
-        .ok_or(AtcApplicationRouteError::ApplicationNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::ApplicationNotFound)?;
     if !is_admin && application.user_id != current_user_id {
-        return Err(AtcApplicationRouteError::ApplicationNotFound);
+        return Err(ApiError::ApplicationNotFound);
     }
 
     Ok(application)
@@ -289,13 +255,13 @@ async fn application_to_dto(
     application: AtcApplicationRecord,
     is_admin: bool,
     current_user_id: Uuid,
-) -> Result<AtcApplicationDto, AtcApplicationRouteError> {
+) -> Result<AtcApplicationDto, ApiError> {
     let application_filing_answers = sheet_filing_answer_repository::list_by_filing(
         services.db(),
         application.application_filing_id,
     )
     .await
-    .map_err(AtcApplicationRouteError::Database)?
+    .map_err(ApiError::Database)?
     .into_iter()
     .map(SheetFieldAnswerDto::from)
     .collect();
@@ -303,7 +269,7 @@ async fn application_to_dto(
         Some(review_filing_id) => Some(
             sheet_filing_answer_repository::list_by_filing(services.db(), review_filing_id)
                 .await
-                .map_err(AtcApplicationRouteError::Database)?
+                .map_err(ApiError::Database)?
                 .into_iter()
                 .map(SheetFieldAnswerDto::from)
                 .collect(),
@@ -324,17 +290,17 @@ async fn sheet_dto(
     services: &Services,
     sheet_id: &str,
     sheet_name: &str,
-) -> Result<SheetDto, AtcApplicationRouteError> {
+) -> Result<SheetDto, ApiError> {
     sheet_repository::ensure(services.db(), sheet_id, sheet_name)
         .await
-        .map_err(AtcApplicationRouteError::Database)?;
+        .map_err(ApiError::Database)?;
     let sheet = sheet_repository::find(services.db(), sheet_id)
         .await
-        .map_err(AtcApplicationRouteError::Database)?
-        .ok_or(AtcApplicationRouteError::SheetNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::SheetNotFound)?;
     let fields = sheet_field_repository::list(services.db(), sheet_id)
         .await
-        .map_err(AtcApplicationRouteError::Database)?;
+        .map_err(ApiError::Database)?;
 
     Ok(SheetDto {
         id: sheet.id,
@@ -347,10 +313,10 @@ async fn sheet_dto(
     })
 }
 
-fn parse_ulid_uuid(id: &str) -> Result<Uuid, AtcApplicationRouteError> {
+fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| AtcApplicationRouteError::InvalidId)
+        .map_err(|_| ApiError::InvalidId)
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -583,46 +549,4 @@ fn roles_to_dto(roles: &[String]) -> Vec<String> {
         .collect::<Vec<_>>();
     roles.sort();
     roles
-}
-
-#[derive(Debug)]
-enum AtcApplicationRouteError {
-    ApplicationAlreadyExists,
-    ApplicationCannotUpdate,
-    ApplicationNotFound,
-    Database(sqlx::Error),
-    Forbidden,
-    InvalidId,
-    SheetNotFound,
-    Unauthorized,
-}
-
-impl IntoResponse for AtcApplicationRouteError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            AtcApplicationRouteError::ApplicationAlreadyExists => (
-                StatusCode::CONFLICT,
-                "ATC application already exists".into(),
-            ),
-            AtcApplicationRouteError::ApplicationCannotUpdate => {
-                (StatusCode::CONFLICT, "ATC application cannot update".into())
-            }
-            AtcApplicationRouteError::ApplicationNotFound => {
-                (StatusCode::NOT_FOUND, "ATC application not found".into())
-            }
-            AtcApplicationRouteError::Database(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-            AtcApplicationRouteError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
-            AtcApplicationRouteError::InvalidId => (StatusCode::BAD_REQUEST, "invalid id".into()),
-            AtcApplicationRouteError::SheetNotFound => {
-                (StatusCode::NOT_FOUND, "sheet not found".into())
-            }
-            AtcApplicationRouteError::Unauthorized => {
-                (StatusCode::UNAUTHORIZED, "unauthorized".into())
-            }
-        };
-
-        crate::problem::problem_response(status, message)
-    }
 }

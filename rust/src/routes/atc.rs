@@ -1,6 +1,4 @@
 use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
@@ -9,14 +7,11 @@ use std::collections::BTreeMap;
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::{
-    models::{
-        user_controller_state::UserControllerState,
-        user_role::{UserRole, role_closure_from_strings},
-    },
-    repository::atc::atc::{self as atc_repository, AtcControllerPermissionRecord},
-    services::Services,
-};
+use crate::models::user_controller_state::UserControllerState;
+use crate::models::user_role::{UserRole, role_closure_from_strings};
+use crate::repository::atc::atc::{self as atc_repository, AtcControllerPermissionRecord};
+use crate::routes::ApiError;
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(list_controllers))]
@@ -29,10 +24,10 @@ pub fn build_atc_routes() -> Router<Services> {
 #[utoipa::path(get, path = "api/atc/controllers", tag = "ATC", responses((status = 200, description = "Successful response", body = Vec<AtcStatusDto>)))]
 async fn list_controllers(
     State(services): State<Services>,
-) -> Result<Json<Vec<AtcStatusDto>>, AtcRouteError> {
+) -> Result<Json<Vec<AtcStatusDto>>, ApiError> {
     let rows = atc_repository::list_controllers(services.db())
         .await
-        .map_err(AtcRouteError::Database)?;
+        .map_err(ApiError::Database)?;
 
     let mut statuses = BTreeMap::<Uuid, AtcStatusBuilder>::new();
     for row in rows {
@@ -152,21 +147,4 @@ fn roles_to_dto(roles: &[String]) -> Vec<String> {
         .collect::<Vec<_>>();
     roles.sort();
     roles
-}
-
-#[derive(Debug)]
-enum AtcRouteError {
-    Database(sqlx::Error),
-}
-
-impl IntoResponse for AtcRouteError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            AtcRouteError::Database(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-        };
-
-        crate::problem::problem_response(status, message)
-    }
 }

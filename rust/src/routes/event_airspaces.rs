@@ -1,6 +1,4 @@
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
@@ -8,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::routes::ApiError;
 use crate::{
     auth::CurrentUser,
     models::user_role::UserRole,
@@ -39,14 +38,14 @@ pub fn build_event_airspace_routes() -> Router<Services> {
 async fn list_airspaces(
     State(services): State<Services>,
     Path(eid): Path<String>,
-) -> Result<Json<Vec<EventAirspaceDto>>, EventAirspaceError> {
-    let event_id = parse_ulid_uuid(&eid, EventAirspaceError::InvalidEventId)?;
+) -> Result<Json<Vec<EventAirspaceDto>>, ApiError> {
+    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
     ensure_event_exists(&services, event_id).await?;
 
     Ok(Json(
         airspace_repository::list_by_event(services.db(), event_id)
             .await
-            .map_err(EventAirspaceError::Database)?
+            .map_err(ApiError::Database)?
             .into_iter()
             .map(EventAirspaceDto::from)
             .collect(),
@@ -56,13 +55,13 @@ async fn list_airspaces(
 async fn get_airspace(
     State(services): State<Services>,
     Path((eid, aid)): Path<(String, String)>,
-) -> Result<Json<EventAirspaceDto>, EventAirspaceError> {
-    let event_id = parse_ulid_uuid(&eid, EventAirspaceError::InvalidEventId)?;
-    let airspace_id = parse_ulid_uuid(&aid, EventAirspaceError::InvalidAirspaceId)?;
+) -> Result<Json<EventAirspaceDto>, ApiError> {
+    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
+    let airspace_id = parse_ulid_uuid(&aid, ApiError::InvalidAirspaceId)?;
     let airspace = airspace_repository::find_by_event_and_id(services.db(), event_id, airspace_id)
         .await
-        .map_err(EventAirspaceError::Database)?
-        .ok_or(EventAirspaceError::AirspaceNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::AirspaceNotFound)?;
 
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
@@ -73,16 +72,16 @@ async fn create_airspace(
     current_user: CurrentUser,
     Path(eid): Path<String>,
     Json(request): Json<EventAirspaceSaveRequest>,
-) -> Result<Json<EventAirspaceDto>, EventAirspaceError> {
+) -> Result<Json<EventAirspaceDto>, ApiError> {
     current_user
         .require_role(UserRole::EventCoordinator)
-        .map_err(|_| EventAirspaceError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&eid, EventAirspaceError::InvalidEventId)?;
+        .map_err(|_| ApiError::Forbidden)?;
+    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
     ensure_event_exists(&services, event_id).await?;
     let airspace =
         airspace_repository::create(services.db(), event_id, EventAirspaceSave::from(request))
             .await
-            .map_err(EventAirspaceError::Database)?;
+            .map_err(ApiError::Database)?;
 
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
@@ -93,12 +92,12 @@ async fn update_airspace(
     current_user: CurrentUser,
     Path((eid, aid)): Path<(String, String)>,
     Json(request): Json<EventAirspaceSaveRequest>,
-) -> Result<Json<EventAirspaceDto>, EventAirspaceError> {
+) -> Result<Json<EventAirspaceDto>, ApiError> {
     current_user
         .require_role(UserRole::EventCoordinator)
-        .map_err(|_| EventAirspaceError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&eid, EventAirspaceError::InvalidEventId)?;
-    let airspace_id = parse_ulid_uuid(&aid, EventAirspaceError::InvalidAirspaceId)?;
+        .map_err(|_| ApiError::Forbidden)?;
+    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
+    let airspace_id = parse_ulid_uuid(&aid, ApiError::InvalidAirspaceId)?;
     let airspace = airspace_repository::update(
         services.db(),
         event_id,
@@ -106,8 +105,8 @@ async fn update_airspace(
         EventAirspaceSave::from(request),
     )
     .await
-    .map_err(EventAirspaceError::Database)?
-    .ok_or(EventAirspaceError::AirspaceNotFound)?;
+    .map_err(ApiError::Database)?
+    .ok_or(ApiError::AirspaceNotFound)?;
 
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
@@ -117,35 +116,32 @@ async fn delete_airspace(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path((eid, aid)): Path<(String, String)>,
-) -> Result<Json<EventAirspaceDto>, EventAirspaceError> {
+) -> Result<Json<EventAirspaceDto>, ApiError> {
     current_user
         .require_role(UserRole::EventCoordinator)
-        .map_err(|_| EventAirspaceError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&eid, EventAirspaceError::InvalidEventId)?;
-    let airspace_id = parse_ulid_uuid(&aid, EventAirspaceError::InvalidAirspaceId)?;
+        .map_err(|_| ApiError::Forbidden)?;
+    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
+    let airspace_id = parse_ulid_uuid(&aid, ApiError::InvalidAirspaceId)?;
     let airspace = airspace_repository::delete(services.db(), event_id, airspace_id)
         .await
-        .map_err(EventAirspaceError::Database)?
-        .ok_or(EventAirspaceError::AirspaceNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::AirspaceNotFound)?;
 
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
 
-async fn ensure_event_exists(
-    services: &Services,
-    event_id: Uuid,
-) -> Result<(), EventAirspaceError> {
+async fn ensure_event_exists(services: &Services, event_id: Uuid) -> Result<(), ApiError> {
     if event_repository::exists(services.db(), event_id)
         .await
-        .map_err(EventAirspaceError::Database)?
+        .map_err(ApiError::Database)?
     {
         Ok(())
     } else {
-        Err(EventAirspaceError::EventNotFound)
+        Err(ApiError::EventNotFound)
     }
 }
 
-fn parse_ulid_uuid(id: &str, error: EventAirspaceError) -> Result<Uuid, EventAirspaceError> {
+fn parse_ulid_uuid(id: &str, error: ApiError) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>().map(Uuid::from).map_err(|_| error)
 }
 
@@ -188,38 +184,5 @@ impl From<EventAirspaceRecord> for EventAirspaceDto {
             icao_codes: airspace.icao_codes,
             description: airspace.description,
         }
-    }
-}
-
-#[derive(Debug)]
-enum EventAirspaceError {
-    AirspaceNotFound,
-    Database(sqlx::Error),
-    EventNotFound,
-    Forbidden,
-    InvalidAirspaceId,
-    InvalidEventId,
-}
-
-impl IntoResponse for EventAirspaceError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            EventAirspaceError::AirspaceNotFound => {
-                (StatusCode::NOT_FOUND, "event airspace not found".into())
-            }
-            EventAirspaceError::Database(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-            EventAirspaceError::EventNotFound => (StatusCode::NOT_FOUND, "event not found".into()),
-            EventAirspaceError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
-            EventAirspaceError::InvalidAirspaceId => {
-                (StatusCode::BAD_REQUEST, "invalid airspace id".into())
-            }
-            EventAirspaceError::InvalidEventId => {
-                (StatusCode::BAD_REQUEST, "invalid event id".into())
-            }
-        };
-
-        crate::problem::problem_response(status, message)
     }
 }

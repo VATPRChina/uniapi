@@ -1,13 +1,10 @@
 use axum::extract::{Multipart, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
 use serde::Serialize;
 
-use crate::{
-    adapter::smms::SmmsError, auth::CurrentUser, models::user_role::UserRole, services::Services,
-};
+use crate::routes::ApiError;
+use crate::{auth::CurrentUser, models::user_role::UserRole, services::Services};
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(upload_image))]
@@ -27,10 +24,10 @@ async fn upload_image(
     State(services): State<Services>,
     current_user: CurrentUser,
     mut multipart: Multipart,
-) -> Result<Json<UploadImageResponse>, StorageError> {
+) -> Result<Json<UploadImageResponse>, ApiError> {
     current_user
         .require_role(UserRole::Volunteer)
-        .map_err(|_| StorageError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     tracing::debug!(
         subject = %current_user.subject,
         user_id = ?current_user.user_id,
@@ -38,63 +35,27 @@ async fn upload_image(
         "authenticated storage image upload"
     );
 
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(StorageError::Multipart)?
-    {
+    while let Some(field) = multipart.next_field().await.map_err(ApiError::Multipart)? {
         if field.name() != Some("image") {
             continue;
         }
 
         let file_name = field.file_name().map(ToOwned::to_owned);
         let content_type = field.content_type().map(ToOwned::to_owned);
-        let image = field
-            .bytes()
-            .await
-            .map_err(StorageError::Multipart)?
-            .to_vec();
+        let image = field.bytes().await.map_err(ApiError::Multipart)?.to_vec();
 
         if image.is_empty() {
-            return Err(StorageError::BadRequest("No image file provided.".into()));
+            return Err(ApiError::BadRequest("No image file provided.".into()));
         }
 
         let url = services
             .smms()
             .upload_image(image, file_name, content_type)
             .await
-            .map_err(StorageError::Smms)?;
+            .map_err(ApiError::Smms)?;
 
         return Ok(Json(UploadImageResponse { url }));
     }
 
-    Err(StorageError::BadRequest("No image file provided.".into()))
-}
-
-#[derive(Debug)]
-pub enum StorageError {
-    BadRequest(String),
-    Forbidden,
-    Multipart(axum::extract::multipart::MultipartError),
-    Smms(SmmsError),
-}
-
-impl IntoResponse for StorageError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            StorageError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
-            StorageError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
-            StorageError::Multipart(error) => (StatusCode::BAD_REQUEST, error.to_string()),
-            StorageError::Smms(SmmsError::MissingSecretToken) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                SmmsError::MissingSecretToken.to_string(),
-            ),
-            StorageError::Smms(error) => (
-                StatusCode::SERVICE_UNAVAILABLE,
-                format!("Image upload to SM.MS failed: {error}"),
-            ),
-        };
-
-        crate::problem::problem_response(status, message)
-    }
+    Err(ApiError::BadRequest("No image file provided.".into()))
 }

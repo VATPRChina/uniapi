@@ -1,6 +1,5 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
@@ -8,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::routes::ApiError;
 use crate::{
     auth::CurrentUser,
     models::{
@@ -42,10 +42,8 @@ pub fn build_user_atc_permission_routes() -> Router<Services> {
 async fn get_my_status(
     State(services): State<Services>,
     current_user: CurrentUser,
-) -> Result<Json<AtcStatusDto>, UserAtcPermissionRouteError> {
-    let user_id = current_user
-        .user_id
-        .ok_or(UserAtcPermissionRouteError::Unauthorized)?;
+) -> Result<Json<AtcStatusDto>, ApiError> {
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
@@ -54,7 +52,7 @@ async fn get_status(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(id): Path<String>,
-) -> Result<Json<AtcStatusDto>, UserAtcPermissionRouteError> {
+) -> Result<Json<AtcStatusDto>, ApiError> {
     require_admin_role(&current_user)?;
     let user_id = parse_ulid_uuid(&id)?;
     get_status_for_user(&services, user_id).await.map(Json)
@@ -66,31 +64,24 @@ async fn set_status(
     current_user: CurrentUser,
     Path(id): Path<String>,
     Json(request): Json<AtcStatusRequest>,
-) -> Result<Json<AtcStatusDto>, UserAtcPermissionRouteError> {
+) -> Result<Json<AtcStatusDto>, ApiError> {
     require_admin_role(&current_user)?;
     let user_id = parse_ulid_uuid(&id)?;
     let status = AtcStatusSave::try_from(request)?;
 
     if atc_status_repository::find_by_user_id(services.db(), user_id)
         .await
-        .map_err(UserAtcPermissionRouteError::Database)?
+        .map_err(ApiError::Database)?
         .is_none()
     {
-        return Err(UserAtcPermissionRouteError::UserNotFound);
+        return Err(ApiError::UserNotFound);
     }
 
-    let mut transaction = services
-        .db()
-        .begin()
-        .await
-        .map_err(UserAtcPermissionRouteError::Database)?;
+    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
     atc_status_repository::upsert(&mut transaction, user_id, &status)
         .await
-        .map_err(UserAtcPermissionRouteError::Database)?;
-    transaction
-        .commit()
-        .await
-        .map_err(UserAtcPermissionRouteError::Database)?;
+        .map_err(ApiError::Database)?;
+    transaction.commit().await.map_err(ApiError::Database)?;
 
     get_status_for_user(&services, user_id).await.map(Json)
 }
@@ -100,65 +91,55 @@ async fn delete_status(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(id): Path<String>,
-) -> Result<StatusCode, UserAtcPermissionRouteError> {
+) -> Result<StatusCode, ApiError> {
     require_admin_role(&current_user)?;
     let user_id = parse_ulid_uuid(&id)?;
 
     if atc_status_repository::find_by_user_id(services.db(), user_id)
         .await
-        .map_err(UserAtcPermissionRouteError::Database)?
+        .map_err(ApiError::Database)?
         .is_none()
     {
-        return Err(UserAtcPermissionRouteError::UserNotFound);
+        return Err(ApiError::UserNotFound);
     }
 
-    let mut transaction = services
-        .db()
-        .begin()
-        .await
-        .map_err(UserAtcPermissionRouteError::Database)?;
+    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
     let deleted = atc_status_repository::delete_with_permissions(&mut transaction, user_id)
         .await
-        .map_err(UserAtcPermissionRouteError::Database)?;
-    transaction
-        .commit()
-        .await
-        .map_err(UserAtcPermissionRouteError::Database)?;
+        .map_err(ApiError::Database)?;
+    transaction.commit().await.map_err(ApiError::Database)?;
     if !deleted {
-        return Err(UserAtcPermissionRouteError::AtcStatusNotFound);
+        return Err(ApiError::AtcStatusNotFound);
     }
 
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn get_status_for_user(
-    services: &Services,
-    user_id: Uuid,
-) -> Result<AtcStatusDto, UserAtcPermissionRouteError> {
+async fn get_status_for_user(services: &Services, user_id: Uuid) -> Result<AtcStatusDto, ApiError> {
     let status = atc_status_repository::find_by_user_id(services.db(), user_id)
         .await
-        .map_err(UserAtcPermissionRouteError::Database)?
-        .ok_or(UserAtcPermissionRouteError::UserNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::UserNotFound)?;
     let permissions = atc_permission_repository::list_by_user_id(services.db(), user_id)
         .await
-        .map_err(UserAtcPermissionRouteError::Database)?;
+        .map_err(ApiError::Database)?;
 
     Ok(AtcStatusDto::from_records(status, permissions))
 }
 
-fn require_admin_role(current_user: &CurrentUser) -> Result<(), UserAtcPermissionRouteError> {
+fn require_admin_role(current_user: &CurrentUser) -> Result<(), ApiError> {
     current_user
         .require_any_role(&[
             UserRole::ControllerTrainingMentor,
             UserRole::ControllerTrainingDirectorAssistant,
         ])
-        .map_err(|_| UserAtcPermissionRouteError::Forbidden)
+        .map_err(|_| ApiError::Forbidden)
 }
 
-fn parse_ulid_uuid(id: &str) -> Result<Uuid, UserAtcPermissionRouteError> {
+fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| UserAtcPermissionRouteError::InvalidUserId)
+        .map_err(|_| ApiError::InvalidUserId)
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -170,17 +151,17 @@ struct AtcStatusRequest {
 }
 
 impl TryFrom<AtcStatusRequest> for AtcStatusSave {
-    type Error = UserAtcPermissionRouteError;
+    type Error = ApiError;
 
     fn try_from(request: AtcStatusRequest) -> Result<Self, Self::Error> {
         if !ALLOWED_RATINGS.contains(&request.rating.as_str()) {
-            return Err(UserAtcPermissionRouteError::InvalidAtcRating);
+            return Err(ApiError::InvalidAtcRating);
         }
 
         if request.permissions.iter().any(|permission| {
             permission.state == UserControllerState::Solo && permission.solo_expires_at.is_none()
         }) {
-            return Err(UserAtcPermissionRouteError::SoloExpirationNotProvided);
+            return Err(ApiError::SoloExpirationNotProvided);
         }
 
         Ok(Self {
@@ -295,48 +276,4 @@ fn roles_to_dto(roles: &[String]) -> Vec<String> {
         .collect::<Vec<_>>();
     roles.sort();
     roles
-}
-
-#[derive(Debug)]
-enum UserAtcPermissionRouteError {
-    AtcStatusNotFound,
-    Database(sqlx::Error),
-    Forbidden,
-    InvalidAtcRating,
-    InvalidUserId,
-    SoloExpirationNotProvided,
-    Unauthorized,
-    UserNotFound,
-}
-
-impl IntoResponse for UserAtcPermissionRouteError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            UserAtcPermissionRouteError::AtcStatusNotFound => {
-                (StatusCode::NOT_FOUND, "ATC status not found".into())
-            }
-            UserAtcPermissionRouteError::Database(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-            UserAtcPermissionRouteError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
-            UserAtcPermissionRouteError::InvalidAtcRating => {
-                (StatusCode::BAD_REQUEST, "invalid ATC rating".into())
-            }
-            UserAtcPermissionRouteError::InvalidUserId => {
-                (StatusCode::BAD_REQUEST, "invalid user id".into())
-            }
-            UserAtcPermissionRouteError::SoloExpirationNotProvided => (
-                StatusCode::BAD_REQUEST,
-                "solo expiration not provided".into(),
-            ),
-            UserAtcPermissionRouteError::Unauthorized => {
-                (StatusCode::UNAUTHORIZED, "unauthorized".into())
-            }
-            UserAtcPermissionRouteError::UserNotFound => {
-                (StatusCode::NOT_FOUND, "user not found".into())
-            }
-        };
-
-        crate::problem::problem_response(status, message)
-    }
 }

@@ -1,6 +1,4 @@
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
@@ -8,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::routes::ApiError;
 use crate::{
     auth::CurrentUser,
     models::user_role::UserRole,
@@ -29,11 +28,11 @@ pub fn build_event_routes() -> Router<Services> {
 }
 
 #[utoipa::path(get, path = "api/events", tag = "Events", responses((status = 200, description = "Successful response", body = Vec<EventDto>)))]
-async fn list_events(State(services): State<Services>) -> Result<Json<Vec<EventDto>>, EventError> {
+async fn list_events(State(services): State<Services>) -> Result<Json<Vec<EventDto>>, ApiError> {
     Ok(Json(
         event_repository::list_current(services.db())
             .await
-            .map_err(EventError::Database)?
+            .map_err(ApiError::Database)?
             .into_iter()
             .map(EventDto::from)
             .collect(),
@@ -43,11 +42,11 @@ async fn list_events(State(services): State<Services>) -> Result<Json<Vec<EventD
 async fn list_past_events(
     State(services): State<Services>,
     Query(query): Query<ListPastQuery>,
-) -> Result<Json<Vec<EventDto>>, EventError> {
+) -> Result<Json<Vec<EventDto>>, ApiError> {
     Ok(Json(
         event_repository::list_past(services.db(), query.until)
             .await
-            .map_err(EventError::Database)?
+            .map_err(ApiError::Database)?
             .into_iter()
             .map(EventDto::from)
             .collect(),
@@ -58,12 +57,12 @@ async fn list_past_events(
 async fn get_event(
     State(services): State<Services>,
     Path(eid): Path<String>,
-) -> Result<Json<EventDto>, EventError> {
+) -> Result<Json<EventDto>, ApiError> {
     let id = parse_ulid_uuid(&eid)?;
     let event = event_repository::find_by_id(services.db(), id)
         .await
-        .map_err(EventError::Database)?
-        .ok_or(EventError::EventNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::EventNotFound)?;
 
     Ok(Json(EventDto::from(event)))
 }
@@ -73,13 +72,13 @@ async fn create_event(
     State(services): State<Services>,
     current_user: CurrentUser,
     Json(request): Json<EventSaveRequest>,
-) -> Result<Json<EventDto>, EventError> {
+) -> Result<Json<EventDto>, ApiError> {
     current_user
         .require_role(UserRole::EventCoordinator)
-        .map_err(|_| EventError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let event = event_repository::create(services.db(), request.try_into()?)
         .await
-        .map_err(EventError::Database)?;
+        .map_err(ApiError::Database)?;
 
     Ok(Json(EventDto::from(event)))
 }
@@ -90,15 +89,15 @@ async fn update_event(
     current_user: CurrentUser,
     Path(eid): Path<String>,
     Json(request): Json<EventSaveRequest>,
-) -> Result<Json<EventDto>, EventError> {
+) -> Result<Json<EventDto>, ApiError> {
     current_user
         .require_role(UserRole::EventCoordinator)
-        .map_err(|_| EventError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let id = parse_ulid_uuid(&eid)?;
     let event = event_repository::update(services.db(), id, request.try_into()?)
         .await
-        .map_err(EventError::Database)?
-        .ok_or(EventError::EventNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::EventNotFound)?;
 
     Ok(Json(EventDto::from(event)))
 }
@@ -108,23 +107,23 @@ async fn delete_event(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(eid): Path<String>,
-) -> Result<Json<EventDto>, EventError> {
+) -> Result<Json<EventDto>, ApiError> {
     current_user
         .require_role(UserRole::EventCoordinator)
-        .map_err(|_| EventError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let id = parse_ulid_uuid(&eid)?;
     let event = event_repository::delete(services.db(), id)
         .await
-        .map_err(EventError::Database)?
-        .ok_or(EventError::EventNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::EventNotFound)?;
 
     Ok(Json(EventDto::from(event)))
 }
 
-fn parse_ulid_uuid(id: &str) -> Result<Uuid, EventError> {
+fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| EventError::InvalidEventId)
+        .map_err(|_| ApiError::InvalidEventId)
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -148,11 +147,11 @@ struct EventSaveRequest {
 }
 
 impl TryFrom<EventSaveRequest> for EventSave {
-    type Error = EventError;
+    type Error = ApiError;
 
     fn try_from(request: EventSaveRequest) -> Result<Self, Self::Error> {
         if request.start_booking_at.is_some() ^ request.end_booking_at.is_some() {
-            return Err(EventError::BadRequest(
+            return Err(ApiError::BadRequest(
                 "Both StartBookingAt and EndBookingAt must be set or both must be null.".into(),
             ));
         }
@@ -209,28 +208,5 @@ impl From<EventRecord> for EventDto {
             vatsim_link: event.vatsim_link,
             description: event.description,
         }
-    }
-}
-
-#[derive(Debug)]
-enum EventError {
-    BadRequest(String),
-    Database(sqlx::Error),
-    EventNotFound,
-    Forbidden,
-    InvalidEventId,
-}
-
-impl IntoResponse for EventError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            EventError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
-            EventError::Database(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()),
-            EventError::EventNotFound => (StatusCode::NOT_FOUND, "event not found".into()),
-            EventError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
-            EventError::InvalidEventId => (StatusCode::BAD_REQUEST, "invalid event id".into()),
-        };
-
-        crate::problem::problem_response(status, message)
     }
 }

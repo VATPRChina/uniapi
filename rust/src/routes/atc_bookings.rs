@@ -1,6 +1,4 @@
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
@@ -8,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::routes::ApiError;
 use crate::{
     auth::CurrentUser,
     models::user_role::{UserRole, role_closure_from_strings},
@@ -39,11 +38,11 @@ pub fn build_atc_booking_routes() -> Router<Services> {
 #[utoipa::path(get, path = "api/atc/bookings", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<AtcBookingDto>)))]
 async fn list_bookings(
     State(services): State<Services>,
-) -> Result<Json<Vec<AtcBookingDto>>, AtcBookingRouteError> {
+) -> Result<Json<Vec<AtcBookingDto>>, ApiError> {
     Ok(Json(
         booking_repository::list(services.db())
             .await
-            .map_err(AtcBookingRouteError::Database)?
+            .map_err(ApiError::Database)?
             .into_iter()
             .map(AtcBookingDto::from)
             .collect(),
@@ -54,14 +53,12 @@ async fn list_bookings(
 async fn list_my_bookings(
     State(services): State<Services>,
     current_user: CurrentUser,
-) -> Result<Json<Vec<AtcBookingDto>>, AtcBookingRouteError> {
-    let user_id = current_user
-        .user_id
-        .ok_or(AtcBookingRouteError::Unauthorized)?;
+) -> Result<Json<Vec<AtcBookingDto>>, ApiError> {
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     Ok(Json(
         booking_repository::list_by_user(services.db(), user_id)
             .await
-            .map_err(AtcBookingRouteError::Database)?
+            .map_err(ApiError::Database)?
             .into_iter()
             .map(AtcBookingDto::from)
             .collect(),
@@ -73,16 +70,14 @@ async fn create_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
     Json(request): Json<AtcBookingSaveRequest>,
-) -> Result<Json<AtcBookingDto>, AtcBookingRouteError> {
+) -> Result<Json<AtcBookingDto>, ApiError> {
     current_user
         .require_role(UserRole::Controller)
-        .map_err(|_| AtcBookingRouteError::Forbidden)?;
-    let user_id = current_user
-        .user_id
-        .ok_or(AtcBookingRouteError::Unauthorized)?;
+        .map_err(|_| ApiError::Forbidden)?;
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let booking = booking_repository::create(services.db(), user_id, request.try_into()?)
         .await
-        .map_err(AtcBookingRouteError::Database)?;
+        .map_err(ApiError::Database)?;
 
     Ok(Json(AtcBookingDto::from(booking)))
 }
@@ -91,12 +86,12 @@ async fn create_booking(
 async fn get_booking(
     State(services): State<Services>,
     Path(id): Path<String>,
-) -> Result<Json<AtcBookingDto>, AtcBookingRouteError> {
+) -> Result<Json<AtcBookingDto>, ApiError> {
     let id = parse_ulid_uuid(&id)?;
     let booking = booking_repository::find_by_id(services.db(), id)
         .await
-        .map_err(AtcBookingRouteError::Database)?
-        .ok_or(AtcBookingRouteError::BookingNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::BookingNotFound)?;
 
     Ok(Json(AtcBookingDto::from(booking)))
 }
@@ -107,25 +102,23 @@ async fn update_booking(
     current_user: CurrentUser,
     Path(id): Path<String>,
     Json(request): Json<AtcBookingSaveRequest>,
-) -> Result<Json<AtcBookingDto>, AtcBookingRouteError> {
+) -> Result<Json<AtcBookingDto>, ApiError> {
     current_user
         .require_role(UserRole::Controller)
-        .map_err(|_| AtcBookingRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
-    let user_id = current_user
-        .user_id
-        .ok_or(AtcBookingRouteError::Unauthorized)?;
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let booking = booking_repository::find_by_id(services.db(), id)
         .await
-        .map_err(AtcBookingRouteError::Database)?
-        .ok_or(AtcBookingRouteError::BookingNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::BookingNotFound)?;
     ensure_owner(&booking, user_id)?;
     ensure_not_event_position_booking(&services, id).await?;
 
     let booking = booking_repository::update(services.db(), id, request.try_into()?)
         .await
-        .map_err(AtcBookingRouteError::Database)?
-        .ok_or(AtcBookingRouteError::BookingNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::BookingNotFound)?;
 
     Ok(Json(AtcBookingDto::from(booking)))
 }
@@ -135,25 +128,23 @@ async fn delete_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(id): Path<String>,
-) -> Result<Json<AtcBookingDto>, AtcBookingRouteError> {
+) -> Result<Json<AtcBookingDto>, ApiError> {
     current_user
         .require_role(UserRole::Controller)
-        .map_err(|_| AtcBookingRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
-    let user_id = current_user
-        .user_id
-        .ok_or(AtcBookingRouteError::Unauthorized)?;
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let booking = booking_repository::find_by_id(services.db(), id)
         .await
-        .map_err(AtcBookingRouteError::Database)?
-        .ok_or(AtcBookingRouteError::BookingNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::BookingNotFound)?;
     ensure_owner(&booking, user_id)?;
     ensure_not_event_position_booking(&services, id).await?;
 
     let booking = booking_repository::delete(services.db(), id)
         .await
-        .map_err(AtcBookingRouteError::Database)?
-        .ok_or(AtcBookingRouteError::BookingNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::BookingNotFound)?;
 
     Ok(Json(AtcBookingDto::from(booking)))
 }
@@ -161,29 +152,29 @@ async fn delete_booking(
 async fn ensure_not_event_position_booking(
     services: &Services,
     booking_id: Uuid,
-) -> Result<(), AtcBookingRouteError> {
+) -> Result<(), ApiError> {
     if booking_repository::has_event_position_booking(services.db(), booking_id)
         .await
-        .map_err(AtcBookingRouteError::Database)?
+        .map_err(ApiError::Database)?
     {
-        return Err(AtcBookingRouteError::BookingIsEventPosition);
+        return Err(ApiError::BookingIsEventPosition);
     }
 
     Ok(())
 }
 
-fn ensure_owner(booking: &AtcBookingRecord, user_id: Uuid) -> Result<(), AtcBookingRouteError> {
+fn ensure_owner(booking: &AtcBookingRecord, user_id: Uuid) -> Result<(), ApiError> {
     if booking.user_id == user_id {
         Ok(())
     } else {
-        Err(AtcBookingRouteError::BookingForbidden)
+        Err(ApiError::BookingForbidden)
     }
 }
 
-fn parse_ulid_uuid(id: &str) -> Result<Uuid, AtcBookingRouteError> {
+fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| AtcBookingRouteError::InvalidBookingId)
+        .map_err(|_| ApiError::InvalidBookingId)
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -194,11 +185,11 @@ struct AtcBookingSaveRequest {
 }
 
 impl TryFrom<AtcBookingSaveRequest> for AtcBookingSave {
-    type Error = AtcBookingRouteError;
+    type Error = ApiError;
 
     fn try_from(request: AtcBookingSaveRequest) -> Result<Self, Self::Error> {
         if request.start_time >= request.end_time {
-            return Err(AtcBookingRouteError::StartMustBeBeforeEnd);
+            return Err(ApiError::StartMustBeBeforeEnd);
         }
 
         Ok(Self {
@@ -268,47 +259,4 @@ fn roles_to_dto(roles: &[String]) -> Vec<String> {
         .collect::<Vec<_>>();
     roles.sort();
     roles
-}
-
-#[derive(Debug)]
-enum AtcBookingRouteError {
-    BookingForbidden,
-    BookingIsEventPosition,
-    BookingNotFound,
-    Database(sqlx::Error),
-    Forbidden,
-    InvalidBookingId,
-    StartMustBeBeforeEnd,
-    Unauthorized,
-}
-
-impl IntoResponse for AtcBookingRouteError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            AtcBookingRouteError::BookingForbidden => {
-                (StatusCode::FORBIDDEN, "ATC booking forbidden".into())
-            }
-            AtcBookingRouteError::BookingIsEventPosition => (
-                StatusCode::CONFLICT,
-                "ATC booking is linked to an event position".into(),
-            ),
-            AtcBookingRouteError::BookingNotFound => {
-                (StatusCode::NOT_FOUND, "ATC booking not found".into())
-            }
-            AtcBookingRouteError::Database(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-            AtcBookingRouteError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
-            AtcBookingRouteError::InvalidBookingId => {
-                (StatusCode::BAD_REQUEST, "invalid ATC booking id".into())
-            }
-            AtcBookingRouteError::StartMustBeBeforeEnd => (
-                StatusCode::BAD_REQUEST,
-                "start time must be before end time".into(),
-            ),
-            AtcBookingRouteError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".into()),
-        };
-
-        crate::problem::problem_response(status, message)
-    }
 }

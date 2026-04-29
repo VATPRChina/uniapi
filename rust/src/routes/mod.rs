@@ -18,3 +18,5 @@ pub mod training_applications;
 pub mod trainings;
 pub mod user_atc_permissions;
 pub mod users;
+
+pub use crate::error::ApiError;

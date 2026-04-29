@@ -1,22 +1,14 @@
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::routes::ApiError;
 use crate::{
-    adapter::{
-        compat::CompatClientError,
-        flight::{Flight, flights_from_vatsim},
-    },
+    adapter::flight::{Flight, flights_from_vatsim},
     auth::CurrentUser,
-    flight_plan::{
-        Leg,
-        parser::{self, ParserError},
-        validator::{self, ValidatorError},
-    },
+    flight_plan::{Leg, parser, validator},
     models::user_role::UserRole,
     repository::auth::user as user_repository,
     services::Services,
@@ -49,7 +41,7 @@ pub fn build_flight_routes() -> Router<Services> {
 #[utoipa::path(get, path = "api/flights/active", tag = "Flights", responses((status = 200, description = "Successful response", body = Vec<FlightDto>)))]
 async fn active_flights(
     State(services): State<Services>,
-) -> Result<Json<Vec<FlightDto>>, FlightRouteError> {
+) -> Result<Json<Vec<FlightDto>>, ApiError> {
     Ok(Json(
         list_flights(&services)
             .await?
@@ -63,7 +55,7 @@ async fn active_flights(
 async fn flight_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
-) -> Result<Json<FlightDto>, FlightRouteError> {
+) -> Result<Json<FlightDto>, ApiError> {
     find_by_callsign(&services, &callsign)
         .await
         .map(FlightDto::from)
@@ -74,7 +66,7 @@ async fn flight_by_callsign(
 async fn warnings_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
-) -> Result<Json<Vec<validator::WarningMessage>>, FlightRouteError> {
+) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
     let flight = find_by_callsign(&services, &callsign).await?;
     warnings_for_flight(&services, &flight).await
 }
@@ -83,12 +75,12 @@ async fn warnings_by_callsign(
 async fn route_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
-) -> Result<Json<Vec<FlightLeg>>, FlightRouteError> {
+) -> Result<Json<Vec<FlightLeg>>, ApiError> {
     let flight = find_by_callsign(&services, &callsign).await?;
     let route = route_string(&flight);
     let legs = parser::parse_route(services.db(), &route)
         .await
-        .map_err(FlightRouteError::RouteParser)?;
+        .map_err(ApiError::RouteParser)?;
     Ok(Json(legs.into_iter().map(FlightLeg::from).collect()))
 }
 
@@ -97,10 +89,10 @@ async fn temporary_warnings(
     current_user: CurrentUser,
     State(services): State<Services>,
     Query(query): Query<TemporaryFlightQuery>,
-) -> Result<Json<Vec<validator::WarningMessage>>, FlightRouteError> {
+) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
     current_user
         .require_role(UserRole::ApiClient)
-        .map_err(|_| FlightRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     warnings_for_flight(&services, &Flight::from(query)).await
 }
 
@@ -108,37 +100,37 @@ async fn temporary_warnings(
 async fn my_flight(
     State(services): State<Services>,
     current_user: CurrentUser,
-) -> Result<Json<FlightDto>, FlightRouteError> {
-    let user_id = current_user.user_id.ok_or(FlightRouteError::Unauthorized)?;
+) -> Result<Json<FlightDto>, ApiError> {
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let user = user_repository::find_detail_by_id(services.db(), user_id)
         .await
-        .map_err(FlightRouteError::Database)?
-        .ok_or(FlightRouteError::UserNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::UserNotFound)?;
     list_flights(&services)
         .await?
         .into_iter()
         .find(|flight| flight.cid == user.cid)
-        .ok_or(FlightRouteError::FlightNotFoundForCid)
+        .ok_or(ApiError::FlightNotFoundForCid)
         .map(FlightDto::from)
         .map(Json)
 }
 
-async fn list_flights(services: &Services) -> Result<Vec<Flight>, FlightRouteError> {
+async fn list_flights(services: &Services) -> Result<Vec<Flight>, ApiError> {
     Ok(flights_from_vatsim(
         services
             .compat()
             .get_online_data()
             .await
-            .map_err(FlightRouteError::Compat)?,
+            .map_err(ApiError::Compat)?,
     ))
 }
 
-async fn find_by_callsign(services: &Services, callsign: &str) -> Result<Flight, FlightRouteError> {
+async fn find_by_callsign(services: &Services, callsign: &str) -> Result<Flight, ApiError> {
     list_flights(services)
         .await?
         .into_iter()
         .find(|flight| flight.callsign.eq_ignore_ascii_case(callsign))
-        .ok_or(FlightRouteError::CallsignNotFound)
+        .ok_or(ApiError::CallsignNotFound)
 }
 
 fn route_string(flight: &Flight) -> String {
@@ -151,14 +143,14 @@ fn route_string(flight: &Flight) -> String {
 async fn warnings_for_flight(
     services: &Services,
     flight: &Flight,
-) -> Result<Json<Vec<validator::WarningMessage>>, FlightRouteError> {
+) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
     let route = route_string(flight);
     let legs = parser::parse_route(services.db(), &route)
         .await
-        .map_err(FlightRouteError::RouteParser)?;
+        .map_err(ApiError::RouteParser)?;
     let messages = validator::validate_route(services.db(), flight, &legs)
         .await
-        .map_err(FlightRouteError::RouteValidator)?;
+        .map_err(ApiError::RouteValidator)?;
     Ok(Json(messages))
 }
 
@@ -269,46 +261,5 @@ impl From<&crate::flight_plan::Fix> for FlightFix {
         Self {
             identifier: fix.name(),
         }
-    }
-}
-
-#[derive(Debug)]
-enum FlightRouteError {
-    CallsignNotFound,
-    Compat(CompatClientError),
-    Database(sqlx::Error),
-    FlightNotFoundForCid,
-    Forbidden,
-    RouteParser(ParserError),
-    RouteValidator(ValidatorError),
-    Unauthorized,
-    UserNotFound,
-}
-
-impl IntoResponse for FlightRouteError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            FlightRouteError::CallsignNotFound => {
-                (StatusCode::NOT_FOUND, "callsign not found".into())
-            }
-            FlightRouteError::Compat(error) => (StatusCode::BAD_GATEWAY, error.to_string()),
-            FlightRouteError::Database(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-            FlightRouteError::FlightNotFoundForCid => {
-                (StatusCode::NOT_FOUND, "flight not found for cid".into())
-            }
-            FlightRouteError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
-            FlightRouteError::RouteParser(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-            FlightRouteError::RouteValidator(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-            FlightRouteError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".into()),
-            FlightRouteError::UserNotFound => (StatusCode::NOT_FOUND, "user not found".into()),
-        };
-
-        crate::problem::problem_response(status, message)
     }
 }

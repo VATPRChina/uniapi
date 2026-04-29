@@ -1,6 +1,5 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
@@ -8,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::routes::ApiError;
 use crate::{
     auth::CurrentUser,
     models::user_role::{UserRole, role_closure_from_strings},
@@ -61,10 +61,8 @@ pub fn build_training_routes() -> Router<Services> {
 async fn list_active(
     State(services): State<Services>,
     current_user: CurrentUser,
-) -> Result<Json<Vec<TrainingDto>>, TrainingRouteError> {
-    let user_id = current_user
-        .user_id
-        .ok_or(TrainingRouteError::Unauthorized)?;
+) -> Result<Json<Vec<TrainingDto>>, ApiError> {
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     trainings_to_dto(
         &services,
         training_repository::list_active(
@@ -73,7 +71,7 @@ async fn list_active(
             current_user.has_role(UserRole::ControllerTrainingMentor),
         )
         .await
-        .map_err(TrainingRouteError::Database)?,
+        .map_err(ApiError::Database)?,
     )
     .await
     .map(Json)
@@ -83,10 +81,8 @@ async fn list_active(
 async fn list_finished(
     State(services): State<Services>,
     current_user: CurrentUser,
-) -> Result<Json<Vec<TrainingDto>>, TrainingRouteError> {
-    let user_id = current_user
-        .user_id
-        .ok_or(TrainingRouteError::Unauthorized)?;
+) -> Result<Json<Vec<TrainingDto>>, ApiError> {
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     trainings_to_dto(
         &services,
         training_repository::list_finished(
@@ -95,7 +91,7 @@ async fn list_finished(
             current_user.has_role(UserRole::ControllerTrainingMentor),
         )
         .await
-        .map_err(TrainingRouteError::Database)?,
+        .map_err(ApiError::Database)?,
     )
     .await
     .map(Json)
@@ -106,20 +102,18 @@ async fn list_by_user(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(user_id): Path<String>,
-) -> Result<Json<Vec<TrainingDto>>, TrainingRouteError> {
+) -> Result<Json<Vec<TrainingDto>>, ApiError> {
     let user_id = parse_ulid_uuid(&user_id)?;
-    let current_user_id = current_user
-        .user_id
-        .ok_or(TrainingRouteError::Unauthorized)?;
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     if user_id != current_user_id && !current_user.has_role(UserRole::ControllerTrainingMentor) {
-        return Err(TrainingRouteError::NotOwned);
+        return Err(ApiError::NotOwned);
     }
 
     trainings_to_dto(
         &services,
         training_repository::list_by_trainee(services.db(), user_id)
             .await
-            .map_err(TrainingRouteError::Database)?,
+            .map_err(ApiError::Database)?,
     )
     .await
     .map(Json)
@@ -130,7 +124,7 @@ async fn get_training(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(id): Path<String>,
-) -> Result<Json<TrainingDto>, TrainingRouteError> {
+) -> Result<Json<TrainingDto>, ApiError> {
     let training = find_training(&services, &id).await?;
     validate_ownership(&current_user, &training, false)?;
     training_to_dto(&services, training).await.map(Json)
@@ -141,23 +135,21 @@ async fn create_training(
     State(services): State<Services>,
     current_user: CurrentUser,
     Json(request): Json<TrainingSaveRequest>,
-) -> Result<Json<TrainingDto>, TrainingRouteError> {
+) -> Result<Json<TrainingDto>, ApiError> {
     current_user
         .require_role(UserRole::ControllerTrainingMentor)
-        .map_err(|_| TrainingRouteError::Forbidden)?;
-    let current_user_id = current_user
-        .user_id
-        .ok_or(TrainingRouteError::Unauthorized)?;
+        .map_err(|_| ApiError::Forbidden)?;
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let training = TrainingSave::try_from(request)?;
     if training.trainer_id != current_user_id
         && !current_user.has_role(UserRole::ControllerTrainingDirectorAssistant)
     {
-        return Err(TrainingRouteError::CannotCreateForOtherTrainer);
+        return Err(ApiError::CannotCreateForOtherTrainer);
     }
 
     let training = training_repository::create(services.db(), training)
         .await
-        .map_err(TrainingRouteError::Database)?;
+        .map_err(ApiError::Database)?;
     training_to_dto(&services, training).await.map(Json)
 }
 
@@ -167,42 +159,40 @@ async fn update_training(
     current_user: CurrentUser,
     Path(id): Path<String>,
     Json(request): Json<TrainingSaveRequest>,
-) -> Result<Json<TrainingDto>, TrainingRouteError> {
+) -> Result<Json<TrainingDto>, ApiError> {
     current_user
         .require_role(UserRole::ControllerTrainingMentor)
-        .map_err(|_| TrainingRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let training = training_repository::find_by_id(services.db(), id)
         .await
-        .map_err(TrainingRouteError::Database)?
-        .ok_or(TrainingRouteError::NotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::NotFound)?;
     validate_ownership(&current_user, &training, true)?;
     let save = TrainingSave::try_from(request)?;
     if save.trainer_id != training.trainer_id || save.trainee_id != training.trainee_id {
-        return Err(TrainingRouteError::CannotUpdateTrainerTrainee);
+        return Err(ApiError::CannotUpdateTrainerTrainee);
     }
 
     let training = training_repository::update(services.db(), id, save)
         .await
-        .map_err(TrainingRouteError::Database)?
-        .ok_or(TrainingRouteError::NotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::NotFound)?;
     training_to_dto(&services, training).await.map(Json)
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/record-sheet", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
-async fn get_record_sheet(
-    State(services): State<Services>,
-) -> Result<Json<SheetDto>, TrainingRouteError> {
+async fn get_record_sheet(State(services): State<Services>) -> Result<Json<SheetDto>, ApiError> {
     sheet_repository::ensure(services.db(), RECORD_SHEET_ID, "Training Record Sheet")
         .await
-        .map_err(TrainingRouteError::Database)?;
+        .map_err(ApiError::Database)?;
     let sheet = sheet_repository::find(services.db(), RECORD_SHEET_ID)
         .await
-        .map_err(TrainingRouteError::Database)?
-        .ok_or(TrainingRouteError::SheetNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::SheetNotFound)?;
     let fields = sheet_field_repository::list(services.db(), RECORD_SHEET_ID)
         .await
-        .map_err(TrainingRouteError::Database)?;
+        .map_err(ApiError::Database)?;
 
     Ok(Json(SheetDto {
         id: sheet.id,
@@ -221,15 +211,15 @@ async fn set_record_sheet(
     current_user: CurrentUser,
     Path(id): Path<String>,
     Json(request): Json<TrainingRecordRequest>,
-) -> Result<Json<TrainingDto>, TrainingRouteError> {
+) -> Result<Json<TrainingDto>, ApiError> {
     current_user
         .require_role(UserRole::ControllerTrainingMentor)
-        .map_err(|_| TrainingRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let training = training_repository::find_by_id(services.db(), id)
         .await
-        .map_err(TrainingRouteError::Database)?
-        .ok_or(TrainingRouteError::NotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::NotFound)?;
     validate_ownership(&current_user, &training, true)?;
 
     let answers = request
@@ -237,11 +227,7 @@ async fn set_record_sheet(
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let mut transaction = services
-        .db()
-        .begin()
-        .await
-        .map_err(TrainingRouteError::Database)?;
+    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
     let filing_id = sheet_filing_repository::set(
         &mut transaction,
         RECORD_SHEET_ID,
@@ -250,15 +236,12 @@ async fn set_record_sheet(
         &answers,
     )
     .await
-    .map_err(TrainingRouteError::Database)?;
-    transaction
-        .commit()
-        .await
-        .map_err(TrainingRouteError::Database)?;
+    .map_err(ApiError::Database)?;
+    transaction.commit().await.map_err(ApiError::Database)?;
     let training = training_repository::set_record_filing(services.db(), id, filing_id)
         .await
-        .map_err(TrainingRouteError::Database)?
-        .ok_or(TrainingRouteError::NotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::NotFound)?;
 
     training_to_dto(&services, training).await.map(Json)
 }
@@ -268,40 +251,37 @@ async fn delete_training(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(id): Path<String>,
-) -> Result<StatusCode, TrainingRouteError> {
+) -> Result<StatusCode, ApiError> {
     current_user
         .require_role(UserRole::ControllerTrainingMentor)
-        .map_err(|_| TrainingRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let training = training_repository::find_by_id(services.db(), id)
         .await
-        .map_err(TrainingRouteError::Database)?
-        .ok_or(TrainingRouteError::NotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::NotFound)?;
     validate_ownership(&current_user, &training, true)?;
     if training.start_at <= Utc::now() {
-        return Err(TrainingRouteError::CannotDeleteStartedTraining);
+        return Err(ApiError::CannotDeleteStartedTraining);
     }
 
     training_repository::mark_deleted(services.db(), id)
         .await
-        .map_err(TrainingRouteError::Database)?;
+        .map_err(ApiError::Database)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn find_training(
-    services: &Services,
-    id: &str,
-) -> Result<TrainingRecord, TrainingRouteError> {
+async fn find_training(services: &Services, id: &str) -> Result<TrainingRecord, ApiError> {
     training_repository::find_by_id(services.db(), parse_ulid_uuid(id)?)
         .await
-        .map_err(TrainingRouteError::Database)?
-        .ok_or(TrainingRouteError::NotFound)
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::NotFound)
 }
 
 async fn trainings_to_dto(
     services: &Services,
     trainings: Vec<TrainingRecord>,
-) -> Result<Vec<TrainingDto>, TrainingRouteError> {
+) -> Result<Vec<TrainingDto>, ApiError> {
     let mut dtos = Vec::with_capacity(trainings.len());
     for training in trainings {
         dtos.push(training_to_dto(services, training).await?);
@@ -312,12 +292,12 @@ async fn trainings_to_dto(
 async fn training_to_dto(
     services: &Services,
     training: TrainingRecord,
-) -> Result<TrainingDto, TrainingRouteError> {
+) -> Result<TrainingDto, ApiError> {
     let record_sheet_filing = match training.record_sheet_filing_id {
         Some(filing_id) => Some(
             sheet_filing_answer_repository::list_by_filing(services.db(), filing_id)
                 .await
-                .map_err(TrainingRouteError::Database)?
+                .map_err(ApiError::Database)?
                 .into_iter()
                 .map(SheetFieldAnswerDto::from)
                 .collect(),
@@ -332,10 +312,8 @@ fn validate_ownership(
     current_user: &CurrentUser,
     training: &TrainingRecord,
     require_trainer: bool,
-) -> Result<(), TrainingRouteError> {
-    let current_user_id = current_user
-        .user_id
-        .ok_or(TrainingRouteError::Unauthorized)?;
+) -> Result<(), ApiError> {
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     if training.trainer_id == current_user_id {
         return Ok(());
     }
@@ -346,13 +324,13 @@ fn validate_ownership(
         return Ok(());
     }
 
-    Err(TrainingRouteError::NotOwned)
+    Err(ApiError::NotOwned)
 }
 
-fn parse_ulid_uuid(id: &str) -> Result<Uuid, TrainingRouteError> {
+fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| TrainingRouteError::InvalidId)
+        .map_err(|_| ApiError::InvalidId)
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -365,7 +343,7 @@ struct TrainingSaveRequest {
 }
 
 impl TryFrom<TrainingSaveRequest> for TrainingSave {
-    type Error = TrainingRouteError;
+    type Error = ApiError;
 
     fn try_from(request: TrainingSaveRequest) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -567,48 +545,4 @@ fn roles_to_dto(roles: &[String]) -> Vec<String> {
         .collect::<Vec<_>>();
     roles.sort();
     roles
-}
-
-#[derive(Debug)]
-enum TrainingRouteError {
-    CannotCreateForOtherTrainer,
-    CannotDeleteStartedTraining,
-    CannotUpdateTrainerTrainee,
-    Database(sqlx::Error),
-    Forbidden,
-    InvalidId,
-    NotFound,
-    NotOwned,
-    SheetNotFound,
-    Unauthorized,
-}
-
-impl IntoResponse for TrainingRouteError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            TrainingRouteError::CannotCreateForOtherTrainer => (
-                StatusCode::FORBIDDEN,
-                "cannot create training for other trainers".into(),
-            ),
-            TrainingRouteError::CannotDeleteStartedTraining => (
-                StatusCode::CONFLICT,
-                "cannot delete started training".into(),
-            ),
-            TrainingRouteError::CannotUpdateTrainerTrainee => (
-                StatusCode::BAD_REQUEST,
-                "cannot update training trainer or trainee".into(),
-            ),
-            TrainingRouteError::Database(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-            TrainingRouteError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
-            TrainingRouteError::InvalidId => (StatusCode::BAD_REQUEST, "invalid id".into()),
-            TrainingRouteError::NotFound => (StatusCode::NOT_FOUND, "training not found".into()),
-            TrainingRouteError::NotOwned => (StatusCode::FORBIDDEN, "not owned".into()),
-            TrainingRouteError::SheetNotFound => (StatusCode::NOT_FOUND, "sheet not found".into()),
-            TrainingRouteError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".into()),
-        };
-
-        crate::problem::problem_response(status, message)
-    }
 }

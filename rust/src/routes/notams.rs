@@ -1,11 +1,10 @@
 use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
 
-use crate::{adapter::discourse::DiscourseError, services::Services};
+use crate::routes::ApiError;
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(list_notams))]
@@ -16,15 +15,13 @@ pub fn build_notam_routes() -> Router<Services> {
 }
 
 #[utoipa::path(get, path = "api/notams", tag = "NOTAM", responses((status = 200, description = "Successful response", body = Vec<NotamDto>)))]
-async fn list_notams(
-    State(services): State<Services>,
-) -> Result<Json<Vec<NotamDto>>, NotamRouteError> {
+async fn list_notams(State(services): State<Services>) -> Result<Json<Vec<NotamDto>>, ApiError> {
     let endpoint = services.discourse().endpoint().trim_end_matches('/');
     let notams = services
         .discourse()
         .get_notam_topics()
         .await
-        .map_err(NotamRouteError::Discourse)?
+        .map_err(ApiError::Discourse)?
         .topic_list
         .topics
         .into_iter()
@@ -47,19 +44,4 @@ struct NotamDto {
     title: String,
     language_code: &'static str,
     link: String,
-}
-
-#[derive(Debug)]
-enum NotamRouteError {
-    Discourse(DiscourseError),
-}
-
-impl IntoResponse for NotamRouteError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            NotamRouteError::Discourse(error) => (StatusCode::BAD_GATEWAY, error.to_string()),
-        };
-
-        crate::problem::problem_response(status, message)
-    }
 }

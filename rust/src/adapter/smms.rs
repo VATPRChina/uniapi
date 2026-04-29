@@ -13,9 +13,6 @@ pub struct SmmsClient {
 
 #[derive(Debug, Error)]
 pub enum SmmsError {
-    #[error("SM.MS secret token is not configured.")]
-    MissingSecretToken,
-
     #[error(transparent)]
     Request(#[from] reqwest::Error),
 
@@ -41,10 +38,6 @@ impl SmmsClient {
         file_name: Option<String>,
         content_type: Option<String>,
     ) -> Result<String, SmmsError> {
-        if self.secret_token.is_empty() {
-            return Err(SmmsError::MissingSecretToken);
-        }
-
         let file_name = normalize_file_name(file_name);
         let upload_name = upload_file_name(&file_name);
 
@@ -130,22 +123,6 @@ mod tests {
 
         assert!(upload_name.starts_with("vatprc-"));
         assert!(upload_name.ends_with("-image"));
-    }
-
-    #[tokio::test]
-    async fn upload_image_fails_when_secret_token_is_missing() {
-        let client = SmmsClient::new(String::new(), String::new());
-
-        let error = client
-            .upload_image(
-                vec![1, 2, 3],
-                Some("image".to_string()),
-                Some("image/png".to_string()),
-            )
-            .await
-            .unwrap_err();
-
-        assert!(matches!(error, SmmsError::MissingSecretToken));
     }
 
     #[tokio::test]

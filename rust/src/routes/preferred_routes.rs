@@ -1,11 +1,11 @@
 use axum::extract::Path;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::routes::ApiError;
 use crate::{auth::CurrentUser, models::user_role::UserRole, services::Services};
 
 #[derive(utoipa::OpenApi)]
@@ -30,33 +30,33 @@ pub fn build_preferred_route_routes() -> Router<Services> {
 }
 
 #[utoipa::path(get, path = "api/navdata/preferred-routes", tag = "Navdata", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<PreferredRouteDto>)))]
-async fn list_preferred_routes(current_user: CurrentUser) -> Result<Response, PreferredRouteError> {
+async fn list_preferred_routes(current_user: CurrentUser) -> Result<Response, ApiError> {
     current_user
         .require_role(UserRole::Volunteer)
-        .map_err(|_| PreferredRouteError::Forbidden)?;
-    Err(PreferredRouteError::NotImplemented)
+        .map_err(|_| ApiError::Forbidden)?;
+    Err(ApiError::NotImplemented)
 }
 
 #[utoipa::path(get, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("oauth2" = [])), params(("id" = String, Path, description = "Preferred route ULID")), responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn get_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
-) -> Result<Response, PreferredRouteError> {
+) -> Result<Response, ApiError> {
     current_user
         .require_role(UserRole::Volunteer)
-        .map_err(|_| PreferredRouteError::Forbidden)?;
-    Err(PreferredRouteError::NotImplemented)
+        .map_err(|_| ApiError::Forbidden)?;
+    Err(ApiError::NotImplemented)
 }
 
 #[utoipa::path(post, path = "api/navdata/preferred-routes", tag = "Navdata", security(("oauth2" = [])), request_body = PreferredRouteSaveRequest, responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn create_preferred_route(
     current_user: CurrentUser,
     Json(_request): Json<PreferredRouteSaveRequest>,
-) -> Result<Response, PreferredRouteError> {
+) -> Result<Response, ApiError> {
     current_user
         .require_role(UserRole::EventCoordinator)
-        .map_err(|_| PreferredRouteError::Forbidden)?;
-    Err(PreferredRouteError::NotImplemented)
+        .map_err(|_| ApiError::Forbidden)?;
+    Err(ApiError::NotImplemented)
 }
 
 #[utoipa::path(put, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("oauth2" = [])), params(("id" = String, Path, description = "Preferred route ULID")), request_body = PreferredRouteSaveRequest, responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
@@ -64,22 +64,22 @@ async fn update_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
     Json(_request): Json<PreferredRouteSaveRequest>,
-) -> Result<Response, PreferredRouteError> {
+) -> Result<Response, ApiError> {
     current_user
         .require_role(UserRole::EventCoordinator)
-        .map_err(|_| PreferredRouteError::Forbidden)?;
-    Err(PreferredRouteError::NotImplemented)
+        .map_err(|_| ApiError::Forbidden)?;
+    Err(ApiError::NotImplemented)
 }
 
 #[utoipa::path(delete, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("oauth2" = [])), params(("id" = String, Path, description = "Preferred route ULID")), responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn delete_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
-) -> Result<Response, PreferredRouteError> {
+) -> Result<Response, ApiError> {
     current_user
         .require_role(UserRole::EventCoordinator)
-        .map_err(|_| PreferredRouteError::Forbidden)?;
-    Err(PreferredRouteError::NotImplemented)
+        .map_err(|_| ApiError::Forbidden)?;
+    Err(ApiError::NotImplemented)
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -121,23 +121,4 @@ struct PreferredRouteDto {
     remarks: String,
     valid_from: Option<DateTime<Utc>>,
     valid_until: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug)]
-enum PreferredRouteError {
-    Forbidden,
-    NotImplemented,
-}
-
-impl IntoResponse for PreferredRouteError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            PreferredRouteError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
-            PreferredRouteError::NotImplemented => {
-                (StatusCode::NOT_IMPLEMENTED, "not implemented".into())
-            }
-        };
-
-        crate::problem::problem_response(status, message)
-    }
 }

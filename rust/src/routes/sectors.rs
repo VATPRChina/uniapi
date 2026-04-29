@@ -1,10 +1,9 @@
 use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
 
+use crate::routes::ApiError;
 use crate::{
     auth::CurrentUser,
     repository::{
@@ -26,15 +25,15 @@ pub fn build_sector_routes() -> Router<Services> {
 async fn current_permission(
     State(services): State<Services>,
     current_user: CurrentUser,
-) -> Result<Json<SectorPermissionResponse>, SectorRouteError> {
-    let user_id = current_user.user_id.ok_or(SectorRouteError::Unauthorized)?;
+) -> Result<Json<SectorPermissionResponse>, ApiError> {
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let user = user_repository::find_detail_by_id(services.db(), user_id)
         .await
-        .map_err(SectorRouteError::Database)?
-        .ok_or(SectorRouteError::UserNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::UserNotFound)?;
     let has_permission = sector_repository::user_can_online(services.db(), user.id, &user.cid)
         .await
-        .map_err(SectorRouteError::Database)?;
+        .map_err(ApiError::Database)?;
 
     Ok(Json(SectorPermissionResponse {
         has_permission,
@@ -46,25 +45,4 @@ async fn current_permission(
 struct SectorPermissionResponse {
     has_permission: bool,
     sector_type: &'static str,
-}
-
-#[derive(Debug)]
-enum SectorRouteError {
-    Database(sqlx::Error),
-    Unauthorized,
-    UserNotFound,
-}
-
-impl IntoResponse for SectorRouteError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            SectorRouteError::Database(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-            SectorRouteError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".into()),
-            SectorRouteError::UserNotFound => (StatusCode::NOT_FOUND, "user not found".into()),
-        };
-
-        crate::problem::problem_response(status, message)
-    }
 }

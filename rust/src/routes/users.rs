@@ -1,6 +1,4 @@
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use axum::routing::{get, put};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
@@ -9,8 +7,8 @@ use std::collections::BTreeSet;
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::routes::ApiError;
 use crate::{
-    adapter::moodle::MoodleError,
     auth::CurrentUser,
     models::user_role::{UserRole, role_closure_from_strings},
     repository::auth::user::{self as user_repository, UserDetailRecord},
@@ -34,14 +32,14 @@ pub fn build_user_routes() -> Router<Services> {
 async fn list_users(
     State(services): State<Services>,
     current_user: CurrentUser,
-) -> Result<Json<Vec<UserDto>>, UserRouteError> {
+) -> Result<Json<Vec<UserDto>>, ApiError> {
     current_user
         .require_role(UserRole::Volunteer)
-        .map_err(|_| UserRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let show_full_name = current_user.has_role(UserRole::Staff);
     let users = user_repository::list_details_ordered_by_cid(services.db())
         .await
-        .map_err(UserRouteError::Database)?
+        .map_err(ApiError::Database)?
         .into_iter()
         .map(|user| user_dto(user, None, show_full_name, None))
         .collect();
@@ -54,15 +52,15 @@ async fn get_user(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(id): Path<String>,
-) -> Result<Json<UserDto>, UserRouteError> {
+) -> Result<Json<UserDto>, ApiError> {
     current_user
         .require_role(UserRole::Volunteer)
-        .map_err(|_| UserRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let user = user_repository::find_detail_by_id(services.db(), id)
         .await
-        .map_err(UserRouteError::Database)?
-        .ok_or(UserRouteError::UserNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::UserNotFound)?;
     let moodle_account = moodle_account(&services, &user.cid).await?;
 
     Ok(Json(user_dto(
@@ -78,14 +76,14 @@ async fn get_user_by_cid(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(cid): Path<String>,
-) -> Result<Json<UserDto>, UserRouteError> {
+) -> Result<Json<UserDto>, ApiError> {
     current_user
         .require_role(UserRole::Volunteer)
-        .map_err(|_| UserRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let user = user_repository::find_detail_by_cid(services.db(), &cid)
         .await
-        .map_err(UserRouteError::Database)?
-        .ok_or(UserRouteError::UserNotFoundByCid)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::UserNotFoundByCid)?;
 
     Ok(Json(user_dto(
         user,
@@ -100,13 +98,13 @@ async fn assume_by_cid(
     State(services): State<Services>,
     current_user: CurrentUser,
     Path(cid): Path<String>,
-) -> Result<Json<UserDto>, UserRouteError> {
+) -> Result<Json<UserDto>, ApiError> {
     current_user
         .require_role(UserRole::Staff)
-        .map_err(|_| UserRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let user = user_repository::create_assumed_user(services.db(), Uuid::from(Ulid::new()), &cid)
         .await
-        .map_err(UserRouteError::Database)?;
+        .map_err(ApiError::Database)?;
 
     Ok(Json(user_dto(user, None, false, None)))
 }
@@ -117,15 +115,15 @@ async fn set_roles(
     current_user: CurrentUser,
     Path(id): Path<String>,
     Json(roles): Json<BTreeSet<String>>,
-) -> Result<Json<UserDto>, UserRouteError> {
+) -> Result<Json<UserDto>, ApiError> {
     current_user
         .require_role(UserRole::Staff)
-        .map_err(|_| UserRouteError::Forbidden)?;
+        .map_err(|_| ApiError::Forbidden)?;
     let id = parse_ulid_uuid(&id)?;
     let user = user_repository::find_detail_by_id(services.db(), id)
         .await
-        .map_err(UserRouteError::Database)?
-        .ok_or(UserRouteError::UserNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::UserNotFound)?;
 
     let current_roles = role_closure_from_strings(user.roles.iter().map(String::as_str));
     let new_roles = role_closure_from_strings(roles.iter().map(String::as_str));
@@ -133,13 +131,13 @@ async fn set_roles(
         && !new_roles.contains(&UserRole::Staff)
         && !current_user.has_role(UserRole::DivisionDirector)
     {
-        return Err(UserRouteError::RemoveStaffForbidden);
+        return Err(ApiError::RemoveStaffForbidden);
     }
 
     let user = user_repository::set_roles(services.db(), id, roles.into_iter().collect())
         .await
-        .map_err(UserRouteError::Database)?
-        .ok_or(UserRouteError::UserNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::UserNotFound)?;
 
     Ok(Json(user_dto(user, None, false, None)))
 }
@@ -148,12 +146,12 @@ async fn set_roles(
 async fn me(
     State(services): State<Services>,
     current_user: CurrentUser,
-) -> Result<Json<UserDto>, UserRouteError> {
-    let user_id = current_user.user_id.ok_or(UserRouteError::UserNotFound)?;
+) -> Result<Json<UserDto>, ApiError> {
+    let user_id = current_user.user_id.ok_or(ApiError::UserNotFound)?;
     let user = user_repository::find_detail_by_id(services.db(), user_id)
         .await
-        .map_err(UserRouteError::Database)?
-        .ok_or(UserRouteError::UserNotFound)?;
+        .map_err(ApiError::Database)?
+        .ok_or(ApiError::UserNotFound)?;
     let moodle_account = moodle_account(&services, &user.cid).await?;
 
     Ok(Json(user_dto(user, moodle_account, true, None)))
@@ -162,12 +160,12 @@ async fn me(
 async fn moodle_account(
     services: &Services,
     cid: &str,
-) -> Result<Option<UserMoodleInfoDto>, UserRouteError> {
+) -> Result<Option<UserMoodleInfoDto>, ApiError> {
     Ok(services
         .moodle()
         .get_user_by_cid(cid)
         .await
-        .map_err(UserRouteError::Moodle)?
+        .map_err(ApiError::Moodle)?
         .map(|user| UserMoodleInfoDto {
             id: user.id.to_string(),
         }))
@@ -215,10 +213,10 @@ fn user_dto(
     }
 }
 
-fn parse_ulid_uuid(id: &str) -> Result<Uuid, UserRouteError> {
+fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| UserRouteError::InvalidUserId)
+        .map_err(|_| ApiError::InvalidUserId)
 }
 
 fn role_to_dto(role: UserRole) -> String {
@@ -240,38 +238,4 @@ struct UserDto {
 #[derive(Serialize, utoipa::ToSchema)]
 struct UserMoodleInfoDto {
     id: String,
-}
-
-#[derive(Debug)]
-enum UserRouteError {
-    Database(sqlx::Error),
-    Forbidden,
-    InvalidUserId,
-    Moodle(MoodleError),
-    RemoveStaffForbidden,
-    UserNotFound,
-    UserNotFoundByCid,
-}
-
-impl IntoResponse for UserRouteError {
-    fn into_response(self) -> Response {
-        let (status, message): (StatusCode, String) = match self {
-            UserRouteError::Database(error) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-            }
-            UserRouteError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
-            UserRouteError::InvalidUserId => (StatusCode::BAD_REQUEST, "invalid user id".into()),
-            UserRouteError::Moodle(error) => (StatusCode::BAD_GATEWAY, error.to_string()),
-            UserRouteError::RemoveStaffForbidden => (
-                StatusCode::FORBIDDEN,
-                "only division director can remove staff role".into(),
-            ),
-            UserRouteError::UserNotFound => (StatusCode::NOT_FOUND, "user not found".into()),
-            UserRouteError::UserNotFoundByCid => {
-                (StatusCode::NOT_FOUND, "user with cid not found".into())
-            }
-        };
-
-        crate::problem::problem_response(status, message)
-    }
 }
