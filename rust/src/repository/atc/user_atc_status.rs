@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
-use crate::repository::user_atc_permission::{self, AtcPermissionSave};
+use crate::repository::atc::user_atc_permission::{self, AtcPermissionSave};
 
 #[derive(Debug, Clone, FromRow)]
 pub struct AtcStatusRecord {

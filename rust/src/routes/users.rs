@@ -13,7 +13,7 @@ use crate::{
     adapter::moodle::MoodleError,
     auth::CurrentUser,
     models::user_role::{UserRole, role_closure_from_strings},
-    repository::user::{self as user_repository, UserDetailRecord},
+    repository::auth::user::{self as user_repository, UserDetailRecord},
     services::Services,
 };
 

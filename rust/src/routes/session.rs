@@ -11,7 +11,7 @@ use crate::{
     adapter::moodle::MoodleError,
     auth::CurrentUser,
     models::user_role::UserRole,
-    repository::{session as session_repository, user as user_repository},
+    repository::auth::{session as session_repository, user as user_repository},
     services::Services,
 };
 

@@ -3,7 +3,7 @@ use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::repository::{
+use crate::repository::atc_training::{
     training_application::TrainingApplicationRecord,
     training_application_slot::TrainingApplicationSlotRecord,
 };

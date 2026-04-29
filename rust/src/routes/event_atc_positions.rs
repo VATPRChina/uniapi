@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::{
     auth::CurrentUser,
     models::{user_controller_state::UserControllerState, user_role::UserRole},
-    repository::event_atc_position::{
+    repository::event::event_atc_position::{
         self as position_repository, EventAtcPositionRecord, EventAtcPositionSave,
         UserAtcPermissionRecord,
     },

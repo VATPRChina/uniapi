@@ -7,7 +7,7 @@ use crate::{
         AirwayDirection, FixKind, Leg, LevelRestrictionType, PreferredRoute,
         parser::{self, ParserError},
     },
-    repository::preferred_route,
+    repository::navdata::preferred_route,
 };
 
 #[derive(Debug, thiserror::Error)]

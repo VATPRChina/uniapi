@@ -13,7 +13,7 @@ use uuid::Uuid;
 use crate::{
     jwt::JwtError,
     models::user_role::{UserRole, role_closure_from_strings},
-    repository::{user, user_atc_permission},
+    repository::{atc::user_atc_permission, auth::user},
     services::Services,
 };
 

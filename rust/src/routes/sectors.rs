@@ -8,8 +8,8 @@ use serde::Serialize;
 use crate::{
     auth::CurrentUser,
     repository::{
+        auth::user::{self as user_repository},
         sector as sector_repository,
-        user::{self as user_repository},
     },
     services::Services,
 };

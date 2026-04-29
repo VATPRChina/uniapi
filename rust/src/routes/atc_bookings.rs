@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::{
     auth::CurrentUser,
     models::user_role::{UserRole, role_closure_from_strings},
-    repository::atc_booking::{self as booking_repository, AtcBookingRecord, AtcBookingSave},
+    repository::atc::atc_booking::{self as booking_repository, AtcBookingRecord, AtcBookingSave},
     services::Services,
 };
 

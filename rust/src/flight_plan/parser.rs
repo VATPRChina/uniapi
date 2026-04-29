@@ -7,7 +7,7 @@ use crate::{
         AirwayDirection, AirwayLeg, DirectLeg, Fix, Leg, RouteToken,
         lexer::{LexerError, lex_route},
     },
-    repository::airway,
+    repository::navdata::airway,
 };
 
 #[derive(Debug, thiserror::Error)]

@@ -12,17 +12,19 @@ use crate::{
     auth::CurrentUser,
     models::user_role::{UserRole, role_closure_from_strings},
     repository::{
-        training_application::{
-            self as training_application_repository, TrainingApplicationRecord,
+        atc::user_atc_permission as atc_permission_repository,
+        atc_training::{
+            training_application::{
+                self as training_application_repository, TrainingApplicationRecord,
+            },
+            training_application_response::{
+                self as training_application_response_repository, TrainingApplicationResponseRecord,
+            },
+            training_application_slot::{
+                self as training_application_slot_repository, TrainingApplicationSlotRecord,
+                TrainingApplicationSlotSave,
+            },
         },
-        training_application_response::{
-            self as training_application_response_repository, TrainingApplicationResponseRecord,
-        },
-        training_application_slot::{
-            self as training_application_slot_repository, TrainingApplicationSlotRecord,
-            TrainingApplicationSlotSave,
-        },
-        user_atc_permission as atc_permission_repository,
     },
     services::Services,
 };

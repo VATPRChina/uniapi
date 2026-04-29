@@ -12,8 +12,10 @@ use crate::{
     auth::CurrentUser,
     models::user_role::UserRole,
     repository::{
-        event as event_repository,
-        event_airspace::{self as airspace_repository, EventAirspaceRecord, EventAirspaceSave},
+        event::event as event_repository,
+        event::event_airspace::{
+            self as airspace_repository, EventAirspaceRecord, EventAirspaceSave,
+        },
     },
     services::Services,
 };

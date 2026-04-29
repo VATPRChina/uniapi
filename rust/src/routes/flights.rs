@@ -18,7 +18,7 @@ use crate::{
         validator::{self, ValidatorError},
     },
     models::user_role::UserRole,
-    repository::user as user_repository,
+    repository::auth::user as user_repository,
     services::Services,
 };
 

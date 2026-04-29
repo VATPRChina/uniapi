@@ -3,7 +3,9 @@ use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::repository::training_application_slot::{self, TrainingApplicationSlotSave};
+use crate::repository::atc_training::training_application_slot::{
+    self, TrainingApplicationSlotSave,
+};
 
 #[derive(Debug, Clone, FromRow)]
 pub struct TrainingApplicationRecord {

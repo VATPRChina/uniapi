@@ -13,8 +13,8 @@ use crate::{
     auth::CurrentUser,
     models::user_role::UserRole,
     repository::{
-        event as event_repository,
-        event_slot::{self as slot_repository, EventSlotRecord, EventSlotSave},
+        event::event as event_repository,
+        event::event_slot::{self as slot_repository, EventSlotRecord, EventSlotSave},
     },
     services::Services,
 };

@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::{
     auth::CurrentUser,
     models::user_role::UserRole,
-    repository::event::{self as event_repository, EventRecord, EventSave},
+    repository::event::event::{self as event_repository, EventRecord, EventSave},
     services::Services,
 };
 

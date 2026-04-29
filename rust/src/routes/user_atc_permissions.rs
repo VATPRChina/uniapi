@@ -14,7 +14,7 @@ use crate::{
         user_controller_state::UserControllerState,
         user_role::{UserRole, role_closure_from_strings},
     },
-    repository::{
+    repository::atc::{
         user_atc_permission::{
             self as atc_permission_repository, AtcPermissionRecord, AtcPermissionSave,
         },

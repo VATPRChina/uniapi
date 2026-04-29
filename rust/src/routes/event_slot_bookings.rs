@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::{
     auth::CurrentUser,
     models::user_role::UserRole,
-    repository::event_slot_booking::{self as booking_repository, EventBookingRecord},
+    repository::event::event_slot_booking::{self as booking_repository, EventBookingRecord},
     services::Services,
 };
 

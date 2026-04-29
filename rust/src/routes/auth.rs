@@ -10,7 +10,7 @@ use ulid::Ulid;
 
 use crate::adapter::vatsim_auth::{VatsimAuthError, generate_pkce};
 use crate::jwt::JwtError;
-use crate::repository::{
+use crate::repository::auth::{
     device_authorization::{self as device_authorization_repository, NewDeviceAuthorization},
     session::{self as session_repository, RefreshSessionIssue, RefreshSessionRow},
     user::{self as user_repository, UserLoginRow},
