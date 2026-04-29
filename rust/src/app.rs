@@ -8,6 +8,7 @@ use serde::Serialize;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
+use crate::auth;
 use crate::openapi::{openapi, openapi_json};
 use crate::routes::atc::build_atc_routes;
 use crate::routes::atc_applications::build_atc_application_routes;
@@ -30,7 +31,6 @@ use crate::routes::trainings::build_training_routes;
 use crate::routes::user_atc_permissions::build_user_atc_permission_routes;
 use crate::routes::users::build_user_routes;
 use crate::services::Services;
-use crate::{auth, repository::health as health_repository};
 
 #[derive(Serialize, utoipa::ToSchema)]
 struct HealthResponse {
@@ -93,7 +93,12 @@ async fn root() -> &'static str {
 
 #[utoipa::path(get, path = "health", tag = "Health", responses((status = 200, description = "Successful response", body = HealthResponse)))]
 async fn health(State(services): State<Services>) -> impl IntoResponse {
-    let database_is_healthy = health_repository::is_healthy(services.db()).await;
+    let database_is_healthy = matches!(
+        sqlx::query_scalar::<_, i32>("SELECT 1")
+            .fetch_one(services.db())
+            .await,
+        Ok(1)
+    );
 
     let status = if database_is_healthy {
         StatusCode::OK
