@@ -57,7 +57,7 @@ enum SectorRouteError {
 
 impl IntoResponse for SectorRouteError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             SectorRouteError::Database(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
             }
@@ -65,11 +65,6 @@ impl IntoResponse for SectorRouteError {
             SectorRouteError::UserNotFound => (StatusCode::NOT_FOUND, "user not found".into()),
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

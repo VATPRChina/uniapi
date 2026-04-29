@@ -255,7 +255,7 @@ enum UserRouteError {
 
 impl IntoResponse for UserRouteError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             UserRouteError::Database(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
             }
@@ -272,11 +272,6 @@ impl IntoResponse for UserRouteError {
             }
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

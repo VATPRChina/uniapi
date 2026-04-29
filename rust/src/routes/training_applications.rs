@@ -518,7 +518,7 @@ enum TrainingApplicationRouteError {
 
 impl IntoResponse for TrainingApplicationRouteError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             TrainingApplicationRouteError::AlreadyAccepted => (
                 StatusCode::CONFLICT,
                 "training application already accepted".into(),
@@ -543,11 +543,6 @@ impl IntoResponse for TrainingApplicationRouteError {
             }
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

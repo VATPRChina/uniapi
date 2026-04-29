@@ -39,13 +39,19 @@ async fn authorize(
     Query(query): Query<AuthorizeQuery>,
 ) -> Result<Response, AuthEndpointError> {
     if query.response_type != "code" {
-        return Ok((StatusCode::BAD_REQUEST, "invalid response_type").into_response());
+        return Ok(crate::problem::problem_response(
+            StatusCode::BAD_REQUEST,
+            "invalid response_type",
+        ));
     }
     if !services
         .jwt()
         .check_client_redirect(&query.client_id, &query.redirect_uri)
     {
-        return Ok((StatusCode::UNAUTHORIZED, "client is invalid").into_response());
+        return Ok(crate::problem::problem_response(
+            StatusCode::UNAUTHORIZED,
+            "client is invalid",
+        ));
     }
 
     let state_id = Ulid::new().to_string();
@@ -79,14 +85,10 @@ async fn device_authorization(
     Form(request): Form<DeviceAuthorizationRequest>,
 ) -> Result<Response, AuthEndpointError> {
     if !services.jwt().check_client_exists(&request.client_id) {
-        return Ok((
+        return Ok(crate::problem::problem_response(
             StatusCode::UNAUTHORIZED,
-            Json(TokenErrorResponse {
-                error: "invalid_client",
-                error_description: "client_id not found",
-            }),
-        )
-            .into_response());
+            "invalid_client: client_id not found",
+        ));
     }
 
     let device_code = Ulid::new();
@@ -606,14 +608,10 @@ fn parse_required_ulid(
 }
 
 fn token_error(error: &'static str, error_description: &'static str) -> Response {
-    (
+    crate::problem::problem_response(
         StatusCode::BAD_REQUEST,
-        Json(TokenErrorResponse {
-            error,
-            error_description,
-        }),
+        format!("{error}: {error_description}"),
     )
-        .into_response()
 }
 
 fn random_user_code() -> String {
@@ -906,12 +904,6 @@ struct TokenResponse {
     scope: String,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
-struct TokenErrorResponse {
-    error: &'static str,
-    error_description: &'static str,
-}
-
 #[derive(Debug)]
 enum AuthEndpointError {
     Database(sqlx::Error),
@@ -941,65 +933,34 @@ impl From<VatsimAuthError> for AuthEndpointError {
 
 impl IntoResponse for AuthEndpointError {
     fn into_response(self) -> Response {
-        match self {
+        let (status, message): (StatusCode, String) = match self {
             AuthEndpointError::TokenError {
                 error,
                 error_description,
-            } => token_error(error, error_description),
+            } => return token_error(error, error_description),
             AuthEndpointError::Database(error) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(InternalErrorResponse {
-                    message: format!("Database query failed: {error}"),
-                }),
-            )
-                .into_response(),
+                format!("Database query failed: {error}"),
+            ),
             AuthEndpointError::InvalidRedirectUri(error) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(InternalErrorResponse {
-                    message: format!("Invalid redirect URI: {error}"),
-                }),
-            )
-                .into_response(),
-            AuthEndpointError::InvalidHeader(error) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(InternalErrorResponse {
-                    message: error.to_string(),
-                }),
-            )
-                .into_response(),
-            AuthEndpointError::Jwt(error) => (
-                StatusCode::BAD_REQUEST,
-                Json(InternalErrorResponse {
-                    message: error.to_string(),
-                }),
-            )
-                .into_response(),
-            AuthEndpointError::StateDeserialization(error) => (
-                StatusCode::BAD_REQUEST,
-                Json(InternalErrorResponse {
-                    message: error.to_string(),
-                }),
-            )
-                .into_response(),
-            AuthEndpointError::StateSerialization(error) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(InternalErrorResponse {
-                    message: error.to_string(),
-                }),
-            )
-                .into_response(),
+                format!("Invalid redirect URI: {error}"),
+            ),
+            AuthEndpointError::InvalidHeader(error) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+            }
+            AuthEndpointError::Jwt(error) => (StatusCode::BAD_REQUEST, error.to_string()),
+            AuthEndpointError::StateDeserialization(error) => {
+                (StatusCode::BAD_REQUEST, error.to_string())
+            }
+            AuthEndpointError::StateSerialization(error) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+            }
             AuthEndpointError::VatsimAuth(error) => (
                 StatusCode::BAD_GATEWAY,
-                Json(InternalErrorResponse {
-                    message: format!("VATSIM authentication failed: {error}"),
-                }),
-            )
-                .into_response(),
-        }
+                format!("VATSIM authentication failed: {error}"),
+            ),
+        };
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct InternalErrorResponse {
-    message: String,
 }

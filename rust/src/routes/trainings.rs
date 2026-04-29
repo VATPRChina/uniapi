@@ -583,7 +583,7 @@ enum TrainingRouteError {
 
 impl IntoResponse for TrainingRouteError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             TrainingRouteError::CannotCreateForOtherTrainer => (
                 StatusCode::FORBIDDEN,
                 "cannot create training for other trainers".into(),
@@ -607,11 +607,6 @@ impl IntoResponse for TrainingRouteError {
             TrainingRouteError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".into()),
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

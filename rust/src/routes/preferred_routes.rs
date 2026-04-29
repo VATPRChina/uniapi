@@ -131,18 +131,13 @@ enum PreferredRouteError {
 
 impl IntoResponse for PreferredRouteError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             PreferredRouteError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
             PreferredRouteError::NotImplemented => {
                 (StatusCode::NOT_IMPLEMENTED, "not implemented".into())
             }
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

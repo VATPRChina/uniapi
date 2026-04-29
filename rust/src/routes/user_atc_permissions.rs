@@ -311,7 +311,7 @@ enum UserAtcPermissionRouteError {
 
 impl IntoResponse for UserAtcPermissionRouteError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             UserAtcPermissionRouteError::AtcStatusNotFound => {
                 (StatusCode::NOT_FOUND, "ATC status not found".into())
             }
@@ -337,11 +337,6 @@ impl IntoResponse for UserAtcPermissionRouteError {
             }
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

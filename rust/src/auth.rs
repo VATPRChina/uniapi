@@ -1,13 +1,11 @@
 use std::collections::HashSet;
 
 use axum::{
-    Json,
     extract::{FromRequestParts, State},
     http::{HeaderMap, StatusCode, header, request::Parts},
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use serde::Serialize;
 use thiserror::Error;
 use ulid::Ulid;
 use uuid::Uuid;
@@ -54,11 +52,6 @@ impl CurrentUser {
     }
 }
 
-#[derive(Debug, Serialize)]
-struct ErrorResponse {
-    message: String,
-}
-
 #[derive(Debug, Error)]
 pub enum AuthError {
     #[error("missing bearer token")]
@@ -90,13 +83,7 @@ impl IntoResponse for AuthError {
             _ => StatusCode::UNAUTHORIZED,
         };
 
-        (
-            status,
-            Json(ErrorResponse {
-                message: self.to_string(),
-            }),
-        )
-            .into_response()
+        crate::problem::problem_response(status, self.to_string())
     }
 }
 

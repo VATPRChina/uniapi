@@ -287,7 +287,7 @@ enum FlightRouteError {
 
 impl IntoResponse for FlightRouteError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             FlightRouteError::CallsignNotFound => {
                 (StatusCode::NOT_FOUND, "callsign not found".into())
             }
@@ -309,11 +309,6 @@ impl IntoResponse for FlightRouteError {
             FlightRouteError::UserNotFound => (StatusCode::NOT_FOUND, "user not found".into()),
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

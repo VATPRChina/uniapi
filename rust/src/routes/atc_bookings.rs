@@ -284,7 +284,7 @@ enum AtcBookingRouteError {
 
 impl IntoResponse for AtcBookingRouteError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             AtcBookingRouteError::BookingForbidden => {
                 (StatusCode::FORBIDDEN, "ATC booking forbidden".into())
             }
@@ -309,11 +309,6 @@ impl IntoResponse for AtcBookingRouteError {
             AtcBookingRouteError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".into()),
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

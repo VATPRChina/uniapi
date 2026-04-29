@@ -223,7 +223,7 @@ enum EventError {
 
 impl IntoResponse for EventError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             EventError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
             EventError::Database(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()),
             EventError::EventNotFound => (StatusCode::NOT_FOUND, "event not found".into()),
@@ -231,11 +231,6 @@ impl IntoResponse for EventError {
             EventError::InvalidEventId => (StatusCode::BAD_REQUEST, "invalid event id".into()),
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

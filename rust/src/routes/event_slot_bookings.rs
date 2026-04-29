@@ -229,7 +229,7 @@ enum EventSlotBookingError {
 
 impl IntoResponse for EventSlotBookingError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             EventSlotBookingError::Database(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
             }
@@ -267,11 +267,6 @@ impl IntoResponse for EventSlotBookingError {
             }
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

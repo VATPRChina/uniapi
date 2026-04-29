@@ -597,7 +597,7 @@ enum AtcApplicationRouteError {
 
 impl IntoResponse for AtcApplicationRouteError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             AtcApplicationRouteError::ApplicationAlreadyExists => (
                 StatusCode::CONFLICT,
                 "ATC application already exists".into(),
@@ -621,11 +621,6 @@ impl IntoResponse for AtcApplicationRouteError {
             }
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

@@ -241,19 +241,6 @@ impl IntoResponse for CompatError {
             CompatError::Database(error) => format!("Database query failed: {error}"),
         };
 
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(serde_error::ErrorResponse { message }),
-        )
-            .into_response()
-    }
-}
-
-mod serde_error {
-    use serde::Serialize;
-
-    #[derive(Serialize, utoipa::ToSchema)]
-    pub struct ErrorResponse {
-        pub message: String,
+        crate::problem::problem_response(StatusCode::SERVICE_UNAVAILABLE, message)
     }
 }

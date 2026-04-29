@@ -328,7 +328,7 @@ enum EventSlotError {
 
 impl IntoResponse for EventSlotError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             EventSlotError::Database(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
             }
@@ -343,11 +343,6 @@ impl IntoResponse for EventSlotError {
             EventSlotError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".into()),
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

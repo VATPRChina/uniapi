@@ -435,7 +435,7 @@ enum EventAtcPositionError {
 
 impl IntoResponse for EventAtcPositionError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             EventAtcPositionError::Database(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
             }
@@ -476,11 +476,6 @@ impl IntoResponse for EventAtcPositionError {
             }
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

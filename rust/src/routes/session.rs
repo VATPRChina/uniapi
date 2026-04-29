@@ -134,7 +134,7 @@ enum SessionError {
 
 impl IntoResponse for SessionError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             SessionError::Database(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()),
             SessionError::Moodle(error) => (StatusCode::BAD_GATEWAY, error.to_string()),
             SessionError::InvalidSessionId => (StatusCode::UNAUTHORIZED, "invalid sid".into()),
@@ -149,11 +149,6 @@ impl IntoResponse for SessionError {
             SessionError::UserNotFound => (StatusCode::UNAUTHORIZED, "user not found".into()),
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
 }

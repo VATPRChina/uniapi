@@ -22,11 +22,6 @@ pub struct UploadImageResponse {
     url: String,
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
-struct ErrorResponse {
-    message: String,
-}
-
 #[utoipa::path(post, path = "api/storage/images", tag = "Storage", security(("bearerAuth" = [])), request_body(content = String, content_type = "multipart/form-data"), responses((status = 200, description = "Successful response", body = UploadImageResponse)))]
 async fn upload_image(
     State(services): State<Services>,
@@ -86,7 +81,7 @@ pub enum StorageError {
 
 impl IntoResponse for StorageError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
+        let (status, message): (StatusCode, String) = match self {
             StorageError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
             StorageError::Forbidden => (StatusCode::FORBIDDEN, "forbidden".into()),
             StorageError::Multipart(error) => (StatusCode::BAD_REQUEST, error.to_string()),
@@ -100,6 +95,6 @@ impl IntoResponse for StorageError {
             ),
         };
 
-        (status, Json(ErrorResponse { message })).into_response()
+        crate::problem::problem_response(status, message)
     }
 }
