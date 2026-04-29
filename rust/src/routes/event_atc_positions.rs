@@ -61,7 +61,7 @@ async fn list_positions(
     ))
 }
 
-#[utoipa::path(post, path = "api/events/{event_id}/controllers", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionDto)))]
+#[utoipa::path(post, path = "api/events/{event_id}/controllers", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionDto)))]
 async fn create_position(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -77,7 +77,7 @@ async fn create_position(
     Ok(Json(EventAtcPositionDto::from(position)))
 }
 
-#[utoipa::path(put, path = "api/events/{event_id}/controllers/{position_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionDto)))]
+#[utoipa::path(put, path = "api/events/{event_id}/controllers/{position_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionDto)))]
 async fn update_position(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -96,7 +96,7 @@ async fn update_position(
     Ok(Json(EventAtcPositionDto::from(position)))
 }
 
-#[utoipa::path(delete, path = "api/events/{event_id}/controllers/{position_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 204, description = "No content")))]
+#[utoipa::path(delete, path = "api/events/{event_id}/controllers/{position_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 204, description = "No content")))]
 async fn delete_position(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -115,7 +115,7 @@ async fn delete_position(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[utoipa::path(put, path = "api/events/{event_id}/controllers/{position_id}/booking", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionBookingDto)))]
+#[utoipa::path(put, path = "api/events/{event_id}/controllers/{position_id}/booking", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionBookingDto)))]
 async fn book_position(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -170,7 +170,7 @@ async fn book_position(
     EventAtcPositionBookingDto::try_from(position).map(Json)
 }
 
-#[utoipa::path(delete, path = "api/events/{event_id}/controllers/{position_id}/booking", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionBookingDto)))]
+#[utoipa::path(delete, path = "api/events/{event_id}/controllers/{position_id}/booking", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionBookingDto)))]
 async fn cancel_position_booking(
     State(services): State<Services>,
     current_user: CurrentUser,

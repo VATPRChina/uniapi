@@ -41,7 +41,7 @@ async fn get_booking(
     Ok(Json(event_booking_dto(booking, false)))
 }
 
-#[utoipa::path(put, path = "api/events/{event_id}/slots/{slot_id}/booking", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventBookingDto)))]
+#[utoipa::path(put, path = "api/events/{event_id}/slots/{slot_id}/booking", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventBookingDto)))]
 async fn put_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -101,7 +101,7 @@ async fn put_booking(
     )))
 }
 
-#[utoipa::path(delete, path = "api/events/{event_id}/slots/{slot_id}/booking", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventBookingDto)))]
+#[utoipa::path(delete, path = "api/events/{event_id}/slots/{slot_id}/booking", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventBookingDto)))]
 async fn delete_booking(
     State(services): State<Services>,
     current_user: CurrentUser,

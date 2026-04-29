@@ -23,7 +23,7 @@ pub fn build_session_routes() -> Router<Services> {
     Router::new().route("/", get(get_current).delete(logout))
 }
 
-#[utoipa::path(get, path = "api/session", tag = "Session", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = TokenDto)))]
+#[utoipa::path(get, path = "api/session", tag = "Session", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = TokenDto)))]
 async fn get_current(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -72,7 +72,7 @@ async fn get_current(
     }))
 }
 
-#[utoipa::path(delete, path = "api/session", tag = "Session", security(("bearerAuth" = [])), responses((status = 204, description = "No content")))]
+#[utoipa::path(delete, path = "api/session", tag = "Session", security(("oauth2" = [])), responses((status = 204, description = "No content")))]
 async fn logout(
     State(services): State<Services>,
     current_user: CurrentUser,

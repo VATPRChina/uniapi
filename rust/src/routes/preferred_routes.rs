@@ -29,7 +29,7 @@ pub fn build_preferred_route_routes() -> Router<Services> {
         )
 }
 
-#[utoipa::path(get, path = "api/navdata/preferred-routes", tag = "Navdata", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<PreferredRouteDto>)))]
+#[utoipa::path(get, path = "api/navdata/preferred-routes", tag = "Navdata", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<PreferredRouteDto>)))]
 async fn list_preferred_routes(current_user: CurrentUser) -> Result<Response, PreferredRouteError> {
     current_user
         .require_role(UserRole::Volunteer)
@@ -37,7 +37,7 @@ async fn list_preferred_routes(current_user: CurrentUser) -> Result<Response, Pr
     Err(PreferredRouteError::NotImplemented)
 }
 
-#[utoipa::path(get, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Preferred route ULID")), responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
+#[utoipa::path(get, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("oauth2" = [])), params(("id" = String, Path, description = "Preferred route ULID")), responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn get_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
@@ -48,7 +48,7 @@ async fn get_preferred_route(
     Err(PreferredRouteError::NotImplemented)
 }
 
-#[utoipa::path(post, path = "api/navdata/preferred-routes", tag = "Navdata", security(("bearerAuth" = [])), request_body = PreferredRouteSaveRequest, responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
+#[utoipa::path(post, path = "api/navdata/preferred-routes", tag = "Navdata", security(("oauth2" = [])), request_body = PreferredRouteSaveRequest, responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn create_preferred_route(
     current_user: CurrentUser,
     Json(_request): Json<PreferredRouteSaveRequest>,
@@ -59,7 +59,7 @@ async fn create_preferred_route(
     Err(PreferredRouteError::NotImplemented)
 }
 
-#[utoipa::path(put, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Preferred route ULID")), request_body = PreferredRouteSaveRequest, responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
+#[utoipa::path(put, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("oauth2" = [])), params(("id" = String, Path, description = "Preferred route ULID")), request_body = PreferredRouteSaveRequest, responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn update_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
@@ -71,7 +71,7 @@ async fn update_preferred_route(
     Err(PreferredRouteError::NotImplemented)
 }
 
-#[utoipa::path(delete, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Preferred route ULID")), responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
+#[utoipa::path(delete, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("oauth2" = [])), params(("id" = String, Path, description = "Preferred route ULID")), responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
 async fn delete_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,

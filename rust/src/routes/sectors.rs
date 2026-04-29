@@ -22,7 +22,7 @@ pub fn build_sector_routes() -> Router<Services> {
     Router::new().route("/current/permission", get(current_permission))
 }
 
-#[utoipa::path(get, path = "api/sectors/current/permission", tag = "Sectors", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = SectorPermissionResponse)))]
+#[utoipa::path(get, path = "api/sectors/current/permission", tag = "Sectors", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SectorPermissionResponse)))]
 async fn current_permission(
     State(services): State<Services>,
     current_user: CurrentUser,

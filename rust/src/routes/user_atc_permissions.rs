@@ -38,7 +38,7 @@ pub fn build_user_atc_permission_routes() -> Router<Services> {
         )
 }
 
-#[utoipa::path(get, path = "api/users/me/atc/status", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
+#[utoipa::path(get, path = "api/users/me/atc/status", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
 async fn get_my_status(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -49,7 +49,7 @@ async fn get_my_status(
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
-#[utoipa::path(get, path = "api/users/{id}/atc/status", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
+#[utoipa::path(get, path = "api/users/{id}/atc/status", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
 async fn get_status(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -60,7 +60,7 @@ async fn get_status(
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
-#[utoipa::path(put, path = "api/users/{id}/atc/status", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "User ULID")), request_body = AtcStatusRequest, responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
+#[utoipa::path(put, path = "api/users/{id}/atc/status", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "User ULID")), request_body = AtcStatusRequest, responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
 async fn set_status(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -95,7 +95,7 @@ async fn set_status(
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
-#[utoipa::path(delete, path = "api/users/{id}/atc/status", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 204, description = "No content")))]
+#[utoipa::path(delete, path = "api/users/{id}/atc/status", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 204, description = "No content")))]
 async fn delete_status(
     State(services): State<Services>,
     current_user: CurrentUser,

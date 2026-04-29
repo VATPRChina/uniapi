@@ -92,7 +92,7 @@ async fn route_by_callsign(
     Ok(Json(legs.into_iter().map(FlightLeg::from).collect()))
 }
 
-#[utoipa::path(get, path = "api/flights/temporary/by-plan/warnings", tag = "Flights", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<validator::WarningMessage>)))]
+#[utoipa::path(get, path = "api/flights/temporary/by-plan/warnings", tag = "Flights", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<validator::WarningMessage>)))]
 async fn temporary_warnings(
     current_user: CurrentUser,
     State(services): State<Services>,
@@ -104,7 +104,7 @@ async fn temporary_warnings(
     warnings_for_flight(&services, &Flight::from(query)).await
 }
 
-#[utoipa::path(get, path = "api/flights/mine", tag = "Flights", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = FlightDto)))]
+#[utoipa::path(get, path = "api/flights/mine", tag = "Flights", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = FlightDto)))]
 async fn my_flight(
     State(services): State<Services>,
     current_user: CurrentUser,

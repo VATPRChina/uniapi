@@ -68,7 +68,7 @@ async fn get_event(
     Ok(Json(EventDto::from(event)))
 }
 
-#[utoipa::path(post, path = "api/events", tag = "Events", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = EventDto)))]
+#[utoipa::path(post, path = "api/events", tag = "Events", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = EventDto)))]
 async fn create_event(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -84,7 +84,7 @@ async fn create_event(
     Ok(Json(EventDto::from(event)))
 }
 
-#[utoipa::path(put, path = "api/events/{id}", tag = "Events", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventDto)))]
+#[utoipa::path(put, path = "api/events/{id}", tag = "Events", security(("oauth2" = [])), params(("id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventDto)))]
 async fn update_event(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -103,7 +103,7 @@ async fn update_event(
     Ok(Json(EventDto::from(event)))
 }
 
-#[utoipa::path(delete, path = "api/events/{id}", tag = "Events", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Event ULID")), responses((status = 204, description = "No content")))]
+#[utoipa::path(delete, path = "api/events/{id}", tag = "Events", security(("oauth2" = [])), params(("id" = String, Path, description = "Event ULID")), responses((status = 204, description = "No content")))]
 async fn delete_event(
     State(services): State<Services>,
     current_user: CurrentUser,

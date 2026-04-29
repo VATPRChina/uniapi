@@ -36,7 +36,7 @@ pub fn build_atc_booking_routes() -> Router<Services> {
         )
 }
 
-#[utoipa::path(get, path = "api/atc/bookings", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<AtcBookingDto>)))]
+#[utoipa::path(get, path = "api/atc/bookings", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<AtcBookingDto>)))]
 async fn list_bookings(
     State(services): State<Services>,
 ) -> Result<Json<Vec<AtcBookingDto>>, AtcBookingRouteError> {
@@ -50,7 +50,7 @@ async fn list_bookings(
     ))
 }
 
-#[utoipa::path(get, path = "api/atc/bookings/mine", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<AtcBookingDto>)))]
+#[utoipa::path(get, path = "api/atc/bookings/mine", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<AtcBookingDto>)))]
 async fn list_my_bookings(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -68,7 +68,7 @@ async fn list_my_bookings(
     ))
 }
 
-#[utoipa::path(post, path = "api/atc/bookings", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
+#[utoipa::path(post, path = "api/atc/bookings", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
 async fn create_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -87,7 +87,7 @@ async fn create_booking(
     Ok(Json(AtcBookingDto::from(booking)))
 }
 
-#[utoipa::path(get, path = "api/atc/bookings/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Booking ULID")), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
+#[utoipa::path(get, path = "api/atc/bookings/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Booking ULID")), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
 async fn get_booking(
     State(services): State<Services>,
     Path(id): Path<String>,
@@ -101,7 +101,7 @@ async fn get_booking(
     Ok(Json(AtcBookingDto::from(booking)))
 }
 
-#[utoipa::path(put, path = "api/atc/bookings/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Booking ULID")), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
+#[utoipa::path(put, path = "api/atc/bookings/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Booking ULID")), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
 async fn update_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -130,7 +130,7 @@ async fn update_booking(
     Ok(Json(AtcBookingDto::from(booking)))
 }
 
-#[utoipa::path(delete, path = "api/atc/bookings/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Booking ULID")), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
+#[utoipa::path(delete, path = "api/atc/bookings/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Booking ULID")), responses((status = 200, description = "Successful response", body = AtcBookingDto)))]
 async fn delete_booking(
     State(services): State<Services>,
     current_user: CurrentUser,

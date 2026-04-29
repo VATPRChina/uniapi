@@ -22,7 +22,7 @@ pub struct UploadImageResponse {
     url: String,
 }
 
-#[utoipa::path(post, path = "api/storage/images", tag = "Storage", security(("bearerAuth" = [])), request_body(content = String, content_type = "multipart/form-data"), responses((status = 200, description = "Successful response", body = UploadImageResponse)))]
+#[utoipa::path(post, path = "api/storage/images", tag = "Storage", security(("oauth2" = [])), request_body(content = String, content_type = "multipart/form-data"), responses((status = 200, description = "Successful response", body = UploadImageResponse)))]
 async fn upload_image(
     State(services): State<Services>,
     current_user: CurrentUser,

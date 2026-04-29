@@ -65,7 +65,7 @@ async fn get_airspace(
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
 
-#[utoipa::path(post, path = "api/events/{event_id}/airspaces", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventAirspaceDto)))]
+#[utoipa::path(post, path = "api/events/{event_id}/airspaces", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventAirspaceDto)))]
 async fn create_airspace(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -85,7 +85,7 @@ async fn create_airspace(
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
 
-#[utoipa::path(put, path = "api/events/{event_id}/airspaces/{airspace_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("airspace_id" = String, Path, description = "Airspace ULID")), responses((status = 200, description = "Successful response", body = EventAirspaceDto)))]
+#[utoipa::path(put, path = "api/events/{event_id}/airspaces/{airspace_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("airspace_id" = String, Path, description = "Airspace ULID")), responses((status = 200, description = "Successful response", body = EventAirspaceDto)))]
 async fn update_airspace(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -110,7 +110,7 @@ async fn update_airspace(
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
 
-#[utoipa::path(delete, path = "api/events/{event_id}/airspaces/{airspace_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("airspace_id" = String, Path, description = "Airspace ULID")), responses((status = 204, description = "No content")))]
+#[utoipa::path(delete, path = "api/events/{event_id}/airspaces/{airspace_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("airspace_id" = String, Path, description = "Airspace ULID")), responses((status = 204, description = "No content")))]
 async fn delete_airspace(
     State(services): State<Services>,
     current_user: CurrentUser,

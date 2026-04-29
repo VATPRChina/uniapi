@@ -108,7 +108,7 @@ async fn export_bookings(
         .into_response())
 }
 
-#[utoipa::path(post, path = "api/events/{event_id}/slots", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventSlotDto)))]
+#[utoipa::path(post, path = "api/events/{event_id}/slots", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventSlotDto)))]
 async fn create_slot(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -129,7 +129,7 @@ async fn create_slot(
     )))
 }
 
-#[utoipa::path(put, path = "api/events/{event_id}/slots/{slot_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventSlotDto)))]
+#[utoipa::path(put, path = "api/events/{event_id}/slots/{slot_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventSlotDto)))]
 async fn update_slot(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -152,7 +152,7 @@ async fn update_slot(
     )))
 }
 
-#[utoipa::path(delete, path = "api/events/{event_id}/slots/{slot_id}", tag = "Events", security(("bearerAuth" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 204, description = "No content")))]
+#[utoipa::path(delete, path = "api/events/{event_id}/slots/{slot_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 204, description = "No content")))]
 async fn delete_slot(
     State(services): State<Services>,
     current_user: CurrentUser,

@@ -58,17 +58,22 @@ pub(crate) struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
+        use utoipa::openapi::security::{
+            AuthorizationCode, ClientCredentials, Flow, OAuth2, Scopes, SecurityScheme,
+        };
 
         let components = openapi.components.get_or_insert_with(Default::default);
         components.add_security_scheme(
-            "bearerAuth",
-            SecurityScheme::Http(
-                HttpBuilder::new()
-                    .scheme(HttpAuthScheme::Bearer)
-                    .bearer_format("JWT")
-                    .build(),
-            ),
+            "oauth2",
+            SecurityScheme::OAuth2(OAuth2::new([
+                Flow::AuthorizationCode(AuthorizationCode::with_refresh_url(
+                    "/auth/authorize",
+                    "/auth/token",
+                    Scopes::new(),
+                    "/auth/token",
+                )),
+                Flow::ClientCredentials(ClientCredentials::new("/auth/token", Scopes::new())),
+            ])),
         );
     }
 }

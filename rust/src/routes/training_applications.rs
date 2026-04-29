@@ -52,7 +52,7 @@ pub fn build_training_application_routes() -> Router<Services> {
         .route("/{id}/response", axum::routing::put(respond_to_application))
 }
 
-#[utoipa::path(get, path = "api/atc/trainings/applications", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingApplicationDto>)))]
+#[utoipa::path(get, path = "api/atc/trainings/applications", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingApplicationDto>)))]
 async fn list_applications(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -69,7 +69,7 @@ async fn list_applications(
     applications_to_dto(&services, applications).await.map(Json)
 }
 
-#[utoipa::path(get, path = "api/atc/trainings/applications/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
+#[utoipa::path(get, path = "api/atc/trainings/applications/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
 async fn get_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -79,7 +79,7 @@ async fn get_application(
     application_to_dto(&services, application).await.map(Json)
 }
 
-#[utoipa::path(delete, path = "api/atc/trainings/applications/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
+#[utoipa::path(delete, path = "api/atc/trainings/applications/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
 async fn delete_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -97,7 +97,7 @@ async fn delete_application(
     application_to_dto(&services, application).await.map(Json)
 }
 
-#[utoipa::path(post, path = "api/atc/trainings/applications", tag = "ATC", security(("bearerAuth" = [])), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
+#[utoipa::path(post, path = "api/atc/trainings/applications", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
 async fn create_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -143,7 +143,7 @@ async fn create_application(
     application_to_dto(&services, application).await.map(Json)
 }
 
-#[utoipa::path(put, path = "api/atc/trainings/applications/{id}", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
+#[utoipa::path(put, path = "api/atc/trainings/applications/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
 async fn update_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -181,7 +181,7 @@ async fn update_application(
     application_to_dto(&services, application).await.map(Json)
 }
 
-#[utoipa::path(get, path = "api/atc/trainings/applications/{id}/responses", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = Vec<TrainingApplicationResponseDto>)))]
+#[utoipa::path(get, path = "api/atc/trainings/applications/{id}/responses", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = Vec<TrainingApplicationResponseDto>)))]
 async fn list_responses(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -198,7 +198,7 @@ async fn list_responses(
     Ok(Json(responses))
 }
 
-#[utoipa::path(put, path = "api/atc/trainings/applications/{id}/response", tag = "ATC", security(("bearerAuth" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationResponseDto)))]
+#[utoipa::path(put, path = "api/atc/trainings/applications/{id}/response", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationResponseDto)))]
 async fn respond_to_application(
     State(services): State<Services>,
     current_user: CurrentUser,
