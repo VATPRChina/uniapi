@@ -16,11 +16,11 @@
   },
   "type": "module",
   "devDependencies": {
-    "@types/node": "^25.0.0",
+    "@types/node": "^25.6.0",
     "ava": "^8.0.0",
     "openapi-fetch": "^0.17.0",
     "openapi-typescript": "^7.13.0",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "ava": {
     "files": [
