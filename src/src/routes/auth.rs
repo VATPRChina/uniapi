@@ -931,6 +931,7 @@ struct AuthenticationState {
 }
 
 #[derive(Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
 enum AuthenticationStateType {
     Code,
     Device,

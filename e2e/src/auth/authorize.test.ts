@@ -21,6 +21,18 @@ test("redirects to login for a valid client", async (t) => {
     response.headers.get("set-cookie") ?? "",
     /^auth-[0-9A-HJKMNP-TV-Z]{26}=/,
   );
+  const location = response.headers.get("location") ?? "";
+  const stateId = new URLSearchParams(location.split("?", 2)[1]).get("state");
+  const [cookiePair] = (response.headers.get("set-cookie") ?? "").split(";", 1);
+  const [cookieName, cookieValue] = cookiePair.split("=", 2);
+  t.is(cookieName, `auth-${stateId}`);
+  t.deepEqual(JSON.parse(decodeURIComponent(cookieValue)), {
+    auth_type: "code",
+    client_id: "01J2ED6BDX9J9BTYS2RVW83ME7",
+    redirect_uri: "http://localhost:3000/auth/callback",
+    user_code: null,
+    state: "e2e-state",
+  });
 });
 
 test("returns error for an invalid client", async (t) => {
