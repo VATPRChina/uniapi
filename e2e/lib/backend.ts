@@ -11,9 +11,9 @@ const backend: SharedWorker.Plugin.Protocol<BackendWorkerMessage> =
         return;
       }
 
-      const message = backend.publish({ type: "stop" });
+      const message = backend.publish({ type: "release" });
       for await (const reply of message.replies()) {
-        if (reply.data.type === "stopped") {
+        if (reply.data.type === "released") {
           return;
         }
       }

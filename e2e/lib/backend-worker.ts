@@ -9,7 +9,9 @@ export type BackendWorkerMessage =
   | { type: "getBaseUrl" }
   | { type: "baseUrl"; baseUrl: string }
   | { type: "stop" }
-  | { type: "stopped" };
+  | { type: "stopped" }
+  | { type: "release" }
+  | { type: "released" };
 
 type BackendHandle = {
   baseUrl: string;
@@ -20,6 +22,9 @@ type BackendHandle = {
 const startupTimeoutMs = Number(
   process.env.E2E_BACKEND_STARTUP_TIMEOUT_MS ?? 60_000,
 );
+const teardownGraceMs = Number(
+  process.env.E2E_BACKEND_TEARDOWN_GRACE_MS ?? 500,
+);
 const backendPort = Number(process.env.E2E_BACKEND_PORT ?? 3010);
 const backendHost = process.env.E2E_BACKEND_HOST ?? "127.0.0.1";
 const baseUrl = `http://${backendHost}:${backendPort}`;
@@ -29,7 +34,8 @@ export default function factory(options: SharedWorker.FactoryOptions): void {
 
   startBackend()
     .then((backend) => {
-      void handleMessages(protocol, backend);
+      const teardown = createGlobalTeardown(protocol, backend);
+      void handleMessages(protocol, backend, teardown);
       protocol.ready();
     })
     .catch((error) => {
@@ -39,9 +45,75 @@ export default function factory(options: SharedWorker.FactoryOptions): void {
     });
 }
 
+function createGlobalTeardown(
+  protocol: SharedWorker.Protocol<BackendWorkerMessage>,
+  backend: BackendHandle,
+): {
+  release: (
+    workerId: string,
+    reply: (data: BackendWorkerMessage) => void,
+  ) => void;
+} {
+  const activeWorkers = new Set<string>();
+  const releasedWorkers = new Set<string>();
+  const pendingReplies: Array<(data: BackendWorkerMessage) => void> = [];
+  let teardownTimer: NodeJS.Timeout | undefined;
+
+  const canStop = (): boolean =>
+    activeWorkers.size > 0 && activeWorkers.size === releasedWorkers.size;
+
+  const scheduleStop = (): void => {
+    if (!canStop() || teardownTimer !== undefined) {
+      return;
+    }
+
+    teardownTimer = setTimeout(() => {
+      teardownTimer = undefined;
+      if (!canStop()) {
+        return;
+      }
+
+      void backend.stop().then(() => {
+        for (const reply of pendingReplies.splice(0)) {
+          reply({ type: "released" });
+        }
+      });
+    }, teardownGraceMs);
+  };
+
+  void (async () => {
+    for await (const worker of protocol.testWorkers()) {
+      if (teardownTimer !== undefined) {
+        clearTimeout(teardownTimer);
+        teardownTimer = undefined;
+      }
+
+      activeWorkers.add(worker.id);
+      worker.teardown(() => {
+        activeWorkers.delete(worker.id);
+        releasedWorkers.delete(worker.id);
+      });
+    }
+  })();
+
+  return {
+    release(workerId, reply) {
+      releasedWorkers.add(workerId);
+      pendingReplies.push(reply);
+      scheduleStop();
+    },
+  };
+}
+
 async function handleMessages(
   protocol: SharedWorker.Protocol<BackendWorkerMessage>,
   backend: BackendHandle,
+  teardown: {
+    release: (
+      workerId: string,
+      reply: (data: BackendWorkerMessage) => void,
+    ) => void;
+  },
 ): Promise<void> {
   for await (const message of protocol.subscribe()) {
     if (message.data.type === "getBaseUrl") {
@@ -51,6 +123,10 @@ async function handleMessages(
     if (message.data.type === "stop") {
       await backend.stop();
       message.reply({ type: "stopped" });
+    }
+
+    if (message.data.type === "release") {
+      teardown.release(message.testWorker.id, (data) => message.reply(data));
     }
   }
 }
