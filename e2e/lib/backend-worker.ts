@@ -57,7 +57,7 @@ async function handleMessages(
 
 async function startBackend(): Promise<BackendHandle> {
   const repoRoot = resolve(process.cwd(), "..");
-  const rustDir = resolve(repoRoot, "rust");
+  const rustDir = resolve(repoRoot, "src");
   const child = spawn("cargo", ["run"], {
     cwd: rustDir,
     detached: process.platform !== "win32",
