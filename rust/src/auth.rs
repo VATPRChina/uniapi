@@ -63,9 +63,6 @@ pub enum AuthError {
     #[error(transparent)]
     Jwt(#[from] JwtError),
 
-    #[error("subject is not a ULID")]
-    InvalidSubject,
-
     #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
 
@@ -115,13 +112,19 @@ fn bearer_token(headers: &HeaderMap) -> Result<Option<&str>, AuthError> {
 
 async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentUser, AuthError> {
     let token = services.jwt().validate_access_token_claims(token)?;
-    let user_ulid = token
-        .subject
-        .parse::<Ulid>()
-        .map_err(|_| AuthError::InvalidSubject)?;
-    let user_id = Uuid::from(user_ulid);
-
     let mut roles = HashSet::new();
+    let Ok(user_ulid) = token.subject.parse::<Ulid>() else {
+        roles.insert(UserRole::ApiClient);
+        return Ok(CurrentUser {
+            subject: token.subject,
+            issued_at: token.issued_at,
+            expires_at: token.expires_at,
+            session_id: token.session_id,
+            user_id: None,
+            roles,
+        });
+    };
+    let user_id = Uuid::from(user_ulid);
 
     if let Some(user) = user::find_by_id(services.db(), user_id).await? {
         roles.insert(UserRole::User);

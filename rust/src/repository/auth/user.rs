@@ -103,6 +103,35 @@ pub async fn create_assumed_user(
     .await
 }
 
+pub async fn upsert_assumed_user(
+    db: &PgPool,
+    id: Uuid,
+    cid: &str,
+    full_name: &str,
+    email: Option<&str>,
+    roles: Vec<String>,
+) -> Result<UserLoginRow, sqlx::Error> {
+    sqlx::query_as::<_, UserLoginRow>(
+        r#"
+        INSERT INTO public."user" (id, cid, full_name, email, roles)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (cid) DO UPDATE
+        SET full_name = EXCLUDED.full_name,
+            email = EXCLUDED.email,
+            roles = EXCLUDED.roles,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING id, updated_at
+        "#,
+    )
+    .bind(id)
+    .bind(cid)
+    .bind(full_name)
+    .bind(email)
+    .bind(roles)
+    .fetch_one(db)
+    .await
+}
+
 pub async fn set_roles(
     db: &PgPool,
     id: Uuid,

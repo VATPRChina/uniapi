@@ -6,9 +6,12 @@ use axum::{Json, Router};
 use chrono::{Duration, Utc};
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use ulid::Ulid;
+use uuid::Uuid;
 
 use crate::adapter::vatsim_auth::{VatsimAuthError, generate_pkce};
+use crate::auth::CurrentUser;
 use crate::jwt::JwtError;
 use crate::repository::auth::{
     device_authorization::{self as device_authorization_repository, NewDeviceAuthorization},
@@ -18,7 +21,7 @@ use crate::repository::auth::{
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(authorize, device_authorization, token))]
+#[openapi(paths(authorize, device_authorization, token, unsafe_assume_user))]
 pub(crate) struct ApiDoc;
 
 const USER_CODE_ALPHABET: &[u8] = b"BCDFGHJKLMNPQRSTVWXZ";
@@ -31,6 +34,7 @@ pub fn build_auth_routes() -> Router<Services> {
         .route("/login", get(login))
         .route("/callback/vatsim", get(vatsim_callback))
         .route("/token", post(token))
+        .route("/__unsafe_assume_user", post(unsafe_assume_user))
 }
 
 #[utoipa::path(
@@ -379,6 +383,84 @@ async fn token(
             "The authorization grant type is not supported by the authorization server.",
         )),
     }
+}
+
+#[utoipa::path(
+    post,
+    path = "auth/__unsafe_assume_user",
+    tag = "Auth",
+    security(("oauth2" = [])),
+    request_body = UnsafeAssumeUserRequest,
+    responses((status = 200, description = "Successful response", body = TokenResponse))
+)]
+async fn unsafe_assume_user(
+    State(services): State<Services>,
+    current_user: CurrentUser,
+    Json(request): Json<UnsafeAssumeUserRequest>,
+) -> Result<Json<TokenResponse>, AuthEndpointError> {
+    if current_user.user_id.is_some()
+        || !services
+            .jwt()
+            .check_client_can_unsafe_assume_user(&current_user.subject)
+    {
+        return Err(AuthEndpointError::Unauthorized(
+            "client is not allowed to assume users",
+        ));
+    }
+
+    let cid = request.cid.trim();
+    if cid.is_empty() {
+        return Err(AuthEndpointError::BadRequest("cid is required".to_string()));
+    }
+
+    let id = match request.id {
+        Some(id) => id
+            .parse::<Ulid>()
+            .map(Uuid::from)
+            .map_err(|_| AuthEndpointError::BadRequest("id must be a ULID".to_string()))?,
+        None => Uuid::from(Ulid::new()),
+    };
+    let full_name = request
+        .full_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(cid);
+    let roles = request
+        .roles
+        .unwrap_or_default()
+        .into_iter()
+        .map(|role| role.trim().to_string())
+        .filter(|role| !role.is_empty())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+
+    let user = user_repository::upsert_assumed_user(
+        services.db(),
+        id,
+        cid,
+        full_name,
+        request.email.as_deref(),
+        roles,
+    )
+    .await
+    .map_err(AuthEndpointError::Database)?;
+    let client_id = current_user.subject;
+    let refresh =
+        issue_refresh_token(&services, user.id, user.updated_at, &client_id, None, false).await?;
+    let access_token =
+        services
+            .jwt()
+            .issue_access_token(user.id, user.updated_at, refresh.token, &client_id)?;
+
+    Ok(Json(TokenResponse {
+        access_token: access_token.token,
+        token_type: "Bearer",
+        expires_in: access_token.expires_in,
+        refresh_token: Some(refresh.token.to_string()),
+        scope: access_token.scope,
+    }))
 }
 
 async fn device_code_grant(
@@ -910,6 +992,15 @@ struct AccessTokenRequest {
     client_secret: String,
 }
 
+#[derive(Deserialize, utoipa::ToSchema)]
+struct UnsafeAssumeUserRequest {
+    id: Option<String>,
+    cid: String,
+    full_name: Option<String>,
+    email: Option<String>,
+    roles: Option<Vec<String>>,
+}
+
 #[derive(Serialize, utoipa::ToSchema)]
 struct TokenResponse {
     access_token: String,
@@ -922,6 +1013,7 @@ struct TokenResponse {
 
 #[derive(Debug)]
 enum AuthEndpointError {
+    BadRequest(String),
     Database(sqlx::Error),
     InvalidRedirectUri(String),
     InvalidHeader(header::InvalidHeaderValue),
@@ -932,6 +1024,7 @@ enum AuthEndpointError {
         error: &'static str,
         error_description: &'static str,
     },
+    Unauthorized(&'static str),
     VatsimAuth(VatsimAuthError),
 }
 
@@ -954,6 +1047,7 @@ impl IntoResponse for AuthEndpointError {
                 error,
                 error_description,
             } => return token_error(error, error_description),
+            AuthEndpointError::BadRequest(error) => (StatusCode::BAD_REQUEST, error),
             AuthEndpointError::Database(error) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Database query failed: {error}"),
@@ -972,6 +1066,7 @@ impl IntoResponse for AuthEndpointError {
             AuthEndpointError::StateSerialization(error) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
             }
+            AuthEndpointError::Unauthorized(error) => (StatusCode::UNAUTHORIZED, error.to_string()),
             AuthEndpointError::VatsimAuth(error) => (
                 StatusCode::BAD_GATEWAY,
                 format!("VATSIM authentication failed: {error}"),

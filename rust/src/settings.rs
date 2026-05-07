@@ -37,6 +37,8 @@ pub struct JwtClient {
     pub client_id: String,
     pub client_secret: Option<String>,
     pub redirect_uri: Vec<String>,
+    #[serde(default)]
+    pub unsafe_assume_user: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]

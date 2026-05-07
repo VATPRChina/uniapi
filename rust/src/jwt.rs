@@ -218,6 +218,12 @@ impl JwtService {
         })
     }
 
+    pub fn check_client_can_unsafe_assume_user(&self, client_id: &str) -> bool {
+        self.clients
+            .iter()
+            .any(|client| client.client_id == client_id && client.unsafe_assume_user)
+    }
+
     pub fn device_authz_expires_seconds(&self) -> i64 {
         self.device_authz_expires_seconds
     }
