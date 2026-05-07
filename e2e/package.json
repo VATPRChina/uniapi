@@ -2,7 +2,9 @@
   "name": "vatprc-uniapi-e2e",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm run clean && tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "generate:api": "openapi-typescript ${OPENAPI_URL:-http://localhost:3000/openapi.json} --export-type -o lib/api/schema.ts",
     "test": "pnpm run build && ava"
   },
   "devEngines": {
@@ -16,6 +18,8 @@
   "devDependencies": {
     "@types/node": "^25.0.0",
     "ava": "^8.0.0",
+    "openapi-fetch": "^0.17.0",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.9.3"
   },
   "ava": {

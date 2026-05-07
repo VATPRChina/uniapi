@@ -1,5 +1,6 @@
 import { registerSharedWorker, type SharedWorker } from "ava/plugin";
-import { BackendWorkerMessage } from "./backend-worker.js";
+import type { BackendWorkerMessage } from "./backend-worker.js";
+import { createApiClient } from "./api/client.js";
 
 const backend: SharedWorker.Plugin.Protocol<BackendWorkerMessage> =
   registerSharedWorker<BackendWorkerMessage>({
@@ -25,7 +26,7 @@ export const getBackend = async () => {
   const message = backend.publish({ type: "getBaseUrl" });
   for await (const reply of message.replies()) {
     if (reply.data.type === "baseUrl") {
-      return reply.data.baseUrl;
+      return createApiClient(reply.data.baseUrl);
     }
   }
 
