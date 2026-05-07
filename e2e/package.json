@@ -1,0 +1,28 @@
+{
+  "name": "vatprc-uniapi-e2e",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm run build && ava"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.0.6",
+      "onFail": "download"
+    }
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "ava": "^8.0.0",
+    "typescript": "^5.9.3"
+  },
+  "ava": {
+    "files": [
+      "dist/**/*.test.js"
+    ],
+    "timeout": "90s",
+    "workerThreads": true
+  }
+}

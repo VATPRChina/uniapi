@@ -185,6 +185,9 @@ ClientBin/
 orleans.codegen.cs
 
 /node_modules
+/e2e/node_modules/
+/e2e/dist/
+/.pnpm-store/
 /rust/target/
 
 # RIA/Silverlight projects

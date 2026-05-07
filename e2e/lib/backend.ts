@@ -1,0 +1,33 @@
+import { registerSharedWorker, type SharedWorker } from "ava/plugin";
+import { BackendWorkerMessage } from "./backend-worker.js";
+
+const backend: SharedWorker.Plugin.Protocol<BackendWorkerMessage> =
+  registerSharedWorker<BackendWorkerMessage>({
+    filename: new URL("./backend-worker.js", import.meta.url),
+    supportedProtocols: ["ava-4"],
+    teardown: async () => {
+      if (!backend.currentlyAvailable) {
+        return;
+      }
+
+      const message = backend.publish({ type: "stop" });
+      for await (const reply of message.replies()) {
+        if (reply.data.type === "stopped") {
+          return;
+        }
+      }
+    },
+  });
+
+export const getBackend = async () => {
+  await backend.available;
+
+  const message = backend.publish({ type: "getBaseUrl" });
+  for await (const reply of message.replies()) {
+    if (reply.data.type === "baseUrl") {
+      return reply.data.baseUrl;
+    }
+  }
+
+  throw new Error("Backend shared worker did not return a base URL");
+};
