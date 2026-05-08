@@ -30,7 +30,6 @@ use crate::{
     create_training,
     list_active,
     list_finished,
-    list_by_user,
     get_record_sheet,
     get_training,
     update_training,
@@ -46,7 +45,6 @@ pub fn build_training_routes() -> Router<Services> {
         .route("/", axum::routing::post(create_training))
         .route("/active", get(list_active))
         .route("/finished", get(list_finished))
-        .route("/by-user/{user_id}", get(list_by_user))
         .route("/record-sheet", get(get_record_sheet))
         .route(
             "/{id}",

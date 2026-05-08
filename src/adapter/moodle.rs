@@ -1,5 +1,8 @@
+use ::futures::future::OptionFuture;
+use reqwest::StatusCode;
 use serde::Deserialize;
 use thiserror::Error;
+use tokio::task::futures;
 
 const MOODLE_ENDPOINT: &str = "https://moodle.vatprc.net/webservice/rest/server.php";
 
@@ -28,7 +31,7 @@ impl MoodleClient {
             return Ok(None);
         }
 
-        let users = self
+        let res = self
             .http
             .post(MOODLE_ENDPOINT)
             .form(&[
@@ -40,9 +43,18 @@ impl MoodleClient {
             ])
             .send()
             .await?
-            .error_for_status()?
-            .json::<Vec<MoodleUser>>()
-            .await?;
+            .error_for_status()
+            .map(Some)
+            .or_else(|e| {
+                if e.is_status() && e.status() == Some(StatusCode::NOT_FOUND) {
+                    Ok(None)
+                } else {
+                    Err(e)
+                }
+            })?;
+        let users = (OptionFuture::from(res.map(|r| r.json::<Vec<MoodleUser>>())))
+            .await
+            .unwrap_or(Ok(Vec::new()))?;
 
         Ok(users.into_iter().next())
     }

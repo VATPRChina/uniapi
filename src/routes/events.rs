@@ -20,8 +20,7 @@ use crate::{
     list_past_events,
     create_event,
     get_event,
-    update_event,
-    delete_event
+    update_event
 ))]
 pub(crate) struct ApiDoc;
 
@@ -31,7 +30,7 @@ pub fn build_event_routes() -> Router<Services> {
         .route("/past", get(list_past_events))
         .route("/{eid}", get(get_event))
         .route("/", post(create_event))
-        .route("/{eid}", put(update_event).delete(delete_event))
+        .route("/{eid}", put(update_event))
 }
 
 #[utoipa::path(get, path = "api/events", tag = "Events", responses((status = 200, description = "Successful response", body = Vec<EventDto>)))]

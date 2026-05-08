@@ -51,16 +51,19 @@ test("issues a user token for an allowed client", async () => {
   expect(data.refresh_token).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
   expect(data.scope).toBe("");
 
-  const { data: user } = await client.GET("/api/users/me", {
+  const { data: session } = await client.GET("/api/session", {
     headers: {
       authorization: `Bearer ${data.access_token}`,
     },
   });
-  expect(user).toBeTruthy();
-  expect(user.id).toBe(assumedUserId);
-  expect(user.full_name).toBe("E2E Assumed User");
-  expect(user.direct_roles).toEqual(["controller", "event-coordinator"]);
-  expect(user.roles).toEqual(
+  expect(session).toBeTruthy();
+  expect(session.user.id).toBe(assumedUserId);
+  expect(session.user.full_name).toBe("E2E Assumed User");
+  expect(session.user.direct_roles).toEqual([
+    "controller",
+    "event-coordinator",
+  ]);
+  expect(session.user.roles).toEqual(
     expect.arrayContaining(["controller", "event-coordinator", "volunteer"]),
   );
 });

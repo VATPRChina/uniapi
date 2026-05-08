@@ -2,6 +2,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use jsonwebtoken::signature::digest::crypto_common::InnerIvInit;
 use thiserror::Error;
 
 use crate::{
@@ -246,7 +247,8 @@ impl ApiError {
             | Self::RefreshTokenNotFound(_)
             | Self::Unauthorized => StatusCode::UNAUTHORIZED,
 
-            Self::Compat(_) | Self::Discourse(_) | Self::Moodle(_) => StatusCode::BAD_GATEWAY,
+            Self::Compat(_) | Self::Discourse(_) => StatusCode::BAD_GATEWAY,
+            Self::Moodle(_) => StatusCode::BAD_GATEWAY,
 
             Self::Database(_) | Self::RouteParser(_) | Self::RouteValidator(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
@@ -261,6 +263,7 @@ impl ApiError {
     fn detail(&self) -> String {
         match self {
             Self::BadRequest(message) => message.clone(),
+            Self::Moodle(MoodleError::Request(inner)) => format!("{:?}", inner),
             _ => self.to_string(),
         }
     }

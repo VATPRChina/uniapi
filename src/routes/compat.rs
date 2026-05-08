@@ -16,7 +16,6 @@ use crate::services::Services;
 #[openapi(paths(
     vplaaf_areas,
     trackaudio_version,
-    vatsim_events,
     get_metar_by_query,
     get_metar_by_path,
     online_status
@@ -36,7 +35,6 @@ pub fn build_compat_routes() -> Router<Services> {
         .route("/online-status", get(online_status))
         .route("/euroscope/metar/{icao}", get(get_metar_by_path))
         .route("/euroscope/metar/metar.php", get(get_metar_by_query))
-        .route("/homepage/events/vatsim", get(vatsim_events))
         .route("/trackaudio/mandatory_version", get(trackaudio_version))
         .route("/vplaaf/areas.json", get(vplaaf_areas))
 }

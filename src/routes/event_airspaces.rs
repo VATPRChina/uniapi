@@ -1,5 +1,5 @@
 use axum::extract::{Path, State};
-use axum::routing::{get, post, put};
+use axum::routing::post;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -20,18 +20,11 @@ use crate::{
 };
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(list_airspaces, create_airspace, update_airspace, delete_airspace))]
+#[openapi(paths(create_airspace))]
 pub(crate) struct ApiDoc;
 
 pub fn build_event_airspace_routes() -> Router<Services> {
-    Router::new()
-        .route("/{eid}/airspaces", get(list_airspaces))
-        .route("/{eid}/airspaces/{aid}", get(get_airspace))
-        .route("/{eid}/airspaces", post(create_airspace))
-        .route(
-            "/{eid}/airspaces/{aid}",
-            put(update_airspace).delete(delete_airspace),
-        )
+    Router::new().route("/{eid}/airspaces", post(create_airspace))
 }
 
 #[utoipa::path(get, path = "api/events/{event_id}/airspaces", tag = "Events", params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = Vec<EventAirspaceDto>)))]

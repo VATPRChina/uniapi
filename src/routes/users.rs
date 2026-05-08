@@ -16,16 +16,14 @@ use crate::{
 };
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(list_users, me, get_user, set_roles, get_user_by_cid, assume_by_cid))]
+#[openapi(paths(list_users, me, set_roles))]
 pub(crate) struct ApiDoc;
 
 pub fn build_user_routes() -> Router<Services> {
     Router::new()
         .route("/", get(list_users))
         .route("/me", get(me))
-        .route("/{id}", get(get_user))
         .route("/{id}/roles", put(set_roles))
-        .route("/by-cid/{cid}", get(get_user_by_cid).post(assume_by_cid))
 }
 
 #[utoipa::path(get, path = "api/users", tag = "Users", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<UserDto>)))]

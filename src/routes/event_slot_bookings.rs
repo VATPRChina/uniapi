@@ -1,5 +1,5 @@
 use axum::extract::{Path, State};
-use axum::routing::get;
+use axum::routing::put;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -15,13 +15,13 @@ use crate::{
 };
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(get_booking, put_booking, delete_booking))]
+#[openapi(paths(put_booking, delete_booking))]
 pub(crate) struct ApiDoc;
 
 pub fn build_event_slot_booking_routes() -> Router<Services> {
     Router::new().route(
         "/{eid}/slots/{sid}/booking",
-        get(get_booking).put(put_booking).delete(delete_booking),
+        put(put_booking).delete(delete_booking),
     )
 }
 

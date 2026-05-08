@@ -1,6 +1,21 @@
 [database]
 url = "postgres://localhost/vatprc"
 
+[authentication.jwt]
+private_key = """
+-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgUmXARhAPI0J82PkY
+TdK00JZl4t+8BJANigCDjHRjqSChRANCAATfUjHFTc2o/kdI/tA902XY83S/xKJB
+5g2Nl7LuskZRD+uGVWudjZHd0WjMMw1lIgcbVAkVQkx4t+CiqljcUP0P
+-----END PRIVATE KEY-----
+"""
+public_key = """
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE31IxxU3NqP5HSP7QPdNl2PN0v8Si
+QeYNjZey7rJGUQ/rhlVrnY2R3dFozDMNZSIHG1QJFUJMeLfgoqpY3FD9Dw==
+-----END PUBLIC KEY-----
+"""
+
 [[authentication.jwt.clients]]
 client_id = "01J2ED6BDX9J9BTYS2RVW83ME7"
 redirect_uri = ["http://localhost:3000/auth/callback"]

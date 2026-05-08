@@ -13,7 +13,6 @@ use crate::auth;
 use crate::openapi::{openapi, openapi_json};
 use crate::routes::atc::build_atc_routes;
 use crate::routes::atc_applications::build_atc_application_routes;
-use crate::routes::atc_bookings::build_atc_booking_routes;
 use crate::routes::auth::build_auth_routes;
 use crate::routes::compat::build_compat_routes;
 use crate::routes::event_airspaces::build_event_airspace_routes;
@@ -22,9 +21,7 @@ use crate::routes::event_slot_bookings::build_event_slot_booking_routes;
 use crate::routes::event_slots::build_event_slot_routes;
 use crate::routes::events::build_event_routes;
 use crate::routes::flights::build_flight_routes;
-use crate::routes::notams::build_notam_routes;
 use crate::routes::preferred_routes::build_preferred_route_routes;
-use crate::routes::sectors::build_sector_routes;
 use crate::routes::session::build_session_routes;
 use crate::routes::storage::build_storage_routes;
 use crate::routes::training_applications::build_training_application_routes;
@@ -50,10 +47,8 @@ pub fn router(services: Services) -> Router {
         .route("/health", get(health))
         .nest("/auth", build_auth_routes())
         .nest("/api/atc/controllers", build_atc_routes())
-        .nest("/api/atc/bookings", build_atc_booking_routes())
         .nest("/api/atc/applications", build_atc_application_routes())
         .nest("/api/compat", build_compat_routes())
-        .nest("/api/notams", build_notam_routes())
         .nest(
             "/api/navdata/preferred-routes",
             build_preferred_route_routes(),
@@ -65,7 +60,6 @@ pub fn router(services: Services) -> Router {
         .nest("/api/events", build_event_slot_booking_routes())
         .nest("/api/events", build_event_slot_routes())
         .nest("/api/session", build_session_routes())
-        .nest("/api/sectors", build_sector_routes())
         .nest("/api/storage", build_storage_routes())
         .nest(
             "/api/atc/trainings/applications",

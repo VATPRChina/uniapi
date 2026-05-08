@@ -84,54 +84,6 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/atc/bookings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_bookings"];
-        put?: never;
-        post: operations["create_booking"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/atc/bookings/mine": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_my_bookings"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/atc/bookings/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_booking"];
-        put: operations["update_booking"];
-        post?: never;
-        delete: operations["delete_booking"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/atc/controllers": {
         parameters: {
             query?: never;
@@ -244,22 +196,6 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/atc/trainings/by-user/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_by_user"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/atc/trainings/finished": {
         parameters: {
             query?: never;
@@ -356,22 +292,6 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/compat/homepage/events/vatsim": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["vatsim_events"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/compat/online-status": {
         parameters: {
             query?: never;
@@ -459,26 +379,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_airspaces"];
+        get?: never;
         put?: never;
         post: operations["create_airspace"];
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/events/{event_id}/airspaces/{airspace_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["update_airspace"];
-        post?: never;
-        delete: operations["delete_airspace"];
         options?: never;
         head?: never;
         patch?: never;
@@ -548,22 +452,6 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/events/{event_id}/slots/{slot_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["update_slot"];
-        post?: never;
-        delete: operations["delete_slot"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/events/{event_id}/slots/{slot_id}/booking": {
         parameters: {
             query?: never;
@@ -571,7 +459,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_event_slot_booking"];
+        get?: never;
         put: operations["put_booking"];
         post?: never;
         delete: operations["delete_event_slot_booking"];
@@ -590,7 +478,7 @@ export type paths = {
         get: operations["get_event"];
         put: operations["update_event"];
         post?: never;
-        delete: operations["delete_event"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -718,38 +606,6 @@ export type paths = {
         get: operations["get_preferred_route"];
         put: operations["update_preferred_route"];
         post?: never;
-        delete: operations["delete_preferred_route"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/notams": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["list_notams"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/sectors/current/permission": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["current_permission"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -804,22 +660,6 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/users/by-cid/{cid}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_user_by_cid"];
-        put?: never;
-        post: operations["assume_by_cid"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/users/me": {
         parameters: {
             query?: never;
@@ -852,22 +692,6 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/users/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_user"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/users/{id}/atc/status": {
         parameters: {
             query?: never;
@@ -875,10 +699,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_status"];
+        get?: never;
         put: operations["set_status"];
         post?: never;
-        delete: operations["delete_status"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1012,17 +836,6 @@ export type components = {
             status: components["schemas"]["AtcApplicationStatus"];
             user: components["schemas"]["UserDto"];
             user_id: string;
-        };
-        AtcBookingDto: {
-            /** Format: date-time */
-            booked_at: string;
-            callsign: string;
-            /** Format: date-time */
-            end_time: string;
-            id: string;
-            /** Format: date-time */
-            start_time: string;
-            user: components["schemas"]["UserDto"];
         };
         AtcPermissionDto: {
             position_kind_id: string;
@@ -1240,11 +1053,6 @@ export type components = {
         };
         /** @enum {string} */
         LevelRestrictionType: "standard-even" | "standard-odd" | "standard" | "flight-level-even" | "flight-level-odd" | "flight-level";
-        NotamDto: {
-            language_code: string;
-            link: string;
-            title: string;
-        };
         PreferredRouteDto: {
             allowed_altitudes: number[];
             arrival: string;
@@ -1273,10 +1081,6 @@ export type components = {
             valid_from?: string | null;
             /** Format: date-time */
             valid_until?: string | null;
-        };
-        SectorPermissionResponse: {
-            has_permission: boolean;
-            sector_type: string;
         };
         SheetDto: {
             fields: components["schemas"]["SheetFieldDto"][];
@@ -1565,135 +1369,6 @@ export interface operations {
             };
         };
     };
-    list_bookings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AtcBookingDto"][];
-                };
-            };
-        };
-    };
-    create_booking: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AtcBookingDto"];
-                };
-            };
-        };
-    };
-    list_my_bookings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AtcBookingDto"][];
-                };
-            };
-        };
-    };
-    get_booking: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Booking ULID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AtcBookingDto"];
-                };
-            };
-        };
-    };
-    update_booking: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Booking ULID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AtcBookingDto"];
-                };
-            };
-        };
-    };
-    delete_booking: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Booking ULID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AtcBookingDto"];
-                };
-            };
-        };
-    };
     list_controllers: {
         parameters: {
             query?: never;
@@ -1909,29 +1584,6 @@ export interface operations {
             };
         };
     };
-    list_by_user: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description User ULID */
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TrainingDto"][];
-                };
-            };
-        };
-    };
     list_finished: {
         parameters: {
             query?: never;
@@ -2108,26 +1760,6 @@ export interface operations {
             };
         };
     };
-    vatsim_events: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
     online_status: {
         parameters: {
             query?: never;
@@ -2255,29 +1887,6 @@ export interface operations {
             };
         };
     };
-    list_airspaces: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Event ULID */
-                event_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EventAirspaceDto"][];
-                };
-            };
-        };
-    };
     create_airspace: {
         parameters: {
             query?: never;
@@ -2302,54 +1911,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EventAirspaceDto"];
                 };
-            };
-        };
-    };
-    update_airspace: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Event ULID */
-                event_id: string;
-                /** @description Airspace ULID */
-                airspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EventAirspaceDto"];
-                };
-            };
-        };
-    };
-    delete_airspace: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Event ULID */
-                event_id: string;
-                /** @description Airspace ULID */
-                airspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -2547,79 +2108,6 @@ export interface operations {
             };
         };
     };
-    update_slot: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Event ULID */
-                event_id: string;
-                /** @description Slot ULID */
-                slot_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EventSlotDto"];
-                };
-            };
-        };
-    };
-    delete_slot: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Event ULID */
-                event_id: string;
-                /** @description Slot ULID */
-                slot_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_event_slot_booking: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Event ULID */
-                event_id: string;
-                /** @description Slot ULID */
-                slot_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EventBookingDto"];
-                };
-            };
-        };
-    };
     put_booking: {
         parameters: {
             query?: never;
@@ -2708,29 +2196,6 @@ export interface operations {
                 "application/json": components["schemas"]["EventSaveRequest"];
             };
         };
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EventDto"];
-                };
-            };
-        };
-    };
-    delete_event: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Event ULID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
         responses: {
             /** @description Successful response */
             200: {
@@ -2966,69 +2431,6 @@ export interface operations {
             };
         };
     };
-    delete_preferred_route: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Preferred route ULID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PreferredRouteDto"];
-                };
-            };
-        };
-    };
-    list_notams: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotamDto"][];
-                };
-            };
-        };
-    };
-    current_permission: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SectorPermissionResponse"];
-                };
-            };
-        };
-    };
     get_current: {
         parameters: {
             query?: never;
@@ -3111,52 +2513,6 @@ export interface operations {
             };
         };
     };
-    get_user_by_cid: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description VATSIM CID */
-                cid: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserDto"];
-                };
-            };
-        };
-    };
-    assume_by_cid: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description VATSIM CID */
-                cid: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserDto"];
-                };
-            };
-        };
-    };
     me: {
         parameters: {
             query?: never;
@@ -3197,52 +2553,6 @@ export interface operations {
             };
         };
     };
-    get_user: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description User ULID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserDto"];
-                };
-            };
-        };
-    };
-    get_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description User ULID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AtcStatusDto"];
-                };
-            };
-        };
-    };
     set_status: {
         parameters: {
             query?: never;
@@ -3267,27 +2577,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AtcStatusDto"];
                 };
-            };
-        };
-    };
-    delete_status: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description User ULID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

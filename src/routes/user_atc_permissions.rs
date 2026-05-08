@@ -24,7 +24,7 @@ use crate::{
 };
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(get_my_status, get_status, set_status, delete_status))]
+#[openapi(paths(get_my_status, set_status))]
 pub(crate) struct ApiDoc;
 
 const ALLOWED_RATINGS: &[&str] = &["OBS", "S1", "S2", "S3", "C1", "C3", "I1", "I3"];
@@ -32,10 +32,7 @@ const ALLOWED_RATINGS: &[&str] = &["OBS", "S1", "S2", "S3", "C1", "C3", "I1", "I
 pub fn build_user_atc_permission_routes() -> Router<Services> {
     Router::new()
         .route("/me/atc/status", get(get_my_status))
-        .route(
-            "/{id}/atc/status",
-            get(get_status).put(set_status).delete(delete_status),
-        )
+        .route("/{id}/atc/status", axum::routing::put(set_status))
 }
 
 #[utoipa::path(get, path = "api/users/me/atc/status", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]

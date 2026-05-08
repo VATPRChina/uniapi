@@ -13,8 +13,7 @@ use crate::{auth::CurrentUser, models::user_role::UserRole, services::Services};
     list_preferred_routes,
     create_preferred_route,
     get_preferred_route,
-    update_preferred_route,
-    delete_preferred_route
+    update_preferred_route
 ))]
 pub(crate) struct ApiDoc;
 
@@ -23,9 +22,7 @@ pub fn build_preferred_route_routes() -> Router<Services> {
         .route("/", get(list_preferred_routes).post(create_preferred_route))
         .route(
             "/{id}",
-            get(get_preferred_route)
-                .put(update_preferred_route)
-                .delete(delete_preferred_route),
+            get(get_preferred_route).put(update_preferred_route),
         )
 }
 

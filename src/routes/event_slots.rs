@@ -2,7 +2,7 @@ use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post, put};
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -21,17 +21,14 @@ use crate::{
 };
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(list_slots, create_slot, update_slot, delete_slot))]
+#[openapi(paths(list_slots, create_slot))]
 pub(crate) struct ApiDoc;
 
 pub fn build_event_slot_routes() -> Router<Services> {
     Router::new()
         .route("/{eid}/slots", get(list_slots))
-        .route("/{eid}/slots/{sid}", get(get_slot))
         .route("/{eid}/slots/bookings.csv", get(export_bookings))
-        .route("/{eid}/slots/mine", get(get_my_slot))
         .route("/{eid}/slots", post(create_slot))
-        .route("/{eid}/slots/{sid}", put(update_slot).delete(delete_slot))
 }
 
 #[utoipa::path(get, path = "api/events/{event_id}/slots", tag = "Events", params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = Vec<EventSlotDto>)))]
