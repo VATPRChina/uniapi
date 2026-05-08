@@ -66,7 +66,7 @@ async fn get_airspace(
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
 
-#[utoipa::path(post, path = "api/events/{event_id}/airspaces", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventAirspaceDto)))]
+#[utoipa::path(post, path = "api/events/{event_id}/airspaces", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID")), request_body = EventAirspaceSaveRequest, responses((status = 200, description = "Successful response", body = EventAirspaceDto)))]
 async fn create_airspace(
     State(services): State<Services>,
     current_user: CurrentUser,

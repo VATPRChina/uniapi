@@ -1108,6 +1108,11 @@ export type components = {
             /** Format: date-time */
             updated_at: string;
         };
+        EventAirspaceSaveRequest: {
+            description: string;
+            icao_codes: string[];
+            name: string;
+        };
         EventAtcPositionBookingDto: {
             /** Format: date-time */
             booked_at: string;
@@ -1193,6 +1198,15 @@ export type components = {
             leave_at?: string | null;
             /** Format: date-time */
             updated_at: string;
+        };
+        EventSlotSaveRequest: {
+            aircraft_type_icao?: string | null;
+            airspace_id: string;
+            callsign?: string | null;
+            /** Format: date-time */
+            enter_at: string;
+            /** Format: date-time */
+            leave_at?: string | null;
         };
         FlightDto: {
             aircraft: string;
@@ -2274,7 +2288,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventAirspaceSaveRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -2512,7 +2530,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSlotSaveRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
