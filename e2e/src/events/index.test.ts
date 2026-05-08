@@ -52,6 +52,44 @@ test("POST /api/events creates an event", async () => {
   expect(data.description).toBe("Created by the e2e POST /api/events test.");
 });
 
+test("POST /api/events rejects users without event coordinator permission", async () => {
+  const client = await getBackend();
+  const accessToken = await issueUserTokenWithRoles(client, {
+    cid: "910005",
+    fullName: "E2E Non Event Coordinator",
+    email: "e2e-non-event-coordinator@example.test",
+    roles: ["controller"],
+  });
+
+  const { data, error, response } = await client.POST("/api/events", {
+    body: {
+      title: "E2E Forbidden Event",
+      title_en: "E2E Forbidden Event EN",
+      start_at: "2030-04-15T10:00:00Z",
+      end_at: "2030-04-15T12:00:00Z",
+      start_booking_at: "2030-04-01T00:00:00Z",
+      end_booking_at: "2030-04-14T00:00:00Z",
+      start_atc_booking_at: "2030-04-02T00:00:00Z",
+      image_url: "https://example.test/forbidden-event.png",
+      community_link: "https://community.example.test/events/e2e-forbidden",
+      vatsim_link: "https://my.vatsim.net/events/e2e-forbidden",
+      description: "Created by the e2e forbidden POST /api/events test.",
+    },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  expect(response.status).toBe(403);
+  expect(data).toBeFalsy();
+  expect(error).toEqual({
+    detail: "forbidden",
+    status: 403,
+    title: "Forbidden",
+    type: "about:blank",
+  });
+});
+
 test("GET /api/events lists current events", async () => {
   const client = await getBackend();
   const accessToken = await issueUserTokenWithRoles(client, {
