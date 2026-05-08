@@ -1,6 +1,5 @@
 pub mod atc;
 pub mod atc_applications;
-pub mod atc_bookings;
 pub mod auth;
 pub mod compat;
 pub mod event_airspaces;
@@ -9,7 +8,6 @@ pub mod event_slot_bookings;
 pub mod event_slots;
 pub mod events;
 pub mod flights;
-pub mod notams;
 pub mod preferred_routes;
 pub mod sectors;
 pub mod session;

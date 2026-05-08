@@ -1,5 +1,4 @@
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
@@ -44,17 +43,6 @@ async fn get_my_status(
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
-#[utoipa::path(get, path = "api/users/{id}/atc/status", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
-async fn get_status(
-    State(services): State<Services>,
-    current_user: CurrentUser,
-    Path(id): Path<String>,
-) -> Result<Json<AtcStatusDto>, ApiError> {
-    require_admin_role(&current_user)?;
-    let user_id = parse_ulid_uuid(&id)?;
-    get_status_for_user(&services, user_id).await.map(Json)
-}
-
 #[utoipa::path(put, path = "api/users/{id}/atc/status", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "User ULID")), request_body = AtcStatusRequest, responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
 async fn set_status(
     State(services): State<Services>,
@@ -81,35 +69,6 @@ async fn set_status(
     transaction.commit().await.map_err(ApiError::Database)?;
 
     get_status_for_user(&services, user_id).await.map(Json)
-}
-
-#[utoipa::path(delete, path = "api/users/{id}/atc/status", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 204, description = "No content")))]
-async fn delete_status(
-    State(services): State<Services>,
-    current_user: CurrentUser,
-    Path(id): Path<String>,
-) -> Result<StatusCode, ApiError> {
-    require_admin_role(&current_user)?;
-    let user_id = parse_ulid_uuid(&id)?;
-
-    if atc_status_repository::find_by_user_id(services.db(), user_id)
-        .await
-        .map_err(ApiError::Database)?
-        .is_none()
-    {
-        return Err(ApiError::UserNotFound);
-    }
-
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
-    let deleted = atc_status_repository::delete_with_permissions(&mut transaction, user_id)
-        .await
-        .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
-    if !deleted {
-        return Err(ApiError::AtcStatusNotFound);
-    }
-
-    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn get_status_for_user(services: &Services, user_id: Uuid) -> Result<AtcStatusDto, ApiError> {

@@ -15,13 +15,7 @@ use crate::{
 };
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(
-    list_events,
-    list_past_events,
-    create_event,
-    get_event,
-    update_event
-))]
+#[openapi(paths(list_events, list_past_events, create_event, get_event, update_event))]
 pub(crate) struct ApiDoc;
 
 pub fn build_event_routes() -> Router<Services> {
@@ -108,24 +102,6 @@ async fn update_event(
         .map_err(|_| ApiError::Forbidden)?;
     let id = parse_ulid_uuid(&eid)?;
     let event = event_repository::update(services.db(), id, request.try_into()?)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::EventNotFound)?;
-
-    Ok(Json(EventDto::from(event)))
-}
-
-#[utoipa::path(delete, path = "api/events/{id}", tag = "Events", security(("oauth2" = [])), params(("id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventDto)))]
-async fn delete_event(
-    State(services): State<Services>,
-    current_user: CurrentUser,
-    Path(eid): Path<String>,
-) -> Result<Json<EventDto>, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    let id = parse_ulid_uuid(&eid)?;
-    let event = event_repository::delete(services.db(), id)
         .await
         .map_err(ApiError::Database)?
         .ok_or(ApiError::EventNotFound)?;

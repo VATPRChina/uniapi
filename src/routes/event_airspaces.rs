@@ -27,38 +27,6 @@ pub fn build_event_airspace_routes() -> Router<Services> {
     Router::new().route("/{eid}/airspaces", post(create_airspace))
 }
 
-#[utoipa::path(get, path = "api/events/{event_id}/airspaces", tag = "Events", params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = Vec<EventAirspaceDto>)))]
-async fn list_airspaces(
-    State(services): State<Services>,
-    Path(eid): Path<String>,
-) -> Result<Json<Vec<EventAirspaceDto>>, ApiError> {
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    ensure_event_exists(&services, event_id).await?;
-
-    Ok(Json(
-        airspace_repository::list_by_event(services.db(), event_id)
-            .await
-            .map_err(ApiError::Database)?
-            .into_iter()
-            .map(EventAirspaceDto::from)
-            .collect(),
-    ))
-}
-
-async fn get_airspace(
-    State(services): State<Services>,
-    Path((eid, aid)): Path<(String, String)>,
-) -> Result<Json<EventAirspaceDto>, ApiError> {
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let airspace_id = parse_ulid_uuid(&aid, ApiError::InvalidAirspaceId)?;
-    let airspace = airspace_repository::find_by_event_and_id(services.db(), event_id, airspace_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::AirspaceNotFound)?;
-
-    Ok(Json(EventAirspaceDto::from(airspace)))
-}
-
 #[utoipa::path(post, path = "api/events/{event_id}/airspaces", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID")), request_body = EventAirspaceSaveRequest, responses((status = 200, description = "Successful response", body = EventAirspaceDto)))]
 async fn create_airspace(
     State(services): State<Services>,
@@ -75,50 +43,6 @@ async fn create_airspace(
         airspace_repository::create(services.db(), event_id, EventAirspaceSave::from(request))
             .await
             .map_err(ApiError::Database)?;
-
-    Ok(Json(EventAirspaceDto::from(airspace)))
-}
-
-#[utoipa::path(put, path = "api/events/{event_id}/airspaces/{airspace_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("airspace_id" = String, Path, description = "Airspace ULID")), responses((status = 200, description = "Successful response", body = EventAirspaceDto)))]
-async fn update_airspace(
-    State(services): State<Services>,
-    current_user: CurrentUser,
-    Path((eid, aid)): Path<(String, String)>,
-    Json(request): Json<EventAirspaceSaveRequest>,
-) -> Result<Json<EventAirspaceDto>, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let airspace_id = parse_ulid_uuid(&aid, ApiError::InvalidAirspaceId)?;
-    let airspace = airspace_repository::update(
-        services.db(),
-        event_id,
-        airspace_id,
-        EventAirspaceSave::from(request),
-    )
-    .await
-    .map_err(ApiError::Database)?
-    .ok_or(ApiError::AirspaceNotFound)?;
-
-    Ok(Json(EventAirspaceDto::from(airspace)))
-}
-
-#[utoipa::path(delete, path = "api/events/{event_id}/airspaces/{airspace_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("airspace_id" = String, Path, description = "Airspace ULID")), responses((status = 204, description = "No content")))]
-async fn delete_airspace(
-    State(services): State<Services>,
-    current_user: CurrentUser,
-    Path((eid, aid)): Path<(String, String)>,
-) -> Result<Json<EventAirspaceDto>, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let airspace_id = parse_ulid_uuid(&aid, ApiError::InvalidAirspaceId)?;
-    let airspace = airspace_repository::delete(services.db(), event_id, airspace_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::AirspaceNotFound)?;
 
     Ok(Json(EventAirspaceDto::from(airspace)))
 }

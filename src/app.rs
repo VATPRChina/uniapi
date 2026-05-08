@@ -22,6 +22,7 @@ use crate::routes::event_slots::build_event_slot_routes;
 use crate::routes::events::build_event_routes;
 use crate::routes::flights::build_flight_routes;
 use crate::routes::preferred_routes::build_preferred_route_routes;
+use crate::routes::sectors::build_sector_routes;
 use crate::routes::session::build_session_routes;
 use crate::routes::storage::build_storage_routes;
 use crate::routes::training_applications::build_training_application_routes;
@@ -68,6 +69,7 @@ pub fn router(services: Services) -> Router {
         .nest("/api/atc/trainings", build_training_routes())
         .nest("/api/users", build_user_routes())
         .nest("/api/users", build_user_atc_permission_routes())
+        .nest("/api/sectors", build_sector_routes())
         .with_state(services);
     let (router, openapi) = OpenApiRouter::with_openapi(openapi())
         .merge(app.into())

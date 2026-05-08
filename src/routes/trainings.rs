@@ -95,28 +95,6 @@ async fn list_finished(
     .map(Json)
 }
 
-#[utoipa::path(get, path = "api/atc/trainings/by-user/{user_id}", tag = "ATC", security(("oauth2" = [])), params(("user_id" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
-async fn list_by_user(
-    State(services): State<Services>,
-    current_user: CurrentUser,
-    Path(user_id): Path<String>,
-) -> Result<Json<Vec<TrainingDto>>, ApiError> {
-    let user_id = parse_ulid_uuid(&user_id)?;
-    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    if user_id != current_user_id && !current_user.has_role(UserRole::ControllerTrainingMentor) {
-        return Err(ApiError::NotOwned);
-    }
-
-    trainings_to_dto(
-        &services,
-        training_repository::list_by_trainee(services.db(), user_id)
-            .await
-            .map_err(ApiError::Database)?,
-    )
-    .await
-    .map(Json)
-}
-
 #[utoipa::path(get, path = "api/atc/trainings/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn get_training(
     State(services): State<Services>,

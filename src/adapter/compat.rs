@@ -5,7 +5,6 @@ use std::time::Duration;
 use thiserror::Error;
 
 const VATSIM_DATA_URL: &str = "https://data.vatsim.net/v3/vatsim-data.json";
-const VATSIM_EVENTS_URL: &str = "https://my.vatsim.net/api/v2/events/view/division/PRC";
 const VATSIM_METAR_BASE_URL: &str = "https://metar.vatsim.net";
 const TRACK_AUDIO_VERSION_URL: &str =
     "https://raw.githubusercontent.com/pierr3/TrackAudio/main/MANDATORY_VERSION";
@@ -50,10 +49,6 @@ impl CompatClient {
             .error_for_status()?
             .json::<VatsimData>()
             .await?)
-    }
-
-    pub async fn get_vatsim_events(&self) -> Result<String, CompatClientError> {
-        self.get_text(VATSIM_EVENTS_URL).await
     }
 
     pub async fn get_track_audio_version(&self) -> Result<String, CompatClientError> {

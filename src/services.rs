@@ -15,6 +15,7 @@ pub struct Services {
     jwt: JwtService,
     smms: SmmsClient,
     compat: CompatClient,
+    #[allow(dead_code)]
     discourse: DiscourseClient,
     moodle: MoodleClient,
     vatsim_auth: VatsimAuthClient,
@@ -60,6 +61,8 @@ impl Services {
         &self.compat
     }
 
+    // TODO: Unsuppress when DiscourseClient is used in at least one route
+    #[allow(dead_code)]
     pub fn discourse(&self) -> &DiscourseClient {
         &self.discourse
     }

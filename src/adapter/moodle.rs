@@ -2,7 +2,6 @@ use ::futures::future::OptionFuture;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use thiserror::Error;
-use tokio::task::futures;
 
 const MOODLE_ENDPOINT: &str = "https://moodle.vatprc.net/webservice/rest/server.php";
 

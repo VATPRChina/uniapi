@@ -49,36 +49,6 @@ async fn list_slots(
     ))
 }
 
-async fn get_slot(
-    State(services): State<Services>,
-    Path((eid, sid)): Path<(String, String)>,
-) -> Result<Json<EventSlotDto>, ApiError> {
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let slot_id = parse_ulid_uuid(&sid, ApiError::InvalidSlotId)?;
-    let slot = slot_repository::find_by_event_and_id(services.db(), event_id, slot_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::SlotNotFound)?;
-
-    Ok(Json(event_slot_dto(slot, false)))
-}
-
-async fn get_my_slot(
-    State(services): State<Services>,
-    current_user: CurrentUser,
-    Path(eid): Path<String>,
-) -> Result<Json<EventSlotDto>, ApiError> {
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let include_booking_user = include_booking_user(&current_user);
-    let slot = slot_repository::find_mine_by_event(services.db(), event_id, user_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::SlotNotFound)?;
-
-    Ok(Json(event_slot_dto(slot, include_booking_user)))
-}
-
 async fn export_bookings(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -120,51 +90,6 @@ async fn create_slot(
     let slot = slot_repository::create(services.db(), request.try_into()?)
         .await
         .map_err(ApiError::Database)?;
-
-    Ok(Json(event_slot_dto(
-        slot,
-        include_booking_user(&current_user),
-    )))
-}
-
-#[utoipa::path(put, path = "api/events/{event_id}/slots/{slot_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventSlotDto)))]
-async fn update_slot(
-    State(services): State<Services>,
-    current_user: CurrentUser,
-    Path((eid, sid)): Path<(String, String)>,
-    Json(request): Json<EventSlotSaveRequest>,
-) -> Result<Json<EventSlotDto>, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let slot_id = parse_ulid_uuid(&sid, ApiError::InvalidSlotId)?;
-    let slot = slot_repository::update(services.db(), event_id, slot_id, request.try_into()?)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::SlotNotFound)?;
-
-    Ok(Json(event_slot_dto(
-        slot,
-        include_booking_user(&current_user),
-    )))
-}
-
-#[utoipa::path(delete, path = "api/events/{event_id}/slots/{slot_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 204, description = "No content")))]
-async fn delete_slot(
-    State(services): State<Services>,
-    current_user: CurrentUser,
-    Path((eid, sid)): Path<(String, String)>,
-) -> Result<Json<EventSlotDto>, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let slot_id = parse_ulid_uuid(&sid, ApiError::InvalidSlotId)?;
-    let slot = slot_repository::delete(services.db(), event_id, slot_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::SlotNotFound)?;
 
     Ok(Json(event_slot_dto(
         slot,

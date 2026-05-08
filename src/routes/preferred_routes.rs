@@ -68,17 +68,6 @@ async fn update_preferred_route(
     Err(ApiError::NotImplemented)
 }
 
-#[utoipa::path(delete, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("oauth2" = [])), params(("id" = String, Path, description = "Preferred route ULID")), responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
-async fn delete_preferred_route(
-    current_user: CurrentUser,
-    Path(_id): Path<String>,
-) -> Result<Response, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    Err(ApiError::NotImplemented)
-}
-
 #[derive(Deserialize, utoipa::ToSchema)]
 #[allow(dead_code)]
 struct PreferredRouteSaveRequest {

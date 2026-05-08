@@ -25,21 +25,6 @@ pub fn build_event_slot_booking_routes() -> Router<Services> {
     )
 }
 
-#[utoipa::path(get, path = "api/events/{event_id}/slots/{slot_id}/booking", operation_id = "get_event_slot_booking", tag = "Events", params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventBookingDto)))]
-async fn get_booking(
-    State(services): State<Services>,
-    Path((eid, sid)): Path<(String, String)>,
-) -> Result<Json<EventBookingDto>, ApiError> {
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let slot_id = parse_ulid_uuid(&sid, ApiError::InvalidSlotId)?;
-    let booking = booking_repository::find_booking(services.db(), event_id, slot_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::SlotNotBooked)?;
-
-    Ok(Json(event_booking_dto(booking, false)))
-}
-
 #[utoipa::path(put, path = "api/events/{event_id}/slots/{slot_id}/booking", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventBookingDto)))]
 async fn put_booking(
     State(services): State<Services>,

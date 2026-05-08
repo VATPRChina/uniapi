@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
 use serde::Deserialize;
 use std::time::Duration;

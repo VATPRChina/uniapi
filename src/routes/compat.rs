@@ -133,11 +133,6 @@ async fn metar_response(services: Services, icao: String) -> Response {
         .into_response()
 }
 
-#[utoipa::path(get, path = "api/compat/homepage/events/vatsim", tag = "Compat", responses((status = 200, description = "Successful response", body = serde_json::Value)))]
-async fn vatsim_events(State(services): State<Services>) -> Result<Response, CompatError> {
-    json_text_response(services.compat().get_vatsim_events().await)
-}
-
 #[utoipa::path(get, path = "api/compat/trackaudio/mandatory_version", tag = "Compat", responses((status = 200, description = "Successful response", body = String)))]
 async fn trackaudio_version(State(services): State<Services>) -> Result<Response, CompatError> {
     text_response(services.compat().get_track_audio_version().await)

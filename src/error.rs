@@ -2,21 +2,15 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use jsonwebtoken::signature::digest::crypto_common::InnerIvInit;
 use thiserror::Error;
 
 use crate::{
-    adapter::{
-        compat::CompatClientError, discourse::DiscourseError, moodle::MoodleError, smms::SmmsError,
-    },
+    adapter::{compat::CompatClientError, moodle::MoodleError, smms::SmmsError},
     flight_plan::{parser::ParserError, validator::ValidatorError},
 };
 
 #[derive(Debug, Error)]
 pub enum ApiError {
-    #[error("event airspace not found")]
-    AirspaceNotFound,
-
     #[error("training application already accepted")]
     AlreadyAccepted,
 
@@ -29,20 +23,8 @@ pub enum ApiError {
     #[error("ATC application not found")]
     ApplicationNotFound,
 
-    #[error("ATC status not found")]
-    AtcStatusNotFound,
-
     #[error("bad request: {0}")]
     BadRequest(String),
-
-    #[error("ATC booking forbidden")]
-    BookingForbidden,
-
-    #[error("ATC booking is linked to an event position")]
-    BookingIsEventPosition,
-
-    #[error("ATC booking not found")]
-    BookingNotFound,
 
     #[error("callsign not found")]
     CallsignNotFound,
@@ -61,9 +43,6 @@ pub enum ApiError {
 
     #[error(transparent)]
     Database(#[from] sqlx::Error),
-
-    #[error(transparent)]
-    Discourse(DiscourseError),
 
     #[error("event not found")]
     EventNotFound,
@@ -85,9 +64,6 @@ pub enum ApiError {
 
     #[error("invalid ATC rating")]
     InvalidAtcRating,
-
-    #[error("invalid ATC booking id")]
-    InvalidBookingId,
 
     #[error("invalid event id")]
     InvalidEventId,
@@ -176,17 +152,11 @@ pub enum ApiError {
     #[error("Image upload to SM.MS failed: {0}")]
     Smms(SmmsError),
 
-    #[error("start time must be before end time")]
-    StartMustBeBeforeEnd,
-
     #[error("unauthorized")]
     Unauthorized,
 
     #[error("user not found")]
     UserNotFound,
-
-    #[error("user with cid not found")]
-    UserNotFoundByCid,
 }
 
 impl ApiError {
@@ -196,7 +166,6 @@ impl ApiError {
             | Self::CannotUpdateTrainerTrainee
             | Self::InvalidAirspaceId
             | Self::InvalidAtcRating
-            | Self::InvalidBookingId
             | Self::InvalidEventId
             | Self::InvalidId
             | Self::InvalidPositionId
@@ -204,19 +173,16 @@ impl ApiError {
             | Self::InvalidSlotId
             | Self::InvalidUserId
             | Self::Multipart(_)
-            | Self::SoloExpirationNotProvided
-            | Self::StartMustBeBeforeEnd => StatusCode::BAD_REQUEST,
+            | Self::SoloExpirationNotProvided => StatusCode::BAD_REQUEST,
 
             Self::ApplicationAlreadyExists
             | Self::ApplicationCannotUpdate
             | Self::AlreadyAccepted
-            | Self::BookingIsEventPosition
             | Self::CannotDeleteStartedTraining
             | Self::PositionBooked
             | Self::SlotBooked => StatusCode::CONFLICT,
 
-            Self::BookingForbidden
-            | Self::CannotCreateForOtherTrainer
+            Self::CannotCreateForOtherTrainer
             | Self::EventNotInBookingTime
             | Self::Forbidden
             | Self::InsufficientAtcPermission
@@ -225,10 +191,7 @@ impl ApiError {
             | Self::RemoveStaffForbidden
             | Self::SlotBookedByAnotherUser => StatusCode::FORBIDDEN,
 
-            Self::AirspaceNotFound
-            | Self::ApplicationNotFound
-            | Self::AtcStatusNotFound
-            | Self::BookingNotFound
+            Self::ApplicationNotFound
             | Self::CallsignNotFound
             | Self::EventNotFound
             | Self::FlightNotFoundForCid
@@ -238,8 +201,7 @@ impl ApiError {
             | Self::SheetNotFound
             | Self::SlotNotBooked
             | Self::SlotNotFound
-            | Self::UserNotFound
-            | Self::UserNotFoundByCid => StatusCode::NOT_FOUND,
+            | Self::UserNotFound => StatusCode::NOT_FOUND,
 
             Self::InvalidSessionId
             | Self::InvalidTokenClaims
@@ -247,8 +209,7 @@ impl ApiError {
             | Self::RefreshTokenNotFound(_)
             | Self::Unauthorized => StatusCode::UNAUTHORIZED,
 
-            Self::Compat(_) | Self::Discourse(_) => StatusCode::BAD_GATEWAY,
-            Self::Moodle(_) => StatusCode::BAD_GATEWAY,
+            Self::Compat(_) | Self::Moodle(_) => StatusCode::BAD_GATEWAY,
 
             Self::Database(_) | Self::RouteParser(_) | Self::RouteValidator(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
