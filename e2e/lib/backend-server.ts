@@ -22,9 +22,8 @@ const baseUrl = `http://${backendHost}:${backendPort}`;
 
 export async function startBackend(): Promise<BackendHandle> {
   const repoRoot = resolve(process.cwd(), "..");
-  const rustDir = resolve(repoRoot, "src");
   const build = spawnSync("cargo", ["build"], {
-    cwd: rustDir,
+    cwd: repoRoot,
     encoding: "utf8",
     env: process.env,
   });
@@ -36,13 +35,13 @@ export async function startBackend(): Promise<BackendHandle> {
   }
 
   const binary = resolve(
-    rustDir,
+    repoRoot,
     "target",
     "debug",
     process.platform === "win32" ? "vatprc-uniapi.exe" : "vatprc-uniapi",
   );
   const child = spawn(binary, [], {
-    cwd: rustDir,
+    cwd: repoRoot,
     detached: process.platform !== "win32",
     env: {
       ...process.env,

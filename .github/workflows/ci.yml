@@ -33,7 +33,5 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Build solution
         run: cargo build --release
-        working-directory: ./src
       - name: Run tests
         run: cargo test --release
-        working-directory: ./src
