@@ -1,7 +1,7 @@
-import test from "ava";
+import { expect, test } from "vitest";
 import { getBackend } from "../../lib/backend.js";
 
-test("issues a device authorization for a valid client", async (t) => {
+test("issues a device authorization for a valid client", async () => {
   const client = await getBackend();
   const { data, error, response } = await client.POST(
     "/auth/device_authorization",
@@ -15,24 +15,26 @@ test("issues a device authorization for a valid client", async (t) => {
     },
   );
 
-  t.falsy(error);
-  t.is(response.status, 200);
-  if (!t.truthy(data)) return;
-  t.regex(data.device_code, /^[0-9A-HJKMNP-TV-Z]{26}$/);
-  t.regex(
-    data.user_code,
+  expect(error).toBeFalsy();
+  expect(response.status).toBe(200);
+  expect(data).toBeTruthy();
+  if (data === undefined) {
+    throw new Error("Expected device authorization response data");
+  }
+
+  expect(data.device_code).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
+  expect(data.user_code).toMatch(
     /^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$/,
   );
-  t.is(data.verification_uri, "http://127.0.0.1:3010/auth/device");
-  t.is(
-    data.verification_uri_complete,
+  expect(data.verification_uri).toBe("http://127.0.0.1:3010/auth/device");
+  expect(data.verification_uri_complete).toBe(
     "http://127.0.0.1:3010/auth/device?user_code=" +
       data.user_code.replace("-", ""),
   );
-  t.true(data.expires_in > 0);
+  expect(data.expires_in).toBeGreaterThan(0);
 });
 
-test("returns error for device authorization with an invalid client", async (t) => {
+test("returns error for device authorization with an invalid client", async () => {
   const client = await getBackend();
   const { data, error, response } = await client.POST(
     "/auth/device_authorization",
@@ -46,9 +48,9 @@ test("returns error for device authorization with an invalid client", async (t) 
     },
   );
 
-  t.is(response.status, 401);
-  t.falsy(data);
-  t.deepEqual(error, {
+  expect(response.status).toBe(401);
+  expect(data).toBeFalsy();
+  expect(error).toEqual({
     detail: "invalid_client: client_id not found",
     status: 401,
     title: "Unauthorized",

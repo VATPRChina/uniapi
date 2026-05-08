@@ -1,13 +1,13 @@
-import test from "ava";
+import { expect, test } from "vitest";
 import { getBackend } from "../lib/backend.js";
 
-test("GET /health returns healthy status", async (t) => {
+test("GET /health returns healthy status", async () => {
   const client = await getBackend();
   const { data, error, response } = await client.GET("/health");
 
-  t.falsy(error);
-  t.is(response.status, 200);
-  t.deepEqual(data, {
+  expect(error).toBeFalsy();
+  expect(response.status).toBe(200);
+  expect(data).toEqual({
     status: "ok",
     database: "ok",
   });

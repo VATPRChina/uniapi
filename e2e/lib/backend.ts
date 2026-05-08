@@ -1,34 +1,16 @@
-import { registerSharedWorker, type SharedWorker } from "ava/plugin";
-import type { BackendWorkerMessage } from "./backend-worker.js";
+import { inject } from "vitest";
 import { createApiClient } from "./api/client.js";
 
-const backend: SharedWorker.Plugin.Protocol<BackendWorkerMessage> =
-  registerSharedWorker<BackendWorkerMessage>({
-    filename: new URL("./backend-worker.js", import.meta.url),
-    supportedProtocols: ["ava-4"],
-    teardown: async () => {
-      if (!backend.currentlyAvailable) {
-        return;
-      }
-
-      const message = backend.publish({ type: "release" });
-      for await (const reply of message.replies()) {
-        if (reply.data.type === "released") {
-          return;
-        }
-      }
-    },
-  });
-
 export const getBackend = async () => {
-  await backend.available;
+  const baseUrl =
+    process.env.E2E_BACKEND_BASE_URL ??
+    ((inject as (key: string) => unknown)("backendBaseUrl") as
+      | string
+      | undefined);
 
-  const message = backend.publish({ type: "getBaseUrl" });
-  for await (const reply of message.replies()) {
-    if (reply.data.type === "baseUrl") {
-      return createApiClient(reply.data.baseUrl);
-    }
+  if (baseUrl === undefined) {
+    throw new Error("E2E_BACKEND_BASE_URL is not set");
   }
 
-  throw new Error("Backend shared worker did not return a base URL");
+  return createApiClient(baseUrl);
 };

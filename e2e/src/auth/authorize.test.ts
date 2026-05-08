@@ -1,7 +1,7 @@
-import test from "ava";
+import { expect, test } from "vitest";
 import { getBackend } from "../../lib/backend.js";
 
-test("redirects to login for a valid client", async (t) => {
+test("redirects to login for a valid client", async () => {
   const client = await getBackend();
   const { response } = await client.GET("/auth/authorize", {
     params: {
@@ -15,18 +15,17 @@ test("redirects to login for a valid client", async (t) => {
     redirect: "manual",
   });
 
-  t.is(response.status, 307);
-  t.regex(response.headers.get("location") ?? "", /^\/auth\/login\?state=/);
-  t.regex(
+  expect(response.status).toBe(307);
+  expect(response.headers.get("location") ?? "").toMatch(/^\/auth\/login\?state=/);
+  expect(
     response.headers.get("set-cookie") ?? "",
-    /^auth-[0-9A-HJKMNP-TV-Z]{26}=/,
-  );
+  ).toMatch(/^auth-[0-9A-HJKMNP-TV-Z]{26}=/);
   const location = response.headers.get("location") ?? "";
   const stateId = new URLSearchParams(location.split("?", 2)[1]).get("state");
   const [cookiePair] = (response.headers.get("set-cookie") ?? "").split(";", 1);
   const [cookieName, cookieValue] = cookiePair.split("=", 2);
-  t.is(cookieName, `auth-${stateId}`);
-  t.deepEqual(JSON.parse(decodeURIComponent(cookieValue)), {
+  expect(cookieName).toBe(`auth-${stateId}`);
+  expect(JSON.parse(decodeURIComponent(cookieValue))).toEqual({
     auth_type: "code",
     client_id: "01J2ED6BDX9J9BTYS2RVW83ME7",
     redirect_uri: "http://localhost:3000/auth/callback",
@@ -35,7 +34,7 @@ test("redirects to login for a valid client", async (t) => {
   });
 });
 
-test("returns error for an invalid client", async (t) => {
+test("returns error for an invalid client", async () => {
   const client = await getBackend();
   const { data, error, response } = await client.GET("/auth/authorize", {
     params: {
@@ -49,9 +48,9 @@ test("returns error for an invalid client", async (t) => {
     redirect: "manual",
   });
 
-  t.is(response.status, 401);
-  t.falsy(data);
-  t.deepEqual(error, {
+  expect(response.status).toBe(401);
+  expect(data).toBeFalsy();
+  expect(error).toEqual({
     detail: "client is invalid",
     status: 401,
     title: "Unauthorized",
@@ -59,7 +58,7 @@ test("returns error for an invalid client", async (t) => {
   });
 });
 
-test("returns error for a client with an invalid redirect uri", async (t) => {
+test("returns error for a client with an invalid redirect uri", async () => {
   const client = await getBackend();
   const { data, error, response } = await client.GET("/auth/authorize", {
     params: {
@@ -73,9 +72,9 @@ test("returns error for a client with an invalid redirect uri", async (t) => {
     redirect: "manual",
   });
 
-  t.is(response.status, 401);
-  t.falsy(data);
-  t.deepEqual(error, {
+  expect(response.status).toBe(401);
+  expect(data).toBeFalsy();
+  expect(error).toEqual({
     detail: "client is invalid",
     status: 401,
     title: "Unauthorized",
