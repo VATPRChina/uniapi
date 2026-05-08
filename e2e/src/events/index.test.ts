@@ -363,6 +363,84 @@ test("PUT /api/events/{id} updates an event", async () => {
   );
 });
 
+test("PUT /api/events/{id} rejects users without event coordinator permission", async () => {
+  const client = await getBackend();
+  const eventCoordinatorToken = await issueUserTokenWithRoles(client, {
+    cid: "910009",
+    fullName: "E2E Event Update Permission Coordinator",
+    email: "e2e-event-update-permission-coordinator@example.test",
+    roles: ["event-coordinator"],
+  });
+  const nonEventCoordinatorToken = await issueUserTokenWithRoles(client, {
+    cid: "910010",
+    fullName: "E2E Event Update Non Coordinator",
+    email: "e2e-event-update-non-coordinator@example.test",
+    roles: ["controller"],
+  });
+  const suffix = Date.now().toString();
+  const title = `E2E Event Update Permission ${suffix}`;
+
+  const createdEvent = await client.POST("/api/events", {
+    body: {
+      title,
+      title_en: `E2E Event Update Permission EN ${suffix}`,
+      start_at: "2031-08-20T10:00:00Z",
+      end_at: "2031-08-20T12:00:00Z",
+      start_booking_at: "2031-08-01T00:00:00Z",
+      end_booking_at: "2031-08-19T00:00:00Z",
+      start_atc_booking_at: "2031-08-02T00:00:00Z",
+      image_url: "https://example.test/event-update-permission.png",
+      community_link: "https://community.example.test/events/e2e-update-permission",
+      vatsim_link: "https://my.vatsim.net/events/e2e-update-permission",
+      description: "Created by the e2e PUT /api/events/{id} permission test.",
+    },
+    headers: {
+      authorization: `Bearer ${eventCoordinatorToken}`,
+    },
+  });
+
+  expect(createdEvent.error).toBeFalsy();
+  expect(createdEvent.response.status).toBe(200);
+  expect(createdEvent.data).toBeTruthy();
+  if (!createdEvent.data) {
+    throw new Error("Expected event creation to return an event");
+  }
+
+  const updatedEvent = await client.PUT("/api/events/{id}", {
+    params: {
+      path: {
+        id: createdEvent.data.id,
+      },
+    },
+    body: {
+      title: `E2E Event Update Permission Denied ${suffix}`,
+      title_en: `E2E Event Update Permission Denied EN ${suffix}`,
+      start_at: "2031-08-21T10:00:00Z",
+      end_at: "2031-08-21T12:00:00Z",
+      start_booking_at: "2031-08-03T00:00:00Z",
+      end_booking_at: "2031-08-20T00:00:00Z",
+      start_atc_booking_at: "2031-08-04T00:00:00Z",
+      image_url: "https://example.test/event-update-permission-denied.png",
+      community_link:
+        "https://community.example.test/events/e2e-update-permission-denied",
+      vatsim_link: "https://my.vatsim.net/events/e2e-update-permission-denied",
+      description: "This update should be rejected by the e2e permission test.",
+    },
+    headers: {
+      authorization: `Bearer ${nonEventCoordinatorToken}`,
+    },
+  });
+
+  expect(updatedEvent.response.status).toBe(403);
+  expect(updatedEvent.data).toBeFalsy();
+  expect(updatedEvent.error).toEqual({
+    detail: "forbidden",
+    status: 403,
+    title: "Forbidden",
+    type: "about:blank",
+  });
+});
+
 test("DELETE /api/events/{id} deletes an event", async () => {
   const client = await getBackend();
   const accessToken = await issueUserTokenWithRoles(client, {
@@ -436,6 +514,87 @@ test("DELETE /api/events/{id} deletes an event", async () => {
     title: "Not Found",
     type: "about:blank",
   });
+});
+
+test("DELETE /api/events/{id} rejects users without event coordinator permission", async () => {
+  const client = await getBackend();
+  const eventCoordinatorToken = await issueUserTokenWithRoles(client, {
+    cid: "910011",
+    fullName: "E2E Event Delete Permission Coordinator",
+    email: "e2e-event-delete-permission-coordinator@example.test",
+    roles: ["event-coordinator"],
+  });
+  const nonEventCoordinatorToken = await issueUserTokenWithRoles(client, {
+    cid: "910012",
+    fullName: "E2E Event Delete Non Coordinator",
+    email: "e2e-event-delete-non-coordinator@example.test",
+    roles: ["controller"],
+  });
+  const suffix = Date.now().toString();
+  const title = `E2E Event Delete Permission ${suffix}`;
+
+  const createdEvent = await client.POST("/api/events", {
+    body: {
+      title,
+      title_en: `E2E Event Delete Permission EN ${suffix}`,
+      start_at: "2031-09-20T10:00:00Z",
+      end_at: "2031-09-20T12:00:00Z",
+      start_booking_at: "2031-09-01T00:00:00Z",
+      end_booking_at: "2031-09-19T00:00:00Z",
+      start_atc_booking_at: "2031-09-02T00:00:00Z",
+      image_url: "https://example.test/event-delete-permission.png",
+      community_link: "https://community.example.test/events/e2e-delete-permission",
+      vatsim_link: "https://my.vatsim.net/events/e2e-delete-permission",
+      description: "Created by the e2e DELETE /api/events/{id} permission test.",
+    },
+    headers: {
+      authorization: `Bearer ${eventCoordinatorToken}`,
+    },
+  });
+
+  expect(createdEvent.error).toBeFalsy();
+  expect(createdEvent.response.status).toBe(200);
+  expect(createdEvent.data).toBeTruthy();
+  if (!createdEvent.data) {
+    throw new Error("Expected event creation to return an event");
+  }
+
+  const deletedEvent = await client.DELETE("/api/events/{id}", {
+    params: {
+      path: {
+        id: createdEvent.data.id,
+      },
+    },
+    headers: {
+      authorization: `Bearer ${nonEventCoordinatorToken}`,
+    },
+  });
+
+  expect(deletedEvent.response.status).toBe(403);
+  expect(deletedEvent.data).toBeFalsy();
+  expect(deletedEvent.error).toEqual({
+    detail: "forbidden",
+    status: 403,
+    title: "Forbidden",
+    type: "about:blank",
+  });
+
+  const fetchedEvent = await client.GET("/api/events/{id}", {
+    params: {
+      path: {
+        id: createdEvent.data.id,
+      },
+    },
+  });
+
+  expect(fetchedEvent.error).toBeFalsy();
+  expect(fetchedEvent.response.status).toBe(200);
+  expect(fetchedEvent.data).toEqual(
+    expect.objectContaining({
+      id: createdEvent.data.id,
+      title,
+    }),
+  );
 });
 
 test("GET /api/events/past lists past events", async () => {
