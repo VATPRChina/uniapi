@@ -15,7 +15,14 @@ use crate::{
 };
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(list_events, create_event, get_event, update_event, delete_event))]
+#[openapi(paths(
+    list_events,
+    list_past_events,
+    create_event,
+    get_event,
+    update_event,
+    delete_event
+))]
 pub(crate) struct ApiDoc;
 
 pub fn build_event_routes() -> Router<Services> {
@@ -39,6 +46,13 @@ async fn list_events(State(services): State<Services>) -> Result<Json<Vec<EventD
     ))
 }
 
+#[utoipa::path(
+    get,
+    path = "api/events/past",
+    tag = "Events",
+    params(("until" = Option<DateTime<Utc>>, Query, description = "Latest event start time to include")),
+    responses((status = 200, description = "Successful response", body = Vec<EventDto>))
+)]
 async fn list_past_events(
     State(services): State<Services>,
     Query(query): Query<ListPastQuery>,

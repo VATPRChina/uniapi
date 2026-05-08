@@ -114,3 +114,128 @@ test("GET /api/events lists current events", async () => {
     ]),
   );
 });
+
+test("GET /api/events excludes past events", async () => {
+  const client = await getBackend();
+  const accessToken = await issueUserTokenWithRoles(client, {
+    cid: "910004",
+    fullName: "E2E Current Event Filter Coordinator",
+    email: "e2e-current-event-filter-coordinator@example.test",
+    roles: ["event-coordinator"],
+  });
+  const suffix = Date.now().toString();
+  const pastTitle = `E2E Excluded Past Event ${suffix}`;
+  const pastTitleEn = `E2E Excluded Past Event EN ${suffix}`;
+  const pastStartAt = "2020-02-20T10:00:00Z";
+  const pastEndAt = "2020-02-20T12:00:00Z";
+  const pastStartBookingAt = "2020-02-01T00:00:00Z";
+  const pastEndBookingAt = "2020-02-19T00:00:00Z";
+  const pastStartAtcBookingAt = "2020-02-02T00:00:00Z";
+
+  const createdPastEvent = await client.POST("/api/events", {
+    body: {
+      title: pastTitle,
+      title_en: pastTitleEn,
+      start_at: pastStartAt,
+      end_at: pastEndAt,
+      start_booking_at: pastStartBookingAt,
+      end_booking_at: pastEndBookingAt,
+      start_atc_booking_at: pastStartAtcBookingAt,
+      image_url: "https://example.test/excluded-past-event.png",
+      community_link: "https://community.example.test/events/e2e-excluded-past",
+      vatsim_link: "https://my.vatsim.net/events/e2e-excluded-past",
+      description: "Created to verify GET /api/events excludes past events.",
+    },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  expect(createdPastEvent.error).toBeFalsy();
+  expect(createdPastEvent.response.status).toBe(200);
+  expect(createdPastEvent.data).toBeTruthy();
+  if (!createdPastEvent.data) {
+    throw new Error("Expected past event creation to return an event");
+  }
+
+  const { data, error, response } = await client.GET("/api/events");
+
+  expect(error).toBeFalsy();
+  expect(response.status).toBe(200);
+  expect(data).not.toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: createdPastEvent.data.id,
+      }),
+    ]),
+  );
+});
+
+test("GET /api/events/past lists past events", async () => {
+  const client = await getBackend();
+  const accessToken = await issueUserTokenWithRoles(client, {
+    cid: "910003",
+    fullName: "E2E Past Event Coordinator",
+    email: "e2e-past-event-coordinator@example.test",
+    roles: ["event-coordinator"],
+  });
+  const suffix = Date.now().toString();
+  const title = `E2E Past Event ${suffix}`;
+  const titleEn = `E2E Past Event EN ${suffix}`;
+  const startAt = "2020-03-10T10:00:00Z";
+  const endAt = "2020-03-10T12:00:00Z";
+  const startBookingAt = "2020-03-01T00:00:00Z";
+  const endBookingAt = "2020-03-09T00:00:00Z";
+  const startAtcBookingAt = "2020-03-02T00:00:00Z";
+
+  const createdEvent = await client.POST("/api/events", {
+    body: {
+      title,
+      title_en: titleEn,
+      start_at: startAt,
+      end_at: endAt,
+      start_booking_at: startBookingAt,
+      end_booking_at: endBookingAt,
+      start_atc_booking_at: startAtcBookingAt,
+      image_url: "https://example.test/past-event.png",
+      community_link: "https://community.example.test/events/e2e-past",
+      vatsim_link: "https://my.vatsim.net/events/e2e-past",
+      description: "Created by the e2e GET /api/events/past test.",
+    },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  expect(createdEvent.error).toBeFalsy();
+  expect(createdEvent.response.status).toBe(200);
+  expect(createdEvent.data).toBeTruthy();
+  if (!createdEvent.data) {
+    throw new Error("Expected event creation to return an event");
+  }
+
+  const { data, error, response } = await client.GET("/api/events/past", {
+    params: {
+      query: {
+        until: "2020-03-31T00:00:00Z",
+      },
+    },
+  });
+
+  expect(error).toBeFalsy();
+  expect(response.status).toBe(200);
+  expect(data).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: createdEvent.data.id,
+        title,
+        title_en: titleEn,
+        start_at: startAt,
+        end_at: endAt,
+        start_booking_at: startBookingAt,
+        end_booking_at: endBookingAt,
+        start_atc_booking_at: startAtcBookingAt,
+      }),
+    ]),
+  );
+});
