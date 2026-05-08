@@ -21,17 +21,19 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v5
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+      - name: Cache
+        uses: actions/cache@v4
         with:
-          dotnet-version: "10.0.x"
-          cache: true
-          cache-dependency-path: |
-            src/packages.lock.json
-            test/packages.lock.json
-      - name: Install dependencies
-        run: dotnet restore --locked-mode
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
       - name: Build solution
-        run: dotnet build -c Release --no-self-contained --no-restore
+        run: cargo build --release --locked
+        working-directory: ./src
       - name: Run tests
-        run: dotnet test -c Release --no-build --no-restore
+        run: cargo test --release --locked
+        working-directory: ./src
