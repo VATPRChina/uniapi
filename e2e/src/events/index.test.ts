@@ -209,6 +209,77 @@ test("GET /api/events excludes past events", async () => {
   );
 });
 
+test("GET /api/events/{id} returns an event", async () => {
+  const client = await getBackend();
+  const accessToken = await issueUserTokenWithRoles(client, {
+    cid: "910006",
+    fullName: "E2E Event Detail Coordinator",
+    email: "e2e-event-detail-coordinator@example.test",
+    roles: ["event-coordinator"],
+  });
+  const suffix = Date.now().toString();
+  const title = `E2E Event Detail ${suffix}`;
+  const titleEn = `E2E Event Detail EN ${suffix}`;
+  const startAt = "2031-05-20T10:00:00Z";
+  const endAt = "2031-05-20T12:00:00Z";
+  const startBookingAt = "2031-05-01T00:00:00Z";
+  const endBookingAt = "2031-05-19T00:00:00Z";
+  const startAtcBookingAt = "2031-05-02T00:00:00Z";
+
+  const createdEvent = await client.POST("/api/events", {
+    body: {
+      title,
+      title_en: titleEn,
+      start_at: startAt,
+      end_at: endAt,
+      start_booking_at: startBookingAt,
+      end_booking_at: endBookingAt,
+      start_atc_booking_at: startAtcBookingAt,
+      image_url: "https://example.test/event-detail.png",
+      community_link: "https://community.example.test/events/e2e-detail",
+      vatsim_link: "https://my.vatsim.net/events/e2e-detail",
+      description: "Created by the e2e GET /api/events/{id} test.",
+    },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  expect(createdEvent.error).toBeFalsy();
+  expect(createdEvent.response.status).toBe(200);
+  expect(createdEvent.data).toBeTruthy();
+  if (!createdEvent.data) {
+    throw new Error("Expected event creation to return an event");
+  }
+
+  const { data, error, response } = await client.GET("/api/events/{id}", {
+    params: {
+      path: {
+        id: createdEvent.data.id,
+      },
+    },
+  });
+
+  expect(error).toBeFalsy();
+  expect(response.status).toBe(200);
+  expect(data).toEqual(
+    expect.objectContaining({
+      id: createdEvent.data.id,
+      title,
+      title_en: titleEn,
+      start_at: startAt,
+      end_at: endAt,
+      start_booking_at: startBookingAt,
+      end_booking_at: endBookingAt,
+      start_atc_booking_at: startAtcBookingAt,
+      image_url: "https://example.test/event-detail.png",
+      community_link: "https://community.example.test/events/e2e-detail",
+      vatsim_link: "https://my.vatsim.net/events/e2e-detail",
+      description: "Created by the e2e GET /api/events/{id} test.",
+    }),
+  );
+});
+
 test("GET /api/events/past lists past events", async () => {
   const client = await getBackend();
   const accessToken = await issueUserTokenWithRoles(client, {
