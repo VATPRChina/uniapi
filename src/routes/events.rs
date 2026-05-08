@@ -116,7 +116,7 @@ async fn update_event(
     Ok(Json(EventDto::from(event)))
 }
 
-#[utoipa::path(delete, path = "api/events/{id}", tag = "Events", security(("oauth2" = [])), params(("id" = String, Path, description = "Event ULID")), responses((status = 204, description = "No content")))]
+#[utoipa::path(delete, path = "api/events/{id}", tag = "Events", security(("oauth2" = [])), params(("id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventDto)))]
 async fn delete_event(
     State(services): State<Services>,
     current_user: CurrentUser,

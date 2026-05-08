@@ -363,6 +363,81 @@ test("POST /api/events/{id} updates an event", async () => {
   );
 });
 
+test("DELETE /api/events/{id} deletes an event", async () => {
+  const client = await getBackend();
+  const accessToken = await issueUserTokenWithRoles(client, {
+    cid: "910008",
+    fullName: "E2E Event Delete Coordinator",
+    email: "e2e-event-delete-coordinator@example.test",
+    roles: ["event-coordinator"],
+  });
+  const suffix = Date.now().toString();
+  const title = `E2E Event To Delete ${suffix}`;
+
+  const createdEvent = await client.POST("/api/events", {
+    body: {
+      title,
+      title_en: `E2E Event To Delete EN ${suffix}`,
+      start_at: "2031-07-20T10:00:00Z",
+      end_at: "2031-07-20T12:00:00Z",
+      start_booking_at: "2031-07-01T00:00:00Z",
+      end_booking_at: "2031-07-19T00:00:00Z",
+      start_atc_booking_at: "2031-07-02T00:00:00Z",
+      image_url: "https://example.test/event-to-delete.png",
+      community_link: "https://community.example.test/events/e2e-to-delete",
+      vatsim_link: "https://my.vatsim.net/events/e2e-to-delete",
+      description: "Created by the e2e DELETE /api/events/{id} test.",
+    },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  expect(createdEvent.error).toBeFalsy();
+  expect(createdEvent.response.status).toBe(200);
+  expect(createdEvent.data).toBeTruthy();
+  if (!createdEvent.data) {
+    throw new Error("Expected event creation to return an event");
+  }
+
+  const deletedEvent = await client.DELETE("/api/events/{id}", {
+    params: {
+      path: {
+        id: createdEvent.data.id,
+      },
+    },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  expect(deletedEvent.error).toBeFalsy();
+  expect(deletedEvent.response.status).toBe(200);
+  expect(deletedEvent.data).toEqual(
+    expect.objectContaining({
+      id: createdEvent.data.id,
+      title,
+    }),
+  );
+
+  const fetchedDeletedEvent = await client.GET("/api/events/{id}", {
+    params: {
+      path: {
+        id: createdEvent.data.id,
+      },
+    },
+  });
+
+  expect(fetchedDeletedEvent.response.status).toBe(404);
+  expect(fetchedDeletedEvent.data).toBeFalsy();
+  expect(fetchedDeletedEvent.error).toEqual({
+    detail: "event not found",
+    status: 404,
+    title: "Not Found",
+    type: "about:blank",
+  });
+});
+
 test("GET /api/events/past lists past events", async () => {
   const client = await getBackend();
   const accessToken = await issueUserTokenWithRoles(client, {
