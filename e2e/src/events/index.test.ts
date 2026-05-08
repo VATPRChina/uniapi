@@ -280,7 +280,7 @@ test("GET /api/events/{id} returns an event", async () => {
   );
 });
 
-test("POST /api/events/{id} updates an event", async () => {
+test("PUT /api/events/{id} updates an event", async () => {
   const client = await getBackend();
   const accessToken = await issueUserTokenWithRoles(client, {
     cid: "910007",
@@ -305,7 +305,7 @@ test("POST /api/events/{id} updates an event", async () => {
       image_url: "https://example.test/event-before-update.png",
       community_link: "https://community.example.test/events/e2e-before-update",
       vatsim_link: "https://my.vatsim.net/events/e2e-before-update",
-      description: "Created by the e2e POST /api/events/{id} test.",
+      description: "Created by the e2e PUT /api/events/{id} test.",
     },
     headers: {
       authorization: `Bearer ${accessToken}`,
@@ -319,7 +319,7 @@ test("POST /api/events/{id} updates an event", async () => {
     throw new Error("Expected event creation to return an event");
   }
 
-  const updatedEvent = await client.POST("/api/events/{id}", {
+  const updatedEvent = await client.PUT("/api/events/{id}", {
     params: {
       path: {
         id: createdEvent.data.id,
@@ -336,7 +336,7 @@ test("POST /api/events/{id} updates an event", async () => {
       image_url: "https://example.test/event-after-update.png",
       community_link: "https://community.example.test/events/e2e-after-update",
       vatsim_link: "https://my.vatsim.net/events/e2e-after-update",
-      description: "Updated by the e2e POST /api/events/{id} test.",
+      description: "Updated by the e2e PUT /api/events/{id} test.",
     },
     headers: {
       authorization: `Bearer ${accessToken}`,
@@ -358,7 +358,7 @@ test("POST /api/events/{id} updates an event", async () => {
       image_url: "https://example.test/event-after-update.png",
       community_link: "https://community.example.test/events/e2e-after-update",
       vatsim_link: "https://my.vatsim.net/events/e2e-after-update",
-      description: "Updated by the e2e POST /api/events/{id} test.",
+      description: "Updated by the e2e PUT /api/events/{id} test.",
     }),
   );
 });

@@ -1,5 +1,5 @@
 use axum::extract::{Path, Query, State};
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,7 @@ pub fn build_event_routes() -> Router<Services> {
         .route("/past", get(list_past_events))
         .route("/{eid}", get(get_event))
         .route("/", post(create_event))
-        .route("/{eid}", post(update_event).delete(delete_event))
+        .route("/{eid}", put(update_event).delete(delete_event))
 }
 
 #[utoipa::path(get, path = "api/events", tag = "Events", responses((status = 200, description = "Successful response", body = Vec<EventDto>)))]
@@ -97,7 +97,7 @@ async fn create_event(
     Ok(Json(EventDto::from(event)))
 }
 
-#[utoipa::path(post, path = "api/events/{id}", tag = "Events", security(("oauth2" = [])), params(("id" = String, Path, description = "Event ULID")), request_body = EventSaveRequest, responses((status = 200, description = "Successful response", body = EventDto)))]
+#[utoipa::path(put, path = "api/events/{id}", tag = "Events", security(("oauth2" = [])), params(("id" = String, Path, description = "Event ULID")), request_body = EventSaveRequest, responses((status = 200, description = "Successful response", body = EventDto)))]
 async fn update_event(
     State(services): State<Services>,
     current_user: CurrentUser,

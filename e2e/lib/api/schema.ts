@@ -588,8 +588,8 @@ export type paths = {
             cookie?: never;
         };
         get: operations["get_event"];
-        put?: never;
-        post: operations["update_event"];
+        put: operations["update_event"];
+        post?: never;
         delete: operations["delete_event"];
         options?: never;
         head?: never;
