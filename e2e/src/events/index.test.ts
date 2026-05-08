@@ -280,6 +280,89 @@ test("GET /api/events/{id} returns an event", async () => {
   );
 });
 
+test("POST /api/events/{id} updates an event", async () => {
+  const client = await getBackend();
+  const accessToken = await issueUserTokenWithRoles(client, {
+    cid: "910007",
+    fullName: "E2E Event Update Coordinator",
+    email: "e2e-event-update-coordinator@example.test",
+    roles: ["event-coordinator"],
+  });
+  const suffix = Date.now().toString();
+  const originalTitle = `E2E Event Before Update ${suffix}`;
+  const updatedTitle = `E2E Event After Update ${suffix}`;
+  const updatedTitleEn = `E2E Event After Update EN ${suffix}`;
+
+  const createdEvent = await client.POST("/api/events", {
+    body: {
+      title: originalTitle,
+      title_en: `E2E Event Before Update EN ${suffix}`,
+      start_at: "2031-06-20T10:00:00Z",
+      end_at: "2031-06-20T12:00:00Z",
+      start_booking_at: "2031-06-01T00:00:00Z",
+      end_booking_at: "2031-06-19T00:00:00Z",
+      start_atc_booking_at: "2031-06-02T00:00:00Z",
+      image_url: "https://example.test/event-before-update.png",
+      community_link: "https://community.example.test/events/e2e-before-update",
+      vatsim_link: "https://my.vatsim.net/events/e2e-before-update",
+      description: "Created by the e2e POST /api/events/{id} test.",
+    },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  expect(createdEvent.error).toBeFalsy();
+  expect(createdEvent.response.status).toBe(200);
+  expect(createdEvent.data).toBeTruthy();
+  if (!createdEvent.data) {
+    throw new Error("Expected event creation to return an event");
+  }
+
+  const updatedEvent = await client.POST("/api/events/{id}", {
+    params: {
+      path: {
+        id: createdEvent.data.id,
+      },
+    },
+    body: {
+      title: updatedTitle,
+      title_en: updatedTitleEn,
+      start_at: "2031-06-21T10:00:00Z",
+      end_at: "2031-06-21T12:00:00Z",
+      start_booking_at: "2031-06-03T00:00:00Z",
+      end_booking_at: "2031-06-20T00:00:00Z",
+      start_atc_booking_at: "2031-06-04T00:00:00Z",
+      image_url: "https://example.test/event-after-update.png",
+      community_link: "https://community.example.test/events/e2e-after-update",
+      vatsim_link: "https://my.vatsim.net/events/e2e-after-update",
+      description: "Updated by the e2e POST /api/events/{id} test.",
+    },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  expect(updatedEvent.error).toBeFalsy();
+  expect(updatedEvent.response.status).toBe(200);
+  expect(updatedEvent.data).toEqual(
+    expect.objectContaining({
+      id: createdEvent.data.id,
+      title: updatedTitle,
+      title_en: updatedTitleEn,
+      start_at: "2031-06-21T10:00:00Z",
+      end_at: "2031-06-21T12:00:00Z",
+      start_booking_at: "2031-06-03T00:00:00Z",
+      end_booking_at: "2031-06-20T00:00:00Z",
+      start_atc_booking_at: "2031-06-04T00:00:00Z",
+      image_url: "https://example.test/event-after-update.png",
+      community_link: "https://community.example.test/events/e2e-after-update",
+      vatsim_link: "https://my.vatsim.net/events/e2e-after-update",
+      description: "Updated by the e2e POST /api/events/{id} test.",
+    }),
+  );
+});
+
 test("GET /api/events/past lists past events", async () => {
   const client = await getBackend();
   const accessToken = await issueUserTokenWithRoles(client, {
