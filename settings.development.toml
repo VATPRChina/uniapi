@@ -13,6 +13,12 @@ redirect_uri = ["http://localhost:3000/docs"]
 client_id = "01K7X723S04R1F5P2P8NJV5QT5"
 client_secret = "urn:vatprc:client_secret:01K7X71YQQXWSDT2XK1ZNYMS2J"
 redirect_uri = []
+unsafe_assume_user = true
+
+[[authentication.jwt.clients]]
+client_id = "01KKBQN3MEYA0D33VBX1QW0Y7B"
+client_secret = "urn:vatprc:client_secret:01KKBQNKEM70WGF785J7HS1DWR"
+redirect_uri = []
 
 [authentication.vatsim]
 endpoint = "https://auth-dev.vatsim.net"

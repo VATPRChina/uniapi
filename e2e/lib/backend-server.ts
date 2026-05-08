@@ -126,7 +126,7 @@ async function terminate(child: ChildProcessWithoutNullStreams): Promise<void> {
     }),
   ]);
 
-  await exited.catch(() => undefined);
+  await exited.catch((): undefined => undefined);
 }
 
 function terminateSync(child: ChildProcessWithoutNullStreams): void {

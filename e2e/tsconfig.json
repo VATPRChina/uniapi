@@ -9,7 +9,8 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "rootDir": ".",
-    "types": ["node", "vitest"]
+    "types": ["node", "vitest"],
+    "strictNullChecks": false
   },
   "include": ["src/**/*.ts", "lib/**/*.ts"]
 }
