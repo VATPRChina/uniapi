@@ -1143,6 +1143,24 @@ export type components = {
             updated_at: string;
             vatsim_link?: string | null;
         };
+        EventSaveRequest: {
+            community_link?: string | null;
+            description: string;
+            /** Format: date-time */
+            end_at: string;
+            /** Format: date-time */
+            end_booking_at?: string | null;
+            image_url?: string | null;
+            /** Format: date-time */
+            start_at: string;
+            /** Format: date-time */
+            start_atc_booking_at?: string | null;
+            /** Format: date-time */
+            start_booking_at?: string | null;
+            title: string;
+            title_en?: string | null;
+            vatsim_link?: string | null;
+        };
         EventSlotDto: {
             aircraft_type_icao?: string | null;
             airspace: components["schemas"]["EventAirspaceDto"];
@@ -2167,7 +2185,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSaveRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -2620,7 +2642,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSaveRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
