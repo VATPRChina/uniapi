@@ -597,6 +597,75 @@ test("DELETE /api/events/{id} rejects users without event coordinator permission
   );
 });
 
+test("POST /api/events/{event_id}/airspaces creates an airspace", async () => {
+  const client = await getBackend();
+  const accessToken = await issueUserTokenWithRoles(client, {
+    cid: "910014",
+    fullName: "E2E Event Airspace Coordinator",
+    email: "e2e-event-airspace-coordinator@example.test",
+    roles: ["event-coordinator"],
+  });
+  const suffix = Date.now().toString();
+  const eventTitle = `E2E Event Airspace Parent ${suffix}`;
+  const airspaceName = `E2E Airspace ${suffix}`;
+  const icaoCodes = ["ZBAA", "ZGGG"];
+  const description = "Created by the e2e POST /api/events/{event_id}/airspaces test.";
+
+  const createdEvent = await client.POST("/api/events", {
+    body: {
+      title: eventTitle,
+      title_en: `E2E Event Airspace Parent EN ${suffix}`,
+      start_at: "2031-11-20T10:00:00Z",
+      end_at: "2031-11-20T13:00:00Z",
+      start_booking_at: "2031-11-01T00:00:00Z",
+      end_booking_at: "2031-11-19T00:00:00Z",
+      start_atc_booking_at: "2031-11-02T00:00:00Z",
+      image_url: "https://example.test/event-airspace-parent.png",
+      community_link: "https://community.example.test/events/e2e-airspace-parent",
+      vatsim_link: "https://my.vatsim.net/events/e2e-airspace-parent",
+      description,
+    },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  expect(createdEvent.error).toBeFalsy();
+  expect(createdEvent.response.status).toBe(200);
+  expect(createdEvent.data).toBeTruthy();
+  if (!createdEvent.data) {
+    throw new Error("Expected event creation to return an event");
+  }
+
+  const createdAirspace = await client.POST("/api/events/{event_id}/airspaces", {
+    params: {
+      path: {
+        event_id: createdEvent.data.id,
+      },
+    },
+    body: {
+      name: airspaceName,
+      icao_codes: icaoCodes,
+      description,
+    },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  expect(createdAirspace.error).toBeFalsy();
+  expect(createdAirspace.response.status).toBe(200);
+  expect(createdAirspace.data).toEqual(
+    expect.objectContaining({
+      id: expect.stringMatching(/^[0-9A-HJKMNP-TV-Z]{26}$/),
+      event_id: createdEvent.data.id,
+      name: airspaceName,
+      icao_codes: icaoCodes,
+      description,
+    }),
+  );
+});
+
 test("POST /api/events/{event_id}/slots creates a slot", async () => {
   const client = await getBackend();
   const accessToken = await issueUserTokenWithRoles(client, {
