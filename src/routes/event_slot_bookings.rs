@@ -6,13 +6,13 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::user_role::UserRole,
-    repository::event::event_slot_booking::{self as booking_repository, EventBookingRecord},
-    services::Services,
+use crate::auth::CurrentUser;
+use crate::models::user_role::UserRole;
+use crate::repository::event::event_slot_booking::{
+    self as booking_repository, EventBookingRecord,
 };
+use crate::routes::ApiError;
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(put_booking, delete_booking))]
@@ -32,26 +32,27 @@ async fn put_booking(
     Path((eid, sid)): Path<(String, String)>,
     Json(request): Json<EventSlotBookingRequest>,
 ) -> Result<Json<EventBookingDto>, ApiError> {
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let slot_id = parse_ulid_uuid(&sid, ApiError::InvalidSlotId)?;
+    let event_id = parse_ulid_uuid(&eid, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let slot_id = parse_ulid_uuid(&sid, ApiError::bad_request("slot_id", "invalid ULID"))?;
     if request.user_id.is_some() && !current_user.has_role(UserRole::EventCoordinator) {
-        return Err(ApiError::Forbidden);
+        return Err(ApiError::forbidden([UserRole::EventCoordinator]));
     }
     let is_admin_booking = request.user_id.is_some();
     let user_id = match request.user_id.as_deref() {
-        Some(user_id) => parse_ulid_uuid(user_id, ApiError::InvalidUserId)?,
+        Some(user_id) => {
+            parse_ulid_uuid(user_id, ApiError::bad_request("user_id", "invalid ULID"))?
+        }
         None => current_user.user_id.ok_or(ApiError::Unauthorized)?,
     };
 
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
-    let state = booking_repository::load_state_for_update(&mut transaction, event_id, slot_id)
-        .await
-        .map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
+    let state =
+        booking_repository::load_state_for_update(&mut transaction, event_id, slot_id).await?;
     if !state.event_exists {
-        return Err(ApiError::EventNotFound);
+        return Err(ApiError::not_found("event", "unknown"));
     }
     if !state.slot_exists {
-        return Err(ApiError::SlotNotFound);
+        return Err(ApiError::not_found("event slot", "unknown"));
     }
     if state.booking_id.is_some() {
         return Err(ApiError::SlotBooked);
@@ -60,14 +61,11 @@ async fn put_booking(
         return Err(ApiError::EventNotInBookingTime);
     }
 
-    booking_repository::create_booking(&mut transaction, slot_id, user_id)
-        .await
-        .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    booking_repository::create_booking(&mut transaction, slot_id, user_id).await?;
+    transaction.commit().await?;
 
     let booking = booking_repository::find_booking(services.db(), event_id, slot_id)
-        .await
-        .map_err(ApiError::Database)?
+        .await?
         .ok_or(ApiError::SlotNotBooked)?;
 
     Ok(Json(event_booking_dto(
@@ -82,14 +80,13 @@ async fn delete_booking(
     current_user: CurrentUser,
     Path((eid, sid)): Path<(String, String)>,
 ) -> Result<Json<EventBookingDto>, ApiError> {
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let slot_id = parse_ulid_uuid(&sid, ApiError::InvalidSlotId)?;
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
-    let state = booking_repository::load_state_for_update(&mut transaction, event_id, slot_id)
-        .await
-        .map_err(ApiError::Database)?;
+    let event_id = parse_ulid_uuid(&eid, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let slot_id = parse_ulid_uuid(&sid, ApiError::bad_request("slot_id", "invalid ULID"))?;
+    let mut transaction = services.db().begin().await?;
+    let state =
+        booking_repository::load_state_for_update(&mut transaction, event_id, slot_id).await?;
     if !state.slot_exists {
-        return Err(ApiError::SlotNotFound);
+        return Err(ApiError::not_found("event slot", "unknown"));
     }
     let Some(booking_id) = state.booking_id else {
         return Err(ApiError::SlotNotBooked);
@@ -104,13 +101,10 @@ async fn delete_booking(
     }
 
     let booking = booking_repository::find_booking(services.db(), event_id, slot_id)
-        .await
-        .map_err(ApiError::Database)?
+        .await?
         .ok_or(ApiError::SlotNotBooked)?;
-    booking_repository::delete_booking(&mut transaction, booking_id)
-        .await
-        .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    booking_repository::delete_booking(&mut transaction, booking_id).await?;
+    transaction.commit().await?;
 
     Ok(Json(event_booking_dto(
         booking,

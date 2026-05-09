@@ -1,21 +1,20 @@
 use std::collections::HashSet;
 
-use axum::{
-    extract::{FromRequestParts, State},
-    http::{HeaderMap, StatusCode, header, request::Parts},
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
+use axum::extract::{FromRequestParts, State};
+use axum::http::request::Parts;
+use axum::http::{HeaderMap, StatusCode, header};
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
 use thiserror::Error;
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::{
-    jwt::JwtError,
-    models::user_role::{UserRole, role_closure_from_strings},
-    repository::{atc::user_atc_permission, auth::user},
-    services::Services,
-};
+use crate::error::ApiError;
+use crate::jwt::JwtError;
+use crate::models::user_role::{UserRole, role_closure_from_strings};
+use crate::repository::atc::user_atc_permission;
+use crate::repository::auth::user;
+use crate::services::Services;
 
 #[derive(Debug, Clone)]
 pub struct CurrentUser {
@@ -75,12 +74,7 @@ pub enum AuthError {
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
-        let status = match self {
-            AuthError::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            _ => StatusCode::UNAUTHORIZED,
-        };
-
-        crate::problem::problem_response(status, self.to_string())
+        ApiError::from(self).into_response()
     }
 }
 

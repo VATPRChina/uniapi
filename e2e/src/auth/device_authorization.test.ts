@@ -50,10 +50,5 @@ test("returns error for device authorization with an invalid client", async () =
 
   expect(response.status).toBe(401);
   expect(data).toBeFalsy();
-  expect(error).toEqual({
-    detail: "invalid_client: client_id not found",
-    status: 401,
-    title: "Unauthorized",
-    type: "about:blank",
-  });
+  expect(error).toBe("invalid_client: client_id not found");
 });

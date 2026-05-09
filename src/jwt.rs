@@ -1,8 +1,6 @@
 use chrono::{Duration, Utc};
-use jsonwebtoken::{
-    Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode,
-    errors::Error as JwtCrateError,
-};
+use jsonwebtoken::errors::Error as JwtCrateError;
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ulid::Ulid;

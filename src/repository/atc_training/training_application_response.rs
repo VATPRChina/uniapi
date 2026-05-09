@@ -3,10 +3,8 @@ use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::repository::atc_training::{
-    training_application::TrainingApplicationRecord,
-    training_application_slot::TrainingApplicationSlotRecord,
-};
+use crate::repository::atc_training::training_application::TrainingApplicationRecord;
+use crate::repository::atc_training::training_application_slot::TrainingApplicationSlotRecord;
 
 #[derive(Debug, Clone, FromRow)]
 pub struct TrainingApplicationResponseRecord {

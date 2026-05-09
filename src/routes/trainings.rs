@@ -7,23 +7,20 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::user_role::{UserRole, role_closure_from_strings},
-    repository::{
-        atc_training::training::{self as training_repository, TrainingRecord, TrainingSave},
-        sheet::{
-            sheet as sheet_repository,
-            sheet_field::{self as sheet_field_repository, SheetFieldRecord},
-            sheet_filing as sheet_filing_repository,
-            sheet_filing_answer::{
-                self as sheet_filing_answer_repository, SheetAnswerRecord, SheetAnswerSave,
-            },
-        },
-    },
-    services::Services,
+use crate::auth::CurrentUser;
+use crate::models::user_role::{UserRole, role_closure_from_strings};
+use crate::repository::atc_training::training::{
+    self as training_repository, TrainingRecord, TrainingSave,
 };
+use crate::repository::sheet::sheet_field::{self as sheet_field_repository, SheetFieldRecord};
+use crate::repository::sheet::sheet_filing_answer::{
+    self as sheet_filing_answer_repository, SheetAnswerRecord, SheetAnswerSave,
+};
+use crate::repository::sheet::{
+    sheet as sheet_repository, sheet_filing as sheet_filing_repository,
+};
+use crate::routes::ApiError;
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(
@@ -68,8 +65,7 @@ async fn list_active(
             user_id,
             current_user.has_role(UserRole::ControllerTrainingMentor),
         )
-        .await
-        .map_err(ApiError::Database)?,
+        .await?,
     )
     .await
     .map(Json)
@@ -88,8 +84,7 @@ async fn list_finished(
             user_id,
             current_user.has_role(UserRole::ControllerTrainingMentor),
         )
-        .await
-        .map_err(ApiError::Database)?,
+        .await?,
     )
     .await
     .map(Json)
@@ -112,9 +107,7 @@ async fn create_training(
     current_user: CurrentUser,
     Json(request): Json<TrainingSaveRequest>,
 ) -> Result<Json<TrainingDto>, ApiError> {
-    current_user
-        .require_role(UserRole::ControllerTrainingMentor)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::ControllerTrainingMentor)?;
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let training = TrainingSave::try_from(request)?;
     if training.trainer_id != current_user_id
@@ -123,9 +116,7 @@ async fn create_training(
         return Err(ApiError::CannotCreateForOtherTrainer);
     }
 
-    let training = training_repository::create(services.db(), training)
-        .await
-        .map_err(ApiError::Database)?;
+    let training = training_repository::create(services.db(), training).await?;
     training_to_dto(&services, training).await.map(Json)
 }
 
@@ -136,14 +127,11 @@ async fn update_training(
     Path(id): Path<String>,
     Json(request): Json<TrainingSaveRequest>,
 ) -> Result<Json<TrainingDto>, ApiError> {
-    current_user
-        .require_role(UserRole::ControllerTrainingMentor)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::ControllerTrainingMentor)?;
     let id = parse_ulid_uuid(&id)?;
     let training = training_repository::find_by_id(services.db(), id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))?;
     validate_ownership(&current_user, &training, true)?;
     let save = TrainingSave::try_from(request)?;
     if save.trainer_id != training.trainer_id || save.trainee_id != training.trainee_id {
@@ -151,24 +139,18 @@ async fn update_training(
     }
 
     let training = training_repository::update(services.db(), id, save)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))?;
     training_to_dto(&services, training).await.map(Json)
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/record-sheet", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
 async fn get_record_sheet(State(services): State<Services>) -> Result<Json<SheetDto>, ApiError> {
-    sheet_repository::ensure(services.db(), RECORD_SHEET_ID, "Training Record Sheet")
-        .await
-        .map_err(ApiError::Database)?;
+    sheet_repository::ensure(services.db(), RECORD_SHEET_ID, "Training Record Sheet").await?;
     let sheet = sheet_repository::find(services.db(), RECORD_SHEET_ID)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::SheetNotFound)?;
-    let fields = sheet_field_repository::list(services.db(), RECORD_SHEET_ID)
-        .await
-        .map_err(ApiError::Database)?;
+        .await?
+        .ok_or(ApiError::not_found("sheet", "training-record"))?;
+    let fields = sheet_field_repository::list(services.db(), RECORD_SHEET_ID).await?;
 
     Ok(Json(SheetDto {
         id: sheet.id,
@@ -188,14 +170,11 @@ async fn set_record_sheet(
     Path(id): Path<String>,
     Json(request): Json<TrainingRecordRequest>,
 ) -> Result<Json<TrainingDto>, ApiError> {
-    current_user
-        .require_role(UserRole::ControllerTrainingMentor)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::ControllerTrainingMentor)?;
     let id = parse_ulid_uuid(&id)?;
     let training = training_repository::find_by_id(services.db(), id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))?;
     validate_ownership(&current_user, &training, true)?;
 
     let answers = request
@@ -203,7 +182,7 @@ async fn set_record_sheet(
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
     let filing_id = sheet_filing_repository::set(
         &mut transaction,
         RECORD_SHEET_ID,
@@ -211,13 +190,11 @@ async fn set_record_sheet(
         training.trainer_id,
         &answers,
     )
-    .await
-    .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    .await?;
+    transaction.commit().await?;
     let training = training_repository::set_record_filing(services.db(), id, filing_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))?;
 
     training_to_dto(&services, training).await.map(Json)
 }
@@ -228,30 +205,24 @@ async fn delete_training(
     current_user: CurrentUser,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
-    current_user
-        .require_role(UserRole::ControllerTrainingMentor)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::ControllerTrainingMentor)?;
     let id = parse_ulid_uuid(&id)?;
     let training = training_repository::find_by_id(services.db(), id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))?;
     validate_ownership(&current_user, &training, true)?;
     if training.start_at <= Utc::now() {
         return Err(ApiError::CannotDeleteStartedTraining);
     }
 
-    training_repository::mark_deleted(services.db(), id)
-        .await
-        .map_err(ApiError::Database)?;
+    training_repository::mark_deleted(services.db(), id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
 async fn find_training(services: &Services, id: &str) -> Result<TrainingRecord, ApiError> {
     training_repository::find_by_id(services.db(), parse_ulid_uuid(id)?)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))
 }
 
 async fn trainings_to_dto(
@@ -272,8 +243,7 @@ async fn training_to_dto(
     let record_sheet_filing = match training.record_sheet_filing_id {
         Some(filing_id) => Some(
             sheet_filing_answer_repository::list_by_filing(services.db(), filing_id)
-                .await
-                .map_err(ApiError::Database)?
+                .await?
                 .into_iter()
                 .map(SheetFieldAnswerDto::from)
                 .collect(),
@@ -300,13 +270,16 @@ fn validate_ownership(
         return Ok(());
     }
 
-    Err(ApiError::NotOwned)
+    Err(ApiError::NotOwned {
+        entity: "training".to_string(),
+        id: training.id.to_string(),
+    })
 }
 
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| ApiError::InvalidId)
+        .map_err(|_| ApiError::bad_request("id", "invalid ULID"))
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]

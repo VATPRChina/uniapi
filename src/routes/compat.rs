@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 
 use crate::adapter::compat::CompatClientError;
+use crate::error::ApiError;
 use crate::repository::compat::{self as compat_repository, FutureControllerRow};
 use crate::services::Services;
 
@@ -42,11 +43,10 @@ pub fn build_compat_routes() -> Router<Services> {
 #[utoipa::path(get, path = "api/compat/online-status", tag = "Compat", responses((status = 200, description = "Successful response", body = CompatVatprcStatusDto)))]
 async fn online_status(
     State(services): State<Services>,
-) -> Result<Json<CompatVatprcStatusDto>, CompatError> {
+) -> Result<Json<CompatVatprcStatusDto>, ApiError> {
     let vatsim_data = services.compat().get_online_data().await?;
     let future_controllers = compat_repository::future_controllers(services.db())
-        .await
-        .map_err(CompatError::Database)?
+        .await?
         .into_iter()
         .map(CompatFutureControllerDto::from)
         .collect();
@@ -134,16 +134,16 @@ async fn metar_response(services: Services, icao: String) -> Response {
 }
 
 #[utoipa::path(get, path = "api/compat/trackaudio/mandatory_version", tag = "Compat", responses((status = 200, description = "Successful response", body = String)))]
-async fn trackaudio_version(State(services): State<Services>) -> Result<Response, CompatError> {
+async fn trackaudio_version(State(services): State<Services>) -> Result<Response, ApiError> {
     text_response(services.compat().get_track_audio_version().await)
 }
 
 #[utoipa::path(get, path = "api/compat/vplaaf/areas.json", tag = "Compat", responses((status = 200, description = "Successful response", body = serde_json::Value)))]
-async fn vplaaf_areas(State(services): State<Services>) -> Result<Response, CompatError> {
+async fn vplaaf_areas(State(services): State<Services>) -> Result<Response, ApiError> {
     json_text_response(services.compat().get_vplaaf_areas().await)
 }
 
-fn text_response(content: Result<String, CompatClientError>) -> Result<Response, CompatError> {
+fn text_response(content: Result<String, CompatClientError>) -> Result<Response, ApiError> {
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
@@ -152,7 +152,7 @@ fn text_response(content: Result<String, CompatClientError>) -> Result<Response,
         .into_response())
 }
 
-fn json_text_response(content: Result<String, CompatClientError>) -> Result<Response, CompatError> {
+fn json_text_response(content: Result<String, CompatClientError>) -> Result<Response, ApiError> {
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "application/json; charset=utf-8")],
@@ -212,28 +212,5 @@ impl From<FutureControllerRow> for CompatFutureControllerDto {
             end: row.end_at.format("%d %H:%M").to_string(),
             end_utc: row.end_at,
         }
-    }
-}
-
-#[derive(Debug)]
-enum CompatError {
-    Client(CompatClientError),
-    Database(sqlx::Error),
-}
-
-impl From<CompatClientError> for CompatError {
-    fn from(error: CompatClientError) -> Self {
-        Self::Client(error)
-    }
-}
-
-impl IntoResponse for CompatError {
-    fn into_response(self) -> Response {
-        let message = match self {
-            CompatError::Client(error) => format!("Upstream compatibility service failed: {error}"),
-            CompatError::Database(error) => format!("Database query failed: {error}"),
-        };
-
-        crate::problem::problem_response(StatusCode::SERVICE_UNAVAILABLE, message)
     }
 }

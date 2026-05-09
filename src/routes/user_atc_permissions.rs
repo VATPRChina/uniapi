@@ -6,21 +6,17 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::{
-        user_controller_state::UserControllerState,
-        user_role::{UserRole, role_closure_from_strings},
-    },
-    repository::atc::{
-        user_atc_permission::{
-            self as atc_permission_repository, AtcPermissionRecord, AtcPermissionSave,
-        },
-        user_atc_status::{self as atc_status_repository, AtcStatusRecord, AtcStatusSave},
-    },
-    services::Services,
+use crate::auth::CurrentUser;
+use crate::models::user_controller_state::UserControllerState;
+use crate::models::user_role::{UserRole, role_closure_from_strings};
+use crate::repository::atc::user_atc_permission::{
+    self as atc_permission_repository, AtcPermissionRecord, AtcPermissionSave,
 };
+use crate::repository::atc::user_atc_status::{
+    self as atc_status_repository, AtcStatusRecord, AtcStatusSave,
+};
+use crate::routes::ApiError;
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(get_my_status, set_status))]
@@ -55,30 +51,24 @@ async fn set_status(
     let status = AtcStatusSave::try_from(request)?;
 
     if atc_status_repository::find_by_user_id(services.db(), user_id)
-        .await
-        .map_err(ApiError::Database)?
+        .await?
         .is_none()
     {
-        return Err(ApiError::UserNotFound);
+        return Err(ApiError::not_found("user", "unknown"));
     }
 
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
-    atc_status_repository::upsert(&mut transaction, user_id, &status)
-        .await
-        .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
+    atc_status_repository::upsert(&mut transaction, user_id, &status).await?;
+    transaction.commit().await?;
 
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
 async fn get_status_for_user(services: &Services, user_id: Uuid) -> Result<AtcStatusDto, ApiError> {
     let status = atc_status_repository::find_by_user_id(services.db(), user_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::UserNotFound)?;
-    let permissions = atc_permission_repository::list_by_user_id(services.db(), user_id)
-        .await
-        .map_err(ApiError::Database)?;
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
+    let permissions = atc_permission_repository::list_by_user_id(services.db(), user_id).await?;
 
     Ok(AtcStatusDto::from_records(status, permissions))
 }
@@ -89,13 +79,13 @@ fn require_admin_role(current_user: &CurrentUser) -> Result<(), ApiError> {
             UserRole::ControllerTrainingMentor,
             UserRole::ControllerTrainingDirectorAssistant,
         ])
-        .map_err(|_| ApiError::Forbidden)
+        .map_err(Into::into)
 }
 
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| ApiError::InvalidUserId)
+        .map_err(|_| ApiError::bad_request("user_id", "invalid ULID"))
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -111,7 +101,7 @@ impl TryFrom<AtcStatusRequest> for AtcStatusSave {
 
     fn try_from(request: AtcStatusRequest) -> Result<Self, Self::Error> {
         if !ALLOWED_RATINGS.contains(&request.rating.as_str()) {
-            return Err(ApiError::InvalidAtcRating);
+            return Err(ApiError::bad_request("rating", "invalid ATC rating"));
         }
 
         if request.permissions.iter().any(|permission| {

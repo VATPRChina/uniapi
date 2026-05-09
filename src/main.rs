@@ -8,7 +8,6 @@ mod flight_plan;
 mod jwt;
 mod models;
 mod openapi;
-mod problem;
 mod repository;
 mod routes;
 mod services;

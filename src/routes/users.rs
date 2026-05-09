@@ -7,13 +7,11 @@ use std::collections::BTreeSet;
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::auth::CurrentUser;
+use crate::models::user_role::{UserRole, role_closure_from_strings};
+use crate::repository::auth::user::{self as user_repository, UserDetailRecord};
 use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::user_role::{UserRole, role_closure_from_strings},
-    repository::auth::user::{self as user_repository, UserDetailRecord},
-    services::Services,
-};
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(list_users, me, set_roles))]
@@ -31,13 +29,10 @@ async fn list_users(
     State(services): State<Services>,
     current_user: CurrentUser,
 ) -> Result<Json<Vec<UserDto>>, ApiError> {
-    current_user
-        .require_role(UserRole::Volunteer)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::Volunteer)?;
     let show_full_name = current_user.has_role(UserRole::Staff);
     let users = user_repository::list_details_ordered_by_cid(services.db())
-        .await
-        .map_err(ApiError::Database)?
+        .await?
         .into_iter()
         .map(|user| user_dto(user, None, show_full_name, None))
         .collect();
@@ -52,14 +47,11 @@ async fn set_roles(
     Path(id): Path<String>,
     Json(roles): Json<BTreeSet<String>>,
 ) -> Result<Json<UserDto>, ApiError> {
-    current_user
-        .require_role(UserRole::Staff)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::Staff)?;
     let id = parse_ulid_uuid(&id)?;
     let user = user_repository::find_detail_by_id(services.db(), id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::UserNotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
 
     let current_roles = role_closure_from_strings(user.roles.iter().map(String::as_str));
     let new_roles = role_closure_from_strings(roles.iter().map(String::as_str));
@@ -71,9 +63,8 @@ async fn set_roles(
     }
 
     let user = user_repository::set_roles(services.db(), id, roles.into_iter().collect())
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::UserNotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
 
     Ok(Json(user_dto(user, None, false, None)))
 }
@@ -83,11 +74,12 @@ async fn me(
     State(services): State<Services>,
     current_user: CurrentUser,
 ) -> Result<Json<UserDto>, ApiError> {
-    let user_id = current_user.user_id.ok_or(ApiError::UserNotFound)?;
+    let user_id = current_user
+        .user_id
+        .ok_or(ApiError::not_found("user", "unknown"))?;
     let user = user_repository::find_detail_by_id(services.db(), user_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::UserNotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
     let moodle_account = moodle_account(&services, &user.cid).await?;
 
     Ok(Json(user_dto(user, moodle_account, true, None)))
@@ -100,8 +92,7 @@ async fn moodle_account(
     Ok(services
         .moodle()
         .get_user_by_cid(cid)
-        .await
-        .map_err(ApiError::Moodle)?
+        .await?
         .map(|user| UserMoodleInfoDto {
             id: user.id.to_string(),
         }))
@@ -152,7 +143,7 @@ fn user_dto(
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| ApiError::InvalidUserId)
+        .map_err(|_| ApiError::bad_request("user_id", "invalid ULID"))
 }
 
 fn role_to_dto(role: UserRole) -> String {

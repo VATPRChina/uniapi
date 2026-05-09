@@ -3,8 +3,10 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde::Serialize;
 
+use crate::auth::CurrentUser;
+use crate::models::user_role::UserRole;
 use crate::routes::ApiError;
-use crate::{auth::CurrentUser, models::user_role::UserRole, services::Services};
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(upload_image))]
@@ -25,9 +27,7 @@ async fn upload_image(
     current_user: CurrentUser,
     mut multipart: Multipart,
 ) -> Result<Json<UploadImageResponse>, ApiError> {
-    current_user
-        .require_role(UserRole::Volunteer)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::Volunteer)?;
     tracing::debug!(
         subject = %current_user.subject,
         user_id = ?current_user.user_id,
@@ -35,27 +35,26 @@ async fn upload_image(
         "authenticated storage image upload"
     );
 
-    while let Some(field) = multipart.next_field().await.map_err(ApiError::Multipart)? {
+    while let Some(field) = multipart.next_field().await? {
         if field.name() != Some("image") {
             continue;
         }
 
         let file_name = field.file_name().map(ToOwned::to_owned);
         let content_type = field.content_type().map(ToOwned::to_owned);
-        let image = field.bytes().await.map_err(ApiError::Multipart)?.to_vec();
+        let image = field.bytes().await?.to_vec();
 
         if image.is_empty() {
-            return Err(ApiError::BadRequest("No image file provided.".into()));
+            return Err(ApiError::bad_request("image", "file is empty"));
         }
 
         let url = services
             .smms()
             .upload_image(image, file_name, content_type)
-            .await
-            .map_err(ApiError::Smms)?;
+            .await?;
 
         return Ok(Json(UploadImageResponse { url }));
     }
 
-    Err(ApiError::BadRequest("No image file provided.".into()))
+    Err(ApiError::bad_request("image", "image not included"))
 }

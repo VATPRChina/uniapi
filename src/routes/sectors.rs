@@ -3,15 +3,11 @@ use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
 
+use crate::auth::CurrentUser;
+use crate::repository::auth::user::{self as user_repository};
+use crate::repository::sector as sector_repository;
 use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    repository::{
-        auth::user::{self as user_repository},
-        sector as sector_repository,
-    },
-    services::Services,
-};
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(current_permission))]
@@ -28,12 +24,10 @@ async fn current_permission(
 ) -> Result<Json<SectorPermissionResponse>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let user = user_repository::find_detail_by_id(services.db(), user_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::UserNotFound)?;
-    let has_permission = sector_repository::user_can_online(services.db(), user.id, &user.cid)
-        .await
-        .map_err(ApiError::Database)?;
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
+    let has_permission =
+        sector_repository::user_can_online(services.db(), user.id, &user.cid).await?;
 
     Ok(Json(SectorPermissionResponse {
         has_permission,

@@ -6,13 +6,11 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use ulid::Ulid;
 
+use crate::auth::CurrentUser;
+use crate::models::user_role::UserRole;
+use crate::repository::auth::{session as session_repository, user as user_repository};
 use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::user_role::UserRole,
-    repository::auth::{session as session_repository, user as user_repository},
-    services::Services,
-};
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(get_current, logout))]
@@ -27,16 +25,16 @@ async fn get_current(
     State(services): State<Services>,
     current_user: CurrentUser,
 ) -> Result<Json<TokenDto>, ApiError> {
-    let user_id = current_user.user_id.ok_or(ApiError::UserNotFound)?;
+    let user_id = current_user
+        .user_id
+        .ok_or(ApiError::not_found("user", "unknown"))?;
     let user = user_repository::find_detail_by_id(services.db(), user_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::UserNotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
     let moodle_account = services
         .moodle()
         .get_user_by_cid(&user.cid)
-        .await
-        .map_err(ApiError::Moodle)?
+        .await?
         .map(|user| UserMoodleInfoDto {
             id: user.id.to_string(),
         });
@@ -57,17 +55,25 @@ async fn get_current(
             direct_roles: user
                 .roles
                 .into_iter()
-                .filter_map(|role| role.parse::<UserRole>().ok())
+                .filter_map(|role: String| role.parse::<UserRole>().ok())
                 .map(role_to_dto)
                 .collect::<std::collections::BTreeSet<_>>()
                 .into_iter()
                 .collect(),
             moodle_account,
         },
-        issued_at: DateTime::from_timestamp(current_user.issued_at, 0)
-            .ok_or(ApiError::InvalidTokenClaims)?,
-        expires_at: DateTime::from_timestamp(current_user.expires_at, 0)
-            .ok_or(ApiError::InvalidTokenClaims)?,
+        issued_at: DateTime::from_timestamp(current_user.issued_at, 0).ok_or(
+            ApiError::InvalidTokenClaims {
+                field: "issued_at".to_string(),
+                reason: "out-of-range number of seconds and/or invalid nanosecond".to_string(),
+            },
+        )?,
+        expires_at: DateTime::from_timestamp(current_user.expires_at, 0).ok_or(
+            ApiError::InvalidTokenClaims {
+                field: "expires_at".to_string(),
+                reason: "out-of-range number of seconds and/or invalid nanosecond".to_string(),
+            },
+        )?,
     }))
 }
 
@@ -80,13 +86,10 @@ async fn logout(
         .session_id
         .ok_or(ApiError::MissingSessionId)?
         .parse::<Ulid>()
-        .map_err(|_| ApiError::InvalidSessionId)?;
+        .map_err(|_| ApiError::bad_request("session_id", "invalid ULID"))?;
 
-    if !session_repository::delete(services.db(), session_id)
-        .await
-        .map_err(ApiError::Database)?
-    {
-        return Err(ApiError::RefreshTokenNotFound(session_id.to_string()));
+    if !session_repository::delete(services.db(), session_id).await? {
+        return Err(ApiError::not_found("refresh token", session_id.to_string()));
     }
 
     Ok(StatusCode::NO_CONTENT)

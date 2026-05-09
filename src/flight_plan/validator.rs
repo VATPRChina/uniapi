@@ -1,14 +1,10 @@
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::{
-    adapter::flight::Flight,
-    flight_plan::{
-        AirwayDirection, FixKind, Leg, LevelRestrictionType, PreferredRoute,
-        parser::{self, ParserError},
-    },
-    repository::navdata::preferred_route,
-};
+use crate::adapter::flight::Flight;
+use crate::flight_plan::parser::{self, ParserError};
+use crate::flight_plan::{AirwayDirection, FixKind, Leg, LevelRestrictionType, PreferredRoute};
+use crate::repository::navdata::preferred_route;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidatorError {

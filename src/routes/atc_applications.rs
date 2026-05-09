@@ -6,23 +6,20 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::user_role::{UserRole, role_closure_from_strings},
-    repository::{
-        atc::atc_application::{self as application_repository, AtcApplicationRecord},
-        sheet::{
-            sheet as sheet_repository,
-            sheet_field::{self as sheet_field_repository, SheetFieldRecord},
-            sheet_filing as sheet_filing_repository,
-            sheet_filing_answer::{
-                self as sheet_filing_answer_repository, SheetAnswerRecord, SheetAnswerSave,
-            },
-        },
-    },
-    services::Services,
+use crate::auth::CurrentUser;
+use crate::models::user_role::{UserRole, role_closure_from_strings};
+use crate::repository::atc::atc_application::{
+    self as application_repository, AtcApplicationRecord,
 };
+use crate::repository::sheet::sheet_field::{self as sheet_field_repository, SheetFieldRecord};
+use crate::repository::sheet::sheet_filing_answer::{
+    self as sheet_filing_answer_repository, SheetAnswerRecord, SheetAnswerSave,
+};
+use crate::repository::sheet::{
+    sheet as sheet_repository, sheet_filing as sheet_filing_repository,
+};
+use crate::routes::ApiError;
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(
@@ -56,8 +53,7 @@ async fn list_applications(
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin = current_user.has_role(UserRole::ControllerTrainingDirectorAssistant);
     let applications = application_repository::list(services.db())
-        .await
-        .map_err(ApiError::Database)?
+        .await?
         .into_iter()
         .filter(|application| is_admin || application.user_id == current_user_id)
         .map(|application| {
@@ -75,11 +71,7 @@ async fn create_application(
     Json(request): Json<AtcApplicationRequest>,
 ) -> Result<Json<AtcApplicationSummaryDto>, ApiError> {
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    if application_repository::count_active_by_user(services.db(), current_user_id)
-        .await
-        .map_err(ApiError::Database)?
-        > 0
-    {
+    if application_repository::count_active_by_user(services.db(), current_user_id).await? > 0 {
         return Err(ApiError::ApplicationAlreadyExists);
     }
 
@@ -88,7 +80,7 @@ async fn create_application(
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
     let filing_id = sheet_filing_repository::set(
         &mut transaction,
         APPLICATION_SHEET_ID,
@@ -96,13 +88,11 @@ async fn create_application(
         current_user_id,
         &answers,
     )
-    .await
-    .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    .await?;
+    transaction.commit().await?;
 
-    let application = application_repository::create(services.db(), current_user_id, filing_id)
-        .await
-        .map_err(ApiError::Database)?;
+    let application =
+        application_repository::create(services.db(), current_user_id, filing_id).await?;
 
     Ok(Json(AtcApplicationSummaryDto::from_record(
         application,
@@ -148,7 +138,7 @@ async fn update_application(
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
     sheet_filing_repository::set(
         &mut transaction,
         APPLICATION_SHEET_ID,
@@ -156,14 +146,12 @@ async fn update_application(
         current_user_id,
         &answers,
     )
-    .await
-    .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    .await?;
+    transaction.commit().await?;
 
     let application = application_repository::find_by_id(services.db(), application.id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::ApplicationNotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("application", id))?;
     application_to_dto(&services, application, false, current_user_id)
         .await
         .map(Json)
@@ -192,21 +180,18 @@ async fn review_application(
     Path(id): Path<String>,
     Json(request): Json<AtcApplicationReviewRequest>,
 ) -> Result<Json<AtcApplicationDto>, ApiError> {
-    current_user
-        .require_role(UserRole::ControllerTrainingDirectorAssistant)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::ControllerTrainingDirectorAssistant)?;
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let application_id = parse_ulid_uuid(&id)?;
     let application = application_repository::find_by_id(services.db(), application_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::ApplicationNotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("application", &id))?;
     let answers = request
         .review_answers
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
     let filing_id = sheet_filing_repository::set(
         &mut transaction,
         REVIEW_SHEET_ID,
@@ -214,9 +199,8 @@ async fn review_application(
         current_user_id,
         &answers,
     )
-    .await
-    .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    .await?;
+    transaction.commit().await?;
 
     let application = application_repository::set_review(
         services.db(),
@@ -224,9 +208,8 @@ async fn review_application(
         request.status.as_db_str(),
         filing_id,
     )
-    .await
-    .map_err(ApiError::Database)?
-    .ok_or(ApiError::ApplicationNotFound)?;
+    .await?
+    .ok_or(ApiError::not_found("application", &id))?;
 
     application_to_dto(&services, application, true, current_user_id)
         .await
@@ -240,11 +223,10 @@ async fn get_visible_application(
     is_admin: bool,
 ) -> Result<AtcApplicationRecord, ApiError> {
     let application = application_repository::find_by_id(services.db(), id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::ApplicationNotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("application", id.to_string()))?;
     if !is_admin && application.user_id != current_user_id {
-        return Err(ApiError::ApplicationNotFound);
+        return Err(ApiError::not_found("application", id.to_string()));
     }
 
     Ok(application)
@@ -260,16 +242,14 @@ async fn application_to_dto(
         services.db(),
         application.application_filing_id,
     )
-    .await
-    .map_err(ApiError::Database)?
+    .await?
     .into_iter()
     .map(SheetFieldAnswerDto::from)
     .collect();
     let review_filing_answers = match application.review_filing_id {
         Some(review_filing_id) => Some(
             sheet_filing_answer_repository::list_by_filing(services.db(), review_filing_id)
-                .await
-                .map_err(ApiError::Database)?
+                .await?
                 .into_iter()
                 .map(SheetFieldAnswerDto::from)
                 .collect(),
@@ -291,16 +271,11 @@ async fn sheet_dto(
     sheet_id: &str,
     sheet_name: &str,
 ) -> Result<SheetDto, ApiError> {
-    sheet_repository::ensure(services.db(), sheet_id, sheet_name)
-        .await
-        .map_err(ApiError::Database)?;
+    sheet_repository::ensure(services.db(), sheet_id, sheet_name).await?;
     let sheet = sheet_repository::find(services.db(), sheet_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::SheetNotFound)?;
-    let fields = sheet_field_repository::list(services.db(), sheet_id)
-        .await
-        .map_err(ApiError::Database)?;
+        .await?
+        .ok_or(ApiError::not_found("sheet", sheet_id))?;
+    let fields = sheet_field_repository::list(services.db(), sheet_id).await?;
 
     Ok(SheetDto {
         id: sheet.id,
@@ -316,7 +291,7 @@ async fn sheet_dto(
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| ApiError::InvalidId)
+        .map_err(|_| ApiError::bad_request("id", "invalid ULID"))
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]

@@ -2,13 +2,9 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use sqlx::PgPool;
 
-use crate::{
-    flight_plan::{
-        AirwayDirection, AirwayLeg, DirectLeg, Fix, Leg, RouteToken,
-        lexer::{LexerError, lex_route},
-    },
-    repository::navdata::airway,
-};
+use crate::flight_plan::lexer::{LexerError, lex_route};
+use crate::flight_plan::{AirwayDirection, AirwayLeg, DirectLeg, Fix, Leg, RouteToken};
+use crate::repository::navdata::airway;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParserError {

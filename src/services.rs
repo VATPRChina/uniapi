@@ -1,13 +1,13 @@
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 
-use crate::{
-    adapter::{
-        compat::CompatClient, discourse::DiscourseClient, moodle::MoodleClient, smms::SmmsClient,
-        vatsim_auth::VatsimAuthClient,
-    },
-    jwt::JwtService,
-    settings::Settings,
-};
+use crate::adapter::compat::CompatClient;
+use crate::adapter::discourse::DiscourseClient;
+use crate::adapter::moodle::MoodleClient;
+use crate::adapter::smms::SmmsClient;
+use crate::adapter::vatsim_auth::VatsimAuthClient;
+use crate::jwt::JwtService;
+use crate::settings::Settings;
 
 #[derive(Clone)]
 pub struct Services {

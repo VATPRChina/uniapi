@@ -6,18 +6,14 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::user_role::UserRole,
-    repository::{
-        event::event as event_repository,
-        event::event_airspace::{
-            self as airspace_repository, EventAirspaceRecord, EventAirspaceSave,
-        },
-    },
-    services::Services,
+use crate::auth::CurrentUser;
+use crate::models::user_role::UserRole;
+use crate::repository::event::event as event_repository;
+use crate::repository::event::event_airspace::{
+    self as airspace_repository, EventAirspaceRecord, EventAirspaceSave,
 };
+use crate::routes::ApiError;
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(create_airspace))]
@@ -34,27 +30,21 @@ async fn create_airspace(
     Path(eid): Path<String>,
     Json(request): Json<EventAirspaceSaveRequest>,
 ) -> Result<Json<EventAirspaceDto>, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
+    current_user.require_role(UserRole::EventCoordinator)?;
+    let event_id = parse_ulid_uuid(&eid, ApiError::bad_request("event_id", "invalid ULID"))?;
     ensure_event_exists(&services, event_id).await?;
     let airspace =
         airspace_repository::create(services.db(), event_id, EventAirspaceSave::from(request))
-            .await
-            .map_err(ApiError::Database)?;
+            .await?;
 
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
 
 async fn ensure_event_exists(services: &Services, event_id: Uuid) -> Result<(), ApiError> {
-    if event_repository::exists(services.db(), event_id)
-        .await
-        .map_err(ApiError::Database)?
-    {
+    if event_repository::exists(services.db(), event_id).await? {
         Ok(())
     } else {
-        Err(ApiError::EventNotFound)
+        Err(ApiError::not_found("event", "unknown"))
     }
 }
 

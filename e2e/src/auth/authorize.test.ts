@@ -52,12 +52,7 @@ test("returns error for an invalid client", async () => {
 
   expect(response.status).toBe(401);
   expect(data).toBeFalsy();
-  expect(error).toEqual({
-    detail: "client is invalid",
-    status: 401,
-    title: "Unauthorized",
-    type: "about:blank",
-  });
+  expect(error).toBe("client is invalid");
 });
 
 test("returns error for a client with an invalid redirect uri", async () => {
@@ -76,10 +71,5 @@ test("returns error for a client with an invalid redirect uri", async () => {
 
   expect(response.status).toBe(401);
   expect(data).toBeFalsy();
-  expect(error).toEqual({
-    detail: "client is invalid",
-    status: 401,
-    title: "Unauthorized",
-    type: "about:blank",
-  });
+  expect(error).toBe("client is invalid");
 });

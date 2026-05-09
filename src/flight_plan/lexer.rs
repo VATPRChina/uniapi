@@ -1,9 +1,7 @@
 use sqlx::PgPool;
 
-use crate::{
-    flight_plan::{Fix, FixKind, RouteToken},
-    repository::navdata::{airport, airway, ndb_navaid, procedure, vhf_navaid, waypoint},
-};
+use crate::flight_plan::{Fix, FixKind, RouteToken};
+use crate::repository::navdata::{airport, airway, ndb_navaid, procedure, vhf_navaid, waypoint};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LexerError {

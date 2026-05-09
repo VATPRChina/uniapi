@@ -7,16 +7,15 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::{user_controller_state::UserControllerState, user_role::UserRole},
-    repository::event::event_atc_position::{
-        self as position_repository, EventAtcPositionRecord, EventAtcPositionSave,
-        UserAtcPermissionRecord,
-    },
-    services::Services,
+use crate::auth::CurrentUser;
+use crate::models::user_controller_state::UserControllerState;
+use crate::models::user_role::UserRole;
+use crate::repository::event::event_atc_position::{
+    self as position_repository, EventAtcPositionRecord, EventAtcPositionSave,
+    UserAtcPermissionRecord,
 };
+use crate::routes::ApiError;
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(
@@ -50,11 +49,10 @@ async fn list_positions(
     State(services): State<Services>,
     Path(event_id): Path<String>,
 ) -> Result<Json<Vec<EventAtcPositionDto>>, ApiError> {
-    let event_id = parse_ulid_uuid(&event_id, ApiError::InvalidEventId)?;
+    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
     Ok(Json(
         position_repository::list_by_event(services.db(), event_id)
-            .await
-            .map_err(ApiError::Database)?
+            .await?
             .into_iter()
             .map(EventAtcPositionDto::from)
             .collect(),
@@ -69,10 +67,9 @@ async fn create_position(
     Json(request): Json<EventAtcPositionSaveRequest>,
 ) -> Result<Json<EventAtcPositionDto>, ApiError> {
     require_edit_role(&current_user)?;
-    let event_id = parse_ulid_uuid(&event_id, ApiError::InvalidEventId)?;
-    let position = position_repository::create(services.db(), event_id, request.try_into()?)
-        .await
-        .map_err(ApiError::Database)?;
+    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let position =
+        position_repository::create(services.db(), event_id, request.try_into()?).await?;
 
     Ok(Json(EventAtcPositionDto::from(position)))
 }
@@ -85,13 +82,15 @@ async fn update_position(
     Json(request): Json<EventAtcPositionSaveRequest>,
 ) -> Result<Json<EventAtcPositionDto>, ApiError> {
     require_edit_role(&current_user)?;
-    let event_id = parse_ulid_uuid(&event_id, ApiError::InvalidEventId)?;
-    let position_id = parse_ulid_uuid(&position_id, ApiError::InvalidPositionId)?;
+    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let position_id = parse_ulid_uuid(
+        &position_id,
+        ApiError::bad_request("position_id", "invalid ULID"),
+    )?;
     let position =
         position_repository::update(services.db(), event_id, position_id, request.try_into()?)
-            .await
-            .map_err(ApiError::Database)?
-            .ok_or(ApiError::PositionNotFound)?;
+            .await?
+            .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
 
     Ok(Json(EventAtcPositionDto::from(position)))
 }
@@ -103,13 +102,13 @@ async fn delete_position(
     Path((event_id, position_id)): Path<(String, String)>,
 ) -> Result<StatusCode, ApiError> {
     require_edit_role(&current_user)?;
-    let event_id = parse_ulid_uuid(&event_id, ApiError::InvalidEventId)?;
-    let position_id = parse_ulid_uuid(&position_id, ApiError::InvalidPositionId)?;
-    if !position_repository::delete(services.db(), event_id, position_id)
-        .await
-        .map_err(ApiError::Database)?
-    {
-        return Err(ApiError::PositionNotFound);
+    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let position_id = parse_ulid_uuid(
+        &position_id,
+        ApiError::bad_request("position_id", "invalid ULID"),
+    )?;
+    if !position_repository::delete(services.db(), event_id, position_id).await? {
+        return Err(ApiError::not_found("event ATC position", "unknown"));
     }
 
     Ok(StatusCode::NO_CONTENT)
@@ -122,16 +121,23 @@ async fn book_position(
     Path((event_id, position_id)): Path<(String, String)>,
     Json(request): Json<EventAtcPositionBookRequest>,
 ) -> Result<Json<EventAtcPositionBookingDto>, ApiError> {
-    current_user
-        .require_role(UserRole::Controller)
-        .map_err(|_| ApiError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&event_id, ApiError::InvalidEventId)?;
-    let position_id = parse_ulid_uuid(&position_id, ApiError::InvalidPositionId)?;
+    current_user.require_role(UserRole::Controller)?;
+    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let position_id = parse_ulid_uuid(
+        &position_id,
+        ApiError::bad_request("position_id", "invalid ULID"),
+    )?;
     if request.user_id.is_some() && !has_booking_admin_role(&current_user) {
-        return Err(ApiError::Forbidden);
+        return Err(ApiError::forbidden([
+            UserRole::EventCoordinator,
+            UserRole::ControllerTrainingDirectorAssistant,
+            UserRole::ControllerTrainingMentor,
+        ]));
     }
     let user_id = match request.user_id.as_deref() {
-        Some(user_id) => parse_ulid_uuid(user_id, ApiError::InvalidUserId)?,
+        Some(user_id) => {
+            parse_ulid_uuid(user_id, ApiError::bad_request("user_id", "invalid ULID"))?
+        }
         None => current_user.user_id.ok_or(ApiError::Unauthorized)?,
     };
     let is_admin_booking = request.user_id.is_some();
@@ -144,18 +150,15 @@ async fn book_position(
     }
     let permission =
         position_repository::user_permission(services.db(), user_id, &position.position_kind_id)
-            .await
-            .map_err(ApiError::Database)?
+            .await?
             .ok_or(ApiError::InsufficientAtcPermission)?;
     if !permission_satisfies(&permission, position.minimum_controller_state) {
         return Err(ApiError::InsufficientAtcPermission);
     }
 
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
-    position_repository::create_booking(&mut transaction, &position, user_id)
-        .await
-        .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
+    position_repository::create_booking(&mut transaction, &position, user_id).await?;
+    transaction.commit().await?;
     let position = load_position(&services, event_id, position_id).await?;
 
     EventAtcPositionBookingDto::try_from(position).map(Json)
@@ -167,11 +170,12 @@ async fn cancel_position_booking(
     current_user: CurrentUser,
     Path((event_id, position_id)): Path<(String, String)>,
 ) -> Result<Json<EventAtcPositionBookingDto>, ApiError> {
-    current_user
-        .require_role(UserRole::Controller)
-        .map_err(|_| ApiError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&event_id, ApiError::InvalidEventId)?;
-    let position_id = parse_ulid_uuid(&position_id, ApiError::InvalidPositionId)?;
+    current_user.require_role(UserRole::Controller)?;
+    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let position_id = parse_ulid_uuid(
+        &position_id,
+        ApiError::bad_request("position_id", "invalid ULID"),
+    )?;
     let position = load_position(&services, event_id, position_id).await?;
     let Some(booking_user_id) = position.booking_user_id else {
         return Err(ApiError::PositionNotBooked);
@@ -181,11 +185,10 @@ async fn cancel_position_booking(
         return Err(ApiError::PositionBookedByAnotherUser);
     }
     let dto = EventAtcPositionBookingDto::try_from(position.clone())?;
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
     position_repository::delete_booking(&mut transaction, position.id, position.atc_booking_id)
-        .await
-        .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+        .await?;
+    transaction.commit().await?;
 
     Ok(Json(dto))
 }
@@ -196,9 +199,8 @@ async fn load_position(
     position_id: Uuid,
 ) -> Result<EventAtcPositionRecord, ApiError> {
     position_repository::find_by_event_and_id(services.db(), event_id, position_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::PositionNotFound)
+        .await?
+        .ok_or(ApiError::not_found("event ATC position", "unknown"))
 }
 
 fn require_edit_role(current_user: &CurrentUser) -> Result<(), ApiError> {
@@ -208,7 +210,7 @@ fn require_edit_role(current_user: &CurrentUser) -> Result<(), ApiError> {
             UserRole::ControllerTrainingDirectorAssistant,
             UserRole::OperationDirectorAssistant,
         ])
-        .map_err(|_| ApiError::Forbidden)
+        .map_err(Into::into)
 }
 
 fn has_booking_admin_role(current_user: &CurrentUser) -> bool {
@@ -260,7 +262,10 @@ impl TryFrom<EventAtcPositionSaveRequest> for EventAtcPositionSave {
 
     fn try_from(request: EventAtcPositionSaveRequest) -> Result<Self, Self::Error> {
         if !POSITION_KINDS.contains(&request.position_kind_id.as_str()) {
-            return Err(ApiError::InvalidPositionKind);
+            return Err(ApiError::bad_request(
+                "position_kind_id",
+                "invalid ATC position kind",
+            ));
         }
 
         Ok(Self {

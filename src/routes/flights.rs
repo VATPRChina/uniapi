@@ -4,15 +4,13 @@ use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::adapter::flight::{Flight, flights_from_vatsim};
+use crate::auth::CurrentUser;
+use crate::flight_plan::{Leg, parser, validator};
+use crate::models::user_role::UserRole;
+use crate::repository::auth::user as user_repository;
 use crate::routes::ApiError;
-use crate::{
-    adapter::flight::{Flight, flights_from_vatsim},
-    auth::CurrentUser,
-    flight_plan::{Leg, parser, validator},
-    models::user_role::UserRole,
-    repository::auth::user as user_repository,
-    services::Services,
-};
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(
@@ -78,9 +76,7 @@ async fn route_by_callsign(
 ) -> Result<Json<Vec<FlightLeg>>, ApiError> {
     let flight = find_by_callsign(&services, &callsign).await?;
     let route = route_string(&flight);
-    let legs = parser::parse_route(services.db(), &route)
-        .await
-        .map_err(ApiError::RouteParser)?;
+    let legs = parser::parse_route(services.db(), &route).await?;
     Ok(Json(legs.into_iter().map(FlightLeg::from).collect()))
 }
 
@@ -90,9 +86,7 @@ async fn temporary_warnings(
     State(services): State<Services>,
     Query(query): Query<TemporaryFlightQuery>,
 ) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
-    current_user
-        .require_role(UserRole::ApiClient)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::ApiClient)?;
     warnings_for_flight(&services, &Flight::from(query)).await
 }
 
@@ -103,9 +97,8 @@ async fn my_flight(
 ) -> Result<Json<FlightDto>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let user = user_repository::find_detail_by_id(services.db(), user_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::UserNotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
     list_flights(&services)
         .await?
         .into_iter()
@@ -117,11 +110,7 @@ async fn my_flight(
 
 async fn list_flights(services: &Services) -> Result<Vec<Flight>, ApiError> {
     Ok(flights_from_vatsim(
-        services
-            .compat()
-            .get_online_data()
-            .await
-            .map_err(ApiError::Compat)?,
+        services.compat().get_online_data().await?,
     ))
 }
 
@@ -130,7 +119,7 @@ async fn find_by_callsign(services: &Services, callsign: &str) -> Result<Flight,
         .await?
         .into_iter()
         .find(|flight| flight.callsign.eq_ignore_ascii_case(callsign))
-        .ok_or(ApiError::CallsignNotFound)
+        .ok_or_else(|| ApiError::not_found("callsign", callsign))
 }
 
 fn route_string(flight: &Flight) -> String {
@@ -145,12 +134,8 @@ async fn warnings_for_flight(
     flight: &Flight,
 ) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
     let route = route_string(flight);
-    let legs = parser::parse_route(services.db(), &route)
-        .await
-        .map_err(ApiError::RouteParser)?;
-    let messages = validator::validate_route(services.db(), flight, &legs)
-        .await
-        .map_err(ApiError::RouteValidator)?;
+    let legs = parser::parse_route(services.db(), &route).await?;
+    let messages = validator::validate_route(services.db(), flight, &legs).await?;
     Ok(Json(messages))
 }
 

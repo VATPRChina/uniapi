@@ -13,11 +13,13 @@ use uuid::Uuid;
 use crate::adapter::vatsim_auth::{VatsimAuthError, generate_pkce};
 use crate::auth::CurrentUser;
 use crate::jwt::JwtError;
-use crate::repository::auth::{
-    device_authorization::{self as device_authorization_repository, NewDeviceAuthorization},
-    session::{self as session_repository, RefreshSessionIssue, RefreshSessionRow},
-    user::{self as user_repository, UserLoginRow},
+use crate::repository::auth::device_authorization::{
+    self as device_authorization_repository, NewDeviceAuthorization,
 };
+use crate::repository::auth::session::{
+    self as session_repository, RefreshSessionIssue, RefreshSessionRow,
+};
+use crate::repository::auth::user::{self as user_repository, UserLoginRow};
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -54,19 +56,13 @@ async fn authorize(
     Query(query): Query<AuthorizeQuery>,
 ) -> Result<Response, AuthEndpointError> {
     if query.response_type != "code" {
-        return Ok(crate::problem::problem_response(
-            StatusCode::BAD_REQUEST,
-            "invalid response_type",
-        ));
+        return Ok((StatusCode::BAD_REQUEST, "invalid response_type").into_response());
     }
     if !services
         .jwt()
         .check_client_redirect(&query.client_id, &query.redirect_uri)
     {
-        return Ok(crate::problem::problem_response(
-            StatusCode::UNAUTHORIZED,
-            "client is invalid",
-        ));
+        return Ok((StatusCode::UNAUTHORIZED, "client is invalid").into_response());
     }
 
     let state_id = Ulid::new().to_string();
@@ -106,10 +102,11 @@ async fn device_authorization(
     Form(request): Form<DeviceAuthorizationRequest>,
 ) -> Result<Response, AuthEndpointError> {
     if !services.jwt().check_client_exists(&request.client_id) {
-        return Ok(crate::problem::problem_response(
+        return Ok((
             StatusCode::UNAUTHORIZED,
             "invalid_client: client_id not found",
-        ));
+        )
+            .into_response());
     }
 
     let device_code = Ulid::new();
@@ -713,10 +710,11 @@ fn parse_required_ulid(
 }
 
 fn token_error(error: &'static str, error_description: &'static str) -> Response {
-    crate::problem::problem_response(
+    (
         StatusCode::BAD_REQUEST,
         format!("{error}: {error_description}"),
     )
+        .into_response()
 }
 
 fn random_user_code() -> String {
@@ -1073,6 +1071,6 @@ impl IntoResponse for AuthEndpointError {
                 format!("VATSIM authentication failed: {error}"),
             ),
         };
-        crate::problem::problem_response(status, message)
+        (status, message).into_response()
     }
 }

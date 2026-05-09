@@ -25,9 +25,7 @@ pub fn build_atc_routes() -> Router<Services> {
 async fn list_controllers(
     State(services): State<Services>,
 ) -> Result<Json<Vec<AtcStatusDto>>, ApiError> {
-    let rows = atc_repository::list_controllers(services.db())
-        .await
-        .map_err(ApiError::Database)?;
+    let rows = atc_repository::list_controllers(services.db()).await?;
 
     let mut statuses = BTreeMap::<Uuid, AtcStatusBuilder>::new();
     for row in rows {

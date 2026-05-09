@@ -5,8 +5,10 @@ use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::auth::CurrentUser;
+use crate::models::user_role::UserRole;
 use crate::routes::ApiError;
-use crate::{auth::CurrentUser, models::user_role::UserRole, services::Services};
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(
@@ -28,10 +30,8 @@ pub fn build_preferred_route_routes() -> Router<Services> {
 
 #[utoipa::path(get, path = "api/navdata/preferred-routes", tag = "Navdata", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<PreferredRouteDto>)))]
 async fn list_preferred_routes(current_user: CurrentUser) -> Result<Response, ApiError> {
-    current_user
-        .require_role(UserRole::Volunteer)
-        .map_err(|_| ApiError::Forbidden)?;
-    Err(ApiError::NotImplemented)
+    current_user.require_role(UserRole::Volunteer)?;
+    todo!()
 }
 
 #[utoipa::path(get, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("oauth2" = [])), params(("id" = String, Path, description = "Preferred route ULID")), responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
@@ -39,10 +39,8 @@ async fn get_preferred_route(
     current_user: CurrentUser,
     Path(_id): Path<String>,
 ) -> Result<Response, ApiError> {
-    current_user
-        .require_role(UserRole::Volunteer)
-        .map_err(|_| ApiError::Forbidden)?;
-    Err(ApiError::NotImplemented)
+    current_user.require_role(UserRole::Volunteer)?;
+    todo!()
 }
 
 #[utoipa::path(post, path = "api/navdata/preferred-routes", tag = "Navdata", security(("oauth2" = [])), request_body = PreferredRouteSaveRequest, responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
@@ -50,10 +48,8 @@ async fn create_preferred_route(
     current_user: CurrentUser,
     Json(_request): Json<PreferredRouteSaveRequest>,
 ) -> Result<Response, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    Err(ApiError::NotImplemented)
+    current_user.require_role(UserRole::EventCoordinator)?;
+    todo!()
 }
 
 #[utoipa::path(put, path = "api/navdata/preferred-routes/{id}", tag = "Navdata", security(("oauth2" = [])), params(("id" = String, Path, description = "Preferred route ULID")), request_body = PreferredRouteSaveRequest, responses((status = 200, description = "Successful response", body = PreferredRouteDto)))]
@@ -62,10 +58,8 @@ async fn update_preferred_route(
     Path(_id): Path<String>,
     Json(_request): Json<PreferredRouteSaveRequest>,
 ) -> Result<Response, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    Err(ApiError::NotImplemented)
+    current_user.require_role(UserRole::EventCoordinator)?;
+    todo!()
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]

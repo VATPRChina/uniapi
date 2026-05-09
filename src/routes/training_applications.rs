@@ -6,27 +6,21 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::user_role::{UserRole, role_closure_from_strings},
-    repository::{
-        atc::user_atc_permission as atc_permission_repository,
-        atc_training::{
-            training_application::{
-                self as training_application_repository, TrainingApplicationRecord,
-            },
-            training_application_response::{
-                self as training_application_response_repository, TrainingApplicationResponseRecord,
-            },
-            training_application_slot::{
-                self as training_application_slot_repository, TrainingApplicationSlotRecord,
-                TrainingApplicationSlotSave,
-            },
-        },
-    },
-    services::Services,
+use crate::auth::CurrentUser;
+use crate::models::user_role::{UserRole, role_closure_from_strings};
+use crate::repository::atc::user_atc_permission as atc_permission_repository;
+use crate::repository::atc_training::training_application::{
+    self as training_application_repository, TrainingApplicationRecord,
 };
+use crate::repository::atc_training::training_application_response::{
+    self as training_application_response_repository, TrainingApplicationResponseRecord,
+};
+use crate::repository::atc_training::training_application_slot::{
+    self as training_application_slot_repository, TrainingApplicationSlotRecord,
+    TrainingApplicationSlotSave,
+};
+use crate::routes::ApiError;
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(
@@ -61,9 +55,7 @@ async fn list_applications(
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin = is_admin(&current_user);
     let applications =
-        training_application_repository::list(services.db(), current_user_id, is_admin)
-            .await
-            .map_err(ApiError::Database)?;
+        training_application_repository::list(services.db(), current_user_id, is_admin).await?;
 
     applications_to_dto(&services, applications).await.map(Json)
 }
@@ -85,13 +77,10 @@ async fn delete_application(
     Path(id): Path<String>,
 ) -> Result<Json<TrainingApplicationDto>, ApiError> {
     let application = find_visible_application(&services, &current_user, &id).await?;
-    training_application_repository::mark_deleted(services.db(), application.id)
-        .await
-        .map_err(ApiError::Database)?;
+    training_application_repository::mark_deleted(services.db(), application.id).await?;
     let application = training_application_repository::find_by_id(services.db(), application.id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))?;
 
     application_to_dto(&services, application).await.map(Json)
 }
@@ -103,11 +92,8 @@ async fn create_application(
     Json(request): Json<TrainingApplicationCreateRequest>,
 ) -> Result<Json<TrainingApplicationDto>, ApiError> {
     let trainee_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    if !atc_permission_repository::has_any_by_user_id(services.db(), trainee_id)
-        .await
-        .map_err(ApiError::Database)?
-    {
-        return Err(ApiError::Forbidden);
+    if !atc_permission_repository::has_any_by_user_id(services.db(), trainee_id).await? {
+        return Err(ApiError::forbidden(["controller"]));
     }
 
     let slots = request
@@ -115,20 +101,18 @@ async fn create_application(
         .into_iter()
         .map(Into::into)
         .collect::<Vec<_>>();
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
     let id = training_application_repository::create(
         &mut transaction,
         trainee_id,
         &request.name,
         &slots,
     )
-    .await
-    .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    .await?;
+    transaction.commit().await?;
     let application = training_application_repository::find_by_id(services.db(), id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))?;
 
     application_to_dto(&services, application).await.map(Json)
 }
@@ -146,20 +130,18 @@ async fn update_application(
         .into_iter()
         .map(Into::into)
         .collect::<Vec<_>>();
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
     training_application_repository::update(
         &mut transaction,
         application.id,
         &request.name,
         &slots,
     )
-    .await
-    .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    .await?;
+    transaction.commit().await?;
     let application = training_application_repository::find_by_id(services.db(), application.id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))?;
 
     application_to_dto(&services, application).await.map(Json)
 }
@@ -172,8 +154,7 @@ async fn list_responses(
 ) -> Result<Json<Vec<TrainingApplicationResponseDto>>, ApiError> {
     let application = find_visible_application(&services, &current_user, &id).await?;
     let responses = training_application_response_repository::list(services.db(), application.id)
-        .await
-        .map_err(ApiError::Database)?
+        .await?
         .into_iter()
         .map(TrainingApplicationResponseDto::from)
         .collect();
@@ -188,20 +169,17 @@ async fn respond_to_application(
     Path(id): Path<String>,
     Json(request): Json<TrainingApplicationResponseRequest>,
 ) -> Result<Json<TrainingApplicationResponseDto>, ApiError> {
-    current_user
-        .require_role(UserRole::ControllerTrainingMentor)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::ControllerTrainingMentor)?;
     let application_id = parse_ulid_uuid(&id)?;
     let trainer_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let application = training_application_repository::find_by_id(services.db(), application_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))?;
     if application.train_id.is_some() {
-        return Err(ApiError::AlreadyAccepted);
+        return Err(ApiError::TrainingApplicationAlreadyAccepted);
     }
     if application.deleted_at.is_some() {
-        return Err(ApiError::NotFound);
+        return Err(ApiError::not_found("resource", "unknown"));
     }
 
     let slot = match request.slot_id.as_deref() {
@@ -211,14 +189,13 @@ async fn respond_to_application(
                 application.id,
                 parse_ulid_uuid(slot_id)?,
             )
-            .await
-            .map_err(ApiError::Database)?
-            .ok_or(ApiError::SlotNotFound)?,
+            .await?
+            .ok_or(ApiError::not_found("event slot", "unknown"))?,
         ),
         None => None,
     };
 
-    let mut transaction = services.db().begin().await.map_err(ApiError::Database)?;
+    let mut transaction = services.db().begin().await?;
     let response_id = training_application_response_repository::create(
         &mut transaction,
         &application,
@@ -226,13 +203,11 @@ async fn respond_to_application(
         slot.as_ref(),
         &request.comment,
     )
-    .await
-    .map_err(ApiError::Database)?;
-    transaction.commit().await.map_err(ApiError::Database)?;
+    .await?;
+    transaction.commit().await?;
     let response = training_application_response_repository::find(services.db(), response_id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::NotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("resource", "unknown"))?;
 
     Ok(Json(TrainingApplicationResponseDto::from(response)))
 }
@@ -250,9 +225,8 @@ async fn find_visible_application(
         current_user_id,
         is_admin(current_user),
     )
-    .await
-    .map_err(ApiError::Database)?
-    .ok_or(ApiError::NotFound)
+    .await?
+    .ok_or(ApiError::not_found("resource", "unknown"))
 }
 
 async fn applications_to_dto(
@@ -270,9 +244,7 @@ async fn application_to_dto(
     services: &Services,
     application: TrainingApplicationRecord,
 ) -> Result<TrainingApplicationDto, ApiError> {
-    let slots = training_application_slot_repository::list(services.db(), application.id)
-        .await
-        .map_err(ApiError::Database)?;
+    let slots = training_application_slot_repository::list(services.db(), application.id).await?;
 
     Ok(TrainingApplicationDto::from_record(application, slots))
 }
@@ -289,7 +261,7 @@ fn is_admin(current_user: &CurrentUser) -> bool {
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| ApiError::InvalidId)
+        .map_err(|_| ApiError::bad_request("id", "invalid ULID"))
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]

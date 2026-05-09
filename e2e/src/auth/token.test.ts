@@ -46,12 +46,7 @@ describe("client_credentials", () => {
 
     expect(response.status).toBe(400);
     expect(data).toBeFalsy();
-    expect(error).toEqual({
-      detail: "invalid_grant: client_id or client_secret is invalid",
-      status: 400,
-      title: "Bad Request",
-      type: "about:blank",
-    });
+    expect(error).toBe("invalid_grant: client_id or client_secret is invalid");
   });
 });
 
@@ -73,12 +68,8 @@ describe("unsupported", () => {
 
     expect(response.status).toBe(400);
     expect(data).toBeFalsy();
-    expect(error).toEqual({
-      detail:
-        "unsupported_grant_type: The authorization grant type is not supported by the authorization server.",
-      status: 400,
-      title: "Bad Request",
-      type: "about:blank",
-    });
+    expect(error).toBe(
+      "unsupported_grant_type: The authorization grant type is not supported by the authorization server.",
+    );
   });
 });

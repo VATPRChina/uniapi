@@ -9,16 +9,14 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::user_role::UserRole,
-    repository::{
-        event::event as event_repository,
-        event::event_slot::{self as slot_repository, EventSlotRecord, EventSlotSave},
-    },
-    services::Services,
+use crate::auth::CurrentUser;
+use crate::models::user_role::UserRole;
+use crate::repository::event::event as event_repository;
+use crate::repository::event::event_slot::{
+    self as slot_repository, EventSlotRecord, EventSlotSave,
 };
+use crate::routes::ApiError;
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(list_slots, create_slot))]
@@ -36,13 +34,12 @@ async fn list_slots(
     State(services): State<Services>,
     Path(eid): Path<String>,
 ) -> Result<Json<Vec<EventSlotDto>>, ApiError> {
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
+    let event_id = parse_ulid_uuid(&eid, ApiError::bad_request("event_id", "invalid ULID"))?;
     ensure_event_exists(&services, event_id).await?;
 
     Ok(Json(
         slot_repository::list_by_event(services.db(), event_id)
-            .await
-            .map_err(ApiError::Database)?
+            .await?
             .into_iter()
             .map(|slot| event_slot_dto(slot, false))
             .collect(),
@@ -54,13 +51,9 @@ async fn export_bookings(
     current_user: CurrentUser,
     Path(eid): Path<String>,
 ) -> Result<Response, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    let event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let rows = slot_repository::booking_export_rows(services.db(), event_id)
-        .await
-        .map_err(ApiError::Database)?;
+    current_user.require_role(UserRole::EventCoordinator)?;
+    let event_id = parse_ulid_uuid(&eid, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let rows = slot_repository::booking_export_rows(services.db(), event_id).await?;
 
     Ok((
         StatusCode::OK,
@@ -83,13 +76,9 @@ async fn create_slot(
     Path(eid): Path<String>,
     Json(request): Json<EventSlotSaveRequest>,
 ) -> Result<Json<EventSlotDto>, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    let _event_id = parse_ulid_uuid(&eid, ApiError::InvalidEventId)?;
-    let slot = slot_repository::create(services.db(), request.try_into()?)
-        .await
-        .map_err(ApiError::Database)?;
+    current_user.require_role(UserRole::EventCoordinator)?;
+    let _event_id = parse_ulid_uuid(&eid, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let slot = slot_repository::create(services.db(), request.try_into()?).await?;
 
     Ok(Json(event_slot_dto(
         slot,
@@ -98,13 +87,10 @@ async fn create_slot(
 }
 
 async fn ensure_event_exists(services: &Services, event_id: Uuid) -> Result<(), ApiError> {
-    if event_repository::exists(services.db(), event_id)
-        .await
-        .map_err(ApiError::Database)?
-    {
+    if event_repository::exists(services.db(), event_id).await? {
         Ok(())
     } else {
-        Err(ApiError::EventNotFound)
+        Err(ApiError::not_found("event", "unknown"))
     }
 }
 
@@ -181,7 +167,10 @@ impl TryFrom<EventSlotSaveRequest> for EventSlotSave {
 
     fn try_from(request: EventSlotSaveRequest) -> Result<Self, Self::Error> {
         Ok(Self {
-            airspace_id: parse_ulid_uuid(&request.airspace_id, ApiError::InvalidAirspaceId)?,
+            airspace_id: parse_ulid_uuid(
+                &request.airspace_id,
+                ApiError::bad_request("airspace_id", "invalid ULID"),
+            )?,
             enter_at: request.enter_at,
             leave_at: request.leave_at,
             callsign: request.callsign,

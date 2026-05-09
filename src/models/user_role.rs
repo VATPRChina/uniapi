@@ -1,4 +1,6 @@
-use std::{collections::HashSet, fmt, str::FromStr};
+use std::collections::HashSet;
+use std::fmt;
+use std::str::FromStr;
 
 use thiserror::Error;
 

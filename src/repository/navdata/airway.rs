@@ -1,9 +1,7 @@
 use sqlx::{PgPool, Row};
 
-use crate::{
-    flight_plan::{AirwayDirection, AirwayLeg, Fix},
-    repository::navdata::{ndb_navaid, vhf_navaid, waypoint},
-};
+use crate::flight_plan::{AirwayDirection, AirwayLeg, Fix};
+use crate::repository::navdata::{ndb_navaid, vhf_navaid, waypoint};
 
 pub async fn exists_with_fix(
     db: &PgPool,

@@ -1,9 +1,8 @@
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::middleware;
 use axum::response::IntoResponse;
 use axum::routing::get;
-use axum::{Json, Router};
+use axum::{Json, Router, middleware};
 use serde::Serialize;
 use tower_http::trace::TraceLayer;
 use utoipa_axum::router::OpenApiRouter;

@@ -6,13 +6,11 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::auth::CurrentUser;
+use crate::models::user_role::UserRole;
+use crate::repository::event::event::{self as event_repository, EventRecord, EventSave};
 use crate::routes::ApiError;
-use crate::{
-    auth::CurrentUser,
-    models::user_role::UserRole,
-    repository::event::event::{self as event_repository, EventRecord, EventSave},
-    services::Services,
-};
+use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(list_events, list_past_events, create_event, get_event, update_event))]
@@ -31,8 +29,7 @@ pub fn build_event_routes() -> Router<Services> {
 async fn list_events(State(services): State<Services>) -> Result<Json<Vec<EventDto>>, ApiError> {
     Ok(Json(
         event_repository::list_current(services.db())
-            .await
-            .map_err(ApiError::Database)?
+            .await?
             .into_iter()
             .map(EventDto::from)
             .collect(),
@@ -52,8 +49,7 @@ async fn list_past_events(
 ) -> Result<Json<Vec<EventDto>>, ApiError> {
     Ok(Json(
         event_repository::list_past(services.db(), query.until)
-            .await
-            .map_err(ApiError::Database)?
+            .await?
             .into_iter()
             .map(EventDto::from)
             .collect(),
@@ -67,9 +63,8 @@ async fn get_event(
 ) -> Result<Json<EventDto>, ApiError> {
     let id = parse_ulid_uuid(&eid)?;
     let event = event_repository::find_by_id(services.db(), id)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::EventNotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("event", "unknown"))?;
 
     Ok(Json(EventDto::from(event)))
 }
@@ -80,12 +75,8 @@ async fn create_event(
     current_user: CurrentUser,
     Json(request): Json<EventSaveRequest>,
 ) -> Result<Json<EventDto>, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
-    let event = event_repository::create(services.db(), request.try_into()?)
-        .await
-        .map_err(ApiError::Database)?;
+    current_user.require_role(UserRole::EventCoordinator)?;
+    let event = event_repository::create(services.db(), request.try_into()?).await?;
 
     Ok(Json(EventDto::from(event)))
 }
@@ -97,14 +88,11 @@ async fn update_event(
     Path(eid): Path<String>,
     Json(request): Json<EventSaveRequest>,
 ) -> Result<Json<EventDto>, ApiError> {
-    current_user
-        .require_role(UserRole::EventCoordinator)
-        .map_err(|_| ApiError::Forbidden)?;
+    current_user.require_role(UserRole::EventCoordinator)?;
     let id = parse_ulid_uuid(&eid)?;
     let event = event_repository::update(services.db(), id, request.try_into()?)
-        .await
-        .map_err(ApiError::Database)?
-        .ok_or(ApiError::EventNotFound)?;
+        .await?
+        .ok_or(ApiError::not_found("event", "unknown"))?;
 
     Ok(Json(EventDto::from(event)))
 }
@@ -112,7 +100,7 @@ async fn update_event(
 fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
         .map(Uuid::from)
-        .map_err(|_| ApiError::InvalidEventId)
+        .map_err(|_| ApiError::bad_request("event_id", "invalid ULID"))
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -140,8 +128,9 @@ impl TryFrom<EventSaveRequest> for EventSave {
 
     fn try_from(request: EventSaveRequest) -> Result<Self, Self::Error> {
         if request.start_booking_at.is_some() ^ request.end_booking_at.is_some() {
-            return Err(ApiError::BadRequest(
-                "Both StartBookingAt and EndBookingAt must be set or both must be null.".into(),
+            return Err(ApiError::bad_request(
+                "start_booking_at",
+                "start_booking_at and end_booking_at must be both set or null",
             ));
         }
 
