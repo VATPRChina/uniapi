@@ -612,6 +612,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/sectors/current/permission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["current_permission"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session": {
         parameters: {
             query?: never;
@@ -995,6 +1011,9 @@ export type components = {
             title_en?: string | null;
             vatsim_link?: string | null;
         };
+        EventSlotBookingRequest: {
+            user_id?: string | null;
+        };
         EventSlotDto: {
             aircraft_type_icao?: string | null;
             airspace: components["schemas"]["EventAirspaceDto"];
@@ -1081,6 +1100,10 @@ export type components = {
             valid_from?: string | null;
             /** Format: date-time */
             valid_until?: string | null;
+        };
+        SectorPermissionResponse: {
+            has_permission: boolean;
+            sector_type: string;
         };
         SheetDto: {
             fields: components["schemas"]["SheetFieldDto"][];
@@ -2120,7 +2143,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSlotBookingRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -2427,6 +2454,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreferredRouteDto"];
+                };
+            };
+        };
+    };
+    current_permission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectorPermissionResponse"];
                 };
             };
         };

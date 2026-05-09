@@ -59,8 +59,15 @@ pub async fn load_state_for_update(
 ) -> Result<SlotBookingState, sqlx::Error> {
     sqlx::query_as::<_, SlotBookingState>(
         r#"
-        SELECT EXISTS(SELECT 1 FROM public.event WHERE id = $1) AS event_exists,
-               event_slot.id IS NOT NULL AS slot_exists,
+        WITH locked_slot AS (
+            SELECT event_slot.id
+            FROM public.event_slot
+            JOIN public.event_airspace ON event_airspace.id = event_slot.event_airspace_id
+            WHERE event_airspace.event_id = $1 AND event_slot.id = $2
+            FOR UPDATE OF event_slot
+        )
+        SELECT event.id IS NOT NULL AS event_exists,
+               locked_slot.id IS NOT NULL AS slot_exists,
                event_booking.id AS booking_id,
                event_booking.user_id AS booking_user_id,
                (
@@ -69,13 +76,10 @@ pub async fn load_state_for_update(
                    AND now() > event.start_booking_at
                    AND now() < event.end_booking_at
                ) AS is_in_booking_period
-        FROM (SELECT $1::uuid AS event_id, $2::uuid AS slot_id) input
+        FROM (SELECT $1::uuid AS event_id) input
         LEFT JOIN public.event ON event.id = input.event_id
-        LEFT JOIN public.event_airspace ON event_airspace.event_id = event.id
-        LEFT JOIN public.event_slot ON event_slot.event_airspace_id = event_airspace.id
-            AND event_slot.id = input.slot_id
-        LEFT JOIN public.event_booking ON event_booking.event_slot_id = event_slot.id
-        FOR UPDATE OF event_slot, event_booking
+        LEFT JOIN locked_slot ON TRUE
+        LEFT JOIN public.event_booking ON event_booking.event_slot_id = locked_slot.id
         "#,
     )
     .bind(event_id)

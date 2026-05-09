@@ -25,7 +25,7 @@ pub fn build_event_slot_booking_routes() -> Router<Services> {
     )
 }
 
-#[utoipa::path(put, path = "api/events/{event_id}/slots/{slot_id}/booking", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), responses((status = 200, description = "Successful response", body = EventBookingDto)))]
+#[utoipa::path(put, path = "api/events/{event_id}/slots/{slot_id}/booking", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("slot_id" = String, Path, description = "Slot ULID")), request_body = EventSlotBookingRequest, responses((status = 200, description = "Successful response", body = EventBookingDto)))]
 async fn put_booking(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -91,11 +91,11 @@ async fn delete_booking(
     let Some(booking_id) = state.booking_id else {
         return Err(ApiError::SlotNotBooked);
     };
-    if !state.is_in_booking_period {
+    let is_admin = current_user.has_role(UserRole::EventCoordinator);
+    if !state.is_in_booking_period && !is_admin {
         return Err(ApiError::EventNotInBookingTime);
     }
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let is_admin = current_user.has_role(UserRole::EventCoordinator);
     if state.booking_user_id != Some(current_user_id) && !is_admin {
         return Err(ApiError::SlotBookedByAnotherUser);
     }
