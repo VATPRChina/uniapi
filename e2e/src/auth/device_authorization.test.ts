@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
-import { getBackend } from "../../lib/backend.js";
+import { getClient } from "../../lib/backend.js";
 
 test("issues a device authorization for a valid client", async () => {
-  const client = await getBackend();
+  const client = await getClient();
   const { data, error, response } = await client.POST(
     "/auth/device_authorization",
     {
@@ -35,7 +35,7 @@ test("issues a device authorization for a valid client", async () => {
 });
 
 test("returns error for device authorization with an invalid client", async () => {
-  const client = await getBackend();
+  const client = await getClient();
   const { data, error, response } = await client.POST(
     "/auth/device_authorization",
     {

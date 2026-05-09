@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
-import { getBackend } from "../lib/backend.js";
+import { getClient } from "../lib/backend.js";
 
 test("GET /health returns healthy status", async () => {
-  const client = await getBackend();
+  const client = await getClient();
   const { data, error, response } = await client.GET("/health");
 
   expect(error).toBeFalsy();

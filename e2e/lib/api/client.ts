@@ -1,4 +1,4 @@
-import createClient from "openapi-fetch";
+import createClient, { ClientOptions } from "openapi-fetch";
 import type { paths } from "./schema.js";
 
 const unsafeAssumeClientId = "01K7X723S04R1F5P2P8NJV5QT5";
@@ -15,9 +15,13 @@ type IssueUserTokenOptions = {
   id?: string;
 };
 
-export const createApiClient = (baseUrl: string) => {
+export const createApiClient = (
+  baseUrl: string,
+  options: Omit<ClientOptions, "baseUrl"> = {},
+) => {
   const client = createClient<paths>({
     baseUrl,
+    ...options,
   });
   client.use({
     onResponse: async ({ response }) => {
@@ -73,3 +77,17 @@ export async function issueUserTokenWithRoles(
 
   return data.access_token;
 }
+
+export const createApiClientWithRoles = async (
+  baseUrl: string,
+  options: IssueUserTokenOptions,
+) => {
+  const client = createApiClient(baseUrl);
+  const token = await issueUserTokenWithRoles(client, options);
+  const userClient = createApiClient(baseUrl, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return userClient;
+};

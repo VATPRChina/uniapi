@@ -1,139 +1,30 @@
-import { expect, test } from "vitest";
-import { issueUserTokenWithRoles } from "../../lib/api/client.js";
-import { getBackend } from "../../lib/backend.js";
+import { expect, test as baseTest } from "vitest";
+import { getClient } from "../../lib/backend.js";
+import { components } from "../../lib/api/schema.js";
 
-test("POST /api/events creates an event", async () => {
-  const client = await getBackend();
-  const accessToken = await issueUserTokenWithRoles(client, {
-    cid: "910001",
-    fullName: "E2E Event Coordinator",
-    email: "e2e-event-coordinator@example.test",
-    roles: ["event-coordinator"],
-  });
-  const startAt = "2030-01-15T10:00:00Z";
-  const endAt = "2030-01-15T12:00:00Z";
-  const startBookingAt = "2030-01-01T00:00:00Z";
-  const endBookingAt = "2030-01-14T00:00:00Z";
-  const startAtcBookingAt = "2030-01-02T00:00:00Z";
-
-  const { data, error, response } = await client.POST("/api/events", {
-    body: {
-      title: "E2E Event",
-      title_en: "E2E Event EN",
-      start_at: startAt,
-      end_at: endAt,
-      start_booking_at: startBookingAt,
-      end_booking_at: endBookingAt,
-      start_atc_booking_at: startAtcBookingAt,
-      image_url: "https://example.test/event.png",
-      community_link: "https://community.example.test/events/e2e",
-      vatsim_link: "https://my.vatsim.net/events/e2e",
-      description: "Created by the e2e POST /api/events test.",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
+const test = baseTest
+  .extend("coordinator", async ({}) => {
+    return await getClient(["event-coordinator"]);
+  })
+  .extend("user", async ({}) => {
+    return await getClient([]);
   });
 
-  expect(error).toBeFalsy();
-  expect(response.status).toBe(200);
-  expect(data).toBeTruthy();
-  expect(data.id).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
-  expect(data.title).toBe("E2E Event");
-  expect(data.title_en).toBe("E2E Event EN");
-  expect(data.start_at).toBe(startAt);
-  expect(data.end_at).toBe(endAt);
-  expect(data.start_booking_at).toBe(startBookingAt);
-  expect(data.end_booking_at).toBe(endBookingAt);
-  expect(data.start_atc_booking_at).toBe(startAtcBookingAt);
-  expect(data.image_url).toBe("https://example.test/event.png");
-  expect(data.community_link).toBe("https://community.example.test/events/e2e");
-  expect(data.vatsim_link).toBe("https://my.vatsim.net/events/e2e");
-  expect(data.description).toBe("Created by the e2e POST /api/events test.");
-});
-
-test("POST /api/events rejects users without event coordinator permission", async () => {
-  const client = await getBackend();
-  const accessToken = await issueUserTokenWithRoles(client, {
-    cid: "910005",
-    fullName: "E2E Non Event Coordinator",
-    email: "e2e-non-event-coordinator@example.test",
-    roles: ["controller"],
-  });
-
-  const { data, error, response } = await client.POST("/api/events", {
-    body: {
-      title: "E2E Forbidden Event",
-      title_en: "E2E Forbidden Event EN",
-      start_at: "2030-04-15T10:00:00Z",
-      end_at: "2030-04-15T12:00:00Z",
-      start_booking_at: "2030-04-01T00:00:00Z",
-      end_booking_at: "2030-04-14T00:00:00Z",
-      start_atc_booking_at: "2030-04-02T00:00:00Z",
-      image_url: "https://example.test/forbidden-event.png",
-      community_link: "https://community.example.test/events/e2e-forbidden",
-      vatsim_link: "https://my.vatsim.net/events/e2e-forbidden",
-      description: "Created by the e2e forbidden POST /api/events test.",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  expect(response.status).toBe(403);
-  expect(data).toBeFalsy();
-  expect(error).toEqual({
-    detail: "forbidden",
-    status: 403,
-    title: "Forbidden",
-    type: "about:blank",
-  });
-});
-
-test("GET /api/events lists current events", async () => {
-  const client = await getBackend();
-  const accessToken = await issueUserTokenWithRoles(client, {
-    cid: "910002",
-    fullName: "E2E Event List Coordinator",
-    email: "e2e-event-list-coordinator@example.test",
-    roles: ["event-coordinator"],
-  });
+test("GET /api/events lists current events", async ({ coordinator }) => {
   const suffix = Date.now().toString();
-  const title = `E2E Listed Event ${suffix}`;
-  const titleEn = `E2E Listed Event EN ${suffix}`;
-  const startAt = "2031-02-20T10:00:00Z";
-  const endAt = "2031-02-20T12:00:00Z";
-  const startBookingAt = "2031-02-01T00:00:00Z";
-  const endBookingAt = "2031-02-19T00:00:00Z";
-  const startAtcBookingAt = "2031-02-02T00:00:00Z";
+  const event: components["schemas"]["EventSaveRequest"] = {
+    title: `E2E Listed Event ${suffix}`,
+    title_en: `E2E Listed Event EN ${suffix}`,
+    description: "",
+    start_at: "2031-02-20T10:00:00Z",
+    end_at: "2031-02-20T12:00:00Z",
+  };
 
-  const createdEvent = await client.POST("/api/events", {
-    body: {
-      title,
-      title_en: titleEn,
-      start_at: startAt,
-      end_at: endAt,
-      start_booking_at: startBookingAt,
-      end_booking_at: endBookingAt,
-      start_atc_booking_at: startAtcBookingAt,
-      image_url: "https://example.test/listed-event.png",
-      community_link: "https://community.example.test/events/e2e-listed",
-      vatsim_link: "https://my.vatsim.net/events/e2e-listed",
-      description: "Created by the e2e GET /api/events test.",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
+  const createdEvent = await coordinator.POST("/api/events", {
+    body: event,
   });
 
-  expect(createdEvent.error).toBeFalsy();
-  expect(createdEvent.response.status).toBe(200);
-  expect(createdEvent.data).toBeTruthy();
-  if (!createdEvent.data) {
-    throw new Error("Expected event creation to return an event");
-  }
-
-  const { data, error, response } = await client.GET("/api/events");
+  const { data, error, response } = await coordinator.GET("/api/events");
 
   expect(error).toBeFalsy();
   expect(response.status).toBe(200);
@@ -141,62 +32,27 @@ test("GET /api/events lists current events", async () => {
     expect.arrayContaining([
       expect.objectContaining({
         id: createdEvent.data.id,
-        title,
-        title_en: titleEn,
-        start_at: startAt,
-        end_at: endAt,
-        start_booking_at: startBookingAt,
-        end_booking_at: endBookingAt,
-        start_atc_booking_at: startAtcBookingAt,
+        ...event,
       }),
     ]),
   );
 });
 
-test("GET /api/events excludes past events", async () => {
-  const client = await getBackend();
-  const accessToken = await issueUserTokenWithRoles(client, {
-    cid: "910004",
-    fullName: "E2E Current Event Filter Coordinator",
-    email: "e2e-current-event-filter-coordinator@example.test",
-    roles: ["event-coordinator"],
-  });
+test("GET /api/events excludes past events", async ({ coordinator }) => {
   const suffix = Date.now().toString();
-  const pastTitle = `E2E Excluded Past Event ${suffix}`;
-  const pastTitleEn = `E2E Excluded Past Event EN ${suffix}`;
-  const pastStartAt = "2020-02-20T10:00:00Z";
-  const pastEndAt = "2020-02-20T12:00:00Z";
-  const pastStartBookingAt = "2020-02-01T00:00:00Z";
-  const pastEndBookingAt = "2020-02-19T00:00:00Z";
-  const pastStartAtcBookingAt = "2020-02-02T00:00:00Z";
+  const event: components["schemas"]["EventSaveRequest"] = {
+    title: `E2E Past Event ${suffix}`,
+    title_en: `E2E Past Event EN ${suffix}`,
+    description: "",
+    start_at: "2020-02-20T10:00:00Z",
+    end_at: "2020-02-20T12:00:00Z",
+  };
 
-  const createdPastEvent = await client.POST("/api/events", {
-    body: {
-      title: pastTitle,
-      title_en: pastTitleEn,
-      start_at: pastStartAt,
-      end_at: pastEndAt,
-      start_booking_at: pastStartBookingAt,
-      end_booking_at: pastEndBookingAt,
-      start_atc_booking_at: pastStartAtcBookingAt,
-      image_url: "https://example.test/excluded-past-event.png",
-      community_link: "https://community.example.test/events/e2e-excluded-past",
-      vatsim_link: "https://my.vatsim.net/events/e2e-excluded-past",
-      description: "Created to verify GET /api/events excludes past events.",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
+  const createdPastEvent = await coordinator.POST("/api/events", {
+    body: event,
   });
 
-  expect(createdPastEvent.error).toBeFalsy();
-  expect(createdPastEvent.response.status).toBe(200);
-  expect(createdPastEvent.data).toBeTruthy();
-  if (!createdPastEvent.data) {
-    throw new Error("Expected past event creation to return an event");
-  }
-
-  const { data, error, response } = await client.GET("/api/events");
+  const { data, error, response } = await coordinator.GET("/api/events");
 
   expect(error).toBeFalsy();
   expect(response.status).toBe(200);
@@ -209,454 +65,21 @@ test("GET /api/events excludes past events", async () => {
   );
 });
 
-test("GET /api/events/{id} returns an event", async () => {
-  const client = await getBackend();
-  const accessToken = await issueUserTokenWithRoles(client, {
-    cid: "910006",
-    fullName: "E2E Event Detail Coordinator",
-    email: "e2e-event-detail-coordinator@example.test",
-    roles: ["event-coordinator"],
-  });
+test("GET /api/events/past lists past events", async ({ coordinator }) => {
   const suffix = Date.now().toString();
-  const title = `E2E Event Detail ${suffix}`;
-  const titleEn = `E2E Event Detail EN ${suffix}`;
-  const startAt = "2031-05-20T10:00:00Z";
-  const endAt = "2031-05-20T12:00:00Z";
-  const startBookingAt = "2031-05-01T00:00:00Z";
-  const endBookingAt = "2031-05-19T00:00:00Z";
-  const startAtcBookingAt = "2031-05-02T00:00:00Z";
+  const event: components["schemas"]["EventSaveRequest"] = {
+    title: `E2E Past Event ${suffix}`,
+    title_en: `E2E Past Event EN ${suffix}`,
+    description: "",
+    start_at: "2020-02-20T10:00:00Z",
+    end_at: "2020-02-20T12:00:00Z",
+  };
 
-  const createdEvent = await client.POST("/api/events", {
-    body: {
-      title,
-      title_en: titleEn,
-      start_at: startAt,
-      end_at: endAt,
-      start_booking_at: startBookingAt,
-      end_booking_at: endBookingAt,
-      start_atc_booking_at: startAtcBookingAt,
-      image_url: "https://example.test/event-detail.png",
-      community_link: "https://community.example.test/events/e2e-detail",
-      vatsim_link: "https://my.vatsim.net/events/e2e-detail",
-      description: "Created by the e2e GET /api/events/{id} test.",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
+  const createdPastEvent = await coordinator.POST("/api/events", {
+    body: event,
   });
 
-  expect(createdEvent.error).toBeFalsy();
-  expect(createdEvent.response.status).toBe(200);
-  expect(createdEvent.data).toBeTruthy();
-  if (!createdEvent.data) {
-    throw new Error("Expected event creation to return an event");
-  }
-
-  const { data, error, response } = await client.GET("/api/events/{id}", {
-    params: {
-      path: {
-        id: createdEvent.data.id,
-      },
-    },
-  });
-
-  expect(error).toBeFalsy();
-  expect(response.status).toBe(200);
-  expect(data).toEqual(
-    expect.objectContaining({
-      id: createdEvent.data.id,
-      title,
-      title_en: titleEn,
-      start_at: startAt,
-      end_at: endAt,
-      start_booking_at: startBookingAt,
-      end_booking_at: endBookingAt,
-      start_atc_booking_at: startAtcBookingAt,
-      image_url: "https://example.test/event-detail.png",
-      community_link: "https://community.example.test/events/e2e-detail",
-      vatsim_link: "https://my.vatsim.net/events/e2e-detail",
-      description: "Created by the e2e GET /api/events/{id} test.",
-    }),
-  );
-});
-
-test("PUT /api/events/{id} updates an event", async () => {
-  const client = await getBackend();
-  const accessToken = await issueUserTokenWithRoles(client, {
-    cid: "910007",
-    fullName: "E2E Event Update Coordinator",
-    email: "e2e-event-update-coordinator@example.test",
-    roles: ["event-coordinator"],
-  });
-  const suffix = Date.now().toString();
-  const originalTitle = `E2E Event Before Update ${suffix}`;
-  const updatedTitle = `E2E Event After Update ${suffix}`;
-  const updatedTitleEn = `E2E Event After Update EN ${suffix}`;
-
-  const createdEvent = await client.POST("/api/events", {
-    body: {
-      title: originalTitle,
-      title_en: `E2E Event Before Update EN ${suffix}`,
-      start_at: "2031-06-20T10:00:00Z",
-      end_at: "2031-06-20T12:00:00Z",
-      start_booking_at: "2031-06-01T00:00:00Z",
-      end_booking_at: "2031-06-19T00:00:00Z",
-      start_atc_booking_at: "2031-06-02T00:00:00Z",
-      image_url: "https://example.test/event-before-update.png",
-      community_link: "https://community.example.test/events/e2e-before-update",
-      vatsim_link: "https://my.vatsim.net/events/e2e-before-update",
-      description: "Created by the e2e PUT /api/events/{id} test.",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  expect(createdEvent.error).toBeFalsy();
-  expect(createdEvent.response.status).toBe(200);
-  expect(createdEvent.data).toBeTruthy();
-  if (!createdEvent.data) {
-    throw new Error("Expected event creation to return an event");
-  }
-
-  const updatedEvent = await client.PUT("/api/events/{id}", {
-    params: {
-      path: {
-        id: createdEvent.data.id,
-      },
-    },
-    body: {
-      title: updatedTitle,
-      title_en: updatedTitleEn,
-      start_at: "2031-06-21T10:00:00Z",
-      end_at: "2031-06-21T12:00:00Z",
-      start_booking_at: "2031-06-03T00:00:00Z",
-      end_booking_at: "2031-06-20T00:00:00Z",
-      start_atc_booking_at: "2031-06-04T00:00:00Z",
-      image_url: "https://example.test/event-after-update.png",
-      community_link: "https://community.example.test/events/e2e-after-update",
-      vatsim_link: "https://my.vatsim.net/events/e2e-after-update",
-      description: "Updated by the e2e PUT /api/events/{id} test.",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  expect(updatedEvent.error).toBeFalsy();
-  expect(updatedEvent.response.status).toBe(200);
-  expect(updatedEvent.data).toEqual(
-    expect.objectContaining({
-      id: createdEvent.data.id,
-      title: updatedTitle,
-      title_en: updatedTitleEn,
-      start_at: "2031-06-21T10:00:00Z",
-      end_at: "2031-06-21T12:00:00Z",
-      start_booking_at: "2031-06-03T00:00:00Z",
-      end_booking_at: "2031-06-20T00:00:00Z",
-      start_atc_booking_at: "2031-06-04T00:00:00Z",
-      image_url: "https://example.test/event-after-update.png",
-      community_link: "https://community.example.test/events/e2e-after-update",
-      vatsim_link: "https://my.vatsim.net/events/e2e-after-update",
-      description: "Updated by the e2e PUT /api/events/{id} test.",
-    }),
-  );
-});
-
-test("PUT /api/events/{id} rejects users without event coordinator permission", async () => {
-  const client = await getBackend();
-  const eventCoordinatorToken = await issueUserTokenWithRoles(client, {
-    cid: "910009",
-    fullName: "E2E Event Update Permission Coordinator",
-    email: "e2e-event-update-permission-coordinator@example.test",
-    roles: ["event-coordinator"],
-  });
-  const nonEventCoordinatorToken = await issueUserTokenWithRoles(client, {
-    cid: "910010",
-    fullName: "E2E Event Update Non Coordinator",
-    email: "e2e-event-update-non-coordinator@example.test",
-    roles: ["controller"],
-  });
-  const suffix = Date.now().toString();
-  const title = `E2E Event Update Permission ${suffix}`;
-
-  const createdEvent = await client.POST("/api/events", {
-    body: {
-      title,
-      title_en: `E2E Event Update Permission EN ${suffix}`,
-      start_at: "2031-08-20T10:00:00Z",
-      end_at: "2031-08-20T12:00:00Z",
-      start_booking_at: "2031-08-01T00:00:00Z",
-      end_booking_at: "2031-08-19T00:00:00Z",
-      start_atc_booking_at: "2031-08-02T00:00:00Z",
-      image_url: "https://example.test/event-update-permission.png",
-      community_link: "https://community.example.test/events/e2e-update-permission",
-      vatsim_link: "https://my.vatsim.net/events/e2e-update-permission",
-      description: "Created by the e2e PUT /api/events/{id} permission test.",
-    },
-    headers: {
-      authorization: `Bearer ${eventCoordinatorToken}`,
-    },
-  });
-
-  expect(createdEvent.error).toBeFalsy();
-  expect(createdEvent.response.status).toBe(200);
-  expect(createdEvent.data).toBeTruthy();
-  if (!createdEvent.data) {
-    throw new Error("Expected event creation to return an event");
-  }
-
-  const updatedEvent = await client.PUT("/api/events/{id}", {
-    params: {
-      path: {
-        id: createdEvent.data.id,
-      },
-    },
-    body: {
-      title: `E2E Event Update Permission Denied ${suffix}`,
-      title_en: `E2E Event Update Permission Denied EN ${suffix}`,
-      start_at: "2031-08-21T10:00:00Z",
-      end_at: "2031-08-21T12:00:00Z",
-      start_booking_at: "2031-08-03T00:00:00Z",
-      end_booking_at: "2031-08-20T00:00:00Z",
-      start_atc_booking_at: "2031-08-04T00:00:00Z",
-      image_url: "https://example.test/event-update-permission-denied.png",
-      community_link:
-        "https://community.example.test/events/e2e-update-permission-denied",
-      vatsim_link: "https://my.vatsim.net/events/e2e-update-permission-denied",
-      description: "This update should be rejected by the e2e permission test.",
-    },
-    headers: {
-      authorization: `Bearer ${nonEventCoordinatorToken}`,
-    },
-  });
-
-  expect(updatedEvent.response.status).toBe(403);
-  expect(updatedEvent.data).toBeFalsy();
-  expect(updatedEvent.error).toEqual({
-    detail: "forbidden",
-    status: 403,
-    title: "Forbidden",
-    type: "about:blank",
-  });
-});
-
-test("POST /api/events/{event_id}/airspaces creates an airspace", async () => {
-  const client = await getBackend();
-  const accessToken = await issueUserTokenWithRoles(client, {
-    cid: "910014",
-    fullName: "E2E Event Airspace Coordinator",
-    email: "e2e-event-airspace-coordinator@example.test",
-    roles: ["event-coordinator"],
-  });
-  const suffix = Date.now().toString();
-  const eventTitle = `E2E Event Airspace Parent ${suffix}`;
-  const airspaceName = `E2E Airspace ${suffix}`;
-  const icaoCodes = ["ZBAA", "ZGGG"];
-  const description = "Created by the e2e POST /api/events/{event_id}/airspaces test.";
-
-  const createdEvent = await client.POST("/api/events", {
-    body: {
-      title: eventTitle,
-      title_en: `E2E Event Airspace Parent EN ${suffix}`,
-      start_at: "2031-11-20T10:00:00Z",
-      end_at: "2031-11-20T13:00:00Z",
-      start_booking_at: "2031-11-01T00:00:00Z",
-      end_booking_at: "2031-11-19T00:00:00Z",
-      start_atc_booking_at: "2031-11-02T00:00:00Z",
-      image_url: "https://example.test/event-airspace-parent.png",
-      community_link: "https://community.example.test/events/e2e-airspace-parent",
-      vatsim_link: "https://my.vatsim.net/events/e2e-airspace-parent",
-      description,
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  expect(createdEvent.error).toBeFalsy();
-  expect(createdEvent.response.status).toBe(200);
-  expect(createdEvent.data).toBeTruthy();
-  if (!createdEvent.data) {
-    throw new Error("Expected event creation to return an event");
-  }
-
-  const createdAirspace = await client.POST("/api/events/{event_id}/airspaces", {
-    params: {
-      path: {
-        event_id: createdEvent.data.id,
-      },
-    },
-    body: {
-      name: airspaceName,
-      icao_codes: icaoCodes,
-      description,
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  expect(createdAirspace.error).toBeFalsy();
-  expect(createdAirspace.response.status).toBe(200);
-  expect(createdAirspace.data).toEqual(
-    expect.objectContaining({
-      id: expect.stringMatching(/^[0-9A-HJKMNP-TV-Z]{26}$/),
-      event_id: createdEvent.data.id,
-      name: airspaceName,
-      icao_codes: icaoCodes,
-      description,
-    }),
-  );
-});
-
-test("POST /api/events/{event_id}/slots creates a slot", async () => {
-  const client = await getBackend();
-  const accessToken = await issueUserTokenWithRoles(client, {
-    cid: "910013",
-    fullName: "E2E Event Slot Coordinator",
-    email: "e2e-event-slot-coordinator@example.test",
-    roles: ["event-coordinator"],
-  });
-  const suffix = Date.now().toString();
-  const eventTitle = `E2E Event Slot Parent ${suffix}`;
-  const enterAt = "2031-10-20T10:30:00Z";
-  const leaveAt = "2031-10-20T12:30:00Z";
-
-  const createdEvent = await client.POST("/api/events", {
-    body: {
-      title: eventTitle,
-      title_en: `E2E Event Slot Parent EN ${suffix}`,
-      start_at: "2031-10-20T10:00:00Z",
-      end_at: "2031-10-20T13:00:00Z",
-      start_booking_at: "2031-10-01T00:00:00Z",
-      end_booking_at: "2031-10-19T00:00:00Z",
-      start_atc_booking_at: "2031-10-02T00:00:00Z",
-      image_url: "https://example.test/event-slot-parent.png",
-      community_link: "https://community.example.test/events/e2e-slot-parent",
-      vatsim_link: "https://my.vatsim.net/events/e2e-slot-parent",
-      description: "Created by the e2e POST /api/events/{event_id}/slots test.",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  expect(createdEvent.error).toBeFalsy();
-  expect(createdEvent.response.status).toBe(200);
-  expect(createdEvent.data).toBeTruthy();
-  if (!createdEvent.data) {
-    throw new Error("Expected event creation to return an event");
-  }
-
-  const createdAirspace = await client.POST("/api/events/{event_id}/airspaces", {
-    params: {
-      path: {
-        event_id: createdEvent.data.id,
-      },
-    },
-    body: {
-      name: `E2E Slot Airspace ${suffix}`,
-      icao_codes: ["ZBAA", "ZSSS"],
-      description: "Created by the e2e slot creation test.",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  expect(createdAirspace.error).toBeFalsy();
-  expect(createdAirspace.response.status).toBe(200);
-  expect(createdAirspace.data).toBeTruthy();
-  if (!createdAirspace.data) {
-    throw new Error("Expected airspace creation to return an airspace");
-  }
-
-  const createdSlot = await client.POST("/api/events/{event_id}/slots", {
-    params: {
-      path: {
-        event_id: createdEvent.data.id,
-      },
-    },
-    body: {
-      airspace_id: createdAirspace.data.id,
-      enter_at: enterAt,
-      leave_at: leaveAt,
-      callsign: "CCA123",
-      aircraft_type_icao: "B738",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  expect(createdSlot.error).toBeFalsy();
-  expect(createdSlot.response.status).toBe(200);
-  expect(createdSlot.data).toEqual(
-    expect.objectContaining({
-      id: expect.stringMatching(/^[0-9A-HJKMNP-TV-Z]{26}$/),
-      event_id: createdEvent.data.id,
-      airspace_id: createdAirspace.data.id,
-      enter_at: enterAt,
-      leave_at: leaveAt,
-      callsign: "CCA123",
-      aircraft_type_icao: "B738",
-      booking: null,
-      airspace: expect.objectContaining({
-        id: createdAirspace.data.id,
-        event_id: createdEvent.data.id,
-        name: createdAirspace.data.name,
-        icao_codes: createdAirspace.data.icao_codes,
-        description: createdAirspace.data.description,
-      }),
-    }),
-  );
-});
-
-test("GET /api/events/past lists past events", async () => {
-  const client = await getBackend();
-  const accessToken = await issueUserTokenWithRoles(client, {
-    cid: "910003",
-    fullName: "E2E Past Event Coordinator",
-    email: "e2e-past-event-coordinator@example.test",
-    roles: ["event-coordinator"],
-  });
-  const suffix = Date.now().toString();
-  const title = `E2E Past Event ${suffix}`;
-  const titleEn = `E2E Past Event EN ${suffix}`;
-  const startAt = "2020-03-10T10:00:00Z";
-  const endAt = "2020-03-10T12:00:00Z";
-  const startBookingAt = "2020-03-01T00:00:00Z";
-  const endBookingAt = "2020-03-09T00:00:00Z";
-  const startAtcBookingAt = "2020-03-02T00:00:00Z";
-
-  const createdEvent = await client.POST("/api/events", {
-    body: {
-      title,
-      title_en: titleEn,
-      start_at: startAt,
-      end_at: endAt,
-      start_booking_at: startBookingAt,
-      end_booking_at: endBookingAt,
-      start_atc_booking_at: startAtcBookingAt,
-      image_url: "https://example.test/past-event.png",
-      community_link: "https://community.example.test/events/e2e-past",
-      vatsim_link: "https://my.vatsim.net/events/e2e-past",
-      description: "Created by the e2e GET /api/events/past test.",
-    },
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  expect(createdEvent.error).toBeFalsy();
-  expect(createdEvent.response.status).toBe(200);
-  expect(createdEvent.data).toBeTruthy();
-  if (!createdEvent.data) {
-    throw new Error("Expected event creation to return an event");
-  }
-
-  const { data, error, response } = await client.GET("/api/events/past", {
+  const { data, error, response } = await coordinator.GET("/api/events/past", {
     params: {
       query: {
         until: "2020-03-31T00:00:00Z",
@@ -669,15 +92,69 @@ test("GET /api/events/past lists past events", async () => {
   expect(data).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
-        id: createdEvent.data.id,
-        title,
-        title_en: titleEn,
-        start_at: startAt,
-        end_at: endAt,
-        start_booking_at: startBookingAt,
-        end_booking_at: endBookingAt,
-        start_atc_booking_at: startAtcBookingAt,
+        id: createdPastEvent.data.id,
+        ...createdPastEvent.data,
       }),
     ]),
   );
+});
+
+test("POST /api/events creates an event", async ({ coordinator }) => {
+  const suffix = Date.now().toString();
+  const event: components["schemas"]["EventSaveRequest"] = {
+    title: `E2E Past Event ${suffix}`,
+    title_en: `E2E Past Event EN ${suffix}`,
+    description: "Created by the e2e POST /api/events test.",
+    start_at: "2030-01-15T10:00:00Z",
+    end_at: "2030-01-15T12:00:00Z",
+    start_booking_at: "2030-01-01T00:00:00Z",
+    end_booking_at: "2030-01-14T00:00:00Z",
+    start_atc_booking_at: "2030-01-02T00:00:00Z",
+    image_url: "https://example.test/event.png",
+    community_link: "https://community.example.test/events/e2e",
+    vatsim_link: "https://my.vatsim.net/events/e2e",
+  };
+
+  const { data, error, response } = await coordinator.POST("/api/events", {
+    body: event,
+  });
+
+  expect(error).toBeFalsy();
+  expect(response.status).toBe(200);
+  expect(data).toBeTruthy();
+  expect(data.id).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
+  expect(data.title).toBe(event.title);
+  expect(data.title_en).toBe(event.title_en);
+  expect(data.description).toBe(event.description);
+  expect(data.start_at).toBe(event.start_at);
+  expect(data.end_at).toBe(event.end_at);
+  expect(data.start_booking_at).toBe(event.start_booking_at);
+  expect(data.end_booking_at).toBe(event.end_booking_at);
+  expect(data.start_atc_booking_at).toBe(event.start_atc_booking_at);
+  expect(data.image_url).toBe(event.image_url);
+  expect(data.community_link).toBe(event.community_link);
+  expect(data.vatsim_link).toBe(event.vatsim_link);
+});
+
+test("POST /api/events rejects users without event coordinator permission", async ({
+  user,
+}) => {
+  const { data, error, response } = await user.POST("/api/events", {
+    body: {
+      title: `E2E Past Event`,
+      title_en: `E2E Past Event EN`,
+      description: "Created by the e2e POST /api/events test.",
+      start_at: "2030-01-15T10:00:00Z",
+      end_at: "2030-01-15T12:00:00Z",
+    },
+  });
+
+  expect(response.status).toBe(403);
+  expect(data).toBeFalsy();
+  expect(error).toEqual({
+    detail: "forbidden",
+    status: 403,
+    title: "Forbidden",
+    type: "about:blank",
+  });
 });

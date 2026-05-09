@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { getBackend } from "../../lib/backend.js";
+import { getClient } from "../../lib/backend.js";
 
 const clientId = "01K7X723S04R1F5P2P8NJV5QT5";
 const clientSecret = "urn:vatprc:client_secret:01K7X71YQQXWSDT2XK1ZNYMS2J";
@@ -8,7 +8,7 @@ const unauthorizedClientSecret =
   "urn:vatprc:client_secret:01KKBQNKEM70WGF785J7HS1DWR";
 
 test("issues a user token for an allowed client", async () => {
-  const client = await getBackend();
+  const client = await getClient();
   const { data: clientToken } = await client.POST("/auth/token", {
     body: {
       grant_type: "client_credentials",
@@ -69,7 +69,7 @@ test("issues a user token for an allowed client", async () => {
 });
 
 test("returns unauthorized without a bearer token", async () => {
-  const client = await getBackend();
+  const client = await getClient();
   const { data, error, response } = await client.POST(
     "/auth/__unsafe_assume_user",
     {
@@ -90,7 +90,7 @@ test("returns unauthorized without a bearer token", async () => {
 });
 
 test("returns unauthorized for a client without unsafe assume permission", async () => {
-  const client = await getBackend();
+  const client = await getClient();
   const { data: clientToken } = await client.POST("/auth/token", {
     body: {
       grant_type: "client_credentials",

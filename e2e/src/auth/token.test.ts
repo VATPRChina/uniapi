@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { getBackend } from "../../lib/backend.js";
+import { getClient } from "../../lib/backend.js";
 
 describe("client_credentials", () => {
   test("issues a client credentials access token", async () => {
-    const client = await getBackend();
+    const client = await getClient();
     const { data, error, response } = await client.POST("/auth/token", {
       body: {
         grant_type: "client_credentials",
@@ -32,7 +32,7 @@ describe("client_credentials", () => {
   });
 
   test("returns error for client credentials with an invalid secret", async () => {
-    const client = await getBackend();
+    const client = await getClient();
     const { data, error, response } = await client.POST("/auth/token", {
       body: {
         grant_type: "client_credentials",
@@ -61,7 +61,7 @@ describe.todo("authorization_code");
 describe.todo("client_credentials");
 describe("unsupported", () => {
   test("returns error for unsupported grant type", async () => {
-    const client = await getBackend();
+    const client = await getClient();
     const { data, error, response } = await client.POST("/auth/token", {
       body: {
         grant_type: "unsupported_grant_type",

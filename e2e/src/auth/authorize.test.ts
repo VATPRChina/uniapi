@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
-import { getBackend } from "../../lib/backend.js";
+import { getClient } from "../../lib/backend.js";
 
 test("redirects to login for a valid client", async () => {
-  const client = await getBackend();
+  const client = await getClient();
   const { response } = await client.GET("/auth/authorize", {
     params: {
       query: {
@@ -16,10 +16,12 @@ test("redirects to login for a valid client", async () => {
   });
 
   expect(response.status).toBe(307);
-  expect(response.headers.get("location") ?? "").toMatch(/^\/auth\/login\?state=/);
-  expect(
-    response.headers.get("set-cookie") ?? "",
-  ).toMatch(/^auth-[0-9A-HJKMNP-TV-Z]{26}=/);
+  expect(response.headers.get("location") ?? "").toMatch(
+    /^\/auth\/login\?state=/,
+  );
+  expect(response.headers.get("set-cookie") ?? "").toMatch(
+    /^auth-[0-9A-HJKMNP-TV-Z]{26}=/,
+  );
   const location = response.headers.get("location") ?? "";
   const stateId = new URLSearchParams(location.split("?", 2)[1]).get("state");
   const [cookiePair] = (response.headers.get("set-cookie") ?? "").split(";", 1);
@@ -35,7 +37,7 @@ test("redirects to login for a valid client", async () => {
 });
 
 test("returns error for an invalid client", async () => {
-  const client = await getBackend();
+  const client = await getClient();
   const { data, error, response } = await client.GET("/auth/authorize", {
     params: {
       query: {
@@ -59,7 +61,7 @@ test("returns error for an invalid client", async () => {
 });
 
 test("returns error for a client with an invalid redirect uri", async () => {
-  const client = await getBackend();
+  const client = await getClient();
   const { data, error, response } = await client.GET("/auth/authorize", {
     params: {
       query: {
