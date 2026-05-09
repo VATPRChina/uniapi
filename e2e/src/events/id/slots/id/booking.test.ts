@@ -231,6 +231,87 @@ test("DELETE /api/events/{event_id}/slots/{slot_id}/booking cancels a booking", 
   );
 });
 
+test("already booked slot cannot be booked by another user", async ({
+  user,
+  assignee,
+  event,
+  slot,
+}) => {
+  const createdBooking = await user.PUT(
+    "/api/events/{event_id}/slots/{slot_id}/booking",
+    {
+      params: {
+        path: {
+          event_id: event.id,
+          slot_id: slot.id,
+        },
+      },
+      body: {},
+    },
+  );
+
+  expect(createdBooking.error).toBeFalsy();
+  expect(createdBooking.response.status).toBe(200);
+  expect(createdBooking.data).toBeTruthy();
+
+  const booking = await assignee.client.PUT(
+    "/api/events/{event_id}/slots/{slot_id}/booking",
+    {
+      params: {
+        path: {
+          event_id: event.id,
+          slot_id: slot.id,
+        },
+      },
+      body: {},
+    },
+  );
+
+  expect(booking.error).toBeTruthy();
+  expect(booking.response.status).toBe(409);
+  expect(booking.data).toBeFalsy();
+});
+
+test("booked slot cannot be released by another user", async ({
+  user,
+  assignee,
+  event,
+  slot,
+}) => {
+  const createdBooking = await user.PUT(
+    "/api/events/{event_id}/slots/{slot_id}/booking",
+    {
+      params: {
+        path: {
+          event_id: event.id,
+          slot_id: slot.id,
+        },
+      },
+      body: {},
+    },
+  );
+
+  expect(createdBooking.error).toBeFalsy();
+  expect(createdBooking.response.status).toBe(200);
+  expect(createdBooking.data).toBeTruthy();
+
+  const deletedBooking = await assignee.client.DELETE(
+    "/api/events/{event_id}/slots/{slot_id}/booking",
+    {
+      params: {
+        path: {
+          event_id: event.id,
+          slot_id: slot.id,
+        },
+      },
+    },
+  );
+
+  expect(deletedBooking.error).toBeTruthy();
+  expect(deletedBooking.response.status).toBe(409);
+  expect(deletedBooking.data).toBeFalsy();
+});
+
 test("slot can be assigned and unassigned by event coordinator", async ({
   coordinator,
   assignee,

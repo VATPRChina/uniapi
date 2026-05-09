@@ -942,6 +942,9 @@ export type components = {
             icao_codes: string[];
             name: string;
         };
+        EventAtcPositionBookRequest: {
+            user_id?: string | null;
+        };
         EventAtcPositionBookingDto: {
             /** Format: date-time */
             booked_at: string;
@@ -955,6 +958,16 @@ export type components = {
             end_at: string;
             event: components["schemas"]["EventDto"];
             id: string;
+            minimum_controller_state: components["schemas"]["UserControllerState"];
+            position_kind_id: string;
+            remarks?: string | null;
+            /** Format: date-time */
+            start_at: string;
+        };
+        EventAtcPositionSaveRequest: {
+            callsign: string;
+            /** Format: date-time */
+            end_at: string;
             minimum_controller_state: components["schemas"]["UserControllerState"];
             position_kind_id: string;
             remarks?: string | null;
@@ -1970,7 +1983,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventAtcPositionSaveRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -1995,7 +2012,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventAtcPositionSaveRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -2043,7 +2064,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventAtcPositionBookRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {

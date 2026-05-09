@@ -59,7 +59,7 @@ async fn list_positions(
     ))
 }
 
-#[utoipa::path(post, path = "api/events/{event_id}/controllers", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionDto)))]
+#[utoipa::path(post, path = "api/events/{event_id}/controllers", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID")), request_body = EventAtcPositionSaveRequest, responses((status = 200, description = "Successful response", body = EventAtcPositionDto)))]
 async fn create_position(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -74,7 +74,7 @@ async fn create_position(
     Ok(Json(EventAtcPositionDto::from(position)))
 }
 
-#[utoipa::path(put, path = "api/events/{event_id}/controllers/{position_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionDto)))]
+#[utoipa::path(put, path = "api/events/{event_id}/controllers/{position_id}", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), request_body = EventAtcPositionSaveRequest, responses((status = 200, description = "Successful response", body = EventAtcPositionDto)))]
 async fn update_position(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -114,7 +114,7 @@ async fn delete_position(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[utoipa::path(put, path = "api/events/{event_id}/controllers/{position_id}/booking", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), responses((status = 200, description = "Successful response", body = EventAtcPositionBookingDto)))]
+#[utoipa::path(put, path = "api/events/{event_id}/controllers/{position_id}/booking", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID"), ("position_id" = String, Path, description = "Position ULID")), request_body = EventAtcPositionBookRequest, responses((status = 200, description = "Successful response", body = EventAtcPositionBookingDto)))]
 async fn book_position(
     State(services): State<Services>,
     current_user: CurrentUser,
