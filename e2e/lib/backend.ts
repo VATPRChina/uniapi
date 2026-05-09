@@ -15,6 +15,16 @@ export const getBaseUrl = (): string => {
   return baseUrl;
 };
 
+/**
+ * Get an API client.
+ *
+ * If roles are provided, the client will be authenticated with a token that has the specified roles.
+ *
+ * If roles are not provided, the client will be unauthenticated.
+ *
+ * @param roles List of roles
+ * @returns API client
+ */
 export const getClient = async (roles: string[] | null = null) => {
   const baseUrl = getBaseUrl();
 
