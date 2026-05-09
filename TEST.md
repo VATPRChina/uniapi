@@ -53,7 +53,7 @@ If some common data setup is required for the API endpoint (e.g. `/api/events` r
 | DELETE | `/api/events/{event_id}/slots/{slot_id}/booking`           | MISSING |
 | PUT    | `/api/events/{event_id}/slots/{slot_id}/booking`           | MISSING |
 | GET    | `/api/events/{event_id}/slots/bookings.csv`                | MISSING |
-| GET    | `/api/events/{event_id}/slots`                             | MISSING |
+| GET    | `/api/events/{event_id}/slots`                             | OK      |
 | POST   | `/api/events/{event_id}/slots`                             | OK      |
 | GET    | `/api/events/{id}`                                         | OK      |
 | PUT    | `/api/events/{id}`                                         | OK      |

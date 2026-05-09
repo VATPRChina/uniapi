@@ -105,3 +105,58 @@ test("POST /api/events/{event_id}/slots cannot be invoked by user", async ({
   expect(response.error).toBeTruthy();
   expect(response.response.status).toBe(403);
 });
+
+test("GET /api/events/{event_id}/slots lists slots", async ({
+  coordinator,
+  user,
+  event,
+  airspace,
+}) => {
+  const slot = {
+    airspace_id: airspace.id,
+    enter_at: "2031-10-20T10:30:00Z",
+    leave_at: "2031-10-20T12:30:00Z",
+    callsign: "CCA456",
+    aircraft_type_icao: "A320",
+  };
+
+  const createdSlot = await coordinator.POST("/api/events/{event_id}/slots", {
+    params: { path: { event_id: event.id } },
+    body: slot,
+  });
+
+  expect(createdSlot.error).toBeFalsy();
+  expect(createdSlot.response.status).toBe(200);
+  expect(createdSlot.data).toBeTruthy();
+
+  const { data, error, response } = await user.GET(
+    "/api/events/{event_id}/slots",
+    {
+      params: { path: { event_id: event.id } },
+    },
+  );
+
+  expect(error).toBeFalsy();
+  expect(response.status).toBe(200);
+  expect(data).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: createdSlot.data.id,
+        event_id: event.id,
+        airspace_id: airspace.id,
+        enter_at: slot.enter_at,
+        leave_at: slot.leave_at,
+        callsign: slot.callsign,
+        aircraft_type_icao: slot.aircraft_type_icao,
+        booking: null,
+        airspace: expect.objectContaining({
+          id: airspace.id,
+          event_id: event.id,
+          name: airspace.name,
+          icao_codes: airspace.icao_codes,
+          description: airspace.description,
+        }),
+      }),
+    ]),
+  );
+});
