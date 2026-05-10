@@ -1,5 +1,5 @@
 import { expect, test as baseTest } from "vitest";
-import { getClient } from "../../../../lib/backend.js";
+import { getClient } from "../../../../../lib/backend.js";
 
 const test = baseTest
   .extend("coordinator", async ({}) => {
@@ -27,17 +27,20 @@ const test = baseTest
     return event.data;
   })
   .extend("position", async ({ coordinator, event }) => {
-    const position = await coordinator.POST("/api/events/{event_id}/controllers", {
-      params: { path: { event_id: event.id } },
-      body: {
-        callsign: "ZBAA_TWR",
-        start_at: "2031-10-20T10:30:00Z",
-        end_at: "2031-10-20T12:30:00Z",
-        remarks: "E2E controller id position.",
-        position_kind_id: "TWR",
-        minimum_controller_state: "student",
+    const position = await coordinator.POST(
+      "/api/events/{event_id}/controllers",
+      {
+        params: { path: { event_id: event.id } },
+        body: {
+          callsign: "ZBAA_TWR",
+          start_at: "2031-10-20T10:30:00Z",
+          end_at: "2031-10-20T12:30:00Z",
+          remarks: "E2E controller id position.",
+          position_kind_id: "TWR",
+          minimum_controller_state: "student",
+        },
       },
-    });
+    );
 
     expect(position.error).toBeFalsy();
     expect(position.response.status).toBe(200);

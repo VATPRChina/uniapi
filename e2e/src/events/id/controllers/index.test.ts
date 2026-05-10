@@ -1,5 +1,5 @@
 import { expect, test as baseTest } from "vitest";
-import { getClient } from "../../../lib/backend.js";
+import { getClient } from "../../../../lib/backend.js";
 
 const test = baseTest
   .extend("coordinator", async ({}) => {
