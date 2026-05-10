@@ -22,7 +22,7 @@ If some common data setup is required for the API endpoint (e.g. `/api/events` r
 | PUT    | `/api/atc/applications/{id}/review`                        | OK      |
 | GET    | `/api/atc/applications`                                    | OK      |
 | POST   | `/api/atc/applications`                                    | OK      |
-| GET    | `/api/atc/controllers`                                     | MISSING |
+| GET    | `/api/atc/controllers`                                     | OK      |
 | PUT    | `/api/atc/trainings/{id}/record`                           | MISSING |
 | DELETE | `/api/atc/trainings/{id}`                                  | MISSING |
 | GET    | `/api/atc/trainings/{id}`                                  | MISSING |
