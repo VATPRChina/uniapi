@@ -1361,11 +1361,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AtcApplicationRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful response */
             200: {
@@ -1390,7 +1386,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AtcApplicationReviewRequest"];
+                "application/json": components["schemas"]["AtcApplicationRequest"];
             };
         };
         responses: {
@@ -1415,7 +1411,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtcApplicationReviewRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {

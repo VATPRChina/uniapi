@@ -172,3 +172,41 @@ test("GET /api/atc/applications lists all applications for ATC application revie
     ]),
   );
 });
+
+test("PUT /api/atc/applications/{id}/review reviews an ATC application", async ({
+  reviewer,
+  application,
+}) => {
+  const sheet = await reviewer.GET("/api/atc/applications/review-sheet");
+  expect(sheet.response.status).toBe(200);
+
+  const { data, error, response } = await reviewer.PUT(
+    "/api/atc/applications/{id}/review",
+    {
+      params: {
+        path: {
+          id: application.id,
+        },
+      },
+      body: {
+        status: "approved",
+        review_answers: [],
+      },
+    },
+  );
+
+  expect(error).toBeFalsy();
+  expect(response.status).toBe(200);
+  expect(data).toEqual(
+    expect.objectContaining({
+      id: application.id,
+      user_id: application.user_id,
+      status: "approved",
+      application_filing_answers: [],
+      review_filing_answers: [],
+      user: expect.objectContaining({
+        full_name: expect.any(String),
+      }),
+    }),
+  );
+});
