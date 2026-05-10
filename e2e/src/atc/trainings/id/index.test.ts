@@ -1,5 +1,5 @@
 import { expect, test as baseTest } from "vitest";
-import { getClient } from "../../../lib/backend.js";
+import { getClient } from "../../../../lib/backend.js";
 
 const test = baseTest
   .extend("mentor", async ({}) => {
@@ -38,13 +38,16 @@ test("GET /api/atc/trainings/{id} returns a training", async ({
   mentor,
   training,
 }) => {
-  const { data, error, response } = await mentor.GET("/api/atc/trainings/{id}", {
-    params: {
-      path: {
-        id: training.id,
+  const { data, error, response } = await mentor.GET(
+    "/api/atc/trainings/{id}",
+    {
+      params: {
+        path: {
+          id: training.id,
+        },
       },
     },
-  });
+  );
 
   expect(error).toBeFalsy();
   expect(response.status).toBe(200);
@@ -77,14 +80,17 @@ test("PUT /api/atc/trainings/{id} updates a training", async ({
     end_at: "2031-05-02T11:30:00Z",
   };
 
-  const { data, error, response } = await mentor.PUT("/api/atc/trainings/{id}", {
-    params: {
-      path: {
-        id: training.id,
+  const { data, error, response } = await mentor.PUT(
+    "/api/atc/trainings/{id}",
+    {
+      params: {
+        path: {
+          id: training.id,
+        },
       },
+      body: update,
     },
-    body: update,
-  });
+  );
 
   expect(error).toBeFalsy();
   expect(response.status).toBe(200);

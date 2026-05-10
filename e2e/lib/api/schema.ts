@@ -1179,6 +1179,16 @@ export type components = {
             /** Format: date-time */
             updated_at: string;
         };
+        TrainingApplicationCreateRequest: {
+            name: string;
+            slots: components["schemas"]["TrainingApplicationCreateRequestSlot"][];
+        };
+        TrainingApplicationCreateRequestSlot: {
+            /** Format: date-time */
+            end_at: string;
+            /** Format: date-time */
+            start_at: string;
+        };
         TrainingApplicationResponseDto: {
             application_id: string;
             comment: string;
@@ -1190,6 +1200,10 @@ export type components = {
             trainer_id: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        TrainingApplicationResponseRequest: {
+            comment: string;
+            slot_id?: string | null;
         };
         TrainingApplicationSlotDto: {
             application_id: string;
@@ -1531,7 +1545,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainingApplicationCreateRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -1577,7 +1595,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainingApplicationCreateRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -1623,7 +1645,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainingApplicationResponseRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {

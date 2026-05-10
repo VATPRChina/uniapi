@@ -85,7 +85,7 @@ async fn delete_application(
     application_to_dto(&services, application).await.map(Json)
 }
 
-#[utoipa::path(post, path = "api/atc/trainings/applications", operation_id = "create_training_application", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
+#[utoipa::path(post, path = "api/atc/trainings/applications", operation_id = "create_training_application", tag = "ATC", security(("oauth2" = [])), request_body = TrainingApplicationCreateRequest, responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
 async fn create_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -117,7 +117,7 @@ async fn create_application(
     application_to_dto(&services, application).await.map(Json)
 }
 
-#[utoipa::path(put, path = "api/atc/trainings/applications/{id}", operation_id = "update_training_application", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
+#[utoipa::path(put, path = "api/atc/trainings/applications/{id}", operation_id = "update_training_application", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), request_body = TrainingApplicationCreateRequest, responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
 async fn update_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -162,7 +162,7 @@ async fn list_responses(
     Ok(Json(responses))
 }
 
-#[utoipa::path(put, path = "api/atc/trainings/applications/{id}/response", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationResponseDto)))]
+#[utoipa::path(put, path = "api/atc/trainings/applications/{id}/response", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), request_body = TrainingApplicationResponseRequest, responses((status = 200, description = "Successful response", body = TrainingApplicationResponseDto)))]
 async fn respond_to_application(
     State(services): State<Services>,
     current_user: CurrentUser,
