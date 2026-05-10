@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::models::user_controller_state::UserControllerState;
-use crate::models::user_role::{UserRole, role_closure_from_strings};
+use crate::model::user_controller_state::UserControllerState;
+use crate::model::user_role::{UserRole, role_closure_from_strings};
 use crate::repository::atc::atc::{self as atc_repository, AtcControllerPermissionRecord};
 use crate::routes::ApiError;
 use crate::services::Services;

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::adapter::flight::{Flight, flights_from_vatsim};
 use crate::auth::CurrentUser;
 use crate::flight_plan::{Leg, parser, validator};
-use crate::models::user_role::UserRole;
+use crate::model::user_role::UserRole;
 use crate::repository::auth::user as user_repository;
 use crate::routes::ApiError;
 use crate::services::Services;

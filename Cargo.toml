@@ -40,3 +40,4 @@ url = "2.5.8"
 uuid = { version = "1.23.1", features = ["serde"] }
 tower-http = { version = "0.6.8", features = ["trace"] }
 convert_case = "0.11.0"
+arrayvec = "0.7.6"

@@ -7,7 +7,7 @@ use serde::Serialize;
 use ulid::Ulid;
 
 use crate::auth::CurrentUser;
-use crate::models::user_role::UserRole;
+use crate::model::user_role::UserRole;
 use crate::repository::auth::{session as session_repository, user as user_repository};
 use crate::routes::ApiError;
 use crate::services::Services;

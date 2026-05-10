@@ -6,7 +6,7 @@ mod auth;
 mod error;
 mod flight_plan;
 mod jwt;
-mod models;
+mod model;
 mod openapi;
 mod repository;
 mod routes;

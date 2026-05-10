@@ -7,7 +7,7 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
-use crate::models::user_role::UserRole;
+use crate::model::user_role::UserRole;
 use crate::repository::event::event::{self as event_repository, EventRecord, EventSave};
 use crate::routes::ApiError;
 use crate::services::Services;

@@ -7,7 +7,7 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
-use crate::models::user_role::UserRole;
+use crate::model::user_role::UserRole;
 use crate::repository::event::event_slot_booking::{
     self as booking_repository, EventBookingRecord,
 };

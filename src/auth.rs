@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::jwt::JwtError;
-use crate::models::user_role::{UserRole, role_closure_from_strings};
+use crate::model::user_role::{UserRole, role_closure_from_strings};
 use crate::repository::atc::user_atc_permission;
 use crate::repository::auth::user;
 use crate::services::Services;

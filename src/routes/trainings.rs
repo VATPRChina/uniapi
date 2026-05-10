@@ -8,7 +8,7 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
-use crate::models::user_role::{UserRole, role_closure_from_strings};
+use crate::model::user_role::{UserRole, role_closure_from_strings};
 use crate::repository::atc_training::training::{
     self as training_repository, TrainingRecord, TrainingSave,
 };
