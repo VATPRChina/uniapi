@@ -1221,6 +1221,18 @@ export type components = {
             /** Format: date-time */
             updated_at: string;
         };
+        TrainingRecordRequest: {
+            request_answers: components["schemas"]["SheetRequestField"][];
+        };
+        TrainingSaveRequest: {
+            /** Format: date-time */
+            end_at: string;
+            name: string;
+            /** Format: date-time */
+            start_at: string;
+            trainee_id: string;
+            trainer_id: string;
+        };
         UnsafeAssumeUserRequest: {
             cid: string;
             email?: string | null;
@@ -1455,7 +1467,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainingSaveRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -1716,7 +1732,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainingSaveRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -1760,7 +1780,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainingRecordRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {

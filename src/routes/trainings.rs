@@ -101,7 +101,7 @@ async fn get_training(
     training_to_dto(&services, training).await.map(Json)
 }
 
-#[utoipa::path(post, path = "api/atc/trainings", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = TrainingDto)))]
+#[utoipa::path(post, path = "api/atc/trainings", tag = "ATC", security(("oauth2" = [])), request_body = TrainingSaveRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn create_training(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -120,7 +120,7 @@ async fn create_training(
     training_to_dto(&services, training).await.map(Json)
 }
 
-#[utoipa::path(put, path = "api/atc/trainings/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = TrainingDto)))]
+#[utoipa::path(put, path = "api/atc/trainings/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), request_body = TrainingSaveRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn update_training(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -163,7 +163,7 @@ async fn get_record_sheet(State(services): State<Services>) -> Result<Json<Sheet
     }))
 }
 
-#[utoipa::path(put, path = "api/atc/trainings/{id}/record", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = TrainingDto)))]
+#[utoipa::path(put, path = "api/atc/trainings/{id}/record", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), request_body = TrainingRecordRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn set_record_sheet(
     State(services): State<Services>,
     current_user: CurrentUser,
