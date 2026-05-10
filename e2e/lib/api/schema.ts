@@ -843,6 +843,13 @@ export type components = {
             user: components["schemas"]["UserDto"];
             user_id: string;
         };
+        AtcApplicationRequest: {
+            request_answers: components["schemas"]["SheetRequestField"][];
+        };
+        AtcApplicationReviewRequest: {
+            review_answers: components["schemas"]["SheetRequestField"][];
+            status: components["schemas"]["AtcApplicationStatus"];
+        };
         /** @enum {string} */
         AtcApplicationStatus: "submitted" | "in-waitlist" | "approved" | "rejected" | "aborted";
         AtcApplicationSummaryDto: {
@@ -1140,6 +1147,10 @@ export type components = {
             sheet_id: string;
             single_choice_options: string[];
         };
+        SheetRequestField: {
+            answer: string;
+            id: string;
+        };
         TokenDto: {
             /** Format: date-time */
             expires_at: string;
@@ -1283,7 +1294,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtcApplicationRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -1346,7 +1361,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtcApplicationRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {
@@ -1369,7 +1388,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtcApplicationReviewRequest"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {

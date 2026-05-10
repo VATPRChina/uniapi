@@ -64,7 +64,7 @@ async fn list_applications(
     Ok(Json(applications))
 }
 
-#[utoipa::path(post, path = "api/atc/applications", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = AtcApplicationSummaryDto)))]
+#[utoipa::path(post, path = "api/atc/applications", tag = "ATC", security(("oauth2" = [])), request_body = AtcApplicationRequest, responses((status = 200, description = "Successful response", body = AtcApplicationSummaryDto)))]
 async fn create_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -117,7 +117,7 @@ async fn get_application(
         .map(Json)
 }
 
-#[utoipa::path(put, path = "api/atc/applications/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
+#[utoipa::path(put, path = "api/atc/applications/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), request_body = AtcApplicationRequest, responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
 async fn update_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -173,7 +173,7 @@ async fn get_review_sheet(State(services): State<Services>) -> Result<Json<Sheet
         .map(Json)
 }
 
-#[utoipa::path(put, path = "api/atc/applications/{id}/review", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
+#[utoipa::path(put, path = "api/atc/applications/{id}/review", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), request_body = AtcApplicationReviewRequest, responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
 async fn review_application(
     State(services): State<Services>,
     current_user: CurrentUser,
