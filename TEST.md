@@ -17,8 +17,8 @@ If some common data setup is required for the API endpoint (e.g. `/api/events` r
 | GET    | `/`                                                        | MISSING |
 | GET    | `/api/atc/applications/{id}`                               | MISSING |
 | PUT    | `/api/atc/applications/{id}`                               | MISSING |
-| GET    | `/api/atc/applications/sheet`                              | MISSING |
-| GET    | `/api/atc/applications/review-sheet`                       | MISSING |
+| GET    | `/api/atc/applications/sheet`                              | OK      |
+| GET    | `/api/atc/applications/review-sheet`                       | OK      |
 | PUT    | `/api/atc/applications/{id}/review`                        | MISSING |
 | GET    | `/api/atc/applications`                                    | OK      |
 | POST   | `/api/atc/applications`                                    | OK      |
