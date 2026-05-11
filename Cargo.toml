@@ -19,6 +19,7 @@ sha2 = "0.11.0"
 sqlx = { version = "0.8.6", features = [
   "runtime-tokio",
   "postgres",
+  "sqlite",
   "uuid",
   "chrono",
   "migrate",
@@ -41,3 +42,4 @@ uuid = { version = "1.23.1", features = ["serde"] }
 tower-http = { version = "0.6.8", features = ["trace"] }
 convert_case = "0.11.0"
 arrayvec = "0.7.6"
+zip = "8.6.0"
