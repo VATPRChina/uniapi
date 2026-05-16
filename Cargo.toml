@@ -43,3 +43,9 @@ tower-http = { version = "0.6.8", features = ["trace"] }
 convert_case = "0.11.0"
 arrayvec = "0.7.6"
 zip = "8.6.0"
+itertools = "0.14.0"
+anyhow = "1.0.102"
+ordered-float = "5.3.0"
+
+[dev-dependencies]
+approx = "0.5.1"

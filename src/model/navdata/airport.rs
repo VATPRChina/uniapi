@@ -4,9 +4,9 @@ use crate::model::navdata::{Fix, Identifiable};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Airport {
-    identifier: ArrayString<4>,
-    latitude: f64,
-    longitude: f64,
+    pub identifier: ArrayString<4>,
+    pub latitude: f64,
+    pub longitude: f64,
 }
 
 impl Identifiable for Airport {

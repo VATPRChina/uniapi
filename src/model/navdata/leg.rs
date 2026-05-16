@@ -2,22 +2,22 @@ use crate::model::navdata::AnyFix;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Leg {
-    from: FixRef,
-    to: FixRef,
-    identifier: Option<String>,
+    pub from: FixRef,
+    pub to: FixRef,
+    pub identifier: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FixRef {
-    identifier: String,
+    pub identifier: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolvedLeg {
-    from: AnyFix,
-    to: AnyFix,
-    identifier: Option<String>,
-    direction_restriction: DirectionRestriction,
+    pub from: AnyFix,
+    pub to: AnyFix,
+    pub identifier: Option<String>,
+    pub direction_restriction: DirectionRestriction,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -2,8 +2,8 @@ use crate::model::navdata::Fix;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeoPoint {
-    latitude: f64,
-    longitude: f64,
+    pub latitude: f64,
+    pub longitude: f64,
 }
 
 impl Fix for GeoPoint {

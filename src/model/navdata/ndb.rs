@@ -4,11 +4,11 @@ use crate::model::navdata::{Fix, Identifiable};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ndb {
-    icao_code: ArrayString<4>,
-    identifier: ArrayString<4>,
-    latitude: f64,
-    longitude: f64,
-    kind: NdbKind,
+    pub icao_code: ArrayString<4>,
+    pub identifier: ArrayString<4>,
+    pub latitude: f64,
+    pub longitude: f64,
+    pub kind: NdbKind,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

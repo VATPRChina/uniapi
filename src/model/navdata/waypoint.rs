@@ -4,11 +4,11 @@ use crate::model::navdata::{Fix, Identifiable};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Waypoint {
-    icao_code: ArrayString<4>,
-    identifier: ArrayString<4>,
-    latitude: f64,
-    longitude: f64,
-    kind: WaypointKind,
+    pub icao_code: ArrayString<4>,
+    pub identifier: ArrayString<5>,
+    pub latitude: f64,
+    pub longitude: f64,
+    pub kind: WaypointKind,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
