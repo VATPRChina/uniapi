@@ -1,28 +1,33 @@
-use sqlx::PgPool;
+use arrayvec::ArrayString;
 
-use crate::flight_plan::{Fix, FixKind, RouteToken};
-use crate::repository::navdata::{airport, airway, ndb_navaid, procedure, vhf_navaid, waypoint};
+use crate::adapter::navdata::NavdataAdapter;
+use crate::flight_plan::RouteToken;
+use crate::model::navdata::{Airport, AnyFix, Fix, GeoPoint};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LexerError {
-    #[error("database error: {0}")]
-    Database(#[from] sqlx::Error),
+    #[error("navdata error: {0}")]
+    Navdata(#[from] anyhow::Error),
 }
 
-pub async fn lex_route(db: &PgPool, route: &str) -> Result<Vec<RouteToken>, LexerError> {
-    let mut lexer = RouteLexer::new(route);
-    lexer.parse_all_segments(db).await?;
+pub async fn lex_route(
+    navdata: &NavdataAdapter,
+    route: &str,
+) -> Result<Vec<RouteToken>, LexerError> {
+    let mut lexer = RouteLexer::new(navdata, route);
+    lexer.parse_all_segments().await?;
     Ok(lexer.tokens)
 }
 
-struct RouteLexer {
+struct RouteLexer<'a> {
+    navdata: &'a NavdataAdapter,
     tokens: Vec<RouteToken>,
     current_lat: f64,
     current_lon: f64,
 }
 
-impl RouteLexer {
-    fn new(route: &str) -> Self {
+impl<'a> RouteLexer<'a> {
+    fn new(navdata: &'a NavdataAdapter, route: &str) -> Self {
         let tokens = route
             .split(' ')
             .map(|segment| {
@@ -37,28 +42,28 @@ impl RouteLexer {
             .collect();
 
         Self {
+            navdata,
             tokens,
             current_lat: 0.0,
             current_lon: 0.0,
         }
     }
 
-    async fn parse_all_segments(&mut self, db: &PgPool) -> Result<(), LexerError> {
+    async fn parse_all_segments(&mut self) -> Result<(), LexerError> {
         for index in 0..self.tokens.len() {
-            self.parse_segment(db, index, true).await?;
+            self.parse_segment(index, true).await?;
         }
 
         self.current_lat = 0.0;
         self.current_lon = 0.0;
         for index in 0..self.tokens.len() {
-            self.parse_segment(db, index, false).await?;
+            self.parse_segment(index, false).await?;
         }
         Ok(())
     }
 
     async fn parse_segment(
         &mut self,
-        db: &PgPool,
         index: usize,
         skip_need_next: bool,
     ) -> Result<(), LexerError> {
@@ -69,22 +74,22 @@ impl RouteLexer {
         if self.resolve_initial_speed_and_altitude(index) {
             return Ok(());
         }
-        if self.resolve_airport(db, index).await? {
+        if self.resolve_airport(index).await? {
             return Ok(());
         }
-        if self.resolve_sid(db, index).await? {
+        if self.resolve_sid(index).await? {
             return Ok(());
         }
-        if !skip_need_next && self.resolve_star(db, index).await? {
+        if !skip_need_next && self.resolve_star(index).await? {
             return Ok(());
         }
-        if !skip_need_next && self.resolve_airway(db, index).await? {
+        if !skip_need_next && self.resolve_airway(index).await? {
             return Ok(());
         }
         if !skip_need_next && self.resolve_dct(index) {
             return Ok(());
         }
-        if self.resolve_waypoint(db, index).await? {
+        if self.resolve_waypoint(index).await? {
             return Ok(());
         }
         if self.resolve_geo7(index) || self.resolve_geo11(index) {
@@ -126,32 +131,33 @@ impl RouteLexer {
         true
     }
 
-    async fn resolve_airport(&mut self, db: &PgPool, index: usize) -> Result<bool, LexerError> {
+    async fn resolve_airport(&mut self, index: usize) -> Result<bool, LexerError> {
         if !self.is_airport_position(index) {
             return Ok(false);
         }
-        let Some(airport) = airport::find(db, self.value(index)).await? else {
+        let Some(airport) = self.navdata.find_airport(self.value(index)).await? else {
             return Ok(false);
         };
         self.current_lat = airport.latitude;
         self.current_lon = airport.longitude;
         self.tokens[index] = RouteToken::Fix {
-            value: airport.identifier.clone().unwrap_or_default(),
-            fix: airport,
+            value: airport.identifier.as_str().to_owned(),
+            fix: AnyFix::Airport(airport),
         };
         Ok(true)
     }
 
-    async fn resolve_sid(&mut self, db: &PgPool, index: usize) -> Result<bool, LexerError> {
+    async fn resolve_sid(&mut self, index: usize) -> Result<bool, LexerError> {
         let Some(RouteToken::Fix { fix, value, .. }) = self.last(index) else {
             return Ok(false);
         };
-        if fix.kind != FixKind::Airport {
+        if matches!(fix, AnyFix::Airport { .. }) {
             return Ok(false);
         }
-        let Some(proc_ident) = procedure::find_sid(db, self.value(index), value).await? else {
+        if !self.navdata.exists_sid(value, self.value(index)).await? {
             return Ok(false);
-        };
+        }
+        let proc_ident = self.value(index).to_owned();
         self.tokens[index] = RouteToken::SidLeg {
             value: proc_ident.clone(),
             procedure: Some(proc_ident),
@@ -159,16 +165,17 @@ impl RouteLexer {
         Ok(true)
     }
 
-    async fn resolve_star(&mut self, db: &PgPool, index: usize) -> Result<bool, LexerError> {
+    async fn resolve_star(&mut self, index: usize) -> Result<bool, LexerError> {
         let Some(RouteToken::Fix { fix, value, .. }) = self.next(index) else {
             return Ok(false);
         };
-        if fix.kind != FixKind::Airport {
+        if matches!(fix, AnyFix::Airport { .. }) {
             return Ok(false);
         }
-        let Some(proc_ident) = procedure::find_star(db, self.value(index), value).await? else {
+        if !self.navdata.exists_star(value, self.value(index)).await? {
             return Ok(false);
-        };
+        }
+        let proc_ident = self.value(index).to_owned();
         self.tokens[index] = RouteToken::StarLeg {
             value: proc_ident.clone(),
             procedure: Some(proc_ident),
@@ -176,15 +183,21 @@ impl RouteLexer {
         Ok(true)
     }
 
-    async fn resolve_airway(&mut self, db: &PgPool, index: usize) -> Result<bool, LexerError> {
+    async fn resolve_airway(&mut self, index: usize) -> Result<bool, LexerError> {
         let (Some(last), Some(next)) = (self.last(index), self.next(index)) else {
             return Ok(false);
         };
         if !last.is_fix() || !next.is_fix() {
             return Ok(false);
         }
-        let exists_left = airway::exists_with_fix(db, self.value(index), last.value()).await?;
-        let exists_right = airway::exists_with_fix(db, self.value(index), next.value()).await?;
+        let exists_left = self
+            .navdata
+            .exists_airway_with_fix(self.value(index), last.value())
+            .await?;
+        let exists_right = self
+            .navdata
+            .exists_airway_with_fix(self.value(index), next.value())
+            .await?;
         if !exists_left || !exists_right {
             return Ok(false);
         }
@@ -207,16 +220,19 @@ impl RouteLexer {
         true
     }
 
-    async fn resolve_waypoint(&mut self, db: &PgPool, index: usize) -> Result<bool, LexerError> {
-        let Some(fix) = find_fix(db, self.value(index), self.current_lat, self.current_lon).await?
+    async fn resolve_waypoint(&mut self, index: usize) -> Result<bool, LexerError> {
+        let Some(fix) = self
+            .navdata
+            .find_nearest_fix(self.current_lat, self.current_lon, self.value(index))
+            .await?
         else {
             return Ok(false);
         };
+
+        self.current_lat = fix.latitude();
+        self.current_lon = fix.longitude();
         self.tokens[index] = RouteToken::Fix {
-            value: fix
-                .identifier
-                .clone()
-                .unwrap_or_else(|| self.value(index).to_owned()),
+            value: fix.identifier().unwrap_or("").to_owned(),
             fix,
         };
         Ok(true)
@@ -279,7 +295,10 @@ impl RouteLexer {
         self.current_lon = lon;
         self.tokens[index] = RouteToken::Fix {
             value: self.value(index).to_owned(),
-            fix: Fix::geo(lat, lon),
+            fix: AnyFix::GeoPoint(GeoPoint {
+                latitude: lat,
+                longitude: lon,
+            }),
         };
     }
 
@@ -289,7 +308,11 @@ impl RouteLexer {
         }
         self.tokens[index] = RouteToken::Fix {
             value: self.value(index).to_owned(),
-            fix: Fix::identified(FixKind::Airport, "", self.value(index), 0.0, 0.0),
+            fix: AnyFix::Airport(Airport {
+                identifier: ArrayString::from(self.value(index)).unwrap(),
+                latitude: 0.,
+                longitude: 0.,
+            }),
         };
         true
     }
@@ -301,7 +324,7 @@ impl RouteLexer {
         let Some(RouteToken::Fix { fix, .. }) = self.last(index) else {
             return false;
         };
-        if fix.kind != FixKind::Airport {
+        if matches!(fix, AnyFix::Airport { .. }) {
             return false;
         }
         self.tokens[index] = RouteToken::SidLeg {
@@ -318,7 +341,7 @@ impl RouteLexer {
         let Some(RouteToken::Fix { fix, .. }) = self.next(index) else {
             return false;
         };
-        if fix.kind != FixKind::Airport {
+        if matches!(fix, AnyFix::Airport { .. }) {
             return false;
         }
         self.tokens[index] = RouteToken::StarLeg {
@@ -387,25 +410,4 @@ fn cruise_altitude_len(token: &str) -> Option<usize> {
         return Some(3);
     }
     None
-}
-
-async fn find_fix(
-    db: &PgPool,
-    ident: &str,
-    lat: f64,
-    lon: f64,
-) -> Result<Option<Fix>, sqlx::Error> {
-    let mut fixes = waypoint::find(db, ident).await?;
-    fixes.extend(vhf_navaid::find(db, ident).await?);
-    fixes.extend(ndb_navaid::find(db, ident).await?);
-
-    Ok(fixes.into_iter().min_by(|left, right| {
-        let left_distance = squared_distance(left, lat, lon);
-        let right_distance = squared_distance(right, lat, lon);
-        left_distance.total_cmp(&right_distance)
-    }))
-}
-
-fn squared_distance(fix: &Fix, lat: f64, lon: f64) -> f64 {
-    ((lat - fix.latitude) * (lat - fix.latitude)) + ((lon - fix.longitude) * (lon - fix.longitude))
 }

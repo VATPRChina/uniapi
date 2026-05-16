@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::adapter::flight::{Flight, flights_from_vatsim};
 use crate::auth::CurrentUser;
-use crate::flight_plan::{Leg, parser, validator};
+use crate::flight_plan::{parser, validator};
+use crate::model::navdata::{AnyFix, ResolvedLeg};
 use crate::model::user_role::UserRole;
 use crate::repository::auth::user as user_repository;
 use crate::routes::ApiError;
@@ -76,7 +77,7 @@ async fn route_by_callsign(
 ) -> Result<Json<Vec<FlightLeg>>, ApiError> {
     let flight = find_by_callsign(&services, &callsign).await?;
     let route = route_string(&flight);
-    let legs = parser::parse_route(services.db(), &route).await?;
+    let legs = parser::parse_route(services.navdata(), &route).await?;
     Ok(Json(legs.into_iter().map(FlightLeg::from).collect()))
 }
 
@@ -134,8 +135,8 @@ async fn warnings_for_flight(
     flight: &Flight,
 ) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
     let route = route_string(flight);
-    let legs = parser::parse_route(services.db(), &route).await?;
-    let messages = validator::validate_route(services.db(), flight, &legs).await?;
+    let legs = parser::parse_route(services.navdata(), &route).await?;
+    let messages = validator::validate_route(services.navdata(), flight, &legs).await?;
     Ok(Json(messages))
 }
 
@@ -222,16 +223,12 @@ struct FlightLeg {
     leg_identifier: String,
 }
 
-impl From<Leg> for FlightLeg {
-    fn from(leg: Leg) -> Self {
-        let leg_identifier = match &leg {
-            Leg::Airway(airway) => airway.identifier.clone(),
-            Leg::Direct(_) => "DCT".to_owned(),
-        };
+impl From<ResolvedLeg> for FlightLeg {
+    fn from(leg: ResolvedLeg) -> Self {
         Self {
-            from: FlightFix::from(leg.from()),
-            to: FlightFix::from(leg.to()),
-            leg_identifier,
+            from: FlightFix::from(&leg.from),
+            to: FlightFix::from(&leg.to),
+            leg_identifier: leg.identifier.unwrap_or_default(),
         }
     }
 }
@@ -241,10 +238,10 @@ struct FlightFix {
     identifier: String,
 }
 
-impl From<&crate::flight_plan::Fix> for FlightFix {
-    fn from(fix: &crate::flight_plan::Fix) -> Self {
+impl From<&AnyFix> for FlightFix {
+    fn from(fix: &AnyFix) -> Self {
         Self {
-            identifier: fix.name(),
+            identifier: fix.identifier().unwrap_or_default().to_owned(),
         }
     }
 }

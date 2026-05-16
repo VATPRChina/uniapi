@@ -1,15 +1,12 @@
-use std::collections::{HashMap, HashSet, VecDeque};
-
-use sqlx::PgPool;
-
+use crate::adapter::navdata::NavdataAdapter;
+use crate::flight_plan::RouteToken;
 use crate::flight_plan::lexer::{LexerError, lex_route};
-use crate::flight_plan::{AirwayDirection, AirwayLeg, DirectLeg, Fix, Leg, RouteToken};
-use crate::repository::navdata::airway;
+use crate::model::navdata::{AnyFix, DirectionRestriction, Fix, ResolvedLeg};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParserError {
-    #[error("database error: {0}")]
-    Database(#[from] sqlx::Error),
+    #[error("navdata error: {0}")]
+    Navdata(#[from] anyhow::Error),
     #[error("lexer error: {0}")]
     Lexer(#[from] LexerError),
     #[error("no initial fix in route")]
@@ -18,29 +15,32 @@ pub enum ParserError {
     UnexpectedToken(String),
 }
 
-pub async fn parse_route(db: &PgPool, route: &str) -> Result<Vec<Leg>, ParserError> {
-    let tokens = lex_route(db, route).await?;
-    RouteParser::new(db, tokens).parse().await
+pub async fn parse_route(
+    navdata: &NavdataAdapter,
+    route: &str,
+) -> Result<Vec<ResolvedLeg>, ParserError> {
+    let tokens = lex_route(navdata, route).await?;
+    RouteParser::new(navdata, tokens).parse().await
 }
 
 struct RouteParser<'a> {
-    db: &'a PgPool,
+    navdata: &'a NavdataAdapter,
     tokens: Vec<RouteToken>,
-    legs: Vec<Leg>,
-    last_fix_override: Option<Fix>,
+    legs: Vec<ResolvedLeg>,
+    last_fix_override: Option<AnyFix>,
 }
 
 impl<'a> RouteParser<'a> {
-    fn new(db: &'a PgPool, tokens: Vec<RouteToken>) -> Self {
+    fn new(navdata: &'a NavdataAdapter, tokens: Vec<RouteToken>) -> Self {
         Self {
-            db,
+            navdata,
             tokens,
             legs: Vec::new(),
             last_fix_override: None,
         }
     }
 
-    async fn parse(mut self) -> Result<Vec<Leg>, ParserError> {
+    async fn parse(mut self) -> Result<Vec<ResolvedLeg>, ParserError> {
         for index in 0..self.tokens.len() {
             let token = self.tokens[index].clone();
             if self.last_fix_override.is_none() && self.legs.is_empty() {
@@ -67,107 +67,70 @@ impl<'a> RouteParser<'a> {
     }
 
     async fn handle_airway(&mut self, index: usize, ident: &str) -> Result<(), ParserError> {
-        let leg_lookup = airway_leg_lookup(airway::legs(self.db, ident).await?);
-        let Some(from_fix) = index.checked_sub(1).and_then(|i| self.tokens.get(i)) else {
+        let Some(RouteToken::Fix {
+            fix: from_fix,
+            value: from_value,
+        }) = index.checked_sub(1).and_then(|i| self.tokens.get(i))
+        else {
             return Ok(());
         };
-        let Some(to_fix) = self.tokens.get(index + 1) else {
+        let Some(RouteToken::Fix {
+            fix: to_fix,
+            value: to_value,
+        }) = self.tokens.get(index + 1)
+        else {
             return Ok(());
         };
-        let path = bfs_path(from_fix.value(), to_fix.value(), &leg_lookup);
-        self.legs.extend(path.into_iter().map(Leg::Airway));
+        let airway_legs = self
+            .navdata
+            .list_airway_legs_between(ident, from_value, to_value)
+            .await?;
+
+        if airway_legs.is_empty() {
+            return Ok(());
+        }
+
+        let match_direction = airway_legs.first().and_then(|leg| leg.from.identifier())
+            == from_fix.identifier()
+            && airway_legs.last().and_then(|leg| leg.to.identifier()) == to_fix.identifier();
+        let match_reverse_direction = airway_legs.first().and_then(|leg| leg.from.identifier())
+            == to_fix.identifier()
+            && airway_legs.last().and_then(|leg| leg.to.identifier()) == from_fix.identifier();
+
+        let airway_legs = if match_direction {
+            airway_legs
+        } else if match_reverse_direction {
+            airway_legs
+                .into_iter()
+                .map(|leg| leg.into_reversed())
+                .rev()
+                .collect()
+        } else {
+            panic!("invalid result from navdata")
+        };
+
+        self.legs.extend(airway_legs.into_iter());
         Ok(())
     }
 
-    fn handle_waypoint(&mut self, _value: &str, fix: Fix) -> Result<(), ParserError> {
+    fn handle_waypoint(&mut self, _value: &str, fix: AnyFix) -> Result<(), ParserError> {
         let last_fix = self.last_fix()?;
-        if last_fix.latitude == fix.latitude && last_fix.longitude == fix.longitude {
+        if last_fix.latitude() == fix.latitude() && last_fix.longitude() == fix.longitude() {
             return Ok(());
         }
-        self.legs.push(Leg::Direct(DirectLeg {
+        self.legs.push(ResolvedLeg {
+            identifier: None,
             from: last_fix,
             to: fix,
-        }));
+            direction_restriction: DirectionRestriction::None,
+        });
         Ok(())
     }
 
-    fn last_fix(&self) -> Result<Fix, ParserError> {
+    fn last_fix(&self) -> Result<AnyFix, ParserError> {
         self.last_fix_override
             .clone()
-            .or_else(|| self.legs.last().map(|leg| leg.to().clone()))
+            .or_else(|| self.legs.last().map(|leg| leg.to.clone()))
             .ok_or(ParserError::MissingInitialFix)
     }
-}
-
-fn airway_leg_lookup(legs: Vec<AirwayLeg>) -> HashMap<String, HashMap<String, AirwayLeg>> {
-    let mut lookup: HashMap<String, HashMap<String, AirwayLeg>> = HashMap::new();
-    for leg in legs {
-        let Some(from_ident) = leg.from.identifier.clone() else {
-            continue;
-        };
-        let Some(to_ident) = leg.to.identifier.clone() else {
-            continue;
-        };
-
-        lookup
-            .entry(from_ident.clone())
-            .or_default()
-            .insert(to_ident.clone(), leg.clone());
-
-        lookup.entry(to_ident).or_default().insert(
-            from_ident,
-            AirwayLeg {
-                from: leg.to,
-                to: leg.from,
-                identifier: leg.identifier,
-                direction: match leg.direction {
-                    AirwayDirection::Forward => AirwayDirection::Backward,
-                    AirwayDirection::Backward => AirwayDirection::Forward,
-                    AirwayDirection::Both => AirwayDirection::Both,
-                },
-            },
-        );
-    }
-    lookup
-}
-
-fn bfs_path(
-    from: &str,
-    to: &str,
-    legs: &HashMap<String, HashMap<String, AirwayLeg>>,
-) -> Vec<AirwayLeg> {
-    let mut queue = VecDeque::from([from.to_owned()]);
-    let mut visited = HashSet::from([from.to_owned()]);
-    let mut parent: HashMap<String, String> = HashMap::new();
-
-    while let Some(current) = queue.pop_front() {
-        if current == to {
-            break;
-        }
-
-        let Some(next_legs) = legs.get(&current) else {
-            continue;
-        };
-        for next in next_legs.keys() {
-            if visited.insert(next.clone()) {
-                parent.insert(next.clone(), current.clone());
-                queue.push_back(next.clone());
-            }
-        }
-    }
-
-    let mut path = Vec::new();
-    let mut current = to.to_owned();
-    while current != from {
-        let Some(previous) = parent.get(&current) else {
-            return Vec::new();
-        };
-        let Some(leg) = legs.get(previous).and_then(|next| next.get(&current)) else {
-            return Vec::new();
-        };
-        path.push(leg.clone());
-        current = previous.clone();
-    }
-    path.reverse();
-    path
 }

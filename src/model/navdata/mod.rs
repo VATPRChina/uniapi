@@ -2,6 +2,7 @@ mod airport;
 mod geo_point;
 mod leg;
 mod ndb;
+mod preferred_route;
 mod vhf;
 mod waypoint;
 
@@ -9,6 +10,7 @@ pub use airport::Airport;
 pub use geo_point::GeoPoint;
 pub use leg::{DirectionRestriction, FixRef, Leg, ResolvedLeg};
 pub use ndb::{Ndb, NdbKind};
+pub use preferred_route::{LevelRestrictionType, PreferredRoute};
 pub use vhf::Vhf;
 pub use waypoint::{Waypoint, WaypointKind};
 

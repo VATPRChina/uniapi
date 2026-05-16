@@ -4,6 +4,7 @@ use sqlx::postgres::PgPoolOptions;
 use crate::adapter::compat::CompatClient;
 use crate::adapter::discourse::DiscourseClient;
 use crate::adapter::moodle::MoodleClient;
+use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::jwt::JwtService;
@@ -19,6 +20,7 @@ pub struct Services {
     discourse: DiscourseClient,
     moodle: MoodleClient,
     vatsim_auth: VatsimAuthClient,
+    navdata: NavdataAdapter,
 }
 
 impl Services {
@@ -27,6 +29,12 @@ impl Services {
             .max_connections(10)
             .connect(&settings.database.url)
             .await?;
+        let navdata = NavdataAdapter::new(
+            &settings.navdata.remote_data_url,
+            &settings.navdata.local_data_path,
+            settings.navdata.download_file,
+        )
+        .await;
 
         Ok(Self {
             db,
@@ -42,6 +50,7 @@ impl Services {
             ),
             moodle: MoodleClient::new(settings.moodle.api_key.clone()),
             vatsim_auth: VatsimAuthClient::new(settings.authentication.vatsim.clone()),
+            navdata,
         })
     }
 
@@ -73,5 +82,9 @@ impl Services {
 
     pub fn vatsim_auth(&self) -> &VatsimAuthClient {
         &self.vatsim_auth
+    }
+
+    pub fn navdata(&self) -> &NavdataAdapter {
+        &self.navdata
     }
 }

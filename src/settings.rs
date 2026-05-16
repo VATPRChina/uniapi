@@ -11,6 +11,7 @@ pub struct Settings {
     pub moodle: Moodle,
     pub storage: Storage,
     pub utils: Utils,
+    pub navdata: Navdata,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -89,6 +90,13 @@ pub struct Utils {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Metar {
     pub endpoint: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Navdata {
+    pub remote_data_url: String,
+    pub local_data_path: String,
+    pub download_file: bool,
 }
 
 impl Settings {

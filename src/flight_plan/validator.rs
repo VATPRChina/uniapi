@@ -1,10 +1,10 @@
 use serde::Serialize;
-use sqlx::PgPool;
 
 use crate::adapter::flight::Flight;
+use crate::adapter::navdata::NavdataAdapter;
 use crate::flight_plan::parser::{self, ParserError};
-use crate::flight_plan::{AirwayDirection, FixKind, Leg, LevelRestrictionType, PreferredRoute};
-use crate::repository::navdata::preferred_route;
+use crate::flight_plan::{LevelRestrictionType, PreferredRoute};
+use crate::model::navdata::{AnyFix, DirectionRestriction, ResolvedLeg};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidatorError {
@@ -12,6 +12,8 @@ pub enum ValidatorError {
     Database(#[from] sqlx::Error),
     #[error("parser error: {0}")]
     Parser(#[from] ParserError),
+    #[error("navdata error: {0}")]
+    Navdata(anyhow::Error),
 }
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
@@ -52,15 +54,17 @@ pub enum WarningMessageCode {
 }
 
 pub async fn validate_route(
-    db: &PgPool,
+    navdata: &NavdataAdapter,
     flight: &Flight,
-    legs: &[Leg],
+    legs: &[ResolvedLeg],
 ) -> Result<Vec<WarningMessage>, ValidatorError> {
     let mut messages = validate_plan(flight);
 
-    let preferred_routes =
-        preferred_route::recommended(db, &flight.departure, &flight.arrival).await?;
-    let matching_route = find_matching_route(db, legs, &preferred_routes).await?;
+    let preferred_routes = navdata
+        .list_preferred_routes()
+        .await
+        .map_err(ValidatorError::Navdata)?;
+    let matching_route = find_matching_route(navdata, legs, &preferred_routes).await?;
     messages.extend(validate_preferred_route_match(
         flight,
         matching_route.as_ref(),
@@ -112,12 +116,12 @@ fn validate_plan(flight: &Flight) -> Vec<WarningMessage> {
 }
 
 async fn find_matching_route(
-    db: &PgPool,
-    legs: &[Leg],
+    navdata: &NavdataAdapter,
+    legs: &[ResolvedLeg],
     preferred_routes: &[PreferredRoute],
 ) -> Result<Option<PreferredRoute>, ValidatorError> {
     for preferred_route in preferred_routes {
-        let parsed = parser::parse_route(db, &preferred_route.raw_route).await?;
+        let parsed = parser::parse_route(navdata, &preferred_route.raw_route).await?;
         if route_matches_expected(legs, &parsed) {
             return Ok(Some(preferred_route.clone()));
         }
@@ -194,23 +198,45 @@ fn validate_preferred_route_match(
     messages
 }
 
-fn validate_leg(leg: &Leg, index: usize) -> Vec<WarningMessage> {
+fn validate_leg(leg: &ResolvedLeg, index: usize) -> Vec<WarningMessage> {
     let mut messages = Vec::new();
-    if let Leg::Direct(direct) = leg {
-        let from_zh = direct
+
+    let is_from_zh = leg
+        .from
+        .identifier()
+        .is_none_or(|identifier| identifier.starts_with('Z'));
+    let is_to_zh = leg
+        .to
+        .identifier()
+        .is_none_or(|identifier| identifier.starts_with('Z'));
+
+    if let Some(ident) = &leg.identifier {
+        if leg.direction_restriction == DirectionRestriction::Backward {
+            messages.push(route_indexed_message(
+                index,
+                WarningMessageCode::RouteLegDirection,
+            ));
+        }
+
+        let from_zh = leg
             .from
-            .identifier
-            .as_deref()
-            .is_none_or(|identifier| identifier.starts_with('Z'));
-        let to_zh = direct
+            .identifier()
+            .is_some_and(|identifier| identifier.starts_with('Z'));
+        let to_zh = leg
             .to
-            .identifier
-            .as_deref()
-            .is_none_or(|identifier| identifier.starts_with('Z'));
-        if direct.from.kind != FixKind::Airport
-            && direct.to.kind != FixKind::Airport
-            && from_zh
-            && to_zh
+            .identifier()
+            .is_some_and(|identifier| identifier.starts_with('Z'));
+        if from_zh && to_zh && (ident.starts_with('V') || ident.starts_with('X')) {
+            messages.push(route_indexed_message(
+                index,
+                WarningMessageCode::AirwayRequireApproval,
+            ));
+        }
+    } else {
+        if !matches!(leg.from, AnyFix::Airport { .. })
+            && !matches!(leg.to, AnyFix::Airport { .. })
+            && is_from_zh
+            && is_to_zh
         {
             messages.push(route_indexed_message(
                 index,
@@ -218,81 +244,12 @@ fn validate_leg(leg: &Leg, index: usize) -> Vec<WarningMessage> {
             ));
         }
     }
-
-    if let Leg::Airway(airway) = leg {
-        if airway.direction == AirwayDirection::Backward {
-            messages.push(route_indexed_message(
-                index,
-                WarningMessageCode::RouteLegDirection,
-            ));
-        }
-
-        let from_zh = airway
-            .from
-            .identifier
-            .as_deref()
-            .is_some_and(|identifier| identifier.starts_with('Z'));
-        let to_zh = airway
-            .to
-            .identifier
-            .as_deref()
-            .is_some_and(|identifier| identifier.starts_with('Z'));
-        if from_zh
-            && to_zh
-            && (airway.identifier.starts_with('V') || airway.identifier.starts_with('X'))
-        {
-            messages.push(route_indexed_message(
-                index,
-                WarningMessageCode::AirwayRequireApproval,
-            ));
-        }
-    }
     messages
 }
 
-fn route_matches_expected(actual: &[Leg], expected: &[Leg]) -> bool {
-    if actual.is_empty() || expected.is_empty() {
-        return false;
-    }
-
-    let actual_left = actual
-        .iter()
-        .position(|leg| leg.from().kind != FixKind::Airport)
-        .unwrap_or(0);
-    let actual_right = actual
-        .iter()
-        .rposition(|leg| leg.to().kind != FixKind::Airport)
-        .unwrap_or_else(|| actual.len().saturating_sub(1));
-
-    let Some(expected_start) = expected
-        .iter()
-        .position(|leg| leg.from() == actual[actual_left].from())
-    else {
-        return false;
-    };
-
-    let mut expected_index = expected_start;
-    for actual_leg in &actual[actual_left..=actual_right] {
-        let Some(expected_leg) = expected.get(expected_index) else {
-            break;
-        };
-        if expected_leg.from() != actual_leg.from()
-            || expected_leg.to() != actual_leg.to()
-            || airway_identifier(expected_leg) != airway_identifier(actual_leg)
-        {
-            return false;
-        }
-        expected_index += 1;
-    }
-
-    expected_index - expected_start >= 1
-}
-
-fn airway_identifier(leg: &Leg) -> Option<&str> {
-    match leg {
-        Leg::Airway(airway) => Some(&airway.identifier),
-        Leg::Direct(_) => None,
-    }
+fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {
+    // TODO: implement
+    false
 }
 
 fn message(field: WarningMessageField, code: WarningMessageCode) -> WarningMessage {

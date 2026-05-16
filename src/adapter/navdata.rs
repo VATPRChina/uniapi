@@ -3,32 +3,35 @@ use itertools::Itertools;
 use ordered_float::NotNan;
 use sqlx::{SqlitePool, prelude::FromRow};
 
-use crate::model::navdata::{
-    Airport, AnyFix, DirectionRestriction, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint, WaypointKind,
+use crate::{
+    flight_plan::PreferredRoute,
+    model::navdata::{
+        Airport, AnyFix, DirectionRestriction, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint,
+        WaypointKind,
+    },
 };
 
 pub type NavdataResult<T> = Result<T, anyhow::Error>;
 
+#[derive(Clone)]
 pub struct NavdataAdapter {
-    pub remote_data_url: String,
-    pub local_data_path: String,
     pub db: SqlitePool,
 }
 
 // TODO: do not use unwrap
 impl NavdataAdapter {
     pub async fn new(
-        remote_data_url: String,
-        local_data_path: String,
+        remote_data_url: impl AsRef<str>,
+        local_data_path: impl AsRef<str>,
         download_file: bool,
     ) -> Self {
         if download_file {
-            let response = reqwest::get(&remote_data_url).await.unwrap();
+            let response = reqwest::get(remote_data_url.as_ref()).await.unwrap();
             let bytes = response.bytes().await.unwrap();
-            std::fs::write(&local_data_path, bytes).unwrap();
+            std::fs::write(local_data_path.as_ref(), bytes).unwrap();
         }
 
-        let local_data_path = std::fs::canonicalize(&local_data_path)
+        let local_data_path = std::fs::canonicalize(local_data_path.as_ref())
             .unwrap()
             .to_str()
             .unwrap()
@@ -36,11 +39,7 @@ impl NavdataAdapter {
         let db = SqlitePool::connect(&format!("sqlite:{local_data_path}"))
             .await
             .unwrap();
-        Self {
-            remote_data_url,
-            local_data_path,
-            db,
-        }
+        Self { db }
     }
 
     pub async fn find_airport(&self, ident: &str) -> NavdataResult<Option<Airport>> {
@@ -318,11 +317,16 @@ impl NavdataAdapter {
         // TODO: validate result size
 
         let legs = result
-            .into_iter()
+            .iter()
             .tuple_windows()
             .flat_map(|(prev, record)| record.to_leg(&prev))
             .collect();
         Ok(legs)
+    }
+
+    pub async fn list_preferred_routes(&self) -> NavdataResult<Vec<PreferredRoute>> {
+        // TODO: list preferred routes
+        Ok(vec![])
     }
 }
 
@@ -398,7 +402,7 @@ impl EnrouteAirwayRecord {
                     longitude: prev.waypoint_longitude,
                     kind: NdbKind::Enroute,
                 }),
-                "D" => AnyFix::Vhf(Vhf {
+                "D " => AnyFix::Vhf(Vhf {
                     icao_code: ArrayString::from(&prev.icao_code).unwrap(),
                     identifier: ArrayString::from(&prev.waypoint_identifier).unwrap(),
                     latitude: prev.waypoint_latitude,
@@ -435,7 +439,7 @@ impl EnrouteAirwayRecord {
                 longitude: self.waypoint_longitude,
                 kind: NdbKind::Enroute,
             }),
-            "D" => AnyFix::Vhf(Vhf {
+            "D " => AnyFix::Vhf(Vhf {
                 icao_code: ArrayString::from(&self.icao_code).unwrap(),
                 identifier: ArrayString::from(&self.waypoint_identifier).unwrap(),
                 latitude: self.waypoint_latitude,

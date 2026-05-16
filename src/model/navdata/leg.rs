@@ -26,3 +26,18 @@ pub enum DirectionRestriction {
     Forward,
     Backward,
 }
+
+impl ResolvedLeg {
+    pub fn into_reversed(self) -> Self {
+        Self {
+            from: self.to,
+            to: self.from,
+            identifier: self.identifier,
+            direction_restriction: match self.direction_restriction {
+                DirectionRestriction::None => DirectionRestriction::None,
+                DirectionRestriction::Forward => DirectionRestriction::Backward,
+                DirectionRestriction::Backward => DirectionRestriction::Forward,
+            },
+        }
+    }
+}
