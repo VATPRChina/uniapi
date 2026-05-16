@@ -74,22 +74,3 @@ pub async fn upsert(
 
     user_atc_permission::replace(transaction, user_id, &status.permissions).await
 }
-
-pub async fn delete_with_permissions(
-    transaction: &mut Transaction<'_, Postgres>,
-    user_id: Uuid,
-) -> Result<bool, sqlx::Error> {
-    let result = sqlx::query(
-        r#"
-        DELETE FROM public.user_atc_status
-        WHERE user_id = $1
-        "#,
-    )
-    .bind(user_id)
-    .execute(&mut **transaction)
-    .await?;
-
-    user_atc_permission::replace(transaction, user_id, &[]).await?;
-
-    Ok(result.rows_affected() > 0)
-}

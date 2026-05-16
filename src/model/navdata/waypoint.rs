@@ -14,6 +14,7 @@ pub struct Waypoint {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WaypointKind {
     Enroute,
+    #[allow(unused)]
     Terminal,
 }
 

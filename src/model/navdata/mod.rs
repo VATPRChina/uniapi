@@ -8,7 +8,7 @@ mod waypoint;
 
 pub use airport::Airport;
 pub use geo_point::GeoPoint;
-pub use leg::{DirectionRestriction, FixRef, Leg, ResolvedLeg};
+pub use leg::{DirectionRestriction, ResolvedLeg};
 pub use ndb::{Ndb, NdbKind};
 pub use preferred_route::{LevelRestrictionType, PreferredRoute};
 pub use vhf::Vhf;
@@ -20,6 +20,7 @@ pub trait Fix {
 }
 
 pub trait Identifiable {
+    #[allow(unused)]
     fn icao_code(&self) -> &str;
     fn identifier(&self) -> &str;
 }
@@ -56,6 +57,7 @@ impl Fix for AnyFix {
 }
 
 impl AnyFix {
+    #[allow(unused)]
     pub fn icao_code(&self) -> Option<&str> {
         match self {
             AnyFix::Airport(airport) => Some(airport.icao_code()),

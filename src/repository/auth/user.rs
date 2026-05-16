@@ -68,41 +68,6 @@ pub async fn list_details_ordered_by_cid(
     .await
 }
 
-pub async fn find_detail_by_cid(
-    db: &PgPool,
-    cid: &str,
-) -> Result<Option<UserDetailRecord>, sqlx::Error> {
-    sqlx::query_as::<_, UserDetailRecord>(
-        r#"
-        SELECT id, cid, full_name, created_at, updated_at, roles
-        FROM public."user"
-        WHERE cid = $1
-        "#,
-    )
-    .bind(cid)
-    .fetch_optional(db)
-    .await
-}
-
-pub async fn create_assumed_user(
-    db: &PgPool,
-    id: Uuid,
-    cid: &str,
-) -> Result<UserDetailRecord, sqlx::Error> {
-    sqlx::query_as::<_, UserDetailRecord>(
-        r#"
-        INSERT INTO public."user" (id, cid, full_name, email, roles)
-        VALUES ($1, $2, $2, NULL, $3)
-        RETURNING id, cid, full_name, created_at, updated_at, roles
-        "#,
-    )
-    .bind(id)
-    .bind(cid)
-    .bind(Vec::<String>::new())
-    .fetch_one(db)
-    .await
-}
-
 pub async fn upsert_assumed_user(
     db: &PgPool,
     id: Uuid,

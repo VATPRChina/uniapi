@@ -53,38 +53,6 @@ pub async fn list_by_event(
     .await
 }
 
-pub async fn find_by_event_and_id(
-    db: &PgPool,
-    event_id: Uuid,
-    slot_id: Uuid,
-) -> Result<Option<EventSlotRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventSlotRecord>(&slot_select_sql(
-        r#"
-        WHERE event_airspace.event_id = $1 AND event_slot.id = $2
-        "#,
-    ))
-    .bind(event_id)
-    .bind(slot_id)
-    .fetch_optional(db)
-    .await
-}
-
-pub async fn find_mine_by_event(
-    db: &PgPool,
-    event_id: Uuid,
-    user_id: Uuid,
-) -> Result<Option<EventSlotRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventSlotRecord>(&slot_select_sql(
-        r#"
-        WHERE event_airspace.event_id = $1 AND event_booking.user_id = $2
-        "#,
-    ))
-    .bind(event_id)
-    .bind(user_id)
-    .fetch_optional(db)
-    .await
-}
-
 pub async fn create(db: &PgPool, slot: EventSlotSave) -> Result<EventSlotRecord, sqlx::Error> {
     let id = Uuid::from(Ulid::new());
     sqlx::query(
@@ -105,60 +73,6 @@ pub async fn create(db: &PgPool, slot: EventSlotSave) -> Result<EventSlotRecord,
     .await?;
 
     find_by_id(db, id).await?.ok_or(sqlx::Error::RowNotFound)
-}
-
-pub async fn update(
-    db: &PgPool,
-    event_id: Uuid,
-    slot_id: Uuid,
-    slot: EventSlotSave,
-) -> Result<Option<EventSlotRecord>, sqlx::Error> {
-    let result = sqlx::query(
-        r#"
-        UPDATE public.event_slot
-        SET enter_at = $3,
-            leave_at = $4,
-            callsign = $5,
-            aircraft_type_icao = $6,
-            updated_at = CURRENT_TIMESTAMP
-        FROM public.event_airspace
-        WHERE event_slot.event_airspace_id = event_airspace.id
-          AND event_airspace.event_id = $1
-          AND event_slot.id = $2
-        "#,
-    )
-    .bind(event_id)
-    .bind(slot_id)
-    .bind(slot.enter_at)
-    .bind(slot.leave_at)
-    .bind(slot.callsign)
-    .bind(slot.aircraft_type_icao)
-    .execute(db)
-    .await?;
-
-    if result.rows_affected() == 0 {
-        return Ok(None);
-    }
-
-    find_by_event_and_id(db, event_id, slot_id).await
-}
-
-pub async fn delete(
-    db: &PgPool,
-    event_id: Uuid,
-    slot_id: Uuid,
-) -> Result<Option<EventSlotRecord>, sqlx::Error> {
-    let slot = find_by_event_and_id(db, event_id, slot_id).await?;
-    if slot.is_none() {
-        return Ok(None);
-    }
-
-    sqlx::query("DELETE FROM public.event_slot WHERE id = $1")
-        .bind(slot_id)
-        .execute(db)
-        .await?;
-
-    Ok(slot)
 }
 
 pub async fn booking_export_rows(db: &PgPool, event_id: Uuid) -> Result<Vec<String>, sqlx::Error> {

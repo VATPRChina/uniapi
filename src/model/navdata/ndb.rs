@@ -14,6 +14,7 @@ pub struct Ndb {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NdbKind {
     Enroute,
+    #[allow(unused)]
     Terminal,
 }
 

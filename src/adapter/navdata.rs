@@ -116,6 +116,7 @@ impl NavdataAdapter {
         .await?;
         let vhf = result
             .into_iter()
+            .filter(|vhf| vhf.airport_identifier.is_none())
             .map(|record| Vhf {
                 icao_code: ArrayString::from(&record.icao_code).unwrap(),
                 identifier: ArrayString::from(&record.navaid_identifier).unwrap(),
@@ -319,7 +320,7 @@ impl NavdataAdapter {
         let legs = result
             .iter()
             .tuple_windows()
-            .flat_map(|(prev, record)| record.to_leg(&prev))
+            .flat_map(|(prev, record)| record.to_leg(prev))
             .collect();
         Ok(legs)
     }
@@ -340,6 +341,7 @@ struct AirportRecord {
 #[derive(Debug, Clone, FromRow)]
 struct VhfRecord {
     airport_identifier: Option<String>,
+    #[allow(unused)]
     dme_ident: Option<String>,
     dme_latitude: Option<f64>,
     dme_longitude: Option<f64>,
@@ -367,10 +369,12 @@ struct EnrouteWaypointRecord {
 
 #[derive(Debug, Clone, FromRow)]
 struct EnrouteAirwayRecord {
+    #[allow(unused)]
     area_code: String,
     direction_restriction: String,
     icao_code: String,
     route_identifier: String,
+    #[allow(unused)]
     seqno: u32,
     waypoint_description_code: String,
     waypoint_identifier: String,

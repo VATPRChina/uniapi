@@ -173,18 +173,3 @@ pub async fn update(
     .fetch_optional(db)
     .await
 }
-
-pub async fn delete(db: &PgPool, id: Uuid) -> Result<Option<EventRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventRecord>(
-        r#"
-        DELETE FROM public.event
-        WHERE id = $1
-        RETURNING id, created_at, updated_at, title, title_en, start_at, end_at,
-                  start_booking_at, end_booking_at, start_atc_booking_at, image_url,
-                  community_link, vatsim_link, description
-        "#,
-    )
-    .bind(id)
-    .fetch_optional(db)
-    .await
-}
