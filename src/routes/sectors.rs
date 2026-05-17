@@ -1,10 +1,10 @@
 use axum::extract::State;
 use axum::routing::get;
 use axum::{Json, Router};
-use serde::Serialize;
 
 use crate::auth::CurrentUser;
-use crate::repository::auth::user::{self as user_repository};
+use crate::dto::*;
+use crate::repository::auth::user as user_repository;
 use crate::repository::sector as sector_repository;
 use crate::routes::ApiError;
 use crate::services::Services;
@@ -33,10 +33,4 @@ async fn current_permission(
         has_permission,
         sector_type: "controller",
     }))
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct SectorPermissionResponse {
-    has_permission: bool,
-    sector_type: &'static str,
 }

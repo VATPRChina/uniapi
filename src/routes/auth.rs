@@ -5,13 +5,13 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{Duration, Utc};
 use rand::RngExt;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::adapter::vatsim_auth::{VatsimAuthError, generate_pkce};
 use crate::auth::CurrentUser;
+use crate::dto::*;
 use crate::jwt::JwtError;
 use crate::repository::auth::device_authorization::{
     self as device_authorization_repository, NewDeviceAuthorization,
@@ -909,105 +909,6 @@ async fn upsert_user(
     user_repository::upsert_login(services.db(), cid, full_name, email)
         .await
         .map_err(AuthEndpointError::Database)
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct AuthorizeQuery {
-    response_type: String,
-    client_id: String,
-    redirect_uri: String,
-    state: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, utoipa::ToSchema)]
-struct AuthenticationState {
-    auth_type: AuthenticationStateType,
-    client_id: Option<String>,
-    redirect_uri: Option<String>,
-    user_code: Option<String>,
-    state: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, utoipa::ToSchema)]
-#[serde(rename_all = "snake_case")]
-enum AuthenticationStateType {
-    Code,
-    Device,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct DeviceConfirmQuery {
-    user_code: Option<String>,
-    confirm: Option<bool>,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct LoginQuery {
-    state: String,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct VatsimCallbackQuery {
-    code: Option<String>,
-    state: Option<String>,
-    error: Option<String>,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct DeviceAuthorizationRequest {
-    client_id: String,
-    #[allow(dead_code)]
-    scope: Option<String>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct DeviceAuthorizationResponse {
-    device_code: String,
-    user_code: String,
-    verification_uri: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    verification_uri_complete: Option<String>,
-    expires_in: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    interval: Option<u32>,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct AccessTokenRequest {
-    #[serde(default)]
-    grant_type: String,
-    #[serde(default)]
-    client_id: String,
-    #[serde(default)]
-    device_code: String,
-    #[serde(default)]
-    refresh_token: String,
-    #[serde(default)]
-    code: String,
-    #[serde(default)]
-    #[allow(dead_code)]
-    code_verifier: String,
-    #[serde(default)]
-    client_secret: String,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct UnsafeAssumeUserRequest {
-    id: Option<String>,
-    cid: String,
-    full_name: Option<String>,
-    email: Option<String>,
-    roles: Option<Vec<String>>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct TokenResponse {
-    access_token: String,
-    token_type: &'static str,
-    expires_in: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    refresh_token: Option<String>,
-    scope: String,
 }
 
 #[derive(Debug)]

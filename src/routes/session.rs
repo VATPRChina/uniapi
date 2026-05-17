@@ -2,11 +2,11 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
-use serde::Serialize;
+use chrono::DateTime;
 use ulid::Ulid;
 
 use crate::auth::CurrentUser;
+use crate::dto::*;
 use crate::model::user_role::UserRole;
 use crate::repository::auth::{session as session_repository, user as user_repository};
 use crate::routes::ApiError;
@@ -50,6 +50,7 @@ async fn get_current(
                 .roles()
                 .collect::<std::collections::BTreeSet<_>>()
                 .into_iter()
+                .map(|role| role.to_string())
                 .collect(),
             direct_roles: user
                 .roles
@@ -57,6 +58,7 @@ async fn get_current(
                 .filter_map(|role: String| role.parse::<UserRole>().ok())
                 .collect::<std::collections::BTreeSet<_>>()
                 .into_iter()
+                .map(|role| role.to_string())
                 .collect(),
             moodle_account,
         },
@@ -91,28 +93,4 @@ async fn logout(
     }
 
     Ok(StatusCode::NO_CONTENT)
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct TokenDto {
-    user: UserDto,
-    issued_at: DateTime<Utc>,
-    expires_at: DateTime<Utc>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct UserDto {
-    id: String,
-    cid: String,
-    full_name: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    roles: Vec<UserRole>,
-    direct_roles: Vec<UserRole>,
-    moodle_account: Option<UserMoodleInfoDto>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct UserMoodleInfoDto {
-    id: String,
 }

@@ -3,14 +3,13 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 
 use crate::adapter::compat::CompatClientError;
+use crate::dto::*;
 use crate::error::ApiError;
-use crate::repository::compat::{self as compat_repository, FutureControllerRow};
+use crate::repository::compat::{self as compat_repository};
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -159,58 +158,4 @@ fn json_text_response(content: Result<String, CompatClientError>) -> Result<Resp
         content?,
     )
         .into_response())
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct MetarQuery {
-    id: String,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct CompatVatprcStatusDto {
-    last_updated: DateTime<Utc>,
-    pilots: Vec<CompatPilotDto>,
-    controllers: Vec<CompatControllerDto>,
-    future_controllers: Vec<CompatFutureControllerDto>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct CompatPilotDto {
-    cid: i32,
-    name: String,
-    callsign: String,
-    departure: Option<String>,
-    arrival: Option<String>,
-    aircraft: Option<String>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct CompatControllerDto {
-    cid: i32,
-    name: String,
-    callsign: String,
-    frequency: String,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct CompatFutureControllerDto {
-    callsign: String,
-    name: String,
-    start: String,
-    start_utc: DateTime<Utc>,
-    end: String,
-    end_utc: DateTime<Utc>,
-}
-
-impl From<FutureControllerRow> for CompatFutureControllerDto {
-    fn from(row: FutureControllerRow) -> Self {
-        Self {
-            callsign: row.callsign,
-            name: row.name,
-            start: row.start_at.format("%d %H:%M").to_string(),
-            start_utc: row.start_at,
-            end: row.end_at.format("%d %H:%M").to_string(),
-            end_utc: row.end_at,
-        }
-    }
 }

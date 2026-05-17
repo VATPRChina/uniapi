@@ -1,13 +1,10 @@
 use axum::extract::{Path, State};
 use axum::routing::{get, put};
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
-use serde::Serialize;
 use std::collections::BTreeSet;
-use ulid::Ulid;
-use uuid::Uuid;
 
 use crate::auth::CurrentUser;
+use crate::dto::*;
 use crate::model::user_role::{UserRole, role_closure_from_strings};
 use crate::repository::auth::user::{self as user_repository, UserDetailRecord};
 use crate::routes::ApiError;
@@ -48,7 +45,7 @@ async fn set_roles(
     Json(roles): Json<BTreeSet<String>>,
 ) -> Result<Json<UserDto>, ApiError> {
     current_user.require_role(UserRole::Staff)?;
-    let id = parse_ulid_uuid(&id)?;
+    let id = parse_ulid_uuid("user_id", &id)?;
     let user = user_repository::find_detail_by_id(services.db(), id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
@@ -104,65 +101,5 @@ fn user_dto(
     show_full_name: bool,
     roles_override: Option<Vec<UserRole>>,
 ) -> UserDto {
-    let direct_roles = user
-        .roles
-        .iter()
-        .filter_map(|role| role.parse::<UserRole>().ok())
-        .map(role_to_dto)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect();
-    let roles = roles_override
-        .unwrap_or_else(|| {
-            role_closure_from_strings(user.roles.iter().map(String::as_str))
-                .into_iter()
-                .collect()
-        })
-        .into_iter()
-        .map(role_to_dto)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect();
-
-    UserDto {
-        id: Ulid::from(user.id).to_string(),
-        cid: user.cid,
-        full_name: if show_full_name {
-            user.full_name
-        } else {
-            String::new()
-        },
-        created_at: user.created_at,
-        updated_at: user.updated_at,
-        roles,
-        direct_roles,
-        moodle_account,
-    }
-}
-
-fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
-    id.parse::<Ulid>()
-        .map(Uuid::from)
-        .map_err(|_| ApiError::bad_request("user_id", "invalid ULID"))
-}
-
-fn role_to_dto(role: UserRole) -> String {
-    format!("{role}")
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct UserDto {
-    id: String,
-    cid: String,
-    full_name: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    roles: Vec<String>,
-    direct_roles: Vec<String>,
-    moodle_account: Option<UserMoodleInfoDto>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct UserMoodleInfoDto {
-    id: String,
+    UserDto::from_user_detail(user, moodle_account, show_full_name, roles_override)
 }

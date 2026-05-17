@@ -2,10 +2,9 @@ use axum::extract::Path;
 use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 
 use crate::auth::CurrentUser;
+use crate::dto::*;
 use crate::model::user_role::UserRole;
 use crate::routes::ApiError;
 use crate::services::Services;
@@ -60,45 +59,4 @@ async fn update_preferred_route(
 ) -> Result<Response, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
     todo!()
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-#[allow(dead_code)]
-struct PreferredRouteSaveRequest {
-    departure: String,
-    arrival: String,
-    raw_route: String,
-    cruising_level_restriction: LevelRestrictionType,
-    #[serde(default)]
-    allowed_altitudes: Vec<i32>,
-    minimal_altitude: i32,
-    remarks: String,
-    valid_from: Option<DateTime<Utc>>,
-    valid_until: Option<DateTime<Utc>>,
-}
-
-#[derive(Deserialize, Serialize, utoipa::ToSchema)]
-#[serde(rename_all = "kebab-case")]
-enum LevelRestrictionType {
-    StandardEven,
-    StandardOdd,
-    Standard,
-    FlightLevelEven,
-    FlightLevelOdd,
-    FlightLevel,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-#[allow(dead_code)]
-struct PreferredRouteDto {
-    id: String,
-    departure: String,
-    arrival: String,
-    raw_route: String,
-    cruising_level_restriction: LevelRestrictionType,
-    allowed_altitudes: Vec<i32>,
-    minimal_altitude: i32,
-    remarks: String,
-    valid_from: Option<DateTime<Utc>>,
-    valid_until: Option<DateTime<Utc>>,
 }

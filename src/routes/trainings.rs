@@ -1,22 +1,18 @@
-use std::str::FromStr;
-
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use ulid::Ulid;
-use uuid::Uuid;
+use chrono::Utc;
 
 use crate::auth::CurrentUser;
-use crate::model::user_role::{UserRole, role_closure};
+use crate::dto::*;
+use crate::model::user_role::UserRole;
 use crate::repository::atc_training::training::{
     self as training_repository, TrainingRecord, TrainingSave,
 };
-use crate::repository::sheet::sheet_field::{self as sheet_field_repository, SheetFieldRecord};
+use crate::repository::sheet::sheet_field::{self as sheet_field_repository};
 use crate::repository::sheet::sheet_filing_answer::{
-    self as sheet_filing_answer_repository, SheetAnswerRecord, SheetAnswerSave,
+    self as sheet_filing_answer_repository, SheetAnswerSave,
 };
 use crate::repository::sheet::{
     sheet as sheet_repository, sheet_filing as sheet_filing_repository,
@@ -130,7 +126,7 @@ async fn update_training(
     Json(request): Json<TrainingSaveRequest>,
 ) -> Result<Json<TrainingDto>, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
-    let id = parse_ulid_uuid(&id)?;
+    let id = parse_ulid_uuid("id", &id)?;
     let training = training_repository::find_by_id(services.db(), id)
         .await?
         .ok_or(ApiError::not_found("resource", "unknown"))?;
@@ -173,7 +169,7 @@ async fn set_record_sheet(
     Json(request): Json<TrainingRecordRequest>,
 ) -> Result<Json<TrainingDto>, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
-    let id = parse_ulid_uuid(&id)?;
+    let id = parse_ulid_uuid("id", &id)?;
     let training = training_repository::find_by_id(services.db(), id)
         .await?
         .ok_or(ApiError::not_found("resource", "unknown"))?;
@@ -208,7 +204,7 @@ async fn delete_training(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
-    let id = parse_ulid_uuid(&id)?;
+    let id = parse_ulid_uuid("id", &id)?;
     let training = training_repository::find_by_id(services.db(), id)
         .await?
         .ok_or(ApiError::not_found("resource", "unknown"))?;
@@ -222,7 +218,7 @@ async fn delete_training(
 }
 
 async fn find_training(services: &Services, id: &str) -> Result<TrainingRecord, ApiError> {
-    training_repository::find_by_id(services.db(), parse_ulid_uuid(id)?)
+    training_repository::find_by_id(services.db(), parse_ulid_uuid("id", id)?)
         .await?
         .ok_or(ApiError::not_found("resource", "unknown"))
 }
@@ -276,211 +272,4 @@ fn validate_ownership(
         entity: "training".to_string(),
         id: training.id.to_string(),
     })
-}
-
-fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
-    id.parse::<Ulid>()
-        .map(Uuid::from)
-        .map_err(|_| ApiError::bad_request("id", "invalid ULID"))
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct TrainingSaveRequest {
-    name: String,
-    trainer_id: String,
-    trainee_id: String,
-    start_at: DateTime<Utc>,
-    end_at: DateTime<Utc>,
-}
-
-impl TryFrom<TrainingSaveRequest> for TrainingSave {
-    type Error = ApiError;
-
-    fn try_from(request: TrainingSaveRequest) -> Result<Self, Self::Error> {
-        Ok(Self {
-            name: request.name,
-            trainer_id: parse_ulid_uuid(&request.trainer_id)?,
-            trainee_id: parse_ulid_uuid(&request.trainee_id)?,
-            start_at: request.start_at,
-            end_at: request.end_at,
-        })
-    }
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct TrainingRecordRequest {
-    request_answers: Vec<SheetRequestField>,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct SheetRequestField {
-    id: String,
-    answer: String,
-}
-
-impl From<SheetRequestField> for SheetAnswerSave {
-    fn from(answer: SheetRequestField) -> Self {
-        Self {
-            field_id: answer.id,
-            answer: answer.answer,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct TrainingDto {
-    id: String,
-    name: String,
-    trainer_id: String,
-    trainer: UserDto,
-    trainee_id: String,
-    trainee: UserDto,
-    start_at: DateTime<Utc>,
-    end_at: DateTime<Utc>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    deleted_at: Option<DateTime<Utc>>,
-    record_sheet_filing_id: Option<String>,
-    record_sheet_filing: Option<Vec<SheetFieldAnswerDto>>,
-}
-
-impl TrainingDto {
-    fn from_record(
-        training: TrainingRecord,
-        record_sheet_filing: Option<Vec<SheetFieldAnswerDto>>,
-    ) -> Self {
-        Self {
-            id: Ulid::from(training.id).to_string(),
-            name: training.name,
-            trainer_id: Ulid::from(training.trainer_id).to_string(),
-            trainer: UserDto::from_parts(
-                training.trainer_id,
-                training.trainer_cid,
-                training.trainer_full_name,
-                training.trainer_created_at,
-                training.trainer_updated_at,
-                training.trainer_roles,
-            ),
-            trainee_id: Ulid::from(training.trainee_id).to_string(),
-            trainee: UserDto::from_parts(
-                training.trainee_id,
-                training.trainee_cid,
-                training.trainee_full_name,
-                training.trainee_created_at,
-                training.trainee_updated_at,
-                training.trainee_roles,
-            ),
-            start_at: training.start_at,
-            end_at: training.end_at,
-            created_at: training.created_at,
-            updated_at: training.updated_at,
-            deleted_at: training.deleted_at,
-            record_sheet_filing_id: training
-                .record_sheet_filing_id
-                .map(|id| Ulid::from(id).to_string()),
-            record_sheet_filing,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct SheetDto {
-    id: String,
-    name: String,
-    fields: Vec<SheetFieldDto>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct SheetFieldAnswerDto {
-    field: SheetFieldDto,
-    answer: String,
-}
-
-impl From<SheetAnswerRecord> for SheetFieldAnswerDto {
-    fn from(answer: SheetAnswerRecord) -> Self {
-        Self {
-            field: SheetFieldDto {
-                sheet_id: answer.sheet_id,
-                id: answer.field_id,
-                sequence: answer.field_sequence,
-                name_zh: answer.field_name_zh,
-                name_en: answer.field_name_en,
-                kind: answer.field_kind,
-                single_choice_options: answer.field_single_choice_options,
-                description_zh: answer.field_description_zh,
-                description_en: answer.field_description_en,
-                is_deleted: answer.field_is_deleted,
-            },
-            answer: answer.answer,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct SheetFieldDto {
-    sheet_id: String,
-    id: String,
-    sequence: i64,
-    name_zh: String,
-    name_en: Option<String>,
-    kind: String,
-    single_choice_options: Vec<String>,
-    description_zh: Option<String>,
-    description_en: Option<String>,
-    is_deleted: bool,
-}
-
-impl From<SheetFieldRecord> for SheetFieldDto {
-    fn from(field: SheetFieldRecord) -> Self {
-        Self {
-            sheet_id: field.sheet_id,
-            id: field.id,
-            sequence: field.sequence,
-            name_zh: field.name_zh,
-            name_en: field.name_en,
-            kind: field.kind,
-            single_choice_options: field.single_choice_options,
-            description_zh: field.description_zh,
-            description_en: field.description_en,
-            is_deleted: field.is_deleted,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct UserDto {
-    id: String,
-    cid: String,
-    full_name: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    roles: Vec<UserRole>,
-    direct_roles: Vec<UserRole>,
-    moodle_account: Option<serde_json::Value>,
-}
-
-impl UserDto {
-    fn from_parts(
-        id: Uuid,
-        cid: String,
-        full_name: String,
-        created_at: DateTime<Utc>,
-        updated_at: DateTime<Utc>,
-        roles: Vec<String>,
-    ) -> Self {
-        let roles = roles
-            .into_iter()
-            .filter_map(|r| UserRole::from_str(&r).ok())
-            .collect::<Vec<_>>();
-        Self {
-            id: Ulid::from(id).to_string(),
-            cid,
-            full_name,
-            created_at,
-            updated_at,
-            roles: roles.clone(),
-            direct_roles: role_closure(roles).into_iter().collect(),
-            moodle_account: None,
-        }
-    }
 }

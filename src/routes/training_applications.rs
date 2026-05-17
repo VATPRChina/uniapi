@@ -1,25 +1,19 @@
-use std::str::FromStr;
-
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use ulid::Ulid;
-use uuid::Uuid;
 
 use crate::auth::CurrentUser;
+use crate::dto::*;
 use crate::model::user_role::UserRole;
 use crate::repository::atc::user_atc_permission as atc_permission_repository;
 use crate::repository::atc_training::training_application::{
     self as training_application_repository, TrainingApplicationRecord,
 };
 use crate::repository::atc_training::training_application_response::{
-    self as training_application_response_repository, TrainingApplicationResponseRecord,
+    self as training_application_response_repository,
 };
 use crate::repository::atc_training::training_application_slot::{
-    self as training_application_slot_repository, TrainingApplicationSlotRecord,
-    TrainingApplicationSlotSave,
+    self as training_application_slot_repository,
 };
 use crate::routes::ApiError;
 use crate::services::Services;
@@ -172,7 +166,7 @@ async fn respond_to_application(
     Json(request): Json<TrainingApplicationResponseRequest>,
 ) -> Result<Json<TrainingApplicationResponseDto>, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
-    let application_id = parse_ulid_uuid(&id)?;
+    let application_id = parse_ulid_uuid("id", &id)?;
     let trainer_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let application = training_application_repository::find_by_id(services.db(), application_id)
         .await?
@@ -189,7 +183,7 @@ async fn respond_to_application(
             training_application_slot_repository::find(
                 services.db(),
                 application.id,
-                parse_ulid_uuid(slot_id)?,
+                parse_ulid_uuid("id", slot_id)?,
             )
             .await?
             .ok_or(ApiError::not_found("event slot", "unknown"))?,
@@ -219,7 +213,7 @@ async fn find_visible_application(
     current_user: &CurrentUser,
     id: &str,
 ) -> Result<TrainingApplicationRecord, ApiError> {
-    let id = parse_ulid_uuid(id)?;
+    let id = parse_ulid_uuid("id", id)?;
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     training_application_repository::find_visible_by_id(
         services.db(),
@@ -258,194 +252,4 @@ fn is_admin(current_user: &CurrentUser) -> bool {
             UserRole::ControllerTrainingMentor,
         ])
         .is_ok()
-}
-
-fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
-    id.parse::<Ulid>()
-        .map(Uuid::from)
-        .map_err(|_| ApiError::bad_request("id", "invalid ULID"))
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct TrainingApplicationCreateRequest {
-    name: String,
-    slots: Vec<TrainingApplicationCreateRequestSlot>,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct TrainingApplicationCreateRequestSlot {
-    start_at: DateTime<Utc>,
-    end_at: DateTime<Utc>,
-}
-
-impl From<TrainingApplicationCreateRequestSlot> for TrainingApplicationSlotSave {
-    fn from(slot: TrainingApplicationCreateRequestSlot) -> Self {
-        Self {
-            start_at: slot.start_at,
-            end_at: slot.end_at,
-        }
-    }
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct TrainingApplicationResponseRequest {
-    slot_id: Option<String>,
-    comment: String,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct TrainingApplicationDto {
-    id: String,
-    trainee_id: String,
-    trainee: UserDto,
-    status: TrainingApplicationStatus,
-    name: String,
-    train_id: Option<String>,
-    slots: Vec<TrainingApplicationSlotDto>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-}
-
-impl TrainingApplicationDto {
-    fn from_record(
-        application: TrainingApplicationRecord,
-        slots: Vec<TrainingApplicationSlotRecord>,
-    ) -> Self {
-        let status = application_status(&application, &slots);
-        Self {
-            id: Ulid::from(application.id).to_string(),
-            trainee_id: Ulid::from(application.trainee_id).to_string(),
-            trainee: UserDto {
-                id: Ulid::from(application.trainee_id).to_string(),
-                cid: application.trainee_cid,
-                full_name: application.trainee_full_name,
-                created_at: application.trainee_created_at,
-                updated_at: application.trainee_updated_at,
-                roles: application
-                    .trainee_roles
-                    .iter()
-                    .filter_map(|r| UserRole::from_str(r).ok())
-                    .collect(),
-                direct_roles: application
-                    .trainee_roles
-                    .iter()
-                    .filter_map(|r| UserRole::from_str(r).ok())
-                    .collect(),
-                moodle_account: None,
-            },
-            status,
-            name: application.name,
-            train_id: application.train_id.map(|id| Ulid::from(id).to_string()),
-            slots: slots
-                .into_iter()
-                .map(TrainingApplicationSlotDto::from)
-                .collect(),
-            created_at: application.created_at,
-            updated_at: application.updated_at,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-#[serde(rename_all = "kebab-case")]
-enum TrainingApplicationStatus {
-    Pending,
-    Accepted,
-    Rejected,
-    Cancelled,
-}
-
-fn application_status(
-    application: &TrainingApplicationRecord,
-    slots: &[TrainingApplicationSlotRecord],
-) -> TrainingApplicationStatus {
-    if application.train_id.is_some() {
-        TrainingApplicationStatus::Accepted
-    } else if application.deleted_at.is_some() {
-        TrainingApplicationStatus::Cancelled
-    } else if slots
-        .iter()
-        .map(|slot| slot.end_at)
-        .max()
-        .is_some_and(|end_at| end_at < Utc::now())
-    {
-        TrainingApplicationStatus::Rejected
-    } else {
-        TrainingApplicationStatus::Pending
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct TrainingApplicationSlotDto {
-    id: String,
-    application_id: String,
-    start_at: DateTime<Utc>,
-    end_at: DateTime<Utc>,
-}
-
-impl From<TrainingApplicationSlotRecord> for TrainingApplicationSlotDto {
-    fn from(slot: TrainingApplicationSlotRecord) -> Self {
-        Self {
-            id: Ulid::from(slot.id).to_string(),
-            application_id: Ulid::from(slot.application_id).to_string(),
-            start_at: slot.start_at,
-            end_at: slot.end_at,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct TrainingApplicationResponseDto {
-    id: String,
-    application_id: String,
-    trainer_id: String,
-    trainer: UserDto,
-    is_accepted: bool,
-    comment: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-}
-
-impl From<TrainingApplicationResponseRecord> for TrainingApplicationResponseDto {
-    fn from(response: TrainingApplicationResponseRecord) -> Self {
-        Self {
-            id: Ulid::from(response.id).to_string(),
-            application_id: Ulid::from(response.application_id).to_string(),
-            trainer_id: Ulid::from(response.trainer_id).to_string(),
-            trainer: UserDto {
-                id: Ulid::from(response.trainer_id).to_string(),
-                cid: response.trainer_cid,
-                full_name: response.trainer_full_name,
-                created_at: response.trainer_created_at,
-                updated_at: response.trainer_updated_at,
-                roles: response
-                    .trainer_roles
-                    .iter()
-                    .filter_map(|r| UserRole::from_str(r).ok())
-                    .collect(),
-                direct_roles: response
-                    .trainer_roles
-                    .iter()
-                    .filter_map(|r| UserRole::from_str(r).ok())
-                    .collect(),
-                moodle_account: None,
-            },
-            is_accepted: response.slot_id.is_some(),
-            comment: response.comment,
-            created_at: response.created_at,
-            updated_at: response.updated_at,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct UserDto {
-    id: String,
-    cid: String,
-    full_name: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    roles: Vec<UserRole>,
-    direct_roles: Vec<UserRole>,
-    moodle_account: Option<serde_json::Value>,
 }

@@ -1,15 +1,9 @@
 use axum::extract::State;
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
-use serde::Serialize;
-use std::collections::BTreeMap;
-use ulid::Ulid;
-use uuid::Uuid;
 
-use crate::model::user_controller_state::UserControllerState;
-use crate::model::user_role::{UserRole, role_closure_from_strings};
-use crate::repository::atc::atc::{self as atc_repository, AtcControllerPermissionRecord};
+use crate::dto::*;
+use crate::repository::atc::atc as atc_repository;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -26,119 +20,5 @@ async fn list_controllers(
     State(services): State<Services>,
 ) -> Result<Json<Vec<AtcStatusDto>>, ApiError> {
     let rows = atc_repository::list_controllers(services.db()).await?;
-
-    let mut statuses = BTreeMap::<Uuid, AtcStatusBuilder>::new();
-    for row in rows {
-        statuses
-            .entry(row.user_id)
-            .or_insert_with(|| AtcStatusBuilder::from(&row))
-            .permissions
-            .push(AtcPermissionDto::from(&row));
-    }
-
-    Ok(Json(
-        statuses
-            .into_values()
-            .map(AtcStatusDto::from)
-            .collect::<Vec<_>>(),
-    ))
-}
-
-struct AtcStatusBuilder {
-    user_id: Uuid,
-    user: UserDto,
-    is_visiting: bool,
-    is_absent: bool,
-    rating: String,
-    permissions: Vec<AtcPermissionDto>,
-}
-
-impl AtcStatusBuilder {
-    fn from(row: &AtcControllerPermissionRecord) -> Self {
-        Self {
-            user_id: row.user_id,
-            user: UserDto {
-                id: Ulid::from(row.user_id).to_string(),
-                cid: row.user_cid.clone(),
-                full_name: row.user_full_name.clone(),
-                created_at: row.user_created_at,
-                updated_at: row.user_updated_at,
-                roles: roles_to_dto(&row.user_roles),
-                direct_roles: direct_roles_to_dto(&row.user_roles),
-                moodle_account: None,
-            },
-            is_visiting: row.is_visiting.unwrap_or(false),
-            is_absent: row.is_absent.unwrap_or(false),
-            rating: row.rating.clone().unwrap_or_else(|| "OBS".to_owned()),
-            permissions: Vec::new(),
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct AtcStatusDto {
-    user_id: String,
-    user: UserDto,
-    is_visiting: bool,
-    is_absent: bool,
-    rating: String,
-    permissions: Vec<AtcPermissionDto>,
-}
-
-impl From<AtcStatusBuilder> for AtcStatusDto {
-    fn from(status: AtcStatusBuilder) -> Self {
-        Self {
-            user_id: Ulid::from(status.user_id).to_string(),
-            user: status.user,
-            is_visiting: status.is_visiting,
-            is_absent: status.is_absent,
-            rating: status.rating,
-            permissions: status.permissions,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct AtcPermissionDto {
-    position_kind_id: String,
-    state: UserControllerState,
-    solo_expires_at: Option<DateTime<Utc>>,
-}
-
-impl From<&AtcControllerPermissionRecord> for AtcPermissionDto {
-    fn from(permission: &AtcControllerPermissionRecord) -> Self {
-        Self {
-            position_kind_id: permission.position_kind_id.clone(),
-            state: permission
-                .state
-                .parse()
-                .unwrap_or(UserControllerState::Student),
-            solo_expires_at: permission.solo_expires_at,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct UserDto {
-    id: String,
-    cid: String,
-    full_name: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    roles: Vec<UserRole>,
-    direct_roles: Vec<UserRole>,
-    moodle_account: Option<serde_json::Value>,
-}
-
-fn direct_roles_to_dto(roles: &[String]) -> Vec<UserRole> {
-    roles
-        .iter()
-        .filter_map(|role| role.parse::<UserRole>().ok())
-        .collect()
-}
-
-fn roles_to_dto(roles: &[String]) -> Vec<UserRole> {
-    role_closure_from_strings(roles.iter().map(String::as_str))
-        .into_iter()
-        .collect()
+    Ok(Json(AtcStatusDto::from_controller_rows(rows)))
 }

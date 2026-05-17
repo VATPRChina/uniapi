@@ -3,6 +3,7 @@
 mod adapter;
 mod app;
 mod auth;
+mod dto;
 mod error;
 mod flight_plan;
 mod jwt;

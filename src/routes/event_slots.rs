@@ -4,17 +4,13 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
+use crate::dto::*;
 use crate::model::user_role::UserRole;
 use crate::repository::event::event as event_repository;
-use crate::repository::event::event_slot::{
-    self as slot_repository, EventSlotRecord, EventSlotSave,
-};
+use crate::repository::event::event_slot::{self as slot_repository};
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -34,14 +30,14 @@ async fn list_slots(
     State(services): State<Services>,
     Path(eid): Path<String>,
 ) -> Result<Json<Vec<EventSlotDto>>, ApiError> {
-    let event_id = parse_ulid_uuid(&eid, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let event_id = parse_ulid_uuid("event_id", &eid)?;
     ensure_event_exists(&services, event_id).await?;
 
     Ok(Json(
         slot_repository::list_by_event(services.db(), event_id)
             .await?
             .into_iter()
-            .map(|slot| event_slot_dto(slot, false))
+            .map(|slot| EventSlotDto::from_record(slot, false))
             .collect(),
     ))
 }
@@ -52,7 +48,7 @@ async fn export_bookings(
     Path(eid): Path<String>,
 ) -> Result<Response, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
-    let event_id = parse_ulid_uuid(&eid, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let event_id = parse_ulid_uuid("event_id", &eid)?;
     let rows = slot_repository::booking_export_rows(services.db(), event_id).await?;
 
     Ok((
@@ -77,10 +73,10 @@ async fn create_slot(
     Json(request): Json<EventSlotSaveRequest>,
 ) -> Result<Json<EventSlotDto>, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
-    let _event_id = parse_ulid_uuid(&eid, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let _event_id = parse_ulid_uuid("event_id", &eid)?;
     let slot = slot_repository::create(services.db(), request.try_into()?).await?;
 
-    Ok(Json(event_slot_dto(
+    Ok(Json(EventSlotDto::from_record(
         slot,
         include_booking_user(&current_user),
     )))
@@ -98,130 +94,4 @@ fn include_booking_user(current_user: &CurrentUser) -> bool {
     current_user
         .require_any_role(&[UserRole::EventCoordinator, UserRole::Controller])
         .is_ok()
-}
-
-fn parse_ulid_uuid(id: &str, error: ApiError) -> Result<Uuid, ApiError> {
-    id.parse::<Ulid>().map(Uuid::from).map_err(|_| error)
-}
-
-fn event_slot_dto(slot: EventSlotRecord, include_booking_user: bool) -> EventSlotDto {
-    let booking = event_booking_dto(&slot, include_booking_user);
-    EventSlotDto {
-        id: Ulid::from(slot.id).to_string(),
-        event_id: Ulid::from(slot.event_id).to_string(),
-        airspace_id: Ulid::from(slot.airspace_id).to_string(),
-        airspace: EventAirspaceDto {
-            id: Ulid::from(slot.airspace_id).to_string(),
-            event_id: Ulid::from(slot.event_id).to_string(),
-            name: slot.airspace_name,
-            created_at: slot.airspace_created_at,
-            updated_at: slot.airspace_updated_at,
-            icao_codes: slot.airspace_icao_codes,
-            description: slot.airspace_description,
-        },
-        enter_at: slot.enter_at,
-        leave_at: slot.leave_at,
-        created_at: slot.created_at,
-        updated_at: slot.updated_at,
-        booking,
-        callsign: slot.callsign,
-        aircraft_type_icao: slot.aircraft_type_icao,
-    }
-}
-
-fn event_booking_dto(slot: &EventSlotRecord, include_user: bool) -> Option<EventBookingDto> {
-    let id = slot.booking_id?;
-    Some(EventBookingDto {
-        id: Ulid::from(id).to_string(),
-        user_id: Ulid::from(slot.booking_user_id?).to_string(),
-        user: if include_user {
-            Some(UserDto {
-                id: Ulid::from(slot.booking_user_id?).to_string(),
-                cid: slot.booking_user_cid.clone()?,
-                full_name: String::new(),
-                created_at: slot.booking_user_created_at?,
-                updated_at: slot.booking_user_updated_at?,
-                roles: slot.booking_user_roles.clone().unwrap_or_default(),
-                direct_roles: slot.booking_user_roles.clone().unwrap_or_default(),
-                moodle_account: None,
-            })
-        } else {
-            None
-        },
-        created_at: slot.booking_created_at?,
-        updated_at: slot.booking_updated_at?,
-    })
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct EventSlotSaveRequest {
-    airspace_id: String,
-    enter_at: DateTime<Utc>,
-    leave_at: Option<DateTime<Utc>>,
-    callsign: Option<String>,
-    aircraft_type_icao: Option<String>,
-}
-
-impl TryFrom<EventSlotSaveRequest> for EventSlotSave {
-    type Error = ApiError;
-
-    fn try_from(request: EventSlotSaveRequest) -> Result<Self, Self::Error> {
-        Ok(Self {
-            airspace_id: parse_ulid_uuid(
-                &request.airspace_id,
-                ApiError::bad_request("airspace_id", "invalid ULID"),
-            )?,
-            enter_at: request.enter_at,
-            leave_at: request.leave_at,
-            callsign: request.callsign,
-            aircraft_type_icao: request.aircraft_type_icao,
-        })
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct EventSlotDto {
-    id: String,
-    event_id: String,
-    airspace_id: String,
-    airspace: EventAirspaceDto,
-    enter_at: DateTime<Utc>,
-    leave_at: Option<DateTime<Utc>>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    booking: Option<EventBookingDto>,
-    callsign: Option<String>,
-    aircraft_type_icao: Option<String>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct EventAirspaceDto {
-    id: String,
-    event_id: String,
-    name: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    icao_codes: Vec<String>,
-    description: String,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct EventBookingDto {
-    id: String,
-    user_id: String,
-    user: Option<UserDto>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct UserDto {
-    id: String,
-    cid: String,
-    full_name: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    roles: Vec<String>,
-    direct_roles: Vec<String>,
-    moodle_account: Option<serde_json::Value>,
 }

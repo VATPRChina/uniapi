@@ -1,9 +1,9 @@
 use axum::extract::{Multipart, State};
 use axum::routing::post;
 use axum::{Json, Router};
-use serde::Serialize;
 
 use crate::auth::CurrentUser;
+use crate::dto::*;
 use crate::model::user_role::UserRole;
 use crate::routes::ApiError;
 use crate::services::Services;
@@ -14,11 +14,6 @@ pub(crate) struct ApiDoc;
 
 pub fn build_storage_routes() -> Router<Services> {
     Router::new().route("/images", post(upload_image))
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct UploadImageResponse {
-    url: String,
 }
 
 #[utoipa::path(post, path = "api/storage/images", tag = "Storage", security(("oauth2" = [])), request_body(content = String, content_type = "multipart/form-data"), responses((status = 200, description = "Successful response", body = UploadImageResponse)))]

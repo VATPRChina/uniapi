@@ -2,17 +2,14 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use ulid::Ulid;
+use chrono::Utc;
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
-use crate::model::user_controller_state::UserControllerState;
+use crate::dto::*;
 use crate::model::user_role::UserRole;
 use crate::repository::event::event_atc_position::{
-    self as position_repository, EventAtcPositionRecord, EventAtcPositionSave,
-    UserAtcPermissionRecord,
+    self as position_repository, EventAtcPositionRecord, UserAtcPermissionRecord,
 };
 use crate::routes::ApiError;
 use crate::services::Services;
@@ -27,8 +24,6 @@ use crate::services::Services;
     cancel_position_booking
 ))]
 pub(crate) struct ApiDoc;
-
-const POSITION_KINDS: &[&str] = &["DEL", "GND", "TWR", "T2", "APP", "CTR", "FSS", "FMP"];
 
 pub fn build_event_atc_position_routes() -> Router<Services> {
     Router::new()
@@ -49,7 +44,7 @@ async fn list_positions(
     State(services): State<Services>,
     Path(event_id): Path<String>,
 ) -> Result<Json<Vec<EventAtcPositionDto>>, ApiError> {
-    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let event_id = parse_ulid_uuid("event_id", &event_id)?;
     Ok(Json(
         position_repository::list_by_event(services.db(), event_id)
             .await?
@@ -67,7 +62,7 @@ async fn create_position(
     Json(request): Json<EventAtcPositionSaveRequest>,
 ) -> Result<Json<EventAtcPositionDto>, ApiError> {
     require_edit_role(&current_user)?;
-    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
+    let event_id = parse_ulid_uuid("event_id", &event_id)?;
     let position =
         position_repository::create(services.db(), event_id, request.try_into()?).await?;
 
@@ -82,11 +77,8 @@ async fn update_position(
     Json(request): Json<EventAtcPositionSaveRequest>,
 ) -> Result<Json<EventAtcPositionDto>, ApiError> {
     require_edit_role(&current_user)?;
-    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
-    let position_id = parse_ulid_uuid(
-        &position_id,
-        ApiError::bad_request("position_id", "invalid ULID"),
-    )?;
+    let event_id = parse_ulid_uuid("event_id", &event_id)?;
+    let position_id = parse_ulid_uuid("position_id", &position_id)?;
     let position =
         position_repository::update(services.db(), event_id, position_id, request.try_into()?)
             .await?
@@ -102,11 +94,8 @@ async fn delete_position(
     Path((event_id, position_id)): Path<(String, String)>,
 ) -> Result<StatusCode, ApiError> {
     require_edit_role(&current_user)?;
-    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
-    let position_id = parse_ulid_uuid(
-        &position_id,
-        ApiError::bad_request("position_id", "invalid ULID"),
-    )?;
+    let event_id = parse_ulid_uuid("event_id", &event_id)?;
+    let position_id = parse_ulid_uuid("position_id", &position_id)?;
     if !position_repository::delete(services.db(), event_id, position_id).await? {
         return Err(ApiError::not_found("event ATC position", "unknown"));
     }
@@ -122,11 +111,8 @@ async fn book_position(
     Json(request): Json<EventAtcPositionBookRequest>,
 ) -> Result<Json<EventAtcPositionBookingDto>, ApiError> {
     current_user.require_role(UserRole::Controller)?;
-    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
-    let position_id = parse_ulid_uuid(
-        &position_id,
-        ApiError::bad_request("position_id", "invalid ULID"),
-    )?;
+    let event_id = parse_ulid_uuid("event_id", &event_id)?;
+    let position_id = parse_ulid_uuid("position_id", &position_id)?;
     if request.user_id.is_some() && !has_booking_admin_role(&current_user) {
         return Err(ApiError::forbidden([
             UserRole::EventCoordinator,
@@ -135,9 +121,7 @@ async fn book_position(
         ]));
     }
     let user_id = match request.user_id.as_deref() {
-        Some(user_id) => {
-            parse_ulid_uuid(user_id, ApiError::bad_request("user_id", "invalid ULID"))?
-        }
+        Some(user_id) => parse_ulid_uuid("user_id", user_id)?,
         None => current_user.user_id.ok_or(ApiError::Unauthorized)?,
     };
     let is_admin_booking = request.user_id.is_some();
@@ -171,11 +155,8 @@ async fn cancel_position_booking(
     Path((event_id, position_id)): Path<(String, String)>,
 ) -> Result<Json<EventAtcPositionBookingDto>, ApiError> {
     current_user.require_role(UserRole::Controller)?;
-    let event_id = parse_ulid_uuid(&event_id, ApiError::bad_request("event_id", "invalid ULID"))?;
-    let position_id = parse_ulid_uuid(
-        &position_id,
-        ApiError::bad_request("position_id", "invalid ULID"),
-    )?;
+    let event_id = parse_ulid_uuid("event_id", &event_id)?;
+    let position_id = parse_ulid_uuid("position_id", &position_id)?;
     let position = load_position(&services, event_id, position_id).await?;
     let Some(booking_user_id) = position.booking_user_id else {
         return Err(ApiError::PositionNotBooked);
@@ -241,164 +222,4 @@ fn permission_satisfies(permission: &UserAtcPermissionRecord, minimum_state: i32
         _ => return false,
     };
     permission_rank >= minimum_state
-}
-
-fn parse_ulid_uuid(id: &str, error: ApiError) -> Result<Uuid, ApiError> {
-    id.parse::<Ulid>().map(Uuid::from).map_err(|_| error)
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct EventAtcPositionSaveRequest {
-    callsign: String,
-    start_at: DateTime<Utc>,
-    end_at: DateTime<Utc>,
-    remarks: Option<String>,
-    position_kind_id: String,
-    minimum_controller_state: UserControllerState,
-}
-
-impl TryFrom<EventAtcPositionSaveRequest> for EventAtcPositionSave {
-    type Error = ApiError;
-
-    fn try_from(request: EventAtcPositionSaveRequest) -> Result<Self, Self::Error> {
-        if !POSITION_KINDS.contains(&request.position_kind_id.as_str()) {
-            return Err(ApiError::bad_request(
-                "position_kind_id",
-                "invalid ATC position kind",
-            ));
-        }
-
-        Ok(Self {
-            callsign: request.callsign,
-            start_at: request.start_at,
-            end_at: request.end_at,
-            remarks: request.remarks,
-            position_kind_id: request.position_kind_id,
-            minimum_controller_state: request.minimum_controller_state.to_db_value(),
-        })
-    }
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct EventAtcPositionBookRequest {
-    user_id: Option<String>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct EventAtcPositionDto {
-    id: String,
-    event: EventDto,
-    callsign: String,
-    start_at: DateTime<Utc>,
-    end_at: DateTime<Utc>,
-    remarks: Option<String>,
-    position_kind_id: String,
-    minimum_controller_state: UserControllerState,
-    booking: Option<EventAtcPositionBookingDto>,
-}
-
-impl From<EventAtcPositionRecord> for EventAtcPositionDto {
-    fn from(position: EventAtcPositionRecord) -> Self {
-        Self {
-            id: Ulid::from(position.id).to_string(),
-            event: EventDto::from(&position),
-            callsign: position.callsign.clone(),
-            start_at: position.start_at,
-            end_at: position.end_at,
-            remarks: position.remarks.clone(),
-            position_kind_id: position.position_kind_id.clone(),
-            minimum_controller_state: UserControllerState::from_db_value(
-                position.minimum_controller_state,
-            ),
-            booking: EventAtcPositionBookingDto::try_from(position).ok(),
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct EventAtcPositionBookingDto {
-    user_id: String,
-    user: UserDto,
-    booked_at: DateTime<Utc>,
-}
-
-impl TryFrom<EventAtcPositionRecord> for EventAtcPositionBookingDto {
-    type Error = ApiError;
-
-    fn try_from(position: EventAtcPositionRecord) -> Result<Self, Self::Error> {
-        let user_id = position
-            .booking_user_id
-            .ok_or(ApiError::PositionNotBooked)?;
-        Ok(Self {
-            user_id: Ulid::from(user_id).to_string(),
-            user: UserDto {
-                id: Ulid::from(user_id).to_string(),
-                cid: position.booking_user_cid.unwrap_or_default(),
-                full_name: position.booking_user_full_name.unwrap_or_default(),
-                created_at: position
-                    .booking_user_created_at
-                    .ok_or(ApiError::PositionNotBooked)?,
-                updated_at: position
-                    .booking_user_updated_at
-                    .ok_or(ApiError::PositionNotBooked)?,
-                roles: position.booking_user_roles.clone().unwrap_or_default(),
-                direct_roles: position.booking_user_roles.unwrap_or_default(),
-                moodle_account: None,
-            },
-            booked_at: position
-                .booking_created_at
-                .ok_or(ApiError::PositionNotBooked)?,
-        })
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct EventDto {
-    id: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    title: String,
-    title_en: Option<String>,
-    start_at: DateTime<Utc>,
-    end_at: DateTime<Utc>,
-    start_booking_at: Option<DateTime<Utc>>,
-    end_booking_at: Option<DateTime<Utc>>,
-    start_atc_booking_at: Option<DateTime<Utc>>,
-    image_url: Option<String>,
-    community_link: Option<String>,
-    vatsim_link: Option<String>,
-    description: String,
-}
-
-impl From<&EventAtcPositionRecord> for EventDto {
-    fn from(position: &EventAtcPositionRecord) -> Self {
-        Self {
-            id: Ulid::from(position.event_id).to_string(),
-            created_at: position.event_created_at,
-            updated_at: position.event_updated_at,
-            title: position.event_title.clone(),
-            title_en: position.event_title_en.clone(),
-            start_at: position.event_start_at,
-            end_at: position.event_end_at,
-            start_booking_at: position.event_start_booking_at,
-            end_booking_at: position.event_end_booking_at,
-            start_atc_booking_at: position.event_start_atc_booking_at,
-            image_url: position.event_image_url.clone(),
-            community_link: position.event_community_link.clone(),
-            vatsim_link: position.event_vatsim_link.clone(),
-            description: position.event_description.clone(),
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct UserDto {
-    id: String,
-    cid: String,
-    full_name: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    roles: Vec<String>,
-    direct_roles: Vec<String>,
-    moodle_account: Option<serde_json::Value>,
 }

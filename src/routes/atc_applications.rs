@@ -1,19 +1,17 @@
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
-use crate::model::user_role::{UserRole, role_closure_from_strings};
+use crate::dto::*;
+use crate::model::user_role::UserRole;
 use crate::repository::atc::atc_application::{
     self as application_repository, AtcApplicationRecord,
 };
-use crate::repository::sheet::sheet_field::{self as sheet_field_repository, SheetFieldRecord};
+use crate::repository::sheet::sheet_field::{self as sheet_field_repository};
 use crate::repository::sheet::sheet_filing_answer::{
-    self as sheet_filing_answer_repository, SheetAnswerRecord, SheetAnswerSave,
+    self as sheet_filing_answer_repository, SheetAnswerSave,
 };
 use crate::repository::sheet::{
     sheet as sheet_repository, sheet_filing as sheet_filing_repository,
@@ -109,9 +107,13 @@ async fn get_application(
 ) -> Result<Json<AtcApplicationDto>, ApiError> {
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin = current_user.has_role(UserRole::ControllerTrainingDirectorAssistant);
-    let application =
-        get_visible_application(&services, parse_ulid_uuid(&id)?, current_user_id, is_admin)
-            .await?;
+    let application = get_visible_application(
+        &services,
+        parse_ulid_uuid("id", &id)?,
+        current_user_id,
+        is_admin,
+    )
+    .await?;
     application_to_dto(&services, application, is_admin, current_user_id)
         .await
         .map(Json)
@@ -126,10 +128,14 @@ async fn update_application(
 ) -> Result<Json<AtcApplicationDto>, ApiError> {
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin = current_user.has_role(UserRole::ControllerTrainingDirectorAssistant);
-    let application =
-        get_visible_application(&services, parse_ulid_uuid(&id)?, current_user_id, is_admin)
-            .await?;
-    if parse_status(&application.status) != AtcApplicationStatus::Submitted {
+    let application = get_visible_application(
+        &services,
+        parse_ulid_uuid("id", &id)?,
+        current_user_id,
+        is_admin,
+    )
+    .await?;
+    if AtcApplicationStatus::from_db_str(&application.status) != AtcApplicationStatus::Submitted {
         return Err(ApiError::ApplicationCannotUpdate);
     }
 
@@ -182,7 +188,7 @@ async fn review_application(
 ) -> Result<Json<AtcApplicationDto>, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingDirectorAssistant)?;
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let application_id = parse_ulid_uuid(&id)?;
+    let application_id = parse_ulid_uuid("id", &id)?;
     let application = application_repository::find_by_id(services.db(), application_id)
         .await?
         .ok_or(ApiError::not_found("application", &id))?;
@@ -286,242 +292,4 @@ async fn sheet_dto(
             .map(SheetFieldDto::from)
             .collect(),
     })
-}
-
-fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
-    id.parse::<Ulid>()
-        .map(Uuid::from)
-        .map_err(|_| ApiError::bad_request("id", "invalid ULID"))
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct AtcApplicationRequest {
-    request_answers: Vec<SheetRequestField>,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct AtcApplicationReviewRequest {
-    status: AtcApplicationStatus,
-    review_answers: Vec<SheetRequestField>,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-struct SheetRequestField {
-    id: String,
-    answer: String,
-}
-
-impl From<SheetRequestField> for SheetAnswerSave {
-    fn from(answer: SheetRequestField) -> Self {
-        Self {
-            field_id: answer.id,
-            answer: answer.answer,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, utoipa::ToSchema)]
-#[serde(rename_all = "kebab-case")]
-enum AtcApplicationStatus {
-    Submitted,
-    InWaitlist,
-    Approved,
-    Rejected,
-    Aborted,
-}
-
-impl AtcApplicationStatus {
-    fn as_db_str(self) -> &'static str {
-        match self {
-            Self::Submitted => "Submitted",
-            Self::InWaitlist => "InWaitlist",
-            Self::Approved => "Approved",
-            Self::Rejected => "Rejected",
-            Self::Aborted => "Aborted",
-        }
-    }
-}
-
-fn parse_status(status: &str) -> AtcApplicationStatus {
-    match status {
-        "InWaitlist" => AtcApplicationStatus::InWaitlist,
-        "Approved" => AtcApplicationStatus::Approved,
-        "Rejected" => AtcApplicationStatus::Rejected,
-        "Aborted" => AtcApplicationStatus::Aborted,
-        _ => AtcApplicationStatus::Submitted,
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct AtcApplicationSummaryDto {
-    id: String,
-    user_id: String,
-    user: UserDto,
-    applied_at: DateTime<Utc>,
-    status: AtcApplicationStatus,
-}
-
-impl AtcApplicationSummaryDto {
-    fn from_record(
-        application: AtcApplicationRecord,
-        is_admin: bool,
-        current_user_id: Uuid,
-    ) -> Self {
-        Self {
-            id: Ulid::from(application.id).to_string(),
-            user_id: Ulid::from(application.user_id).to_string(),
-            user: UserDto::from_application_user(
-                &application,
-                is_admin || application.user_id == current_user_id,
-            ),
-            applied_at: application.applied_at,
-            status: parse_status(&application.status),
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct AtcApplicationDto {
-    id: String,
-    user_id: String,
-    user: UserDto,
-    applied_at: DateTime<Utc>,
-    status: AtcApplicationStatus,
-    application_filing_answers: Vec<SheetFieldAnswerDto>,
-    review_filing_answers: Option<Vec<SheetFieldAnswerDto>>,
-}
-
-impl AtcApplicationDto {
-    fn from_record(
-        application: AtcApplicationRecord,
-        is_admin: bool,
-        current_user_id: Uuid,
-        application_filing_answers: Vec<SheetFieldAnswerDto>,
-        review_filing_answers: Option<Vec<SheetFieldAnswerDto>>,
-    ) -> Self {
-        Self {
-            id: Ulid::from(application.id).to_string(),
-            user_id: Ulid::from(application.user_id).to_string(),
-            user: UserDto::from_application_user(
-                &application,
-                is_admin || application.user_id == current_user_id,
-            ),
-            applied_at: application.applied_at,
-            status: parse_status(&application.status),
-            application_filing_answers,
-            review_filing_answers,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct SheetDto {
-    id: String,
-    name: String,
-    fields: Vec<SheetFieldDto>,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct SheetFieldAnswerDto {
-    field: SheetFieldDto,
-    answer: String,
-}
-
-impl From<SheetAnswerRecord> for SheetFieldAnswerDto {
-    fn from(answer: SheetAnswerRecord) -> Self {
-        Self {
-            field: SheetFieldDto {
-                sheet_id: answer.sheet_id,
-                id: answer.field_id,
-                sequence: answer.field_sequence,
-                name_zh: answer.field_name_zh,
-                name_en: answer.field_name_en,
-                kind: answer.field_kind,
-                single_choice_options: answer.field_single_choice_options,
-                description_zh: answer.field_description_zh,
-                description_en: answer.field_description_en,
-                is_deleted: answer.field_is_deleted,
-            },
-            answer: answer.answer,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct SheetFieldDto {
-    sheet_id: String,
-    id: String,
-    sequence: i64,
-    name_zh: String,
-    name_en: Option<String>,
-    kind: String,
-    single_choice_options: Vec<String>,
-    description_zh: Option<String>,
-    description_en: Option<String>,
-    is_deleted: bool,
-}
-
-impl From<SheetFieldRecord> for SheetFieldDto {
-    fn from(field: SheetFieldRecord) -> Self {
-        Self {
-            sheet_id: field.sheet_id,
-            id: field.id,
-            sequence: field.sequence,
-            name_zh: field.name_zh,
-            name_en: field.name_en,
-            kind: field.kind,
-            single_choice_options: field.single_choice_options,
-            description_zh: field.description_zh,
-            description_en: field.description_en,
-            is_deleted: field.is_deleted,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct UserDto {
-    id: String,
-    cid: String,
-    full_name: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    roles: Vec<String>,
-    direct_roles: Vec<String>,
-    moodle_account: Option<serde_json::Value>,
-}
-
-impl UserDto {
-    fn from_application_user(application: &AtcApplicationRecord, show_full_name: bool) -> Self {
-        Self {
-            id: Ulid::from(application.user_id).to_string(),
-            cid: application.user_cid.clone(),
-            full_name: if show_full_name {
-                application.user_full_name.clone()
-            } else {
-                String::new()
-            },
-            created_at: application.user_created_at,
-            updated_at: application.user_updated_at,
-            roles: roles_to_dto(&application.user_roles),
-            direct_roles: direct_roles_to_dto(&application.user_roles),
-            moodle_account: None,
-        }
-    }
-}
-
-fn direct_roles_to_dto(roles: &[String]) -> Vec<String> {
-    roles
-        .iter()
-        .filter_map(|role| role.parse::<UserRole>().ok())
-        .map(|role| role.to_string().to_owned())
-        .collect()
-}
-
-fn roles_to_dto(roles: &[String]) -> Vec<String> {
-    let mut roles = role_closure_from_strings(roles.iter().map(String::as_str))
-        .into_iter()
-        .map(|role| role.to_string().to_owned())
-        .collect::<Vec<_>>();
-    roles.sort();
-    roles
 }

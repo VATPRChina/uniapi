@@ -1,13 +1,11 @@
 use axum::extract::{Path, Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 
 use crate::adapter::flight::{Flight, flights_from_vatsim};
 use crate::auth::CurrentUser;
+use crate::dto::*;
 use crate::flight_plan::{parser, validator};
-use crate::model::navdata::{AnyFix, ResolvedLeg};
 use crate::model::user_role::UserRole;
 use crate::repository::auth::user as user_repository;
 use crate::routes::ApiError;
@@ -138,110 +136,4 @@ async fn warnings_for_flight(
     let legs = parser::parse_route(services.navdata(), &route).await?;
     let messages = validator::validate_route(services.navdata(), flight, &legs).await?;
     Ok(Json(messages))
-}
-
-impl From<TemporaryFlightQuery> for Flight {
-    fn from(query: TemporaryFlightQuery) -> Self {
-        Self {
-            id: ulid::Ulid::new(),
-            cid: String::new(),
-            callsign: String::new(),
-            last_observed_at: Utc::now(),
-            departure: query.departure,
-            arrival: query.arrival,
-            equipment: query.equipment,
-            navigation_performance: query.navigation_performance,
-            transponder: query.transponder,
-            raw_route: query.raw_route,
-            aircraft: query.aircraft,
-            altitude: 0,
-            cruising_level: query.cruising_level,
-        }
-    }
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-#[allow(dead_code)]
-struct TemporaryFlightQuery {
-    departure: String,
-    arrival: String,
-    #[serde(default)]
-    aircraft: String,
-    #[serde(default)]
-    equipment: String,
-    #[serde(default)]
-    navigation_performance: String,
-    #[serde(default)]
-    transponder: String,
-    #[serde(default)]
-    raw_route: String,
-    #[serde(default)]
-    cruising_level: i64,
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct FlightDto {
-    id: String,
-    cid: String,
-    callsign: String,
-    last_observed_at: DateTime<Utc>,
-    departure: String,
-    arrival: String,
-    equipment: String,
-    navigation_performance: String,
-    transponder: String,
-    raw_route: String,
-    aircraft: String,
-    altitude: i64,
-    cruising_level: i64,
-}
-
-impl From<Flight> for FlightDto {
-    fn from(flight: Flight) -> Self {
-        Self {
-            id: flight.id.to_string(),
-            cid: flight.cid,
-            callsign: flight.callsign,
-            last_observed_at: flight.last_observed_at,
-            departure: flight.departure,
-            arrival: flight.arrival,
-            equipment: flight.equipment,
-            navigation_performance: flight.navigation_performance,
-            transponder: flight.transponder,
-            raw_route: flight.raw_route,
-            aircraft: flight.aircraft,
-            altitude: flight.altitude,
-            cruising_level: flight.cruising_level,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct FlightLeg {
-    from: FlightFix,
-    to: FlightFix,
-    leg_identifier: String,
-}
-
-impl From<ResolvedLeg> for FlightLeg {
-    fn from(leg: ResolvedLeg) -> Self {
-        Self {
-            from: FlightFix::from(&leg.from),
-            to: FlightFix::from(&leg.to),
-            leg_identifier: leg.identifier.unwrap_or_default(),
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-struct FlightFix {
-    identifier: String,
-}
-
-impl From<&AnyFix> for FlightFix {
-    fn from(fix: &AnyFix) -> Self {
-        Self {
-            identifier: fix.identifier().unwrap_or_default().to_owned(),
-        }
-    }
 }
