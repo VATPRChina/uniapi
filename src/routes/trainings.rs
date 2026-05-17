@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::routing::get;
@@ -8,7 +10,7 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
-use crate::model::user_role::{UserRole, role_closure_from_strings};
+use crate::model::user_role::{UserRole, role_closure};
 use crate::repository::atc_training::training::{
     self as training_repository, TrainingRecord, TrainingSave,
 };
@@ -452,8 +454,8 @@ struct UserDto {
     full_name: String,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
-    roles: Vec<String>,
-    direct_roles: Vec<String>,
+    roles: Vec<UserRole>,
+    direct_roles: Vec<UserRole>,
     moodle_account: Option<serde_json::Value>,
 }
 
@@ -466,32 +468,19 @@ impl UserDto {
         updated_at: DateTime<Utc>,
         roles: Vec<String>,
     ) -> Self {
+        let roles = roles
+            .into_iter()
+            .filter_map(|r| UserRole::from_str(&r).ok())
+            .collect::<Vec<_>>();
         Self {
             id: Ulid::from(id).to_string(),
             cid,
             full_name,
             created_at,
             updated_at,
-            roles: roles_to_dto(&roles),
-            direct_roles: direct_roles_to_dto(&roles),
+            roles: roles.clone(),
+            direct_roles: role_closure(roles).into_iter().collect(),
             moodle_account: None,
         }
     }
-}
-
-fn direct_roles_to_dto(roles: &[String]) -> Vec<String> {
-    roles
-        .iter()
-        .filter_map(|role| role.parse::<UserRole>().ok())
-        .map(|role| role.as_str().to_owned())
-        .collect()
-}
-
-fn roles_to_dto(roles: &[String]) -> Vec<String> {
-    let mut roles = role_closure_from_strings(roles.iter().map(String::as_str))
-        .into_iter()
-        .map(|role| role.as_str().to_owned())
-        .collect::<Vec<_>>();
-    roles.sort();
-    roles
 }

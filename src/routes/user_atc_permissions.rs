@@ -202,23 +202,21 @@ struct UserDto {
     full_name: String,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
-    roles: Vec<String>,
-    direct_roles: Vec<String>,
+    roles: Vec<UserRole>,
+    direct_roles: Vec<UserRole>,
     moodle_account: Option<serde_json::Value>,
 }
 
-fn direct_roles_to_dto(roles: &[String]) -> Vec<String> {
+fn direct_roles_to_dto(roles: &[String]) -> Vec<UserRole> {
     roles
         .iter()
         .filter_map(|role| role.parse::<UserRole>().ok())
-        .map(|role| role.as_str().to_owned())
         .collect()
 }
 
-fn roles_to_dto(roles: &[String]) -> Vec<String> {
+fn roles_to_dto(roles: &[String]) -> Vec<UserRole> {
     let mut roles = role_closure_from_strings(roles.iter().map(String::as_str))
         .into_iter()
-        .map(|role| role.as_str().to_owned())
         .collect::<Vec<_>>();
     roles.sort();
     roles

@@ -513,14 +513,14 @@ fn direct_roles_to_dto(roles: &[String]) -> Vec<String> {
     roles
         .iter()
         .filter_map(|role| role.parse::<UserRole>().ok())
-        .map(|role| role.as_str().to_owned())
+        .map(|role| role.to_string().to_owned())
         .collect()
 }
 
 fn roles_to_dto(roles: &[String]) -> Vec<String> {
     let mut roles = role_closure_from_strings(roles.iter().map(String::as_str))
         .into_iter()
-        .map(|role| role.as_str().to_owned())
+        .map(|role| role.to_string().to_owned())
         .collect::<Vec<_>>();
     roles.sort();
     roles

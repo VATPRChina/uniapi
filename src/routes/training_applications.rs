@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
@@ -7,7 +9,7 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
-use crate::model::user_role::{UserRole, role_closure_from_strings};
+use crate::model::user_role::UserRole;
 use crate::repository::atc::user_atc_permission as atc_permission_repository;
 use crate::repository::atc_training::training_application::{
     self as training_application_repository, TrainingApplicationRecord,
@@ -93,7 +95,7 @@ async fn create_application(
 ) -> Result<Json<TrainingApplicationDto>, ApiError> {
     let trainee_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     if !atc_permission_repository::has_any_by_user_id(services.db(), trainee_id).await? {
-        return Err(ApiError::forbidden(["controller"]));
+        return Err(ApiError::forbidden([UserRole::Controller]));
     }
 
     let slots = request
@@ -319,8 +321,16 @@ impl TrainingApplicationDto {
                 full_name: application.trainee_full_name,
                 created_at: application.trainee_created_at,
                 updated_at: application.trainee_updated_at,
-                roles: roles_to_dto(&application.trainee_roles),
-                direct_roles: direct_roles_to_dto(&application.trainee_roles),
+                roles: application
+                    .trainee_roles
+                    .iter()
+                    .filter_map(|r| UserRole::from_str(r).ok())
+                    .collect(),
+                direct_roles: application
+                    .trainee_roles
+                    .iter()
+                    .filter_map(|r| UserRole::from_str(r).ok())
+                    .collect(),
                 moodle_account: None,
             },
             status,
@@ -408,8 +418,16 @@ impl From<TrainingApplicationResponseRecord> for TrainingApplicationResponseDto 
                 full_name: response.trainer_full_name,
                 created_at: response.trainer_created_at,
                 updated_at: response.trainer_updated_at,
-                roles: roles_to_dto(&response.trainer_roles),
-                direct_roles: direct_roles_to_dto(&response.trainer_roles),
+                roles: response
+                    .trainer_roles
+                    .iter()
+                    .filter_map(|r| UserRole::from_str(r).ok())
+                    .collect(),
+                direct_roles: response
+                    .trainer_roles
+                    .iter()
+                    .filter_map(|r| UserRole::from_str(r).ok())
+                    .collect(),
                 moodle_account: None,
             },
             is_accepted: response.slot_id.is_some(),
@@ -427,24 +445,7 @@ struct UserDto {
     full_name: String,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
-    roles: Vec<String>,
-    direct_roles: Vec<String>,
+    roles: Vec<UserRole>,
+    direct_roles: Vec<UserRole>,
     moodle_account: Option<serde_json::Value>,
-}
-
-fn direct_roles_to_dto(roles: &[String]) -> Vec<String> {
-    roles
-        .iter()
-        .filter_map(|role| role.parse::<UserRole>().ok())
-        .map(|role| role.as_str().to_owned())
-        .collect()
-}
-
-fn roles_to_dto(roles: &[String]) -> Vec<String> {
-    let mut roles = role_closure_from_strings(roles.iter().map(String::as_str))
-        .into_iter()
-        .map(|role| role.as_str().to_owned())
-        .collect::<Vec<_>>();
-    roles.sort();
-    roles
 }

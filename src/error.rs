@@ -11,6 +11,7 @@ use crate::adapter::smms::SmmsError;
 use crate::auth::AuthError;
 use crate::flight_plan::parser::ParserError;
 use crate::flight_plan::validator::ValidatorError;
+use crate::model::user_role::UserRole;
 
 macro_rules! api_errors {
     (
@@ -59,7 +60,7 @@ api_errors!(
         => "invalid token claim {field}: {reason}",
     NotOwned { entity: String, id: String } => StatusCode::FORBIDDEN
         => "{entity} with {id} is not owned by current user",
-    Forbidden { allowed_roles: HashSet<String> } => StatusCode::FORBIDDEN
+    Forbidden { allowed_roles: HashSet<UserRole> } => StatusCode::FORBIDDEN
         => "only user with roles {allowed_roles:?} can perform this action",
     Unauthorized => StatusCode::UNAUTHORIZED
         => "unauthorized",
@@ -133,7 +134,7 @@ impl ApiError {
         }
     }
 
-    pub fn forbidden(allowed_roles: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn forbidden(allowed_roles: impl IntoIterator<Item = impl Into<UserRole>>) -> Self {
         ApiError::Forbidden {
             allowed_roles: allowed_roles.into_iter().map(Into::into).collect(),
         }

@@ -48,7 +48,6 @@ async fn get_current(
             updated_at: user.updated_at,
             roles: current_user
                 .roles()
-                .map(role_to_dto)
                 .collect::<std::collections::BTreeSet<_>>()
                 .into_iter()
                 .collect(),
@@ -56,7 +55,6 @@ async fn get_current(
                 .roles
                 .into_iter()
                 .filter_map(|role: String| role.parse::<UserRole>().ok())
-                .map(role_to_dto)
                 .collect::<std::collections::BTreeSet<_>>()
                 .into_iter()
                 .collect(),
@@ -109,16 +107,12 @@ struct UserDto {
     full_name: String,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
-    roles: Vec<String>,
-    direct_roles: Vec<String>,
+    roles: Vec<UserRole>,
+    direct_roles: Vec<UserRole>,
     moodle_account: Option<UserMoodleInfoDto>,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
 struct UserMoodleInfoDto {
     id: String,
-}
-
-fn role_to_dto(role: UserRole) -> String {
-    role.as_str().to_string()
 }

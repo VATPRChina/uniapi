@@ -147,7 +147,7 @@ fn parse_ulid_uuid(id: &str) -> Result<Uuid, ApiError> {
 }
 
 fn role_to_dto(role: UserRole) -> String {
-    role.as_str().to_string()
+    format!("{role}")
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
