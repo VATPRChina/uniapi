@@ -24,17 +24,12 @@ pub struct Services {
 }
 
 impl Services {
-    pub async fn connect(settings: &Settings) -> Result<Self, sqlx::Error> {
+    pub async fn connect(settings: &Settings) -> Result<Self, anyhow::Error> {
         let db = PgPoolOptions::new()
             .max_connections(10)
             .connect(&settings.database.url)
             .await?;
-        let navdata = NavdataAdapter::new(
-            &settings.navdata.remote_data_url,
-            &settings.navdata.local_data_path,
-            settings.navdata.download_file,
-        )
-        .await;
+        let navdata = NavdataAdapter::new(&settings.navdata.local_data_path).await?;
 
         Ok(Self {
             db,

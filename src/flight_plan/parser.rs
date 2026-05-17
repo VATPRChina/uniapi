@@ -1,4 +1,4 @@
-use crate::adapter::navdata::NavdataAdapter;
+use crate::adapter::navdata::{InvalidNavdataError, NavdataAdapter};
 use crate::flight_plan::RouteToken;
 use crate::flight_plan::lexer::{LexerError, lex_route};
 use crate::model::navdata::{AnyFix, DirectionRestriction, Fix, ResolvedLeg};
@@ -6,7 +6,7 @@ use crate::model::navdata::{AnyFix, DirectionRestriction, Fix, ResolvedLeg};
 #[derive(Debug, thiserror::Error)]
 pub enum ParserError {
     #[error("navdata error: {0}")]
-    Navdata(#[from] anyhow::Error),
+    Navdata(#[from] InvalidNavdataError),
     #[error("lexer error: {0}")]
     Lexer(#[from] LexerError),
     #[error("no initial fix in route")]

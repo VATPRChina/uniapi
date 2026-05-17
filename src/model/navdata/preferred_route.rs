@@ -1,7 +1,5 @@
-use std::str::FromStr;
-
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -26,27 +24,23 @@ impl PreferredRoute {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum LevelRestrictionType {
     StandardEven,
     StandardOdd,
     Standard,
     FlightLevelEven,
     FlightLevelOdd,
-    FlightLevel,
 }
 
-impl FromStr for LevelRestrictionType {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
+impl LevelRestrictionType {
+    fn from_csv_str(value: &str) -> Result<Self, ()> {
         Ok(match value {
-            "StandardEven" | "standard_even" | "standard-even" => Self::StandardEven,
-            "StandardOdd" | "standard_odd" | "standard-odd" => Self::StandardOdd,
-            "FlightLevelEven" | "flight_level_even" | "flight-level-even" => Self::FlightLevelEven,
-            "FlightLevelOdd" | "flight_level_odd" | "flight-level-odd" => Self::FlightLevelOdd,
-            "FlightLevel" | "flight_level" | "flight-level" => Self::FlightLevel,
+            "SE" => LevelRestrictionType::StandardEven,
+            "SO" => LevelRestrictionType::StandardOdd,
+            "FE" => LevelRestrictionType::FlightLevelEven,
+            "FO" => LevelRestrictionType::FlightLevelOdd,
             _ => Self::Standard,
         })
     }

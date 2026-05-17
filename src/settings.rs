@@ -94,9 +94,7 @@ pub struct Metar {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Navdata {
-    pub remote_data_url: String,
     pub local_data_path: String,
-    pub download_file: bool,
 }
 
 impl Settings {

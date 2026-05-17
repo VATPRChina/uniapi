@@ -1,10 +1,11 @@
 use serde::Serialize;
 
 use crate::adapter::flight::Flight;
-use crate::adapter::navdata::NavdataAdapter;
+use crate::adapter::navdata::{InvalidNavdataError, NavdataAdapter};
 use crate::flight_plan::parser::{self, ParserError};
-use crate::flight_plan::{LevelRestrictionType, PreferredRoute};
-use crate::model::navdata::{AnyFix, DirectionRestriction, ResolvedLeg};
+use crate::model::navdata::{
+    AnyFix, DirectionRestriction, LevelRestrictionType, PreferredRoute, ResolvedLeg,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidatorError {
@@ -13,7 +14,7 @@ pub enum ValidatorError {
     #[error("parser error: {0}")]
     Parser(#[from] ParserError),
     #[error("navdata error: {0}")]
-    Navdata(anyhow::Error),
+    Navdata(InvalidNavdataError),
 }
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
@@ -232,22 +233,20 @@ fn validate_leg(leg: &ResolvedLeg, index: usize) -> Vec<WarningMessage> {
                 WarningMessageCode::AirwayRequireApproval,
             ));
         }
-    } else {
-        if !matches!(leg.from, AnyFix::Airport { .. })
-            && !matches!(leg.to, AnyFix::Airport { .. })
-            && is_from_zh
-            && is_to_zh
-        {
-            messages.push(route_indexed_message(
-                index,
-                WarningMessageCode::RouteDirectSegment,
-            ));
-        }
+    } else if !matches!(leg.from, AnyFix::Airport { .. })
+        && !matches!(leg.to, AnyFix::Airport { .. })
+        && is_from_zh
+        && is_to_zh
+    {
+        messages.push(route_indexed_message(
+            index,
+            WarningMessageCode::RouteDirectSegment,
+        ));
     }
     messages
 }
 
-fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {
+fn route_matches_expected(_actual: &[ResolvedLeg], _expected: &[ResolvedLeg]) -> bool {
     // TODO: implement
     false
 }
@@ -300,12 +299,6 @@ fn level_restriction_matches(actual: LevelRestrictionType, expected: LevelRestri
         ),
         LevelRestrictionType::FlightLevelEven => actual == LevelRestrictionType::FlightLevelEven,
         LevelRestrictionType::FlightLevelOdd => actual == LevelRestrictionType::FlightLevelOdd,
-        LevelRestrictionType::FlightLevel => matches!(
-            actual,
-            LevelRestrictionType::FlightLevel
-                | LevelRestrictionType::FlightLevelEven
-                | LevelRestrictionType::FlightLevelOdd
-        ),
     }
 }
 
@@ -316,7 +309,6 @@ fn level_restriction_param(restriction: LevelRestrictionType) -> String {
         LevelRestrictionType::Standard => "standard",
         LevelRestrictionType::FlightLevelEven => "flight_level_even",
         LevelRestrictionType::FlightLevelOdd => "flight_level_odd",
-        LevelRestrictionType::FlightLevel => "flight_level",
     }
     .to_owned()
 }

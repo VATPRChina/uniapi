@@ -1,45 +1,43 @@
-use arrayvec::ArrayString;
+use arrayvec::{ArrayString, CapacityError};
 use itertools::Itertools;
 use ordered_float::NotNan;
 use sqlx::{SqlitePool, prelude::FromRow};
 
-use crate::{
-    flight_plan::PreferredRoute,
-    model::navdata::{
-        Airport, AnyFix, DirectionRestriction, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint,
-        WaypointKind,
-    },
+use crate::model::navdata::{
+    Airport, AnyFix, DirectionRestriction, Fix, Ndb, NdbKind, PreferredRoute, ResolvedLeg, Vhf,
+    Waypoint, WaypointKind,
 };
 
-pub type NavdataResult<T> = Result<T, anyhow::Error>;
+pub type NavdataResult<T> = Result<T, InvalidNavdataError>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum InvalidNavdataError {
+    #[error("string in navdata is too long")]
+    StringTooLong,
+    #[error("database error: {0}")]
+    DatabaseError(#[from] sqlx::Error),
+    #[error("invalid navaid: latitude/longitude is null")]
+    InvalidNavaidNullLatLong,
+    #[error("failed to compute distance ordering: {0}")]
+    GeoDistanceOrderingError(#[from] ordered_float::FloatIsNan),
+}
+
+impl From<arrayvec::CapacityError<&str>> for InvalidNavdataError {
+    fn from(_: CapacityError<&str>) -> Self {
+        InvalidNavdataError::StringTooLong
+    }
+}
 
 #[derive(Clone)]
 pub struct NavdataAdapter {
     pub db: SqlitePool,
 }
 
-// TODO: do not use unwrap
 impl NavdataAdapter {
-    pub async fn new(
-        remote_data_url: impl AsRef<str>,
-        local_data_path: impl AsRef<str>,
-        download_file: bool,
-    ) -> Self {
-        if download_file {
-            let response = reqwest::get(remote_data_url.as_ref()).await.unwrap();
-            let bytes = response.bytes().await.unwrap();
-            std::fs::write(local_data_path.as_ref(), bytes).unwrap();
-        }
-
-        let local_data_path = std::fs::canonicalize(local_data_path.as_ref())
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
-        let db = SqlitePool::connect(&format!("sqlite:{local_data_path}"))
-            .await
-            .unwrap();
-        Self { db }
+    pub async fn new(local_data_path: impl AsRef<str>) -> NavdataResult<Self> {
+        let local_data_path = local_data_path.as_ref();
+        let db = SqlitePool::connect(&format!("sqlite:{local_data_path}")).await?;
+        Ok(Self { db })
     }
 
     pub async fn find_airport(&self, ident: &str) -> NavdataResult<Option<Airport>> {
@@ -53,11 +51,15 @@ impl NavdataAdapter {
         .bind(ident)
         .fetch_optional(&self.db)
         .await?;
-        let airport = result.map(|record| Airport {
-            identifier: ArrayString::from(&record.airport_identifier).unwrap(),
-            latitude: record.airport_ref_latitude,
-            longitude: record.airport_ref_longitude,
-        });
+        let airport = result
+            .map(|record| -> NavdataResult<Airport> {
+                Ok(Airport {
+                    identifier: ArrayString::from(&record.airport_identifier)?,
+                    latitude: record.airport_ref_latitude,
+                    longitude: record.airport_ref_longitude,
+                })
+            })
+            .transpose()?;
 
         Ok(airport)
     }
@@ -114,26 +116,28 @@ impl NavdataAdapter {
         .bind(ident)
         .fetch_all(&self.db)
         .await?;
-        let vhf = result
-            .into_iter()
-            .filter(|vhf| vhf.airport_identifier.is_none())
-            .map(|record| Vhf {
-                icao_code: ArrayString::from(&record.icao_code).unwrap(),
-                identifier: ArrayString::from(&record.navaid_identifier).unwrap(),
-                latitude: record.navaid_latitude.or(record.dme_latitude).unwrap(),
-                longitude: record.navaid_longitude.or(record.dme_longitude).unwrap(),
-            })
-            .min_by_key(|vhf| {
-                NotNan::new(geo_distance_ordering(
-                    latitude,
-                    longitude,
-                    vhf.latitude,
-                    vhf.longitude,
-                ))
-                .unwrap()
-            });
 
-        Ok(vhf)
+        Ok(first_by_geodistance(
+            result
+                .into_iter()
+                .filter(|vhf| vhf.airport_identifier.is_none()),
+            |record| {
+                Ok(Vhf {
+                    icao_code: ArrayString::from(&record.icao_code)?,
+                    identifier: ArrayString::from(&record.navaid_identifier)?,
+                    latitude: record
+                        .navaid_latitude
+                        .or(record.dme_latitude)
+                        .ok_or(InvalidNavdataError::InvalidNavaidNullLatLong)?,
+                    longitude: record
+                        .navaid_longitude
+                        .or(record.dme_longitude)
+                        .ok_or(InvalidNavdataError::InvalidNavaidNullLatLong)?,
+                })
+            },
+            latitude,
+            longitude,
+        ))
     }
 
     pub async fn find_nearest_enroute_ndb(
@@ -157,26 +161,20 @@ impl NavdataAdapter {
         .fetch_all(&self.db)
         .await?;
 
-        let ndb = result
-            .into_iter()
-            .map(|record| Ndb {
-                icao_code: ArrayString::from(&record.icao_code).unwrap(),
-                identifier: ArrayString::from(&record.navaid_identifier).unwrap(),
-                latitude: record.navaid_latitude,
-                longitude: record.navaid_longitude,
-                kind: NdbKind::Enroute,
-            })
-            .min_by_key(|ndb| {
-                NotNan::new(geo_distance_ordering(
-                    latitude,
-                    longitude,
-                    ndb.latitude,
-                    ndb.longitude,
-                ))
-                .unwrap()
-            });
-
-        Ok(ndb)
+        Ok(first_by_geodistance(
+            result.into_iter(),
+            |record| {
+                Ok(Ndb {
+                    icao_code: ArrayString::from(&record.icao_code)?,
+                    identifier: ArrayString::from(&record.navaid_identifier)?,
+                    latitude: record.navaid_latitude,
+                    longitude: record.navaid_longitude,
+                    kind: NdbKind::Enroute,
+                })
+            },
+            latitude,
+            longitude,
+        ))
     }
 
     pub async fn find_nearest_enroute_waypoint(
@@ -200,26 +198,20 @@ impl NavdataAdapter {
         .fetch_all(&self.db)
         .await?;
 
-        let waypoint = result
-            .into_iter()
-            .map(|record| Waypoint {
-                icao_code: ArrayString::from(&record.icao_code).unwrap(),
-                identifier: ArrayString::from(&record.waypoint_identifier).unwrap(),
-                latitude: record.waypoint_latitude,
-                longitude: record.waypoint_longitude,
-                kind: WaypointKind::Enroute,
-            })
-            .min_by_key(|waypoint| {
-                NotNan::new(geo_distance_ordering(
-                    latitude,
-                    longitude,
-                    waypoint.latitude,
-                    waypoint.longitude,
-                ))
-                .unwrap()
-            });
-
-        Ok(waypoint)
+        Ok(first_by_geodistance(
+            result.into_iter(),
+            |record| {
+                Ok(Waypoint {
+                    icao_code: ArrayString::from(&record.icao_code)?,
+                    identifier: ArrayString::from(&record.waypoint_identifier)?,
+                    latitude: record.waypoint_latitude,
+                    longitude: record.waypoint_longitude,
+                    kind: WaypointKind::Enroute,
+                })
+            },
+            latitude,
+            longitude,
+        ))
     }
 
     pub async fn exists_sid(&self, airport_ident: &str, ident: &str) -> NavdataResult<bool> {
@@ -320,7 +312,13 @@ impl NavdataAdapter {
         let legs = result
             .iter()
             .tuple_windows()
-            .flat_map(|(prev, record)| record.to_leg(prev))
+            .flat_map(|(prev, record)| {
+                record
+                    .to_leg(prev)
+                    .inspect_err(|e| tracing::warn!("skipping invalid airway leg record: {e}"))
+                    .ok()
+                    .flatten()
+            })
             .collect();
         Ok(legs)
     }
@@ -329,6 +327,39 @@ impl NavdataAdapter {
         // TODO: list preferred routes
         Ok(vec![])
     }
+}
+
+fn first_by_geodistance<T, F>(
+    items: impl Iterator<Item = T>,
+    map: impl Fn(T) -> Result<F, InvalidNavdataError>,
+    latitude: f64,
+    longitude: f64,
+) -> Option<F>
+where
+    F: Fix,
+{
+    items
+        .map(|item| {
+            map(item).and_then(|fix| {
+                Ok((
+                    NotNan::new(geo_distance_ordering(
+                        latitude,
+                        longitude,
+                        fix.latitude(),
+                        fix.longitude(),
+                    ))?,
+                    fix,
+                ))
+            })
+        })
+        .flat_map(|fix| {
+            if let Err(e) = &fix {
+                tracing::warn!("skipping invalid fix record: {e}");
+            }
+            fix
+        })
+        .min_by_key(|(ord, _)| *ord)
+        .map(|(_, fix)| fix)
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -384,31 +415,31 @@ struct EnrouteAirwayRecord {
 }
 
 impl EnrouteAirwayRecord {
-    fn to_leg(&self, prev: &Self) -> Option<ResolvedLeg> {
+    fn to_leg(&self, prev: &Self) -> NavdataResult<Option<ResolvedLeg>> {
         if prev.waypoint_description_code.chars().nth(1) == Some('E') {
-            return None;
+            return Ok(None);
         }
 
         let leg = ResolvedLeg {
             identifier: Some(self.route_identifier.clone()),
             from: match prev.waypoint_ref_table.as_str() {
                 "EA" => AnyFix::Waypoint(Waypoint {
-                    icao_code: ArrayString::from(&prev.icao_code).unwrap(),
-                    identifier: ArrayString::from(&prev.waypoint_identifier).unwrap(),
+                    icao_code: ArrayString::from(&prev.icao_code)?,
+                    identifier: ArrayString::from(&prev.waypoint_identifier)?,
                     latitude: prev.waypoint_latitude,
                     longitude: prev.waypoint_longitude,
                     kind: WaypointKind::Enroute,
                 }),
                 "DB" => AnyFix::Ndb(Ndb {
-                    icao_code: ArrayString::from(&prev.icao_code).unwrap(),
-                    identifier: ArrayString::from(&prev.waypoint_identifier).unwrap(),
+                    icao_code: ArrayString::from(&prev.icao_code)?,
+                    identifier: ArrayString::from(&prev.waypoint_identifier)?,
                     latitude: prev.waypoint_latitude,
                     longitude: prev.waypoint_longitude,
                     kind: NdbKind::Enroute,
                 }),
                 "D " => AnyFix::Vhf(Vhf {
-                    icao_code: ArrayString::from(&prev.icao_code).unwrap(),
-                    identifier: ArrayString::from(&prev.waypoint_identifier).unwrap(),
+                    icao_code: ArrayString::from(&prev.icao_code)?,
+                    identifier: ArrayString::from(&prev.waypoint_identifier)?,
                     latitude: prev.waypoint_latitude,
                     longitude: prev.waypoint_longitude,
                 }),
@@ -417,35 +448,35 @@ impl EnrouteAirwayRecord {
                     prev.waypoint_ref_table
                 ),
             },
-            to: self.to_fix().unwrap(),
+            to: self.to_fix()?,
             direction_restriction: match self.direction_restriction.as_str() {
                 "F" => DirectionRestriction::Forward,
                 "B" => DirectionRestriction::Backward,
                 _ => DirectionRestriction::None,
             },
         };
-        Some(leg)
+        Ok(Some(leg))
     }
 
     fn to_fix(&self) -> NavdataResult<AnyFix> {
         let fix = match self.waypoint_ref_table.as_str() {
             "EA" => AnyFix::Waypoint(Waypoint {
-                icao_code: ArrayString::from(&self.icao_code).unwrap(),
-                identifier: ArrayString::from(&self.waypoint_identifier).unwrap(),
+                icao_code: ArrayString::from(&self.icao_code)?,
+                identifier: ArrayString::from(&self.waypoint_identifier)?,
                 latitude: self.waypoint_latitude,
                 longitude: self.waypoint_longitude,
                 kind: WaypointKind::Enroute,
             }),
             "DB" => AnyFix::Ndb(Ndb {
-                icao_code: ArrayString::from(&self.icao_code).unwrap(),
-                identifier: ArrayString::from(&self.waypoint_identifier).unwrap(),
+                icao_code: ArrayString::from(&self.icao_code)?,
+                identifier: ArrayString::from(&self.waypoint_identifier)?,
                 latitude: self.waypoint_latitude,
                 longitude: self.waypoint_longitude,
                 kind: NdbKind::Enroute,
             }),
             "D " => AnyFix::Vhf(Vhf {
-                icao_code: ArrayString::from(&self.icao_code).unwrap(),
-                identifier: ArrayString::from(&self.waypoint_identifier).unwrap(),
+                icao_code: ArrayString::from(&self.icao_code)?,
+                identifier: ArrayString::from(&self.waypoint_identifier)?,
                 latitude: self.waypoint_latitude,
                 longitude: self.waypoint_longitude,
             }),
@@ -475,16 +506,12 @@ fn geo_distance_ordering(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 mod test {
     use super::*;
 
-    const DFD_V2_SAMPLE_DATA_URL: &str = "https://developers.navigraph.com/downloads/navigation-data/navigraph-dfd-sample-sqlite-dfdv2-2401.zip";
     const LOCAL_DATA_PATH: &str = "test_data/ng_jeppesen_fwdfd_2401.s3db";
 
     async fn get_navdata_adapter() -> NavdataAdapter {
-        NavdataAdapter::new(
-            DFD_V2_SAMPLE_DATA_URL.to_string(),
-            LOCAL_DATA_PATH.to_string(),
-            false,
-        )
-        .await
+        NavdataAdapter::new(LOCAL_DATA_PATH.to_string())
+            .await
+            .unwrap()
     }
 
     #[tokio::test]

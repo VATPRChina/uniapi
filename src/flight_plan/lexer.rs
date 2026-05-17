@@ -1,13 +1,13 @@
 use arrayvec::ArrayString;
 
-use crate::adapter::navdata::NavdataAdapter;
+use crate::adapter::navdata::{InvalidNavdataError, NavdataAdapter};
 use crate::flight_plan::RouteToken;
 use crate::model::navdata::{Airport, AnyFix, Fix, GeoPoint};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LexerError {
     #[error("navdata error: {0}")]
-    Navdata(#[from] anyhow::Error),
+    Navdata(#[from] InvalidNavdataError),
 }
 
 pub async fn lex_route(
@@ -309,7 +309,7 @@ impl<'a> RouteLexer<'a> {
         self.tokens[index] = RouteToken::Fix {
             value: self.value(index).to_owned(),
             fix: AnyFix::Airport(Airport {
-                identifier: ArrayString::from(self.value(index)).unwrap(),
+                identifier: ArrayString::from(self.value(index)).unwrap_or_default(),
                 latitude: 0.,
                 longitude: 0.,
             }),
