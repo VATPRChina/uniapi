@@ -32,6 +32,7 @@ pub enum AnyFix {
     Ndb(Ndb),
     Vhf(Vhf),
     Waypoint(Waypoint),
+    Unknown(String),
 }
 
 impl Fix for AnyFix {
@@ -42,6 +43,7 @@ impl Fix for AnyFix {
             AnyFix::Ndb(ndb) => ndb.latitude(),
             AnyFix::Vhf(vhf) => vhf.latitude(),
             AnyFix::Waypoint(waypoint) => waypoint.latitude(),
+            AnyFix::Unknown(_) => 0.,
         }
     }
 
@@ -52,6 +54,7 @@ impl Fix for AnyFix {
             AnyFix::Ndb(ndb) => ndb.longitude(),
             AnyFix::Vhf(vhf) => vhf.longitude(),
             AnyFix::Waypoint(waypoint) => waypoint.longitude(),
+            AnyFix::Unknown(_) => 0.,
         }
     }
 }
@@ -65,6 +68,7 @@ impl AnyFix {
             AnyFix::Ndb(ndb) => Some(ndb.icao_code()),
             AnyFix::Vhf(vhf) => Some(vhf.icao_code()),
             AnyFix::Waypoint(waypoint) => Some(waypoint.icao_code()),
+            AnyFix::Unknown(_) => None,
         }
     }
 
@@ -75,6 +79,7 @@ impl AnyFix {
             AnyFix::Ndb(ndb) => Some(ndb.identifier()),
             AnyFix::Vhf(vhf) => Some(vhf.identifier()),
             AnyFix::Waypoint(waypoint) => Some(waypoint.identifier()),
+            AnyFix::Unknown(str) => Some(str.as_str()),
         }
     }
 }

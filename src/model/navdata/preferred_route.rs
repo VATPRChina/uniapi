@@ -1,11 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct PreferredRoute {
-    pub id: Uuid,
+    pub name: String,
     pub departure: String,
     pub arrival: String,
     pub raw_route: String,
@@ -15,6 +14,7 @@ pub struct PreferredRoute {
     pub remarks: String,
     pub valid_from: Option<DateTime<Utc>>,
     pub valid_until: Option<DateTime<Utc>>,
+    pub is_public: bool,
 }
 
 impl PreferredRoute {
@@ -35,7 +35,7 @@ pub enum LevelRestrictionType {
 }
 
 impl LevelRestrictionType {
-    fn from_csv_str(value: &str) -> Result<Self, ()> {
+    pub(crate) fn from_csv_str(value: &str) -> Result<Self, ()> {
         Ok(match value {
             "SE" => LevelRestrictionType::StandardEven,
             "SO" => LevelRestrictionType::StandardOdd,

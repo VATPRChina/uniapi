@@ -29,7 +29,11 @@ impl Services {
             .max_connections(10)
             .connect(&settings.database.url)
             .await?;
-        let navdata = NavdataAdapter::new(&settings.navdata.local_data_path).await?;
+        let navdata = NavdataAdapter::with_preferred_routes_path(
+            &settings.navdata.local_data_path,
+            &settings.navdata.preferred_routes_path,
+        )
+        .await?;
 
         Ok(Self {
             db,

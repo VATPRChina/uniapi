@@ -3,9 +3,12 @@ use itertools::Itertools;
 use ordered_float::NotNan;
 use sqlx::{SqlitePool, prelude::FromRow};
 
+use crate::adapter::static_preferred_route::{
+    StaticPreferredRouteAdapter, StaticPreferredRouteError,
+};
 use crate::model::navdata::{
-    Airport, AnyFix, DirectionRestriction, Fix, Ndb, NdbKind, PreferredRoute, ResolvedLeg, Vhf,
-    Waypoint, WaypointKind,
+    Airport, AnyFix, DirectionRestriction, Fix, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint,
+    WaypointKind,
 };
 
 pub type NavdataResult<T> = Result<T, InvalidNavdataError>;
@@ -20,6 +23,8 @@ pub enum InvalidNavdataError {
     InvalidNavaidNullLatLong,
     #[error("failed to compute distance ordering: {0}")]
     GeoDistanceOrderingError(#[from] ordered_float::FloatIsNan),
+    #[error("preferred route data error: {0}")]
+    PreferredRoute(#[from] StaticPreferredRouteError),
 }
 
 impl From<arrayvec::CapacityError<&str>> for InvalidNavdataError {
@@ -31,13 +36,26 @@ impl From<arrayvec::CapacityError<&str>> for InvalidNavdataError {
 #[derive(Clone)]
 pub struct NavdataAdapter {
     pub db: SqlitePool,
+    preferred_routes: StaticPreferredRouteAdapter,
 }
 
 impl NavdataAdapter {
+    #[allow(dead_code)]
     pub async fn new(local_data_path: impl AsRef<str>) -> NavdataResult<Self> {
+        Self::with_preferred_routes_path(local_data_path, "data/routes.csv").await
+    }
+
+    pub async fn with_preferred_routes_path(
+        local_data_path: impl AsRef<str>,
+        preferred_routes_path: impl AsRef<std::path::Path>,
+    ) -> NavdataResult<Self> {
         let local_data_path = local_data_path.as_ref();
         let db = SqlitePool::connect(&format!("sqlite:{local_data_path}")).await?;
-        Ok(Self { db })
+        let preferred_routes = StaticPreferredRouteAdapter::from_csv_path(preferred_routes_path)?;
+        Ok(Self {
+            db,
+            preferred_routes,
+        })
     }
 
     pub async fn find_airport(&self, ident: &str) -> NavdataResult<Option<Airport>> {
@@ -307,7 +325,9 @@ impl NavdataAdapter {
         .fetch_all(&self.db)
         .await?;
 
-        // TODO: validate result size
+        if result.len() < 2 {
+            return Ok(vec![]);
+        }
 
         let legs = result
             .iter()
@@ -323,9 +343,14 @@ impl NavdataAdapter {
         Ok(legs)
     }
 
-    pub async fn list_preferred_routes(&self) -> NavdataResult<Vec<PreferredRoute>> {
-        // TODO: list preferred routes
-        Ok(vec![])
+    pub async fn list_preferred_routes(
+        &self,
+        departure: &str,
+        arrival: &str,
+    ) -> NavdataResult<Vec<&crate::model::navdata::PreferredRoute>> {
+        Ok(self
+            .preferred_routes
+            .list_preferred_routes(departure, arrival))
     }
 }
 

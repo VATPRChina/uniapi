@@ -20,4 +20,5 @@ api_key = ""
 
 [navdata]
 local_data_path = "data/dfd_v2.db"
+preferred_routes_path = "data/routes.csv"
 download_file = true

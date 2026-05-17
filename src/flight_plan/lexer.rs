@@ -16,6 +16,9 @@ pub async fn lex_route(
 ) -> Result<Vec<RouteToken>, LexerError> {
     let mut lexer = RouteLexer::new(navdata, route);
     lexer.parse_all_segments().await?;
+    for token in &lexer.tokens {
+        tracing::info!("lexed token: {:?}", token);
+    }
     Ok(lexer.tokens)
 }
 
@@ -151,7 +154,7 @@ impl<'a> RouteLexer<'a> {
         let Some(RouteToken::Fix { fix, value, .. }) = self.last(index) else {
             return Ok(false);
         };
-        if matches!(fix, AnyFix::Airport { .. }) {
+        if !matches!(fix, AnyFix::Airport { .. }) {
             return Ok(false);
         }
         if !self.navdata.exists_sid(value, self.value(index)).await? {
@@ -169,7 +172,7 @@ impl<'a> RouteLexer<'a> {
         let Some(RouteToken::Fix { fix, value, .. }) = self.next(index) else {
             return Ok(false);
         };
-        if matches!(fix, AnyFix::Airport { .. }) {
+        if !matches!(fix, AnyFix::Airport { .. }) {
             return Ok(false);
         }
         if !self.navdata.exists_star(value, self.value(index)).await? {
@@ -324,7 +327,7 @@ impl<'a> RouteLexer<'a> {
         let Some(RouteToken::Fix { fix, .. }) = self.last(index) else {
             return false;
         };
-        if matches!(fix, AnyFix::Airport { .. }) {
+        if !matches!(fix, AnyFix::Airport { .. }) {
             return false;
         }
         self.tokens[index] = RouteToken::SidLeg {
@@ -341,7 +344,7 @@ impl<'a> RouteLexer<'a> {
         let Some(RouteToken::Fix { fix, .. }) = self.next(index) else {
             return false;
         };
-        if matches!(fix, AnyFix::Airport { .. }) {
+        if !matches!(fix, AnyFix::Airport { .. }) {
             return false;
         }
         self.tokens[index] = RouteToken::StarLeg {

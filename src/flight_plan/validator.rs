@@ -1,10 +1,11 @@
+use itertools::Itertools;
 use serde::Serialize;
 
 use crate::adapter::flight::Flight;
 use crate::adapter::navdata::{InvalidNavdataError, NavdataAdapter};
 use crate::flight_plan::parser::{self, ParserError};
 use crate::model::navdata::{
-    AnyFix, DirectionRestriction, LevelRestrictionType, PreferredRoute, ResolvedLeg,
+    AnyFix, DirectionRestriction, Fix, LevelRestrictionType, PreferredRoute, ResolvedLeg,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -62,13 +63,13 @@ pub async fn validate_route(
     let mut messages = validate_plan(flight);
 
     let preferred_routes = navdata
-        .list_preferred_routes()
+        .list_preferred_routes(&flight.departure, &flight.arrival)
         .await
         .map_err(ValidatorError::Navdata)?;
     let matching_route = find_matching_route(navdata, legs, &preferred_routes).await?;
     messages.extend(validate_preferred_route_match(
         flight,
-        matching_route.as_ref(),
+        matching_route,
         &preferred_routes,
     ));
 
@@ -116,15 +117,20 @@ fn validate_plan(flight: &Flight) -> Vec<WarningMessage> {
     messages
 }
 
-async fn find_matching_route(
+async fn find_matching_route<'a>(
     navdata: &NavdataAdapter,
     legs: &[ResolvedLeg],
-    preferred_routes: &[PreferredRoute],
-) -> Result<Option<PreferredRoute>, ValidatorError> {
-    for preferred_route in preferred_routes {
+    preferred_routes: &[&'a PreferredRoute],
+) -> Result<Option<&'a PreferredRoute>, ValidatorError> {
+    for &preferred_route in preferred_routes {
+        tracing::info!(
+            "checking preferred route {}: {}",
+            preferred_route.name,
+            preferred_route.raw_route
+        );
         let parsed = parser::parse_route(navdata, &preferred_route.raw_route).await?;
         if route_matches_expected(legs, &parsed) {
-            return Ok(Some(preferred_route.clone()));
+            return Ok(Some(preferred_route));
         }
     }
     Ok(None)
@@ -133,7 +139,7 @@ async fn find_matching_route(
 fn validate_preferred_route_match(
     flight: &Flight,
     preferred_route: Option<&PreferredRoute>,
-    preferred_routes: &[PreferredRoute],
+    preferred_routes: &[&PreferredRoute],
 ) -> Vec<WarningMessage> {
     let mut messages = Vec::new();
     if let Some(route) = preferred_route {
@@ -178,11 +184,11 @@ fn validate_preferred_route_match(
             });
         }
     } else if !preferred_routes.is_empty() {
-        let mut routes = preferred_routes
+        let routes = preferred_routes
             .iter()
             .filter(|route| !route.is_public())
+            .sorted_by_key(|route| &route.name)
             .collect::<Vec<_>>();
-        routes.sort_by_key(|route| route.id);
         messages.push(WarningMessage {
             field: WarningMessageField::Route,
             field_index: None,
@@ -246,9 +252,35 @@ fn validate_leg(leg: &ResolvedLeg, index: usize) -> Vec<WarningMessage> {
     messages
 }
 
-fn route_matches_expected(_actual: &[ResolvedLeg], _expected: &[ResolvedLeg]) -> bool {
-    // TODO: implement
-    false
+fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {
+    !expected.is_empty()
+        && expected.len() <= actual.len()
+        && actual.windows(expected.len()).any(|legs| {
+            legs.iter()
+                .zip(expected)
+                .all(|(actual, expected)| leg_matches(actual, expected))
+        })
+}
+
+fn leg_matches(actual: &ResolvedLeg, expected: &ResolvedLeg) -> bool {
+    actual.identifier == expected.identifier
+        && fix_matches(&actual.from, &expected.from)
+        && fix_matches(&actual.to, &expected.to)
+}
+
+fn fix_matches(actual: &AnyFix, expected: &AnyFix) -> bool {
+    match (actual.identifier(), expected.identifier()) {
+        (Some(actual), Some(expected)) => actual.eq_ignore_ascii_case(expected),
+        (None, None) => {
+            approx::relative_eq!(actual.latitude(), expected.latitude(), max_relative = 1e-6)
+                && approx::relative_eq!(
+                    actual.longitude(),
+                    expected.longitude(),
+                    max_relative = 1e-6
+                )
+        }
+        _ => false,
+    }
 }
 
 fn message(field: WarningMessageField, code: WarningMessageCode) -> WarningMessage {
@@ -366,3 +398,96 @@ const STANDARD_ALTITUDE_TO_FLIGHT_LEVEL: &[(i32, i32)] = &[
     (13100, 43000),
     (14300, 46900),
 ];
+
+#[cfg(test)]
+mod tests {
+    use arrayvec::ArrayString;
+
+    use super::*;
+    use crate::model::navdata::{Airport, Waypoint, WaypointKind};
+
+    #[test]
+    fn route_matches_exact_leg_sequence() {
+        let actual = vec![airway_leg("A", "B", "W1"), airway_leg("B", "C", "W1")];
+        let expected = vec![airway_leg("A", "B", "W1"), airway_leg("B", "C", "W1")];
+
+        assert!(route_matches_expected(&actual, &expected));
+    }
+
+    #[test]
+    fn route_matches_preferred_subsequence_inside_airport_boundaries() {
+        let actual = vec![
+            direct_leg(airport("ZBAA"), fix("A")),
+            airway_leg("A", "B", "W1"),
+            airway_leg("B", "C", "W1"),
+            direct_leg(fix("C"), airport("CYUL")),
+        ];
+        let expected = vec![airway_leg("A", "B", "W1"), airway_leg("B", "C", "W1")];
+
+        assert!(route_matches_expected(&actual, &expected));
+    }
+
+    #[test]
+    fn route_does_not_match_non_contiguous_expected_legs() {
+        let actual = vec![
+            airway_leg("A", "B", "W1"),
+            direct_leg(fix("B"), fix("X")),
+            airway_leg("X", "C", "W1"),
+        ];
+        let expected = vec![airway_leg("A", "B", "W1"), airway_leg("B", "C", "W1")];
+
+        assert!(!route_matches_expected(&actual, &expected));
+    }
+
+    #[test]
+    fn route_does_not_match_different_airway_identifier() {
+        let actual = vec![airway_leg("A", "B", "W2")];
+        let expected = vec![airway_leg("A", "B", "W1")];
+
+        assert!(!route_matches_expected(&actual, &expected));
+    }
+
+    #[test]
+    fn route_does_not_match_empty_expected_route() {
+        assert!(!route_matches_expected(
+            &[direct_leg(fix("A"), fix("B"))],
+            &[]
+        ));
+    }
+
+    fn airway_leg(from: &str, to: &str, airway: &str) -> ResolvedLeg {
+        ResolvedLeg {
+            from: fix(from),
+            to: fix(to),
+            identifier: Some(airway.to_owned()),
+            direction_restriction: DirectionRestriction::None,
+        }
+    }
+
+    fn direct_leg(from: AnyFix, to: AnyFix) -> ResolvedLeg {
+        ResolvedLeg {
+            from,
+            to,
+            identifier: None,
+            direction_restriction: DirectionRestriction::None,
+        }
+    }
+
+    fn airport(identifier: &str) -> AnyFix {
+        AnyFix::Airport(Airport {
+            identifier: ArrayString::from(identifier).unwrap(),
+            latitude: 0.0,
+            longitude: 0.0,
+        })
+    }
+
+    fn fix(identifier: &str) -> AnyFix {
+        AnyFix::Waypoint(Waypoint {
+            icao_code: ArrayString::from("ZH").unwrap(),
+            identifier: ArrayString::from(identifier).unwrap(),
+            latitude: 0.0,
+            longitude: 0.0,
+            kind: WaypointKind::Enroute,
+        })
+    }
+}

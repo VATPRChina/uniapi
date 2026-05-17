@@ -11,14 +11,13 @@ pub enum ParserError {
     Lexer(#[from] LexerError),
     #[error("no initial fix in route")]
     MissingInitialFix,
-    #[error("unexpected token {0}")]
-    UnexpectedToken(String),
 }
 
 pub async fn parse_route(
     navdata: &NavdataAdapter,
     route: &str,
 ) -> Result<Vec<ResolvedLeg>, ParserError> {
+    tracing::info!("parsing route: {}", route);
     let tokens = lex_route(navdata, route).await?;
     RouteParser::new(navdata, tokens).parse().await
 }
@@ -59,7 +58,7 @@ impl<'a> RouteParser<'a> {
                 | RouteToken::DirectLeg { .. } => {}
                 RouteToken::AirwayLeg { value } => self.handle_airway(index, &value).await?,
                 RouteToken::Fix { value, fix } => self.handle_waypoint(&value, fix)?,
-                RouteToken::Unknown { value } => return Err(ParserError::UnexpectedToken(value)),
+                RouteToken::Unknown { value } => self.handle_unknown_waypoint(&value)?,
             }
         }
 
@@ -125,6 +124,10 @@ impl<'a> RouteParser<'a> {
             direction_restriction: DirectionRestriction::None,
         });
         Ok(())
+    }
+
+    fn handle_unknown_waypoint(&mut self, value: &str) -> Result<(), ParserError> {
+        self.handle_waypoint(value, AnyFix::Unknown(value.to_owned()))
     }
 
     fn last_fix(&self) -> Result<AnyFix, ParserError> {
