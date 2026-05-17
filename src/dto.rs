@@ -37,18 +37,16 @@ pub fn parse_ulid_uuid(field: &'static str, id: &str) -> Result<Uuid, ApiError> 
         .map_err(|_| ApiError::bad_request(field, "invalid ULID"))
 }
 
-fn direct_roles_to_dto(roles: &[String]) -> Vec<String> {
+fn direct_roles_to_dto(roles: &[String]) -> Vec<UserRole> {
     roles
         .iter()
         .filter_map(|role| role.parse::<UserRole>().ok())
-        .map(|role| role.to_string())
         .collect()
 }
 
-fn roles_to_dto(roles: &[String]) -> Vec<String> {
+fn roles_to_dto(roles: &[String]) -> Vec<UserRole> {
     let mut roles = role_closure_from_strings(roles.iter().map(String::as_str))
         .into_iter()
-        .map(|role| role.to_string())
         .collect::<Vec<_>>();
     roles.sort();
     roles
@@ -66,8 +64,8 @@ pub struct UserDto {
     pub full_name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub roles: Vec<String>,
-    pub direct_roles: Vec<String>,
+    pub roles: Vec<UserRole>,
+    pub direct_roles: Vec<UserRole>,
     pub moodle_account: Option<UserMoodleInfoDto>,
 }
 
@@ -102,7 +100,6 @@ impl UserDto {
             .roles
             .iter()
             .filter_map(|role| role.parse::<UserRole>().ok())
-            .map(|role| role.to_string())
             .collect::<std::collections::BTreeSet<_>>()
             .into_iter()
             .collect();
@@ -113,7 +110,6 @@ impl UserDto {
                     .collect()
             })
             .into_iter()
-            .map(|role| role.to_string())
             .collect::<std::collections::BTreeSet<_>>()
             .into_iter()
             .collect();

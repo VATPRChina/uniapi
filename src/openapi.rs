@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use axum::Json;
-use utoipa::OpenApi;
+use utoipa::{OpenApi, PartialSchema, ToSchema};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -26,7 +26,7 @@ use utoipa::OpenApi;
         (path = "/", api = crate::routes::storage::ApiDoc),
         (path = "/", api = crate::routes::sectors::ApiDoc),
     ),
-    modifiers(&SecurityAddon),
+    modifiers(&SecurityAddon, &InternalServerErrorAddon),
     tags(
         (name = "Auth", description = "OAuth and session endpoints"),
         (name = "ATC", description = "ATC status, bookings, applications, and training"),
@@ -73,5 +73,124 @@ impl utoipa::Modify for SecurityAddon {
                 Flow::ClientCredentials(ClientCredentials::new("/auth/token", Scopes::new())),
             ])),
         );
+    }
+}
+
+pub(crate) struct InternalServerErrorAddon;
+
+impl utoipa::Modify for InternalServerErrorAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        use utoipa::openapi::path::Operation;
+        use utoipa::openapi::response::Response;
+        use utoipa::openapi::{Content, Ref, RefOr};
+
+        const RESPONSE_NAME: &str = "InternalServerError";
+        const STATUS_CODE: &str = "500";
+
+        let components = openapi.components.get_or_insert_with(Default::default);
+        components.schemas.insert(
+            crate::error::ProblemDetails::name().into_owned(),
+            crate::error::ProblemDetails::schema(),
+        );
+        components.responses.insert(
+            RESPONSE_NAME.to_string(),
+            RefOr::T(
+                Response::builder()
+                    .description("Internal server error")
+                    .content(
+                        "application/problem+json",
+                        Content::new(Some(RefOr::Ref(Ref::from_schema_name(
+                            crate::error::ProblemDetails::name(),
+                        )))),
+                    )
+                    .build(),
+            ),
+        );
+
+        for (path, path_item) in openapi.paths.paths.iter_mut() {
+            if path.starts_with("/auth") {
+                continue;
+            }
+
+            for operation in [
+                &mut path_item.get,
+                &mut path_item.put,
+                &mut path_item.post,
+                &mut path_item.delete,
+                &mut path_item.options,
+                &mut path_item.head,
+                &mut path_item.patch,
+                &mut path_item.trace,
+            ]
+            .into_iter()
+            .flatten()
+            {
+                add_internal_server_error_response(operation);
+            }
+        }
+
+        fn add_internal_server_error_response(operation: &mut Operation) {
+            operation.responses.responses.entry(STATUS_CODE.to_string()).or_insert_with(|| {
+                RefOr::Ref(Ref::from_response_name(RESPONSE_NAME))
+            });
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use utoipa::openapi::path::{Operation, PathItem};
+
+    use super::openapi;
+
+    #[test]
+    fn non_auth_operations_include_internal_server_error_response() {
+        let openapi = openapi();
+
+        for (path, path_item) in &openapi.paths.paths {
+            if path.starts_with("/auth") {
+                continue;
+            }
+
+            for operation in operations(path_item) {
+                assert!(
+                    operation.responses.responses.contains_key("500"),
+                    "{path} is missing a 500 response"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn auth_operations_do_not_include_internal_server_error_response() {
+        let openapi = openapi();
+
+        for (path, path_item) in &openapi.paths.paths {
+            if !path.starts_with("/auth") {
+                continue;
+            }
+
+            for operation in operations(path_item) {
+                assert!(
+                    !operation.responses.responses.contains_key("500"),
+                    "{path} should not include a 500 response"
+                );
+            }
+        }
+    }
+
+    fn operations(path_item: &PathItem) -> impl Iterator<Item = &Operation> {
+        [
+            &path_item.get,
+            &path_item.put,
+            &path_item.post,
+            &path_item.delete,
+            &path_item.options,
+            &path_item.head,
+            &path_item.patch,
+            &path_item.trace,
+        ]
+        .into_iter()
+        .flatten()
     }
 }

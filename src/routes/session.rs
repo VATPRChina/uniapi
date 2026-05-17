@@ -50,7 +50,6 @@ async fn get_current(
                 .roles()
                 .collect::<std::collections::BTreeSet<_>>()
                 .into_iter()
-                .map(|role| role.to_string())
                 .collect(),
             direct_roles: user
                 .roles
@@ -58,7 +57,6 @@ async fn get_current(
                 .filter_map(|role: String| role.parse::<UserRole>().ok())
                 .collect::<std::collections::BTreeSet<_>>()
                 .into_iter()
-                .map(|role| role.to_string())
                 .collect(),
             moodle_account,
         },
