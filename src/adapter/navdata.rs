@@ -476,7 +476,7 @@ mod test {
     use super::*;
 
     const DFD_V2_SAMPLE_DATA_URL: &str = "https://developers.navigraph.com/downloads/navigation-data/navigraph-dfd-sample-sqlite-dfdv2-2401.zip";
-    const LOCAL_DATA_PATH: &str = "Data/ng_jeppesen_fwdfd_2401.s3db";
+    const LOCAL_DATA_PATH: &str = "ng_jeppesen_fwdfd_2401.s3db";
 
     async fn get_navdata_adapter() -> NavdataAdapter {
         if !std::fs::exists(LOCAL_DATA_PATH).unwrap() {
