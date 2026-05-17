@@ -19,7 +19,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), anyhow::Error> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
@@ -31,9 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let services = Services::connect(&settings).await?;
 
-    let listener = tokio::net::TcpListener::bind(&settings.bind_address)
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind(&settings.bind_address).await?;
 
     tracing::info!("listening on http://{}", settings.bind_address);
 
