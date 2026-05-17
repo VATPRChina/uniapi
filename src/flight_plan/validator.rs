@@ -122,7 +122,10 @@ async fn find_matching_route<'a>(
     legs: &[ResolvedLeg],
     preferred_routes: &[&'a PreferredRoute],
 ) -> Result<Option<&'a PreferredRoute>, ValidatorError> {
-    for &preferred_route in preferred_routes {
+    for &preferred_route in preferred_routes
+        .iter()
+        .sorted_by_key(|route| if route.is_public { 0 } else { 1 })
+    {
         tracing::info!(
             "checking preferred route {}: {}",
             preferred_route.name,
