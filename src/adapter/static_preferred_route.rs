@@ -196,11 +196,11 @@ mod tests {
 
     #[test]
     fn loads_and_filters_project_csv() {
-        let adapter = StaticPreferredRouteAdapter::from_csv_path("data/routes.csv").unwrap();
-        let routes = adapter.list_preferred_routes("zbaa", "cyul");
+        let adapter = StaticPreferredRouteAdapter::from_csv_path("assets/test/routes.csv").unwrap();
+        let routes = adapter.list_preferred_routes("zbaa", "zspd");
 
         assert!(!routes.is_empty());
         assert!(routes.iter().all(|route| route.departure == "ZBAA"));
-        assert!(routes.iter().all(|route| route.arrival == "CYUL"));
+        assert!(routes.iter().all(|route| route.arrival == "ZSPD"));
     }
 }

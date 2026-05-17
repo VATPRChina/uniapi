@@ -40,11 +40,6 @@ pub struct NavdataAdapter {
 }
 
 impl NavdataAdapter {
-    #[allow(dead_code)]
-    pub async fn new(local_data_path: impl AsRef<str>) -> NavdataResult<Self> {
-        Self::with_preferred_routes_path(local_data_path, "data/routes.csv").await
-    }
-
     pub async fn with_preferred_routes_path(
         local_data_path: impl AsRef<str>,
         preferred_routes_path: impl AsRef<std::path::Path>,
@@ -532,9 +527,10 @@ mod test {
     use super::*;
 
     const LOCAL_DATA_PATH: &str = "test_data/ng_jeppesen_fwdfd_2401.s3db";
+    const PREFERRED_ROUTES_PATH: &str = "assets/test/routes.csv";
 
     async fn get_navdata_adapter() -> NavdataAdapter {
-        NavdataAdapter::new(LOCAL_DATA_PATH.to_string())
+        NavdataAdapter::with_preferred_routes_path(LOCAL_DATA_PATH, PREFERRED_ROUTES_PATH)
             .await
             .unwrap()
     }
