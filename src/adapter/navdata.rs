@@ -476,20 +476,9 @@ mod test {
     use super::*;
 
     const DFD_V2_SAMPLE_DATA_URL: &str = "https://developers.navigraph.com/downloads/navigation-data/navigraph-dfd-sample-sqlite-dfdv2-2401.zip";
-    const LOCAL_DATA_PATH: &str = "ng_jeppesen_fwdfd_2401.s3db";
+    const LOCAL_DATA_PATH: &str = "test_data/ng_jeppesen_fwdfd_2401.s3db";
 
     async fn get_navdata_adapter() -> NavdataAdapter {
-        if !std::fs::exists(LOCAL_DATA_PATH).unwrap() {
-            let response = reqwest::get(DFD_V2_SAMPLE_DATA_URL).await.unwrap();
-            let bytes = response.bytes().await.unwrap();
-
-            let zipfile = std::io::Cursor::new(bytes);
-            let mut archive = zip::ZipArchive::new(zipfile).unwrap();
-            let mut file = archive.by_name("ng_jeppesen_fwdfd_2401.s3db").unwrap();
-            let mut out = std::fs::File::create(LOCAL_DATA_PATH).unwrap();
-            std::io::copy(&mut file, &mut out).unwrap();
-        }
-
         NavdataAdapter::new(
             DFD_V2_SAMPLE_DATA_URL.to_string(),
             LOCAL_DATA_PATH.to_string(),
