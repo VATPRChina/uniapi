@@ -1198,7 +1198,6 @@ export type components = {
             description_en?: string | null;
             description_zh?: string | null;
             id: string;
-            is_deleted: boolean;
             kind: components["schemas"]["SheetFieldKind"];
             name_en?: string | null;
             name_zh: string;

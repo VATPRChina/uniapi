@@ -836,7 +836,6 @@ pub struct SheetFieldSaveRequest {
     pub single_choice_options: Vec<String>,
     pub description_zh: Option<String>,
     pub description_en: Option<String>,
-    pub is_deleted: bool,
 }
 
 impl From<SheetFieldSaveRequest> for SheetFieldSave {
@@ -850,7 +849,7 @@ impl From<SheetFieldSaveRequest> for SheetFieldSave {
             single_choice_options: field.single_choice_options,
             description_zh: field.description_zh,
             description_en: field.description_en,
-            is_deleted: field.is_deleted,
+            is_deleted: false,
         }
     }
 }

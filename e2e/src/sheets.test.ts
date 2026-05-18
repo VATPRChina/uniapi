@@ -27,7 +27,6 @@ const sheetBody = (
       single_choice_options: [],
       description_zh: "请输入呼号",
       description_en: "Enter callsign",
-      is_deleted: false,
     },
     {
       id: "remarks",
@@ -36,7 +35,6 @@ const sheetBody = (
       name_en: "Remarks",
       kind: "long-text",
       single_choice_options: [],
-      is_deleted: false,
     },
     {
       id: "rating",
@@ -44,7 +42,6 @@ const sheetBody = (
       name_zh: "等级",
       kind: "single-choice",
       single_choice_options: ["S2", "S3", "C1"],
-      is_deleted: false,
     },
   ],
 });
@@ -74,6 +71,7 @@ test("PUT /api/sheets/{sheetId} upserts a sheet", async ({ techDirector }) => {
     fields: body.fields.map((field) => ({
       ...field,
       sheet_id: sheetId,
+      is_deleted: false,
       description_zh: field.description_zh ?? null,
       description_en: field.description_en ?? null,
       name_en: field.name_en ?? null,
@@ -166,7 +164,6 @@ test("PUT /api/sheets/{sheetId} updates fields and marks omitted fields deleted"
         name_en: "Position",
         kind: "short-text",
         single_choice_options: [],
-        is_deleted: false,
       },
     ],
   };

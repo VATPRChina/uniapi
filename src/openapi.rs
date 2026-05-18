@@ -211,6 +211,29 @@ mod tests {
             Some(vec!["name", "fields"])
         );
         assert_eq!(
+            openapi
+                .pointer("/components/schemas/SheetFieldSaveRequest/required")
+                .and_then(|required| required.as_array())
+                .map(|required| {
+                    required
+                        .iter()
+                        .filter_map(|field| field.as_str())
+                        .collect::<Vec<_>>()
+                }),
+            Some(vec![
+                "id",
+                "sequence",
+                "name_zh",
+                "kind",
+                "single_choice_options"
+            ])
+        );
+        assert!(
+            openapi
+                .pointer("/components/schemas/SheetFieldSaveRequest/properties/is_deleted")
+                .is_none()
+        );
+        assert_eq!(
             openapi.pointer("/components/schemas/SheetFieldDto/properties/sequence/format"),
             Some(&serde_json::Value::String("uint32".to_owned()))
         );
