@@ -14,6 +14,19 @@ pub struct SheetFieldRecord {
     pub is_deleted: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct SheetFieldSave {
+    pub id: String,
+    pub sequence: i64,
+    pub name_zh: String,
+    pub name_en: Option<String>,
+    pub kind: String,
+    pub single_choice_options: Vec<String>,
+    pub description_zh: Option<String>,
+    pub description_en: Option<String>,
+    pub is_deleted: bool,
+}
+
 pub async fn list(db: &PgPool, sheet_id: &str) -> Result<Vec<SheetFieldRecord>, sqlx::Error> {
     sqlx::query_as::<_, SheetFieldRecord>(
         r#"

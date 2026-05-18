@@ -23,6 +23,7 @@ use utoipa::{OpenApi, PartialSchema, ToSchema};
         (path = "/", api = crate::routes::flights::ApiDoc),
         (path = "/", api = crate::routes::compat::ApiDoc),
         (path = "/", api = crate::routes::preferred_routes::ApiDoc),
+        (path = "/", api = crate::routes::sheets::ApiDoc),
         (path = "/", api = crate::routes::storage::ApiDoc),
         (path = "/", api = crate::routes::sectors::ApiDoc),
     ),
@@ -38,6 +39,7 @@ use utoipa::{OpenApi, PartialSchema, ToSchema};
         (name = "NOTAM", description = "NOTAM endpoints"),
         (name = "Sectors", description = "Sector permission endpoints"),
         (name = "Session", description = "Current session endpoints"),
+        (name = "Sheets", description = "Sheet definitions"),
         (name = "Storage", description = "File storage endpoints"),
         (name = "Users", description = "User and role endpoints")
     )
@@ -179,6 +181,39 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn sheets_operations_are_documented() {
+        let openapi = serde_json::to_value(openapi()).expect("OpenAPI should serialize");
+
+        assert!(openapi.pointer("/paths/~1api~1sheets/get").is_some());
+        assert!(
+            openapi
+                .pointer("/paths/~1api~1sheets~1{sheetId}/get")
+                .is_some()
+        );
+        assert!(
+            openapi
+                .pointer("/paths/~1api~1sheets~1{sheetId}/put")
+                .is_some()
+        );
+        assert_eq!(
+            openapi
+                .pointer("/components/schemas/SheetSaveRequest/required")
+                .and_then(|required| required.as_array())
+                .map(|required| {
+                    required
+                        .iter()
+                        .filter_map(|field| field.as_str())
+                        .collect::<Vec<_>>()
+                }),
+            Some(vec!["name", "fields"])
+        );
+        assert_eq!(
+            openapi.pointer("/components/schemas/SheetFieldDto/properties/sequence/format"),
+            Some(&serde_json::Value::String("uint32".to_owned()))
+        );
     }
 
     fn operations(path_item: &PathItem) -> impl Iterator<Item = &Operation> {

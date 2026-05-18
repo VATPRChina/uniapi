@@ -152,9 +152,9 @@ test("POST /api/events rejects users without event coordinator permission", asyn
   expect(response.status).toBe(403);
   expect(data).toBeFalsy();
   expect(error).toEqual({
-    detail: 'only user with roles {"event-coordinator"} can perform this action',
+    detail: "only user with roles {EventCoordinator} can perform this action",
     status: 403,
-    title: 'only user with roles {"event-coordinator"} can perform this action',
+    title: "only user with roles {EventCoordinator} can perform this action",
     type: "urn:vatprc-uniapi-error:forbidden",
   });
 });

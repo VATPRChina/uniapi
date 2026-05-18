@@ -58,3 +58,6 @@ ordered-float = "5.3.0"
 serde_plain = "1.0.2"
 csv = "1.4.0"
 approx = "0.5.1"
+
+[profile.release]
+debug = true

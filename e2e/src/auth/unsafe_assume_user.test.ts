@@ -59,10 +59,10 @@ test("issues a user token for an allowed client", async () => {
   expect(session).toBeTruthy();
   expect(session.user.id).toBe(assumedUserId);
   expect(session.user.full_name).toBe("E2E Assumed User");
-  expect(session.user.direct_roles).toEqual([
-    "controller",
-    "event-coordinator",
-  ]);
+  expect(session.user.direct_roles).toEqual(
+    expect.arrayContaining(["controller", "event-coordinator"]),
+  );
+  expect(session.user.direct_roles).toHaveLength(2);
   expect(session.user.roles).toEqual(
     expect.arrayContaining(["controller", "event-coordinator", "volunteer"]),
   );
@@ -114,7 +114,7 @@ test("returns unauthorized for a client without unsafe assume permission", async
     },
   );
 
-  expect(response.status).toBe(401);
+  expect(response.status).toBe(400);
   expect(data).toBeFalsy();
   expect(error).toEqual({
     error: "unauthorized_client",

@@ -644,6 +644,38 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/sheets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_sheets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sheets/{sheetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_sheet"];
+        put: operations["upsert_sheet"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/storage/images": {
         parameters: {
             query?: never;
@@ -886,6 +918,10 @@ export type components = {
             permissions: components["schemas"]["AtcPermissionRequest"][];
             rating: string;
         };
+        AuthApiErrorBody: {
+            error: components["schemas"]["OAuthErrorCode"];
+            error_description: string;
+        };
         CompatControllerDto: {
             callsign: string;
             /** Format: int32 */
@@ -1092,6 +1128,8 @@ export type components = {
         };
         /** @enum {string} */
         LevelRestrictionType: "standard-even" | "standard-odd" | "standard" | "flight-level-even" | "flight-level-odd" | "flight-level";
+        /** @enum {string} */
+        OAuthErrorCode: "invalid_request" | "invalid_client" | "invalid_grant" | "invalid_scope" | "unauthorized_client" | "unsupported_grant_type" | "authorization_pending" | "expired_token";
         PreferredRouteDto: {
             allowed_altitudes: number[];
             arrival: string;
@@ -1121,6 +1159,13 @@ export type components = {
             /** Format: date-time */
             valid_until?: string | null;
         };
+        ProblemDetails: {
+            detail: string;
+            /** Format: int32 */
+            status: number;
+            title: string;
+            type: string;
+        };
         SectorPermissionResponse: {
             has_permission: boolean;
             sector_type: string;
@@ -1139,17 +1184,35 @@ export type components = {
             description_zh?: string | null;
             id: string;
             is_deleted: boolean;
-            kind: string;
+            kind: components["schemas"]["SheetFieldKind"];
             name_en?: string | null;
             name_zh: string;
-            /** Format: int64 */
+            /** Format: uint32 */
             sequence: number;
             sheet_id: string;
+            single_choice_options: string[];
+        };
+        /** @enum {string} */
+        SheetFieldKind: "short-text" | "long-text" | "single-choice";
+        SheetFieldSaveRequest: {
+            description_en?: string | null;
+            description_zh?: string | null;
+            id: string;
+            is_deleted: boolean;
+            kind: components["schemas"]["SheetFieldKind"];
+            name_en?: string | null;
+            name_zh: string;
+            /** Format: uint32 */
+            sequence: number;
             single_choice_options: string[];
         };
         SheetRequestField: {
             answer: string;
             id: string;
+        };
+        SheetSaveRequest: {
+            fields: components["schemas"]["SheetFieldSaveRequest"][];
+            name: string;
         };
         TokenDto: {
             /** Format: date-time */
@@ -1166,6 +1229,16 @@ export type components = {
             scope: string;
             token_type: string;
         };
+        TrainingApplicationCreateRequest: {
+            name: string;
+            slots: components["schemas"]["TrainingApplicationCreateRequestSlot"][];
+        };
+        TrainingApplicationCreateRequestSlot: {
+            /** Format: date-time */
+            end_at: string;
+            /** Format: date-time */
+            start_at: string;
+        };
         TrainingApplicationDto: {
             /** Format: date-time */
             created_at: string;
@@ -1178,16 +1251,6 @@ export type components = {
             trainee_id: string;
             /** Format: date-time */
             updated_at: string;
-        };
-        TrainingApplicationCreateRequest: {
-            name: string;
-            slots: components["schemas"]["TrainingApplicationCreateRequestSlot"][];
-        };
-        TrainingApplicationCreateRequestSlot: {
-            /** Format: date-time */
-            end_at: string;
-            /** Format: date-time */
-            start_at: string;
         };
         TrainingApplicationResponseDto: {
             application_id: string;
@@ -1263,17 +1326,19 @@ export type components = {
             cid: string;
             /** Format: date-time */
             created_at: string;
-            direct_roles: string[];
+            direct_roles: components["schemas"]["UserRole"][];
             full_name: string;
             id: string;
             moodle_account?: null | components["schemas"]["UserMoodleInfoDto"];
-            roles: string[];
+            roles: components["schemas"]["UserRole"][];
             /** Format: date-time */
             updated_at: string;
         };
         UserMoodleInfoDto: {
             id: string;
         };
+        /** @enum {string} */
+        UserRole: "staff" | "volunteer" | "division-director" | "controller-training-director" | "controller-training-director-assistant" | "controller-training-instructor" | "controller-training-mentor" | "controller-training-sop-editor" | "community-director" | "operation-director" | "operation-director-assistant" | "operation-sector-editor" | "operation-loa-editor" | "event-director" | "lead-event-coordinator" | "event-coordinator" | "event-graphics-designer" | "tech-director" | "tech-director-assistant" | "tech-afv-facility-engineer" | "controller" | "api-client" | "user";
         WarningMessage: {
             field: components["schemas"]["WarningMessageField"];
             field_index?: number | null;
@@ -1281,11 +1346,21 @@ export type components = {
             parameter?: string | null;
         };
         /** @enum {string} */
-        WarningMessageCode: "no-rvsm" | "no-rnav1" | "rnp-ar" | "rnp-ar-without-rf" | "no-transponder" | "route-direct-segment" | "route-leg-direction" | "airway-require-approval" | "not-preferred-route" | "cruising-level-mismatch" | "cruising-level-not-allowed" | "route-match-preferred";
+        WarningMessageCode: "no-rvsm" | "no-rnav1" | "rnp-ar" | "rnp-ar-without-rf" | "no-transponder" | "route-direct-segment" | "route-leg-direction" | "airway-require-approval" | "not-preferred-route" | "cruising-level-mismatch" | "cruising-level-not-allowed" | "cruising-level-too-low" | "route-match-preferred";
         /** @enum {string} */
         WarningMessageField: "equipment" | "transponder" | "navigation-performance" | "route" | "cruising-level";
     };
-    responses: never;
+    responses: {
+        /** @description Internal server error */
+        InternalServerError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
@@ -1311,6 +1386,7 @@ export interface operations {
                     "application/json": components["schemas"]["AtcApplicationSummaryDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     create_application: {
@@ -1335,6 +1411,7 @@ export interface operations {
                     "application/json": components["schemas"]["AtcApplicationSummaryDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_review_sheet: {
@@ -1355,6 +1432,7 @@ export interface operations {
                     "application/json": components["schemas"]["SheetDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_application_sheet: {
@@ -1375,6 +1453,7 @@ export interface operations {
                     "application/json": components["schemas"]["SheetDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_application: {
@@ -1398,6 +1477,7 @@ export interface operations {
                     "application/json": components["schemas"]["AtcApplicationDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     update_application: {
@@ -1425,6 +1505,7 @@ export interface operations {
                     "application/json": components["schemas"]["AtcApplicationDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     review_application: {
@@ -1452,6 +1533,7 @@ export interface operations {
                     "application/json": components["schemas"]["AtcApplicationDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_controllers: {
@@ -1472,6 +1554,7 @@ export interface operations {
                     "application/json": components["schemas"]["AtcStatusDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     create_training: {
@@ -1496,6 +1579,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_active: {
@@ -1516,6 +1600,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_training_applications: {
@@ -1536,6 +1621,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingApplicationDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     create_training_application: {
@@ -1560,6 +1646,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingApplicationDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_training_application: {
@@ -1583,6 +1670,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingApplicationDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     update_training_application: {
@@ -1610,6 +1698,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingApplicationDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     delete_application: {
@@ -1633,6 +1722,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingApplicationDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     respond_to_application: {
@@ -1660,6 +1750,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingApplicationResponseDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_responses: {
@@ -1683,6 +1774,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingApplicationResponseDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_finished: {
@@ -1703,6 +1795,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_record_sheet: {
@@ -1723,6 +1816,7 @@ export interface operations {
                     "application/json": components["schemas"]["SheetDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_training: {
@@ -1746,6 +1840,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     update_training: {
@@ -1773,6 +1868,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     delete_training: {
@@ -1794,6 +1890,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     set_record_sheet: {
@@ -1821,6 +1918,7 @@ export interface operations {
                     "application/json": components["schemas"]["TrainingDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_metar_by_query: {
@@ -1844,6 +1942,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_metar_by_path: {
@@ -1867,6 +1966,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     online_status: {
@@ -1887,6 +1987,7 @@ export interface operations {
                     "application/json": components["schemas"]["CompatVatprcStatusDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     trackaudio_version: {
@@ -1907,6 +2008,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     vplaaf_areas: {
@@ -1927,6 +2029,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_events: {
@@ -1947,6 +2050,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     create_event: {
@@ -1971,6 +2075,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_past_events: {
@@ -1994,6 +2099,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     create_airspace: {
@@ -2021,6 +2127,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventAirspaceDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_positions: {
@@ -2044,6 +2151,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventAtcPositionDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     create_position: {
@@ -2071,6 +2179,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventAtcPositionDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     update_position: {
@@ -2100,6 +2209,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventAtcPositionDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     delete_position: {
@@ -2123,6 +2233,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     book_position: {
@@ -2152,6 +2263,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventAtcPositionBookingDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     cancel_position_booking: {
@@ -2177,6 +2289,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventAtcPositionBookingDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_slots: {
@@ -2200,6 +2313,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventSlotDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     create_slot: {
@@ -2227,6 +2341,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventSlotDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     put_booking: {
@@ -2256,6 +2371,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventBookingDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     delete_event_slot_booking: {
@@ -2281,6 +2397,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventBookingDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_event: {
@@ -2304,6 +2421,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     update_event: {
@@ -2331,6 +2449,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     active_flights: {
@@ -2351,6 +2470,7 @@ export interface operations {
                     "application/json": components["schemas"]["FlightDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     flight_by_callsign: {
@@ -2374,6 +2494,7 @@ export interface operations {
                     "application/json": components["schemas"]["FlightDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     route_by_callsign: {
@@ -2397,6 +2518,7 @@ export interface operations {
                     "application/json": components["schemas"]["FlightLeg"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     warnings_by_callsign: {
@@ -2420,6 +2542,7 @@ export interface operations {
                     "application/json": components["schemas"]["WarningMessage"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     my_flight: {
@@ -2440,6 +2563,7 @@ export interface operations {
                     "application/json": components["schemas"]["FlightDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     temporary_warnings: {
@@ -2460,6 +2584,7 @@ export interface operations {
                     "application/json": components["schemas"]["WarningMessage"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_preferred_routes: {
@@ -2480,6 +2605,7 @@ export interface operations {
                     "application/json": components["schemas"]["PreferredRouteDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     create_preferred_route: {
@@ -2504,6 +2630,7 @@ export interface operations {
                     "application/json": components["schemas"]["PreferredRouteDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_preferred_route: {
@@ -2527,6 +2654,7 @@ export interface operations {
                     "application/json": components["schemas"]["PreferredRouteDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     update_preferred_route: {
@@ -2554,6 +2682,7 @@ export interface operations {
                     "application/json": components["schemas"]["PreferredRouteDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     current_permission: {
@@ -2574,6 +2703,7 @@ export interface operations {
                     "application/json": components["schemas"]["SectorPermissionResponse"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_current: {
@@ -2594,6 +2724,7 @@ export interface operations {
                     "application/json": components["schemas"]["TokenDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     logout: {
@@ -2612,6 +2743,80 @@ export interface operations {
                 };
                 content?: never;
             };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    list_sheets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetDto"][];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    get_sheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Sheet ID */
+                sheetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    upsert_sheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Sheet ID */
+                sheetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SheetSaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
         };
     };
     upload_image: {
@@ -2636,6 +2841,7 @@ export interface operations {
                     "application/json": components["schemas"]["UploadImageResponse"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     list_users: {
@@ -2656,6 +2862,7 @@ export interface operations {
                     "application/json": components["schemas"]["UserDto"][];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     me: {
@@ -2676,6 +2883,7 @@ export interface operations {
                     "application/json": components["schemas"]["UserDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     get_my_status: {
@@ -2696,6 +2904,7 @@ export interface operations {
                     "application/json": components["schemas"]["AtcStatusDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     set_status: {
@@ -2723,6 +2932,7 @@ export interface operations {
                     "application/json": components["schemas"]["AtcStatusDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     set_roles: {
@@ -2750,6 +2960,7 @@ export interface operations {
                     "application/json": components["schemas"]["UserDto"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
     unsafe_assume_user: {
@@ -2772,6 +2983,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description OAuth error response */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthApiErrorBody"];
+                };
+            };
+            /** @description OAuth client authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthApiErrorBody"];
                 };
             };
         };
@@ -2825,6 +3054,24 @@ export interface operations {
                     "application/json": components["schemas"]["DeviceAuthorizationResponse"];
                 };
             };
+            /** @description OAuth error response */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthApiErrorBody"];
+                };
+            };
+            /** @description OAuth client authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthApiErrorBody"];
+                };
+            };
         };
     };
     token: {
@@ -2849,6 +3096,24 @@ export interface operations {
                     "application/json": components["schemas"]["TokenResponse"];
                 };
             };
+            /** @description OAuth error response */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthApiErrorBody"];
+                };
+            };
+            /** @description OAuth client authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthApiErrorBody"];
+                };
+            };
         };
     };
     health: {
@@ -2869,6 +3134,7 @@ export interface operations {
                     "application/json": components["schemas"]["HealthResponse"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
         };
     };
 }

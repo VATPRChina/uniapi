@@ -717,7 +717,7 @@ fn authenticated_api_client(
         .and_then(|value| value.strip_prefix("Bearer "))
         .ok_or_else(|| AuthApiError::invalid_client("missing bearer token"))?;
     let token = services.jwt().validate_access_token_claims(token)?;
-    if token.subject.parse::<Ulid>().is_ok() {
+    if token.subject.parse::<Ulid>() != token.client_id.parse::<Ulid>() {
         return Err(AuthApiError::unauthorized_client(
             "user tokens are not allowed for this endpoint",
         ));

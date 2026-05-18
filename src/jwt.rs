@@ -26,6 +26,7 @@ struct Claims {
     iat: i64,
     exp: i64,
     sid: Option<String>,
+    client_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,6 +74,7 @@ pub struct ValidatedAccessToken {
     pub issued_at: i64,
     pub expires_at: i64,
     pub session_id: Option<String>,
+    pub client_id: String,
 }
 
 #[derive(Debug, Error)]
@@ -116,6 +118,7 @@ impl JwtService {
             issued_at: claims.iat,
             expires_at: claims.exp,
             session_id: claims.sid,
+            client_id: claims.client_id,
         })
     }
 

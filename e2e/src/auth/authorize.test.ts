@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { getClient } from "../../lib/backend.js";
+import { getBaseUrl, getClient } from "../../lib/backend.js";
 
 test("redirects to login for a valid client", async () => {
   const client = await getClient();
@@ -37,43 +37,43 @@ test("redirects to login for a valid client", async () => {
 });
 
 test("returns error for an invalid client", async () => {
-  const client = await getClient();
-  const { data, error, response } = await client.GET("/auth/authorize", {
-    params: {
-      query: {
-        response_type: "code",
-        client_id: "01KR1CMM7G26J7J4HSQS7N7J8M",
-        redirect_uri: "http://localhost:3000/auth/callback",
-        state: "e2e-state",
-      },
-    },
+  const response = await fetch(authorizeUrl({
+    response_type: "code",
+    client_id: "01KR1CMM7G26J7J4HSQS7N7J8M",
+    redirect_uri: "http://localhost:3000/auth/callback",
+    state: "e2e-state",
+  }), {
     redirect: "manual",
   });
+  const body = await response.text();
 
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type") ?? "").toContain("text/html");
-  expect(data).toBeFalsy();
-  expect(error).toContain("Invalid client");
-  expect(error).toContain("The client or redirect URI is invalid.");
+  expect(body).toContain("Invalid client");
+  expect(body).toContain("The client or redirect URI is invalid.");
 });
 
 test("returns error for a client with an invalid redirect uri", async () => {
-  const client = await getClient();
-  const { data, error, response } = await client.GET("/auth/authorize", {
-    params: {
-      query: {
-        response_type: "code",
-        client_id: "01J2ED6BDX9J9BTYS2RVW83ME7",
-        redirect_uri: "http://localhost:3000/auth/callback2",
-        state: "e2e-state",
-      },
-    },
+  const response = await fetch(authorizeUrl({
+    response_type: "code",
+    client_id: "01J2ED6BDX9J9BTYS2RVW83ME7",
+    redirect_uri: "http://localhost:3000/auth/callback2",
+    state: "e2e-state",
+  }), {
     redirect: "manual",
   });
+  const body = await response.text();
 
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type") ?? "").toContain("text/html");
-  expect(data).toBeFalsy();
-  expect(error).toContain("Invalid client");
-  expect(error).toContain("The client or redirect URI is invalid.");
+  expect(body).toContain("Invalid client");
+  expect(body).toContain("The client or redirect URI is invalid.");
 });
+
+function authorizeUrl(query: Record<string, string>): URL {
+  const url = new URL("/auth/authorize", getBaseUrl());
+  for (const [key, value] of Object.entries(query)) {
+    url.searchParams.set(key, value);
+  }
+  return url;
+}

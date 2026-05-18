@@ -24,7 +24,8 @@ use crate::repository::event::event_airspace::{EventAirspaceRecord, EventAirspac
 use crate::repository::event::event_atc_position::{EventAtcPositionRecord, EventAtcPositionSave};
 use crate::repository::event::event_slot::{EventSlotRecord, EventSlotSave};
 use crate::repository::event::event_slot_booking::EventBookingRecord;
-use crate::repository::sheet::sheet_field::SheetFieldRecord;
+use crate::repository::sheet::sheet::{SheetRecord, SheetSave};
+use crate::repository::sheet::sheet_field::{SheetFieldRecord, SheetFieldSave};
 use crate::repository::sheet::sheet_filing_answer::{SheetAnswerRecord, SheetAnswerSave};
 use crate::routes::ApiError;
 
@@ -722,6 +723,16 @@ pub struct SheetDto {
     pub fields: Vec<SheetFieldDto>,
 }
 
+impl SheetDto {
+    pub fn from_records(sheet: SheetRecord, fields: Vec<SheetFieldRecord>) -> Self {
+        Self {
+            id: sheet.id,
+            name: sheet.name,
+            fields: fields.into_iter().map(SheetFieldDto::from).collect(),
+        }
+    }
+}
+
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct SheetFieldAnswerDto {
     pub field: SheetFieldDto,
@@ -734,7 +745,7 @@ impl From<SheetAnswerRecord> for SheetFieldAnswerDto {
             field: SheetFieldDto {
                 sheet_id: answer.sheet_id,
                 id: answer.field_id,
-                sequence: answer.field_sequence,
+                sequence: u32::try_from(answer.field_sequence).unwrap_or_default(),
                 name_zh: answer.field_name_zh,
                 name_en: answer.field_name_en,
                 kind: answer.field_kind,
@@ -748,13 +759,29 @@ impl From<SheetAnswerRecord> for SheetFieldAnswerDto {
     }
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum SheetFieldKind {
+    ShortText,
+    LongText,
+    SingleChoice,
+}
+
+impl std::fmt::Display for SheetFieldKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.serialize(f)
+    }
+}
+
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct SheetFieldDto {
     pub sheet_id: String,
     pub id: String,
-    pub sequence: i64,
+    #[schema(format = "uint32")]
+    pub sequence: u32,
     pub name_zh: String,
     pub name_en: Option<String>,
+    #[schema(value_type = SheetFieldKind)]
     pub kind: String,
     pub single_choice_options: Vec<String>,
     pub description_zh: Option<String>,
@@ -767,10 +794,59 @@ impl From<SheetFieldRecord> for SheetFieldDto {
         Self {
             sheet_id: field.sheet_id,
             id: field.id,
-            sequence: field.sequence,
+            sequence: u32::try_from(field.sequence).unwrap_or_default(),
             name_zh: field.name_zh,
             name_en: field.name_en,
             kind: field.kind,
+            single_choice_options: field.single_choice_options,
+            description_zh: field.description_zh,
+            description_en: field.description_en,
+            is_deleted: field.is_deleted,
+        }
+    }
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct SheetSaveRequest {
+    pub name: String,
+    pub fields: Vec<SheetFieldSaveRequest>,
+}
+
+impl From<SheetSaveRequest> for SheetSave {
+    fn from(request: SheetSaveRequest) -> Self {
+        Self {
+            name: request.name,
+            fields: request
+                .fields
+                .into_iter()
+                .map(SheetFieldSave::from)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct SheetFieldSaveRequest {
+    pub id: String,
+    #[schema(format = "uint32")]
+    pub sequence: u32,
+    pub name_zh: String,
+    pub name_en: Option<String>,
+    pub kind: SheetFieldKind,
+    pub single_choice_options: Vec<String>,
+    pub description_zh: Option<String>,
+    pub description_en: Option<String>,
+    pub is_deleted: bool,
+}
+
+impl From<SheetFieldSaveRequest> for SheetFieldSave {
+    fn from(field: SheetFieldSaveRequest) -> Self {
+        Self {
+            id: field.id,
+            sequence: i64::from(field.sequence),
+            name_zh: field.name_zh,
+            name_en: field.name_en,
+            kind: field.kind.to_string(),
             single_choice_options: field.single_choice_options,
             description_zh: field.description_zh,
             description_en: field.description_en,

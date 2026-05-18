@@ -23,6 +23,7 @@ use crate::routes::flights::build_flight_routes;
 use crate::routes::preferred_routes::build_preferred_route_routes;
 use crate::routes::sectors::build_sector_routes;
 use crate::routes::session::build_session_routes;
+use crate::routes::sheets::build_sheet_routes;
 use crate::routes::storage::build_storage_routes;
 use crate::routes::training_applications::build_training_application_routes;
 use crate::routes::trainings::build_training_routes;
@@ -60,6 +61,7 @@ pub fn router(services: Services) -> Router {
         .nest("/api/events", build_event_slot_booking_routes())
         .nest("/api/events", build_event_slot_routes())
         .nest("/api/session", build_session_routes())
+        .nest("/api/sheets", build_sheet_routes())
         .nest("/api/storage", build_storage_routes())
         .nest(
             "/api/atc/trainings/applications",
@@ -90,11 +92,20 @@ async fn root() -> &'static str {
 
 #[utoipa::path(get, path = "health", tag = "Health", responses((status = 200, description = "Successful response", body = HealthResponse)))]
 async fn health(State(services): State<Services>) -> impl IntoResponse {
+    tracing::info!("performing health check");
     let database_is_healthy = matches!(
         sqlx::query_scalar::<_, i32>("SELECT 1")
             .fetch_one(services.db())
             .await,
         Ok(1)
+    );
+    tracing::info!(
+        "database health check result: {}",
+        if database_is_healthy {
+            "ok"
+        } else {
+            "unavailable"
+        }
     );
 
     let status = if database_is_healthy {
