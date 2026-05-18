@@ -1,22 +1,7 @@
-#![recursion_limit = "256"]
-
-mod adapter;
-mod app;
-mod auth;
-mod dto;
-mod error;
-mod flight_plan;
-mod jwt;
-mod model;
-mod openapi;
-mod repository;
-mod routes;
-mod services;
-mod settings;
-
-use services::Services;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use vatprc_uniapi::services::Services;
+use vatprc_uniapi::{app, settings};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
