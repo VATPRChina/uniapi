@@ -130,9 +130,11 @@ impl utoipa::Modify for InternalServerErrorAddon {
         }
 
         fn add_internal_server_error_response(operation: &mut Operation) {
-            operation.responses.responses.entry(STATUS_CODE.to_string()).or_insert_with(|| {
-                RefOr::Ref(Ref::from_response_name(RESPONSE_NAME))
-            });
+            operation
+                .responses
+                .responses
+                .entry(STATUS_CODE.to_string())
+                .or_insert_with(|| RefOr::Ref(Ref::from_response_name(RESPONSE_NAME)));
         }
     }
 }

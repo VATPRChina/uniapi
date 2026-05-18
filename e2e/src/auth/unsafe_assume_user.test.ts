@@ -82,10 +82,8 @@ test("returns unauthorized without a bearer token", async () => {
   expect(response.status).toBe(401);
   expect(data).toBeFalsy();
   expect(error).toEqual({
-    detail: "unauthorized",
-    status: 401,
-    title: "unauthorized",
-    type: "urn:vatprc-uniapi-error:unauthorized",
+    error: "invalid_client",
+    error_description: "missing bearer token",
   });
 });
 
@@ -118,5 +116,8 @@ test("returns unauthorized for a client without unsafe assume permission", async
 
   expect(response.status).toBe(401);
   expect(data).toBeFalsy();
-  expect(error).toBe("client is not allowed to assume users");
+  expect(error).toEqual({
+    error: "unauthorized_client",
+    error_description: "client is not allowed to assume users",
+  });
 });

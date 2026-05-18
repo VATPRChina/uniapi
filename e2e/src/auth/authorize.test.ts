@@ -50,9 +50,11 @@ test("returns error for an invalid client", async () => {
     redirect: "manual",
   });
 
-  expect(response.status).toBe(401);
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-type") ?? "").toContain("text/html");
   expect(data).toBeFalsy();
-  expect(error).toBe("client is invalid");
+  expect(error).toContain("Invalid client");
+  expect(error).toContain("The client or redirect URI is invalid.");
 });
 
 test("returns error for a client with an invalid redirect uri", async () => {
@@ -69,7 +71,9 @@ test("returns error for a client with an invalid redirect uri", async () => {
     redirect: "manual",
   });
 
-  expect(response.status).toBe(401);
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-type") ?? "").toContain("text/html");
   expect(data).toBeFalsy();
-  expect(error).toBe("client is invalid");
+  expect(error).toContain("Invalid client");
+  expect(error).toContain("The client or redirect URI is invalid.");
 });
