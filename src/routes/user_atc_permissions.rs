@@ -12,13 +12,13 @@ use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(get_my_status, set_status))]
+#[openapi(paths(get_my_status, get_status, set_status))]
 pub(crate) struct ApiDoc;
 
 pub fn build_user_atc_permission_routes() -> Router<Services> {
     Router::new()
         .route("/me/atc/status", get(get_my_status))
-        .route("/{id}/atc/status", axum::routing::put(set_status))
+        .route("/{id}/atc/status", get(get_status).put(set_status))
 }
 
 #[utoipa::path(get, path = "api/users/me/atc/status", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
@@ -27,6 +27,17 @@ async fn get_my_status(
     current_user: CurrentUser,
 ) -> Result<Json<AtcStatusDto>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    get_status_for_user(&services, user_id).await.map(Json)
+}
+
+#[utoipa::path(get, path = "api/users/{id}/atc/status", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]
+async fn get_status(
+    State(services): State<Services>,
+    current_user: CurrentUser,
+    Path(id): Path<String>,
+) -> Result<Json<AtcStatusDto>, ApiError> {
+    let user_id = parse_ulid_uuid("user_id", &id)?;
+    require_read_access(&current_user, user_id)?;
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
@@ -71,4 +82,12 @@ fn require_admin_role(current_user: &CurrentUser) -> Result<(), ApiError> {
             UserRole::ControllerTrainingDirectorAssistant,
         ])
         .map_err(Into::into)
+}
+
+fn require_read_access(current_user: &CurrentUser, user_id: Uuid) -> Result<(), ApiError> {
+    if current_user.user_id == Some(user_id) {
+        return Ok(());
+    }
+
+    require_admin_role(current_user)
 }

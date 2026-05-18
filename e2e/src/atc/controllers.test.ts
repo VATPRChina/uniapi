@@ -77,3 +77,63 @@ test("GET /api/atc/controllers lists ATC controllers", async ({
     ]),
   );
 });
+
+test("GET /api/users/{id}/atc/status returns a user ATC status", async ({
+  admin,
+  listedController,
+}) => {
+  const { data, error, response } = await admin.GET(
+    "/api/users/{id}/atc/status",
+    {
+      params: {
+        path: {
+          id: listedController.user_id,
+        },
+      },
+    },
+  );
+
+  expect(error).toBeFalsy();
+  expect(response.status).toBe(200);
+  expect(data).toEqual(listedController);
+});
+
+test("PUT /api/users/{id}/atc/status rejects solo without expiration", async ({
+  admin,
+  controller,
+}) => {
+  const session = await controller.GET("/api/session");
+  expect(session.response.status).toBe(200);
+
+  const { data, error, response } = await admin.PUT(
+    "/api/users/{id}/atc/status",
+    {
+      params: {
+        path: {
+          id: session.data.user.id,
+        },
+      },
+      body: {
+        is_absent: false,
+        is_visiting: false,
+        rating: "S2",
+        permissions: [
+          {
+            position_kind_id: "TWR",
+            state: "solo",
+            solo_expires_at: null,
+          },
+        ],
+      },
+    },
+  );
+
+  expect(response.status).toBe(400);
+  expect(data).toBeFalsy();
+  expect(error).toEqual({
+    detail: "solo expiration not provided",
+    status: 400,
+    title: "solo expiration not provided",
+    type: "urn:vatprc-uniapi-error:solo-expiration-not-provided",
+  });
+});

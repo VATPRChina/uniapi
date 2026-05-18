@@ -28,6 +28,7 @@ If some common data setup is required for the API endpoint (e.g. `/api/events` r
 | GET    | `/api/atc/trainings/{id}`                                  | OK      |
 | PUT    | `/api/atc/trainings/{id}`                                  | OK      |
 | GET    | `/api/atc/trainings/active`                                | OK      |
+| GET    | `/api/atc/trainings/by-user/{userId}`                      | OK      |
 | PUT    | `/api/atc/trainings/applications/{id}/response`            | OK      |
 | GET    | `/api/atc/trainings/applications/{id}/responses`           | OK      |
 | DELETE | `/api/atc/trainings/applications/{id}`                     | OK      |
@@ -52,7 +53,7 @@ If some common data setup is required for the API endpoint (e.g. `/api/events` r
 | POST   | `/api/events/{event_id}/controllers`                       | OK      |
 | DELETE | `/api/events/{event_id}/slots/{slot_id}/booking`           | OK      |
 | PUT    | `/api/events/{event_id}/slots/{slot_id}/booking`           | OK      |
-| GET    | `/api/events/{event_id}/slots/bookings.csv`                | MISSING |
+| GET    | `/api/events/{event_id}/slots/bookings.csv`                | OK      |
 | GET    | `/api/events/{event_id}/slots`                             | OK      |
 | POST   | `/api/events/{event_id}/slots`                             | OK      |
 | GET    | `/api/events/{id}`                                         | OK      |
@@ -74,9 +75,10 @@ If some common data setup is required for the API endpoint (e.g. `/api/events` r
 | DELETE | `/api/session`                                             | MISSING |
 | GET    | `/api/session`                                             | OK      |
 | POST   | `/api/storage/images`                                      | MISSING |
-| PUT    | `/api/users/{id}/atc/status`                               | MISSING |
+| GET    | `/api/users/{id}/atc/status`                               | OK      |
+| PUT    | `/api/users/{id}/atc/status`                               | OK      |
 | PUT    | `/api/users/{id}/roles`                                    | MISSING |
-| GET    | `/api/users/me/atc/status`                                 | MISSING |
+| GET    | `/api/users/me/atc/status`                                 | OK      |
 | GET    | `/api/users/me`                                            | MISSING |
 | GET    | `/api/users`                                               | MISSING |
 | POST   | `/auth/__unsafe_assume_user`                               | OK      |

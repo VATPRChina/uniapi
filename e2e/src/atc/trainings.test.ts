@@ -157,3 +157,36 @@ test("GET /api/atc/trainings/finished lists finished trainings", async ({
     ]),
   );
 });
+
+test("GET /api/atc/trainings/by-user/{userId} lists trainings for a user", async ({
+  mentor,
+  traineeSession,
+  activeTraining,
+  finishedTraining,
+}) => {
+  const { data, error, response } = await mentor.GET(
+    "/api/atc/trainings/by-user/{userId}",
+    {
+      params: {
+        path: {
+          userId: traineeSession.user.id,
+        },
+      },
+    },
+  );
+
+  expect(error).toBeFalsy();
+  expect(response.status).toBe(200);
+  expect(data).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: activeTraining.id,
+        trainee_id: traineeSession.user.id,
+      }),
+      expect.objectContaining({
+        id: finishedTraining.id,
+        trainee_id: traineeSession.user.id,
+      }),
+    ]),
+  );
+});

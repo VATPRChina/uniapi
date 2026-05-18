@@ -73,6 +73,18 @@ pub async fn list_finished(
     .await
 }
 
+pub async fn list_by_user(db: &PgPool, user_id: Uuid) -> Result<Vec<TrainingRecord>, sqlx::Error> {
+    sqlx::query_as::<_, TrainingRecord>(&training_select_sql(
+        r#"
+        WHERE training.trainer_id = $1 OR training.trainee_id = $1
+        ORDER BY training.created_at DESC
+        "#,
+    ))
+    .bind(user_id)
+    .fetch_all(db)
+    .await
+}
+
 pub async fn find_by_id(db: &PgPool, id: Uuid) -> Result<Option<TrainingRecord>, sqlx::Error> {
     sqlx::query_as::<_, TrainingRecord>(&training_select_sql(
         r#"

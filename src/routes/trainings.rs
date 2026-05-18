@@ -24,6 +24,7 @@ use crate::services::Services;
 #[openapi(paths(
     create_training,
     list_active,
+    list_by_user,
     list_finished,
     get_record_sheet,
     get_training,
@@ -39,6 +40,7 @@ pub fn build_training_routes() -> Router<Services> {
     Router::new()
         .route("/", axum::routing::post(create_training))
         .route("/active", get(list_active))
+        .route("/by-user/{user_id}", get(list_by_user))
         .route("/finished", get(list_finished))
         .route("/record-sheet", get(get_record_sheet))
         .route(
@@ -64,6 +66,29 @@ async fn list_active(
             current_user.has_role(UserRole::ControllerTrainingMentor),
         )
         .await?,
+    )
+    .await
+    .map(Json)
+}
+
+#[utoipa::path(get, path = "api/atc/trainings/by-user/{userId}", tag = "ATC", security(("oauth2" = [])), params(("userId" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
+async fn list_by_user(
+    State(services): State<Services>,
+    current_user: CurrentUser,
+    Path(user_id): Path<String>,
+) -> Result<Json<Vec<TrainingDto>>, ApiError> {
+    let user_id = parse_ulid_uuid("user_id", &user_id)?;
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    if current_user_id != user_id && !current_user.has_role(UserRole::ControllerTrainingMentor) {
+        return Err(ApiError::NotOwned {
+            entity: "user".to_string(),
+            id: user_id.to_string(),
+        });
+    }
+
+    trainings_to_dto(
+        &services,
+        training_repository::list_by_user(services.db(), user_id).await?,
     )
     .await
     .map(Json)

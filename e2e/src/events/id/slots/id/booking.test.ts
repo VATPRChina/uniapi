@@ -10,8 +10,9 @@ const test = baseTest
     return await getClient([]);
   })
   .extend("assignee", async ({}) => {
+    const cid = Math.floor(10000000 + Math.random() * 9000000).toString();
     const client = await createApiClientWithRoles(getBaseUrl(), {
-      cid: Math.floor(10000000 + Math.random() * 9000000).toString(),
+      cid,
       roles: [],
     });
     const session = await client.GET("/api/session");
@@ -22,6 +23,7 @@ const test = baseTest
 
     return {
       client,
+      cid,
       id: session.data.user.id,
     };
   })
@@ -367,6 +369,50 @@ test("slot can be assigned and unassigned by event coordinator", async ({
       user_id: assignee.id,
     }),
   );
+});
+
+test("GET /api/events/{event_id}/slots/bookings.csv exports booked slots", async ({
+  coordinator,
+  assignee,
+  event,
+  slot,
+}) => {
+  const createdBooking = await coordinator.PUT(
+    "/api/events/{event_id}/slots/{slot_id}/booking",
+    {
+      params: {
+        path: {
+          event_id: event.id,
+          slot_id: slot.id,
+        },
+      },
+      body: {
+        user_id: assignee.id,
+      },
+    },
+  );
+
+  expect(createdBooking.error).toBeFalsy();
+  expect(createdBooking.response.status).toBe(200);
+
+  const exportResponse = await coordinator.GET(
+    "/api/events/{event_id}/slots/bookings.csv",
+    {
+      params: {
+        path: {
+          event_id: event.id,
+        },
+      },
+      parseAs: "text",
+    },
+  );
+
+  expect(exportResponse.error).toBeFalsy();
+  expect(exportResponse.response.status).toBe(200);
+  expect(exportResponse.response.headers.get("content-type")).toContain(
+    "text/csv",
+  );
+  expect(exportResponse.data).toBe(`${assignee.cid},1030`);
 });
 
 test("slot cannot be assigned by normal user", async ({

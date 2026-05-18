@@ -78,7 +78,7 @@ pub async fn create(db: &PgPool, slot: EventSlotSave) -> Result<EventSlotRecord,
 pub async fn booking_export_rows(db: &PgPool, event_id: Uuid) -> Result<Vec<String>, sqlx::Error> {
     sqlx::query_scalar::<_, String>(
         r#"
-        SELECT "user".cid || ',' || to_char(event_slot.enter_at, 'HH24MI')
+        SELECT "user".cid || ',' || to_char(event_slot.enter_at AT TIME ZONE 'UTC', 'HH24MI')
         FROM public.event_booking
         JOIN public."user" ON "user".id = event_booking.user_id
         JOIN public.event_slot ON event_slot.id = event_booking.event_slot_id

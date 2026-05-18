@@ -15,7 +15,7 @@ use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(list_slots, create_slot))]
+#[openapi(paths(list_slots, export_bookings, create_slot))]
 pub(crate) struct ApiDoc;
 
 pub fn build_event_slot_routes() -> Router<Services> {
@@ -42,6 +42,7 @@ async fn list_slots(
     ))
 }
 
+#[utoipa::path(get, path = "api/events/{event_id}/slots/bookings.csv", tag = "Events", security(("oauth2" = [])), params(("event_id" = String, Path, description = "Event ULID")), responses((status = 200, description = "CSV export of slot bookings", content_type = "text/csv")))]
 async fn export_bookings(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -49,6 +50,7 @@ async fn export_bookings(
 ) -> Result<Response, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
     let event_id = parse_ulid_uuid("event_id", &eid)?;
+    ensure_event_exists(&services, event_id).await?;
     let rows = slot_repository::booking_export_rows(services.db(), event_id).await?;
 
     Ok((
