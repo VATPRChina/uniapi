@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -17,7 +17,7 @@ pub enum StaticPreferredRouteError {
 
 #[derive(Debug, Clone)]
 pub struct StaticPreferredRouteAdapter {
-    preferred_routes: Vec<PreferredRoute>,
+    preferred_routes: Arc<Vec<PreferredRoute>>,
 }
 
 impl StaticPreferredRouteAdapter {
@@ -27,6 +27,7 @@ impl StaticPreferredRouteAdapter {
             .deserialize::<PreferredRouteCsvRecord>()
             .map(|record| PreferredRoute::try_from(record?))
             .collect::<Result<Vec<_>, StaticPreferredRouteError>>()?;
+        let preferred_routes = Arc::new(preferred_routes);
 
         Ok(Self { preferred_routes })
     }
