@@ -52,6 +52,7 @@ pub enum WarningMessageCode {
     NotPreferredRoute,
     CruisingLevelMismatch,
     CruisingLevelNotAllowed,
+    CruisingLevelTooLow,
     RouteMatchPreferred,
 }
 
@@ -184,6 +185,15 @@ fn validate_preferred_route_match(
                         .collect::<Vec<_>>()
                         .join(","),
                 ),
+            });
+        }
+
+        if route.minimal_altitude != 0 && (flight.cruising_level as i32) < route.minimal_altitude {
+            messages.push(WarningMessage {
+                field: WarningMessageField::CruisingLevel,
+                field_index: None,
+                message_code: WarningMessageCode::CruisingLevelTooLow,
+                parameter: Some(route.minimal_altitude.to_string()),
             });
         }
     } else if !preferred_routes.is_empty() {
