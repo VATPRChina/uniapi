@@ -5,6 +5,8 @@ use serde::Deserialize;
 use std::time::Duration;
 use thiserror::Error;
 
+use tracing::instrument;
+
 #[derive(Clone)]
 pub struct DiscourseClient {
     endpoint: String,
@@ -41,6 +43,7 @@ impl DiscourseClient {
         &self.endpoint
     }
 
+    #[instrument(skip(self))]
     pub async fn get_notam_topics(&self) -> Result<CategoryResult, DiscourseError> {
         let mut request = self.http.get(format!(
             "{}/c/69-category/notam/79.json",

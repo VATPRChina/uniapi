@@ -54,6 +54,12 @@ pub async fn list_by_event(
 }
 
 pub async fn create(db: &PgPool, slot: EventSlotSave) -> Result<EventSlotRecord, sqlx::Error> {
+    tracing::info!(
+        operation = "create",
+        repository = "src/repository/event/event_slot.rs",
+        "modifying data"
+    );
+
     let id = Uuid::from(Ulid::new());
     sqlx::query(
         r#"

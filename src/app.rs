@@ -1,10 +1,12 @@
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router, middleware};
+use opentelemetry::KeyValue;
 use serde::Serialize;
-use tower_http::trace::TraceLayer;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
+use tracing::{Level, instrument};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
@@ -83,14 +85,48 @@ pub fn router(services: Services) -> Router {
             auth_services,
             auth::authenticate,
         ))
-        .layer(TraceLayer::new_for_http())
+        .layer(middleware::from_fn(record_request_status))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .on_request(DefaultOnRequest::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO)),
+        )
 }
 
+#[instrument(skip(request, next), fields(http.method = %request.method(), http.target = %request.uri().path()))]
+async fn record_request_status(
+    request: axum::extract::Request,
+    next: middleware::Next,
+) -> Response {
+    let method = request.method().clone();
+    let path = request.uri().path().to_string();
+    let response = next.run(request).await;
+    let status = response.status();
+
+    opentelemetry::global::meter("vatprc-uniapi")
+        .u64_counter("http.server.request.status")
+        .with_description("Number of HTTP responses by status code")
+        .build()
+        .add(
+            1,
+            &[
+                KeyValue::new("http.request.method", method.to_string()),
+                KeyValue::new("url.path", path),
+                KeyValue::new("http.response.status_code", i64::from(status.as_u16())),
+            ],
+        );
+
+    response
+}
+
+#[instrument]
 async fn root() -> &'static str {
     "vatprc uniapi rust service"
 }
 
 #[utoipa::path(get, path = "health", tag = "Health", responses((status = 200, description = "Successful response", body = HealthResponse)))]
+#[instrument(skip(services))]
 async fn health(State(services): State<Services>) -> impl IntoResponse {
     tracing::info!("performing health check");
     let database_is_healthy = matches!(

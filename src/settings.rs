@@ -12,6 +12,22 @@ pub struct Settings {
     pub storage: Storage,
     pub utils: Utils,
     pub navdata: Navdata,
+    pub telemetry: OpenTelemetry,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct OpenTelemetry {
+    pub service_name: String,
+    pub log_level: String,
+    pub logs: OpenTelemetrySignal,
+    pub metrics: OpenTelemetrySignal,
+    pub tracing: OpenTelemetrySignal,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OpenTelemetrySignal {
+    pub enabled: bool,
+    pub endpoint: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

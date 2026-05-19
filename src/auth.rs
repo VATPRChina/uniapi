@@ -6,6 +6,7 @@ use axum::http::{HeaderMap, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use thiserror::Error;
+use tracing::instrument;
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -36,17 +37,21 @@ impl CurrentUser {
     }
 
     pub fn require_role(&self, role: UserRole) -> Result<(), AuthError> {
+        tracing::info!(subject = %self.subject, ?role, "asserting required role");
         if self.has_role(role) {
             Ok(())
         } else {
+            tracing::warn!(subject = %self.subject, ?role, "required role assertion failed");
             Err(AuthError::MissingRole(role))
         }
     }
 
     pub fn require_any_role(&self, required_roles: &[UserRole]) -> Result<(), AuthError> {
+        tracing::info!(subject = %self.subject, ?required_roles, "asserting any required role");
         if required_roles.iter().any(|role| self.has_role(*role)) {
             return Ok(());
         }
+        tracing::warn!(subject = %self.subject, ?required_roles, "required role assertion failed");
         Err(AuthError::MissingAnyRole(required_roles.to_vec()))
     }
 }
@@ -78,6 +83,7 @@ impl IntoResponse for AuthError {
     }
 }
 
+#[instrument(skip(services, request, next), fields(http.target = %request.uri().path()))]
 pub async fn authenticate(
     State(services): State<Services>,
     mut request: axum::extract::Request,
@@ -85,11 +91,13 @@ pub async fn authenticate(
 ) -> Result<Response, AuthError> {
     if let Some(token) = bearer_token(request.headers())? {
         let user = authenticate_token(&services, token).await?;
+        tracing::info!(subject = %user.subject, user_id = ?user.user_id, "authenticated bearer token");
         request.extensions_mut().insert(user);
     }
     Ok(next.run(request).await)
 }
 
+#[instrument(skip(headers))]
 fn bearer_token(headers: &HeaderMap) -> Result<Option<&str>, AuthError> {
     let Some(authorization) = headers
         .get(header::AUTHORIZATION)
@@ -104,6 +112,7 @@ fn bearer_token(headers: &HeaderMap) -> Result<Option<&str>, AuthError> {
         .ok_or(AuthError::InvalidBearerToken)
 }
 
+#[instrument(skip(services, token))]
 async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentUser, AuthError> {
     let token = services.jwt().validate_access_token_claims(token)?;
     let mut roles = HashSet::new();

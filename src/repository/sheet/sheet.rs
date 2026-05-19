@@ -15,6 +15,12 @@ pub struct SheetSave {
 }
 
 pub async fn ensure(db: &PgPool, sheet_id: &str, name: &str) -> Result<(), sqlx::Error> {
+    tracing::info!(
+        operation = "ensure",
+        repository = "src/repository/sheet/sheet.rs",
+        "modifying data"
+    );
+
     sqlx::query(
         r#"
         INSERT INTO public.sheet (id, name)
@@ -60,6 +66,12 @@ pub async fn upsert(
     sheet_id: &str,
     sheet: SheetSave,
 ) -> Result<SheetRecord, sqlx::Error> {
+    tracing::info!(
+        operation = "upsert",
+        repository = "src/repository/sheet/sheet.rs",
+        "modifying data"
+    );
+
     let mut transaction = db.begin().await?;
 
     let record = sqlx::query_as::<_, SheetRecord>(

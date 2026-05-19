@@ -60,6 +60,12 @@ pub async fn create(
     user_id: Uuid,
     application_filing_id: Uuid,
 ) -> Result<AtcApplicationRecord, sqlx::Error> {
+    tracing::info!(
+        operation = "create",
+        repository = "src/repository/atc/atc_application.rs",
+        "modifying data"
+    );
+
     let id = Uuid::from(Ulid::new());
     sqlx::query(
         r#"
@@ -85,6 +91,12 @@ pub async fn set_review(
     status: &str,
     review_filing_id: Uuid,
 ) -> Result<Option<AtcApplicationRecord>, sqlx::Error> {
+    tracing::info!(
+        operation = "set_review",
+        repository = "src/repository/atc/atc_application.rs",
+        "modifying data"
+    );
+
     let result = sqlx::query(
         r#"
         UPDATE public.atc_application

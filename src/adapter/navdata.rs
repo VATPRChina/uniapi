@@ -3,6 +3,8 @@ use itertools::Itertools;
 use ordered_float::NotNan;
 use sqlx::{SqlitePool, prelude::FromRow};
 
+use tracing::instrument;
+
 use crate::adapter::static_preferred_route::{
     StaticPreferredRouteAdapter, StaticPreferredRouteError,
 };
@@ -40,6 +42,7 @@ pub struct NavdataAdapter {
 }
 
 impl NavdataAdapter {
+    #[instrument(skip(local_data_path, preferred_routes_path))]
     pub async fn with_preferred_routes_path(
         local_data_path: impl AsRef<str>,
         preferred_routes_path: impl AsRef<std::path::Path>,
@@ -53,6 +56,7 @@ impl NavdataAdapter {
         })
     }
 
+    #[instrument(skip(self), fields(ident = %ident))]
     pub async fn find_airport(&self, ident: &str) -> NavdataResult<Option<Airport>> {
         let result: Option<AirportRecord> = sqlx::query_as(
             r#"
@@ -77,6 +81,7 @@ impl NavdataAdapter {
         Ok(airport)
     }
 
+    #[instrument(skip(self))]
     pub async fn find_nearest_fix(
         &self,
         latitude: f64,
@@ -227,6 +232,7 @@ impl NavdataAdapter {
         ))
     }
 
+    #[instrument(skip(self), fields(airport_ident = %airport_ident, ident = %ident))]
     pub async fn exists_sid(&self, airport_ident: &str, ident: &str) -> NavdataResult<bool> {
         let result: u32 = sqlx::query_scalar(
             r#"
@@ -261,6 +267,7 @@ impl NavdataAdapter {
         Ok(result > 0)
     }
 
+    #[instrument(skip(self), fields(airway_ident = %airway_ident, fix_ident = %fix_ident))]
     pub async fn exists_airway_with_fix(
         &self,
         airway_ident: &str,
@@ -282,6 +289,7 @@ impl NavdataAdapter {
         Ok(result > 0)
     }
 
+    #[instrument(skip(self), fields(airway_ident = %airway_ident, from_ident = %from_ident, to_ident = %to_ident))]
     pub async fn list_airway_legs_between(
         &self,
         airway_ident: &str,

@@ -26,6 +26,12 @@ pub async fn create(
     event_id: Uuid,
     airspace: EventAirspaceSave,
 ) -> Result<EventAirspaceRecord, sqlx::Error> {
+    tracing::info!(
+        operation = "create",
+        repository = "src/repository/event/event_airspace.rs",
+        "modifying data"
+    );
+
     sqlx::query_as::<_, EventAirspaceRecord>(
         r#"
         INSERT INTO public.event_airspace (id, event_id, name, icao_codes, description)

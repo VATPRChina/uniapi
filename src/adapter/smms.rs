@@ -4,6 +4,8 @@ use serde::Deserialize;
 use thiserror::Error;
 use ulid::Ulid;
 
+use tracing::instrument;
+
 #[derive(Clone)]
 pub struct SmmsClient {
     base_url: String,
@@ -32,6 +34,7 @@ impl SmmsClient {
         }
     }
 
+    #[instrument(skip(self, image, content_type), fields(file_name = ?file_name))]
     pub async fn upload_image(
         &self,
         image: Vec<u8>,

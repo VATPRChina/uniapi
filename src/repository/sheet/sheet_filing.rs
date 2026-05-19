@@ -15,6 +15,12 @@ pub async fn set(
     user_id: Uuid,
     answers: &[SheetAnswerSave],
 ) -> Result<Uuid, sqlx::Error> {
+    tracing::info!(
+        operation = "set",
+        repository = "src/repository/sheet/sheet_filing.rs",
+        "modifying data"
+    );
+
     let filing_id = match filing_id {
         Some(filing_id) => {
             sqlx::query_scalar::<_, Uuid>(

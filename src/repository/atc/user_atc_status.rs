@@ -55,6 +55,12 @@ pub async fn upsert(
     user_id: Uuid,
     status: &AtcStatusSave,
 ) -> Result<(), sqlx::Error> {
+    tracing::info!(
+        operation = "upsert",
+        repository = "src/repository/atc/user_atc_status.rs",
+        "modifying data"
+    );
+
     sqlx::query(
         r#"
         INSERT INTO public.user_atc_status (user_id, is_visiting, is_absent, rating)

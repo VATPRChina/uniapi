@@ -165,6 +165,7 @@ pub struct ProblemDetails {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
+        tracing::error!("API error: {:?}", self);
         (
             self.status_code(),
             [(axum::http::header::CONTENT_TYPE, "application/problem+json")],

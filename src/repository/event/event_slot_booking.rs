@@ -93,6 +93,12 @@ pub async fn create_booking(
     slot_id: Uuid,
     user_id: Uuid,
 ) -> Result<Uuid, sqlx::Error> {
+    tracing::info!(
+        operation = "create_booking",
+        repository = "src/repository/event/event_slot_booking.rs",
+        "modifying data"
+    );
+
     let id = Uuid::from(Ulid::new());
     sqlx::query(
         r#"
@@ -113,6 +119,12 @@ pub async fn delete_booking(
     transaction: &mut Transaction<'_, Postgres>,
     booking_id: Uuid,
 ) -> Result<(), sqlx::Error> {
+    tracing::info!(
+        operation = "delete_booking",
+        repository = "src/repository/event/event_slot_booking.rs",
+        "modifying data"
+    );
+
     sqlx::query("DELETE FROM public.event_booking WHERE id = $1")
         .bind(booking_id)
         .execute(&mut **transaction)

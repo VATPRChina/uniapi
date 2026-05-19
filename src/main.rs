@@ -1,18 +1,10 @@
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
 use vatprc_uniapi::services::Services;
-use vatprc_uniapi::{app, settings};
+use vatprc_uniapi::{app, settings, telemetry};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
     let settings = settings::Settings::new().expect("failed to load settings");
+    let _telemetry = telemetry::init(&settings.telemetry)?;
 
     let services = Services::connect(&settings).await?;
 

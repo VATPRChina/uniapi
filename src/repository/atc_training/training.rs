@@ -97,6 +97,12 @@ pub async fn find_by_id(db: &PgPool, id: Uuid) -> Result<Option<TrainingRecord>,
 }
 
 pub async fn create(db: &PgPool, training: TrainingSave) -> Result<TrainingRecord, sqlx::Error> {
+    tracing::info!(
+        operation = "create",
+        repository = "src/repository/atc_training/training.rs",
+        "modifying data"
+    );
+
     let id = Uuid::from(Ulid::new());
     let now = Utc::now();
     sqlx::query(
@@ -125,6 +131,12 @@ pub async fn update(
     id: Uuid,
     training: TrainingSave,
 ) -> Result<Option<TrainingRecord>, sqlx::Error> {
+    tracing::info!(
+        operation = "update",
+        repository = "src/repository/atc_training/training.rs",
+        "modifying data"
+    );
+
     let result = sqlx::query(
         r#"
         UPDATE public.training
@@ -152,6 +164,12 @@ pub async fn set_record_filing(
     id: Uuid,
     filing_id: Uuid,
 ) -> Result<Option<TrainingRecord>, sqlx::Error> {
+    tracing::info!(
+        operation = "set_record_filing",
+        repository = "src/repository/atc_training/training.rs",
+        "modifying data"
+    );
+
     let result = sqlx::query(
         r#"
         UPDATE public.training

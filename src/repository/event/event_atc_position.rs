@@ -88,6 +88,12 @@ pub async fn create(
     event_id: Uuid,
     position: EventAtcPositionSave,
 ) -> Result<EventAtcPositionRecord, sqlx::Error> {
+    tracing::info!(
+        operation = "create",
+        repository = "src/repository/event/event_atc_position.rs",
+        "modifying data"
+    );
+
     let id = Uuid::from(Ulid::new());
     sqlx::query(
         r#"
@@ -120,6 +126,12 @@ pub async fn update(
     position_id: Uuid,
     position: EventAtcPositionSave,
 ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
+    tracing::info!(
+        operation = "update",
+        repository = "src/repository/event/event_atc_position.rs",
+        "modifying data"
+    );
+
     let result = sqlx::query(
         r#"
         UPDATE public.event_atc_position
@@ -151,6 +163,12 @@ pub async fn update(
 }
 
 pub async fn delete(db: &PgPool, event_id: Uuid, position_id: Uuid) -> Result<bool, sqlx::Error> {
+    tracing::info!(
+        operation = "delete",
+        repository = "src/repository/event/event_atc_position.rs",
+        "modifying data"
+    );
+
     let result = sqlx::query(
         r#"
         DELETE FROM public.event_atc_position
@@ -188,6 +206,12 @@ pub async fn create_booking(
     position: &EventAtcPositionRecord,
     user_id: Uuid,
 ) -> Result<(), sqlx::Error> {
+    tracing::info!(
+        operation = "create_booking",
+        repository = "src/repository/event/event_atc_position.rs",
+        "modifying data"
+    );
+
     let atc_booking_id = Uuid::from(Ulid::new());
     let now = Utc::now();
     sqlx::query(
@@ -227,6 +251,12 @@ pub async fn delete_booking(
     position_id: Uuid,
     atc_booking_id: Option<Uuid>,
 ) -> Result<(), sqlx::Error> {
+    tracing::info!(
+        operation = "delete_booking",
+        repository = "src/repository/event/event_atc_position.rs",
+        "modifying data"
+    );
+
     sqlx::query("DELETE FROM public.event_atc_position_booking WHERE event_atc_position_id = $1")
         .bind(position_id)
         .execute(&mut **transaction)

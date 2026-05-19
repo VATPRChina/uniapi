@@ -7,6 +7,7 @@ use chrono::{Duration, Utc};
 use rand::RngExt;
 use serde::Serialize;
 use std::collections::BTreeSet;
+use tracing::instrument;
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -51,6 +52,7 @@ pub fn build_auth_routes() -> Router<Services> {
     ),
     responses((status = 302, description = "Redirects to authorization destination"))
 )]
+#[instrument(skip(services, query), fields(client_id = %query.client_id))]
 async fn authorize(
     State(services): State<Services>,
     Query(query): Query<AuthorizeQuery>,
@@ -110,11 +112,13 @@ async fn authorize(
         (status = 401, description = "OAuth client authentication error", body = AuthApiErrorBody)
     )
 )]
+#[instrument(skip(services, headers, request), fields(client_id = %request.client_id))]
 async fn device_authorization(
     State(services): State<Services>,
     headers: HeaderMap,
     Form(request): Form<DeviceAuthorizationRequest>,
 ) -> Result<Json<DeviceAuthorizationResponse>, AuthApiError> {
+    tracing::info!(client_id = %request.client_id, "creating device authorization");
     if !services.jwt().check_client_exists(&request.client_id) {
         return Err(AuthApiError::invalid_client("client_id not found"));
     }
@@ -138,6 +142,8 @@ async fn device_authorization(
     let verification_uri = format!("{}/auth/device", request_origin(&headers));
     let formatted_user_code = format!("{}-{}", &user_code[..4], &user_code[4..]);
 
+    tracing::info!(%device_code, client_id = %request.client_id, "device authorization issued");
+
     Ok(Json(DeviceAuthorizationResponse {
         device_code: device_code.to_string(),
         user_code: formatted_user_code,
@@ -148,6 +154,7 @@ async fn device_authorization(
     }))
 }
 
+#[instrument(skip(services, query))]
 async fn device_confirm(
     State(services): State<Services>,
     Query(query): Query<DeviceConfirmQuery>,
@@ -207,6 +214,7 @@ async fn device_confirm(
     Ok(response)
 }
 
+#[instrument(skip(services, query))]
 async fn login(
     State(services): State<Services>,
     Query(query): Query<LoginQuery>,
@@ -229,6 +237,7 @@ async fn login(
     Ok(response)
 }
 
+#[instrument(skip(services, headers, query))]
 async fn vatsim_callback(
     State(services): State<Services>,
     headers: HeaderMap,
@@ -340,6 +349,7 @@ async fn vatsim_callback(
                     Some("/auth/device"),
                 ));
             };
+            tracing::info!(%user_code, user_id = %user.id, "associating device authorization with user");
             device_authorization_repository::associate_user(services.db(), &user_code, user.id)
                 .await
                 .map_err(AuthUserError::from)?;
@@ -376,6 +386,7 @@ async fn vatsim_callback(
         (status = 401, description = "OAuth client authentication error", body = AuthApiErrorBody)
     )
 )]
+#[instrument(skip(services, request), fields(grant_type = %request.grant_type, client_id = %request.client_id))]
 async fn token(
     State(services): State<Services>,
     Form(request): Form<AccessTokenRequest>,
@@ -406,6 +417,7 @@ async fn token(
         (status = 401, description = "OAuth client authentication error", body = AuthApiErrorBody)
     )
 )]
+#[instrument(skip(services, headers, request), fields(cid = %request.cid))]
 async fn unsafe_assume_user(
     State(services): State<Services>,
     headers: HeaderMap,
@@ -459,6 +471,8 @@ async fn unsafe_assume_user(
     )
     .await
     .map_err(AuthApiError::from)?;
+
+    tracing::info!(assumed_user_id = %user.id, client_id = %client_id, "issuing unsafe assumed user token");
     let refresh =
         issue_refresh_token(&services, user.id, user.updated_at, &client_id, None, false).await?;
     let access_token =
@@ -475,6 +489,7 @@ async fn unsafe_assume_user(
     }))
 }
 
+#[instrument(skip(services, request), fields(client_id = %request.client_id))]
 async fn device_code_grant(
     services: Services,
     request: AccessTokenRequest,
@@ -517,6 +532,7 @@ async fn device_code_grant(
         false,
     )
     .await?;
+    tracing::info!(%user_id, client_id = %request.client_id, "issuing tokens from device code grant");
     let access_token = services.jwt().issue_access_token(
         user_id,
         user_updated_at,
@@ -534,6 +550,7 @@ async fn device_code_grant(
     }))
 }
 
+#[instrument(skip(services, request), fields(client_id = %request.client_id))]
 async fn refresh_token_grant(
     services: Services,
     request: AccessTokenRequest,
@@ -564,6 +581,7 @@ async fn refresh_token_grant(
         false,
     )
     .await?;
+    tracing::info!(user_id = %refresh.user_id, client_id = %refresh.client_id, "issuing tokens from refresh token grant");
     let access_token = services.jwt().issue_access_token(
         refresh.user_id,
         refresh.updated_at,
@@ -580,6 +598,7 @@ async fn refresh_token_grant(
     }))
 }
 
+#[instrument(skip(services, request), fields(client_id = %request.client_id))]
 async fn authorization_code_grant(
     services: Services,
     request: AccessTokenRequest,
@@ -600,6 +619,7 @@ async fn authorization_code_grant(
     };
     clear_code(&services, validated_code.code).await?;
 
+    tracing::info!(user_id = %session.user_id, client_id = %validated_code.client_id, "issuing tokens from authorization code grant");
     let access_token = services.jwt().issue_access_token(
         session.user_id,
         session.updated_at,
@@ -616,6 +636,7 @@ async fn authorization_code_grant(
     }))
 }
 
+#[instrument(skip(services, request), fields(client_id = %request.client_id))]
 fn client_credentials_grant(
     services: Services,
     request: AccessTokenRequest,
@@ -634,6 +655,7 @@ fn client_credentials_grant(
         ));
     }
 
+    tracing::info!(client_id = %request.client_id, "issuing client credentials access token");
     let access_token = services
         .jwt()
         .issue_client_access_token(&request.client_id)?;
@@ -646,6 +668,7 @@ fn client_credentials_grant(
     }))
 }
 
+#[instrument(skip(services, user_updated_at), fields(user_id = %user_id, client_id = %client_id, create_code = create_code))]
 async fn issue_refresh_token(
     services: &Services,
     user_id: uuid::Uuid,
@@ -656,6 +679,7 @@ async fn issue_refresh_token(
 ) -> Result<RefreshSessionIssue, sqlx::Error> {
     let expires_in = Utc::now() + Duration::days(services.jwt().refresh_expires_days());
 
+    tracing::info!(%user_id, %client_id, old_token = ?old_token, create_code, "issuing refresh token");
     session_repository::issue_refresh_token(
         services.db(),
         user_id,
@@ -668,6 +692,7 @@ async fn issue_refresh_token(
     .await
 }
 
+#[instrument(skip(services), fields(token = %token))]
 async fn find_session(
     services: &Services,
     token: Ulid,
@@ -677,6 +702,7 @@ async fn find_session(
         .map_err(AuthApiError::from)
 }
 
+#[instrument(skip(services), fields(code = %code))]
 async fn find_session_by_code(
     services: &Services,
     code: Ulid,
@@ -686,16 +712,19 @@ async fn find_session_by_code(
         .map_err(AuthApiError::from)
 }
 
+#[instrument(skip(services), fields(code = %code))]
 async fn clear_code(services: &Services, code: Ulid) -> Result<(), AuthApiError> {
     session_repository::clear_code(services.db(), code)
         .await
         .map_err(AuthApiError::from)
 }
 
+#[instrument(skip(services), fields(device_code = %device_code))]
 async fn delete_device_authorization(
     services: &Services,
     device_code: Ulid,
 ) -> Result<(), sqlx::Error> {
+    tracing::info!(%device_code, "deleting device authorization");
     device_authorization_repository::delete(services.db(), device_code).await
 }
 
@@ -707,6 +736,7 @@ fn parse_required_ulid(value: &str, missing: &'static str) -> Result<Option<Ulid
     Ok(value.parse::<Ulid>().ok())
 }
 
+#[instrument(skip(services, headers))]
 fn authenticated_api_client(
     services: &Services,
     headers: &HeaderMap,
@@ -909,12 +939,14 @@ fn html_escape(value: &str) -> String {
         .replace('"', "&quot;")
 }
 
+#[instrument(skip(services, full_name, email), fields(cid = %cid))]
 async fn upsert_user(
     services: &Services,
     cid: &str,
     full_name: &str,
     email: &str,
 ) -> Result<UserLoginRow, AuthUserError> {
+    tracing::info!(%cid, "upserting authenticated user login");
     user_repository::upsert_login(services.db(), cid, full_name, email)
         .await
         .map_err(AuthUserError::from)

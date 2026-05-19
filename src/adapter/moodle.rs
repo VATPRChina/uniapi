@@ -3,6 +3,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use thiserror::Error;
 
+use tracing::instrument;
 const MOODLE_ENDPOINT: &str = "https://moodle.vatprc.net/webservice/rest/server.php";
 
 #[derive(Clone)]
@@ -25,6 +26,7 @@ impl MoodleClient {
         }
     }
 
+    #[instrument(skip(self), fields(cid = %cid))]
     pub async fn get_user_by_cid(&self, cid: &str) -> Result<Option<MoodleUser>, MoodleError> {
         if self.api_key.is_empty() {
             return Ok(None);

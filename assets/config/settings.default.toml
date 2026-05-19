@@ -22,3 +22,19 @@ api_key = ""
 local_data_path = "data/dfd_v2.db"
 preferred_routes_path = "data/routes.csv"
 download_file = true
+
+[telemetry]
+service_name = "vatprc-uniapi"
+log_level = "info"
+
+[telemetry.logs]
+enabled = false
+endpoint = "http://localhost:4318/v1/logs"
+
+[telemetry.metrics]
+enabled = false
+endpoint = "http://localhost:4318/v1/metrics"
+
+[telemetry.tracing]
+enabled = false
+endpoint = "http://localhost:4318/v1/traces"

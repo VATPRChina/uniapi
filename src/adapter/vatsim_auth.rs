@@ -8,6 +8,8 @@ use thiserror::Error;
 
 use crate::settings::VatsimAuthentication;
 
+use tracing::instrument;
+
 #[derive(Clone)]
 pub struct VatsimAuthClient {
     http: reqwest::Client,
@@ -31,6 +33,7 @@ impl VatsimAuthClient {
         }
     }
 
+    #[instrument(skip(self, code_challenge), fields(state = %state))]
     pub fn authorization_url(
         &self,
         state: &str,
@@ -51,6 +54,7 @@ impl VatsimAuthClient {
         Ok(url.to_string())
     }
 
+    #[instrument(skip(self, code, code_verifier))]
     pub async fn get_token(
         &self,
         code: &str,
@@ -80,6 +84,7 @@ impl VatsimAuthClient {
             .await?)
     }
 
+    #[instrument(skip(self, access_token))]
     pub async fn get_user(
         &self,
         access_token: &str,

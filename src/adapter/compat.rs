@@ -4,6 +4,7 @@ use serde::Deserialize;
 use std::time::Duration;
 use thiserror::Error;
 
+use tracing::instrument;
 const VATSIM_DATA_URL: &str = "https://data.vatsim.net/v3/vatsim-data.json";
 const VATSIM_METAR_BASE_URL: &str = "https://metar.vatsim.net";
 const TRACK_AUDIO_VERSION_URL: &str =
@@ -40,6 +41,7 @@ impl CompatClient {
         }
     }
 
+    #[instrument(skip(self))]
     pub async fn get_online_data(&self) -> Result<VatsimData, CompatClientError> {
         Ok(self
             .http
@@ -51,14 +53,17 @@ impl CompatClient {
             .await?)
     }
 
+    #[instrument(skip(self))]
     pub async fn get_track_audio_version(&self) -> Result<String, CompatClientError> {
         self.get_text(TRACK_AUDIO_VERSION_URL).await
     }
 
+    #[instrument(skip(self))]
     pub async fn get_vplaaf_areas(&self) -> Result<String, CompatClientError> {
         self.get_text(VPLAAF_AREAS_URL).await
     }
 
+    #[instrument(skip(self), fields(icao = %icao))]
     pub async fn get_metar(&self, icao: &str) -> String {
         let rudi_metar = self
             .get_text(&format!(
@@ -83,6 +88,7 @@ impl CompatClient {
         }
     }
 
+    #[instrument(skip(self), fields(url = %url))]
     async fn get_text(&self, url: &str) -> Result<String, CompatClientError> {
         Ok(self
             .http

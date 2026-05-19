@@ -79,6 +79,12 @@ pub async fn create(
     name: &str,
     slots: &[TrainingApplicationSlotSave],
 ) -> Result<Uuid, sqlx::Error> {
+    tracing::info!(
+        operation = "create",
+        repository = "src/repository/atc_training/training_application.rs",
+        "modifying data"
+    );
+
     let id = Uuid::from(Ulid::new());
     let now = Utc::now();
     sqlx::query(
@@ -106,6 +112,12 @@ pub async fn update(
     name: &str,
     slots: &[TrainingApplicationSlotSave],
 ) -> Result<bool, sqlx::Error> {
+    tracing::info!(
+        operation = "update",
+        repository = "src/repository/atc_training/training_application.rs",
+        "modifying data"
+    );
+
     let result = sqlx::query(
         r#"
         UPDATE public.training_application

@@ -44,6 +44,12 @@ pub async fn create(
     slot: Option<&TrainingApplicationSlotRecord>,
     comment: &str,
 ) -> Result<Uuid, sqlx::Error> {
+    tracing::info!(
+        operation = "create",
+        repository = "src/repository/atc_training/training_application_response.rs",
+        "modifying data"
+    );
+
     let response_id = Uuid::from(Ulid::new());
     let now = Utc::now();
     sqlx::query(

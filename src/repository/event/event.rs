@@ -104,6 +104,12 @@ pub async fn exists(db: &PgPool, id: Uuid) -> Result<bool, sqlx::Error> {
 }
 
 pub async fn create(db: &PgPool, event: EventSave) -> Result<EventRecord, sqlx::Error> {
+    tracing::info!(
+        operation = "create",
+        repository = "src/repository/event/event.rs",
+        "modifying data"
+    );
+
     sqlx::query_as::<_, EventRecord>(
         r#"
         INSERT INTO public.event (
@@ -137,6 +143,12 @@ pub async fn update(
     id: Uuid,
     event: EventSave,
 ) -> Result<Option<EventRecord>, sqlx::Error> {
+    tracing::info!(
+        operation = "update",
+        repository = "src/repository/event/event.rs",
+        "modifying data"
+    );
+
     sqlx::query_as::<_, EventRecord>(
         r#"
         UPDATE public.event

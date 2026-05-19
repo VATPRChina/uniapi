@@ -36,6 +36,12 @@ pub async fn create(
     db: &PgPool,
     device_authorization: NewDeviceAuthorization<'_>,
 ) -> Result<(), sqlx::Error> {
+    tracing::info!(
+        operation = "create",
+        repository = "src/repository/auth/device_authorization.rs",
+        "modifying data"
+    );
+
     sqlx::query(
         r#"
         INSERT INTO device_authorization (device_code, user_code, expires_at, client_id)
@@ -92,6 +98,12 @@ pub async fn associate_user(
     user_code: &str,
     user_id: Uuid,
 ) -> Result<(), sqlx::Error> {
+    tracing::info!(
+        operation = "associate_user",
+        repository = "src/repository/auth/device_authorization.rs",
+        "modifying data"
+    );
+
     sqlx::query("UPDATE device_authorization SET user_id = $1 WHERE user_code = $2")
         .bind(user_id)
         .bind(user_code)
@@ -102,6 +114,12 @@ pub async fn associate_user(
 }
 
 pub async fn delete(db: &PgPool, device_code: Ulid) -> Result<(), sqlx::Error> {
+    tracing::info!(
+        operation = "delete",
+        repository = "src/repository/auth/device_authorization.rs",
+        "modifying data"
+    );
+
     sqlx::query("DELETE FROM device_authorization WHERE device_code = $1")
         .bind(Uuid::from(device_code))
         .execute(db)

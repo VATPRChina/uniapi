@@ -30,6 +30,12 @@ pub async fn issue_refresh_token(
     old_token: Option<Ulid>,
     create_code: bool,
 ) -> Result<RefreshSessionIssue, sqlx::Error> {
+    tracing::info!(
+        operation = "issue_refresh_token",
+        repository = "src/repository/auth/session.rs",
+        "modifying data"
+    );
+
     let token = Ulid::new();
     let code = create_code.then(Ulid::new);
 
@@ -110,6 +116,12 @@ pub async fn find_by_code(
 }
 
 pub async fn clear_code(db: &PgPool, code: Ulid) -> Result<(), sqlx::Error> {
+    tracing::info!(
+        operation = "clear_code",
+        repository = "src/repository/auth/session.rs",
+        "modifying data"
+    );
+
     sqlx::query("UPDATE session SET code = NULL WHERE code = $1")
         .bind(Uuid::from(code))
         .execute(db)
@@ -119,6 +131,12 @@ pub async fn clear_code(db: &PgPool, code: Ulid) -> Result<(), sqlx::Error> {
 }
 
 pub async fn delete(db: &PgPool, token: Ulid) -> Result<bool, sqlx::Error> {
+    tracing::info!(
+        operation = "delete",
+        repository = "src/repository/auth/session.rs",
+        "modifying data"
+    );
+
     let result = sqlx::query("DELETE FROM session WHERE token = $1")
         .bind(Uuid::from(token))
         .execute(db)

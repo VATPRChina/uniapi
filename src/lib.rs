@@ -13,3 +13,4 @@ pub mod repository;
 pub mod routes;
 pub mod services;
 pub mod settings;
+pub mod telemetry;
