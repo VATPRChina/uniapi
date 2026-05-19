@@ -7,6 +7,7 @@ pub struct Settings {
     pub bind_address: String,
     pub authentication: Authentication,
     pub database: Database,
+    pub discord: Discord,
     pub discourse: Discourse,
     pub moodle: Moodle,
     pub storage: Storage,
@@ -69,6 +70,14 @@ pub struct VatsimAuthentication {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Database {
     pub url: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Discord {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub token: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

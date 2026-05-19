@@ -1,3 +1,4 @@
+use vatprc_uniapi::discord::DiscordBot;
 use vatprc_uniapi::services::Services;
 use vatprc_uniapi::{app, settings, telemetry};
 
@@ -6,17 +7,33 @@ async fn main() -> Result<(), anyhow::Error> {
     let settings = settings::Settings::new().expect("failed to load settings");
     let _telemetry = telemetry::init(&settings.telemetry)?;
 
+    let discord_bot = DiscordBot::from_settings(&settings.discord)?;
     let services = Services::connect(&settings).await?;
 
     let listener = tokio::net::TcpListener::bind(&settings.bind_address).await?;
 
     tracing::info!("listening on http://{}", settings.bind_address);
 
-    axum::serve(listener, app::router(services))
-        .with_graceful_shutdown(shutdown_signal())
-        .await?;
-
-    Ok(())
+    tokio::try_join!(
+        async {
+            axum::serve(listener, app::router(services))
+                .with_graceful_shutdown(shutdown_signal())
+                .await
+                .inspect_err(|error| tracing::error!(%error, "failed to start HTTP server"))
+                .map_err(anyhow::Error::from)
+        },
+        async {
+            if let Some(discord_bot) = discord_bot {
+                discord_bot
+                    .run()
+                    .await
+                    .inspect_err(|error| tracing::error!(%error, "failed to start Discord bot"))
+            } else {
+                Ok(())
+            }
+        },
+    )
+    .map(|_| ())
 }
 
 async fn shutdown_signal() {

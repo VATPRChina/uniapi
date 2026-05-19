@@ -36,6 +36,20 @@ To create a new migration:
 just new-migration MigrationName
 ```
 
+### Discord bot
+
+The service can optionally run a Discord bot alongside the HTTP API. It is
+disabled by default; enable it in local settings and provide a bot token:
+
+```toml
+[discord]
+enabled = true
+token = "<discord-bot-token>"
+```
+
+When connected, the bot registers a global `/ping` command that replies with
+`pong`.
+
 ## License
 
     VATPRC UniAPI - Universal API endpoint for VATPRC

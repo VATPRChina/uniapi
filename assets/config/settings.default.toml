@@ -38,3 +38,7 @@ endpoint = "http://localhost:4318/v1/metrics"
 [telemetry.tracing]
 enabled = false
 endpoint = "http://localhost:4318/v1/traces"
+
+[discord]
+enabled = false
+token = ""
