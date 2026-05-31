@@ -1,9 +1,10 @@
+use std::collections::HashMap;
 use std::time::Duration;
 
 use opentelemetry::global;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-use opentelemetry_otlp::{Protocol, WithExportConfig};
+use opentelemetry_otlp::{Protocol, WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
@@ -58,7 +59,10 @@ pub fn init(settings: &OpenTelemetry) -> Result<OpenTelemetryGuard, anyhow::Erro
     let mut guard = OpenTelemetryGuard::new();
 
     let tracer_provider = if settings.tracing.enabled {
-        let exporter = build_span_exporter(settings.tracing.endpoint.as_deref())?;
+        let exporter = build_span_exporter(
+            settings.tracing.endpoint.as_deref(),
+            &settings.tracing.headers,
+        )?;
         let provider = SdkTracerProvider::builder()
             .with_resource(resource.clone())
             .with_batch_exporter(exporter)
@@ -70,7 +74,10 @@ pub fn init(settings: &OpenTelemetry) -> Result<OpenTelemetryGuard, anyhow::Erro
     };
 
     let meter_provider = if settings.metrics.enabled {
-        let exporter = build_metric_exporter(settings.metrics.endpoint.as_deref())?;
+        let exporter = build_metric_exporter(
+            settings.metrics.endpoint.as_deref(),
+            &settings.metrics.headers,
+        )?;
         let provider = SdkMeterProvider::builder()
             .with_resource(resource.clone())
             .with_periodic_exporter(exporter)
@@ -82,7 +89,8 @@ pub fn init(settings: &OpenTelemetry) -> Result<OpenTelemetryGuard, anyhow::Erro
     };
 
     let logger_provider = if settings.logs.enabled {
-        let exporter = build_log_exporter(settings.logs.endpoint.as_deref())?;
+        let exporter =
+            build_log_exporter(settings.logs.endpoint.as_deref(), &settings.logs.headers)?;
         let provider = SdkLoggerProvider::builder()
             .with_resource(resource)
             .with_batch_exporter(exporter)
@@ -116,11 +124,15 @@ pub fn init(settings: &OpenTelemetry) -> Result<OpenTelemetryGuard, anyhow::Erro
 
 fn build_span_exporter(
     endpoint: Option<&str>,
+    headers: &HashMap<String, String>,
 ) -> Result<opentelemetry_otlp::SpanExporter, opentelemetry_otlp::ExporterBuildError> {
-    let builder = opentelemetry_otlp::SpanExporter::builder()
+    let mut builder = opentelemetry_otlp::SpanExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary)
         .with_timeout(Duration::from_secs(5));
+    if !headers.is_empty() {
+        builder = builder.with_headers(headers.clone());
+    }
     match endpoint {
         Some(endpoint) if !endpoint.is_empty() => builder.with_endpoint(endpoint).build(),
         _ => builder.build(),
@@ -129,11 +141,15 @@ fn build_span_exporter(
 
 fn build_metric_exporter(
     endpoint: Option<&str>,
+    headers: &HashMap<String, String>,
 ) -> Result<opentelemetry_otlp::MetricExporter, opentelemetry_otlp::ExporterBuildError> {
-    let builder = opentelemetry_otlp::MetricExporter::builder()
+    let mut builder = opentelemetry_otlp::MetricExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary)
         .with_timeout(Duration::from_secs(5));
+    if !headers.is_empty() {
+        builder = builder.with_headers(headers.clone());
+    }
     match endpoint {
         Some(endpoint) if !endpoint.is_empty() => builder.with_endpoint(endpoint).build(),
         _ => builder.build(),
@@ -142,11 +158,15 @@ fn build_metric_exporter(
 
 fn build_log_exporter(
     endpoint: Option<&str>,
+    headers: &HashMap<String, String>,
 ) -> Result<opentelemetry_otlp::LogExporter, opentelemetry_otlp::ExporterBuildError> {
-    let builder = opentelemetry_otlp::LogExporter::builder()
+    let mut builder = opentelemetry_otlp::LogExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary)
         .with_timeout(Duration::from_secs(5));
+    if !headers.is_empty() {
+        builder = builder.with_headers(headers.clone());
+    }
     match endpoint {
         Some(endpoint) if !endpoint.is_empty() => builder.with_endpoint(endpoint).build(),
         _ => builder.build(),

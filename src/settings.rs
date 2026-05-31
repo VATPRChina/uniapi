@@ -1,5 +1,6 @@
 use config::{Config, ConfigError, Environment, File, FileFormat};
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::env;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -29,6 +30,8 @@ pub struct OpenTelemetry {
 pub struct OpenTelemetrySignal {
     pub enabled: bool,
     pub endpoint: Option<String>,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

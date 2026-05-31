@@ -30,14 +30,17 @@ log_level = "info"
 [telemetry.logs]
 enabled = false
 endpoint = "http://localhost:4318/v1/logs"
+headers = {}
 
 [telemetry.metrics]
 enabled = false
 endpoint = "http://localhost:4318/v1/metrics"
+headers = {}
 
 [telemetry.tracing]
 enabled = false
 endpoint = "http://localhost:4318/v1/traces"
+headers = {}
 
 [discord]
 enabled = false
