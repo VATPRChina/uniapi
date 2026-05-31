@@ -1,10 +1,11 @@
 use axum::extract::State;
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router, middleware};
 use opentelemetry::KeyValue;
 use serde::Serialize;
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{Level, instrument};
 use utoipa_axum::router::OpenApiRouter;
@@ -86,12 +87,36 @@ pub fn router(services: Services) -> Router {
             auth::authenticate,
         ))
         .layer(middleware::from_fn(record_request_status))
+        .layer(cors_layer())
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
+}
+
+fn cors_layer() -> CorsLayer {
+    let allow_origin = AllowOrigin::predicate(|origin, _| is_vatprc_origin(origin));
+
+    CorsLayer::new()
+        .allow_origin(allow_origin)
+        .allow_methods(Any)
+        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
+}
+
+fn is_vatprc_origin(origin: &HeaderValue) -> bool {
+    let Ok(origin) = origin.to_str() else {
+        return false;
+    };
+    let Ok(url) = url::Url::parse(origin) else {
+        return false;
+    };
+
+    url.scheme() == "https"
+        && url
+            .host_str()
+            .is_some_and(|host| host.ends_with(".vatprc.net"))
 }
 
 #[instrument(skip(request, next), fields(http.method = %request.method(), http.target = %request.uri().path()))]
