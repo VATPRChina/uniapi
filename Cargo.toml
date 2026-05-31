@@ -1,6 +1,6 @@
 [package]
 name = "vatprc-uniapi"
-version = "0.1.0"
+version = "1.1.0"
 edition = "2024"
 default-run = "vatprc-uniapi"
 
@@ -21,7 +21,12 @@ futures = "0.3.32"
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 rand = "0.10.1"
 regex = "1.12.3"
-serenity = { version = "0.12.4", default-features = false, features = ["client", "gateway", "rustls_backend", "model"] }
+serenity = { version = "0.12.4", default-features = false, features = [
+  "client",
+  "gateway",
+  "rustls_backend",
+  "model",
+] }
 reqwest = { version = "0.13.3", features = ["json", "form", "multipart"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
@@ -65,6 +70,3 @@ serde_plain = "1.0.2"
 csv = "1.4.0"
 approx = "0.5.1"
 mini-moka = { version = "0.10.3", features = ["sync"] }
-
-[profile.release]
-debug = true
