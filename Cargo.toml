@@ -2,15 +2,6 @@
 name = "vatprc-uniapi"
 version = "1.1.0"
 edition = "2024"
-default-run = "vatprc-uniapi"
-
-[[bin]]
-name = "vatprc-uniapi"
-path = "src/main.rs"
-
-[[bin]]
-name = "openapi"
-path = "src/bin/openapi.rs"
 
 [dependencies]
 axum = { version = "0.8.9", features = ["multipart"] }
