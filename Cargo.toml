@@ -12,7 +12,7 @@ futures = "0.3.32"
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 rand = "0.10.1"
 regex = "1.12.3"
-serenity = { version = "0.12.4", default-features = false, features = [
+serenity = { version = "0.12.4", features = [
   "client",
   "gateway",
   "rustls_backend",
@@ -40,7 +40,7 @@ thiserror = "2.0.18"
 tracing = "0.1.44"
 tracing-opentelemetry = "0.33.0"
 opentelemetry-appender-tracing = "0.32.0"
-opentelemetry-otlp = "0.32.0"
+opentelemetry-otlp = { version = "0.32.0", features = ["reqwest-rustls"] }
 opentelemetry_sdk = { version = "0.32.0", features = ["rt-tokio"] }
 opentelemetry = "0.32.0"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
