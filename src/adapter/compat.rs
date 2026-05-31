@@ -1,4 +1,5 @@
 use chrono::{Datelike, TimeZone, Utc};
+use mini_moka::sync::Cache;
 use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
 use serde::Deserialize;
 use std::time::Duration;
@@ -10,17 +11,22 @@ const VATSIM_METAR_BASE_URL: &str = "https://metar.vatsim.net";
 const TRACK_AUDIO_VERSION_URL: &str =
     "https://raw.githubusercontent.com/pierr3/TrackAudio/main/MANDATORY_VERSION";
 const VPLAAF_AREAS_URL: &str = "https://airspace.vplaaf.org/Areas.json";
+const OUTBOUND_HTTP_CACHE_CAPACITY: usize = 256;
+const OUTBOUND_HTTP_CACHE_TTL: Duration = Duration::from_secs(30);
 
 #[derive(Clone)]
 pub struct CompatClient {
     http: reqwest::Client,
     metar_endpoint: String,
+    cache: Cache<String, String>,
 }
 
 #[derive(Debug, Error)]
 pub enum CompatClientError {
     #[error(transparent)]
     Request(#[from] reqwest::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }
 
 impl CompatClient {
@@ -38,35 +44,34 @@ impl CompatClient {
                 .build()
                 .expect("compat reqwest client should build"),
             metar_endpoint,
+            cache: Cache::builder()
+                .max_capacity(OUTBOUND_HTTP_CACHE_CAPACITY as u64)
+                .time_to_live(OUTBOUND_HTTP_CACHE_TTL)
+                .build(),
         }
     }
 
     #[instrument(skip(self))]
     pub async fn get_online_data(&self) -> Result<VatsimData, CompatClientError> {
-        Ok(self
-            .http
-            .get(VATSIM_DATA_URL)
-            .send()
-            .await?
-            .error_for_status()?
-            .json::<VatsimData>()
-            .await?)
+        Ok(serde_json::from_str(
+            &self.cached_get(VATSIM_DATA_URL).await?,
+        )?)
     }
 
     #[instrument(skip(self))]
     pub async fn get_track_audio_version(&self) -> Result<String, CompatClientError> {
-        self.get_text(TRACK_AUDIO_VERSION_URL).await
+        self.cached_get(TRACK_AUDIO_VERSION_URL).await
     }
 
     #[instrument(skip(self))]
     pub async fn get_vplaaf_areas(&self) -> Result<String, CompatClientError> {
-        self.get_text(VPLAAF_AREAS_URL).await
+        self.cached_get(VPLAAF_AREAS_URL).await
     }
 
     #[instrument(skip(self), fields(icao = %icao))]
     pub async fn get_metar(&self, icao: &str) -> String {
         let rudi_metar = self
-            .get_text(&format!(
+            .cached_get(&format!(
                 "{}/{}",
                 self.metar_endpoint.trim_end_matches('/'),
                 icao
@@ -75,7 +80,7 @@ impl CompatClient {
             .map(|metar| metar.trim().to_string())
             .unwrap_or_default();
         let vatsim_metar = self
-            .get_text(&format!("{}/{}", VATSIM_METAR_BASE_URL, icao))
+            .cached_get(&format!("{}/{}", VATSIM_METAR_BASE_URL, icao))
             .await
             .map(|metar| metar.trim().to_string())
             .unwrap_or_default();
@@ -89,15 +94,30 @@ impl CompatClient {
     }
 
     #[instrument(skip(self), fields(url = %url))]
-    async fn get_text(&self, url: &str) -> Result<String, CompatClientError> {
-        Ok(self
+    async fn cached_get(&self, url: &str) -> Result<String, CompatClientError> {
+        if let Some(cached) = self.cached_text(url) {
+            return Ok(cached);
+        }
+
+        let text = self
             .http
             .get(url)
             .send()
             .await?
             .error_for_status()?
             .text()
-            .await?)
+            .await?;
+
+        self.cache_text(url, &text);
+        Ok(text)
+    }
+
+    fn cached_text(&self, url: &str) -> Option<String> {
+        self.cache.get(&url.to_string())
+    }
+
+    fn cache_text(&self, url: &str, value: &str) {
+        self.cache.insert(url.to_string(), value.to_string());
     }
 }
 
