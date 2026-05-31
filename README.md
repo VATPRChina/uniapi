@@ -50,6 +50,18 @@ token = "<discord-bot-token>"
 When connected, the bot registers a global `/ping` command that replies with
 `pong`.
 
+## Testing
+
+There is E2E testing for each API endpoint. It is still missing test coverage on some endpoints.
+
+### Writing tests
+
+Place the test for each API endpoint in `/e2e/src/**/*.test.ts`. The test folder structure should match the API endpoint's URL. For example, test for GET `/api/atc/applications/review-sheet` should be placed in `/e2e/src/atc/applications/review-sheet.test.ts` (prefix `/api` is stripped).
+
+If a user is needed, check `getClient` from `/e2e/lib/backend.ts`. Use Vitest's `extend` to establish a shared context for different roles used in the same test file.
+
+If some common data setup is required for the API endpoint (e.g. `/api/events` requires a present event), use Vitest's `extend` to establish a shared context to avoid duplication in setting up the data.
+
 ## License
 
     VATPRC UniAPI - Universal API endpoint for VATPRC
