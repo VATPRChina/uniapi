@@ -9,6 +9,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let discord_bot = DiscordBot::from_settings(&settings.discord)?;
     let services = Services::connect(&settings).await?;
+    let discord_services = services.clone();
 
     let listener = tokio::net::TcpListener::bind(&settings.bind_address).await?;
 
@@ -25,7 +26,7 @@ async fn main() -> Result<(), anyhow::Error> {
         async {
             if let Some(discord_bot) = discord_bot {
                 discord_bot
-                    .run()
+                    .run(discord_services)
                     .await
                     .inspect_err(|error| tracing::error!(%error, "failed to start Discord bot"))
             } else {

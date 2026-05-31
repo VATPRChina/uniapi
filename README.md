@@ -47,8 +47,9 @@ enabled = true
 token = "<discord-bot-token>"
 ```
 
-When connected, the bot registers a global `/ping` command that replies with
-`pong`.
+When connected, the bot registers global `/ping` and `/metar` commands. `/ping`
+replies with `pong`; `/metar icao:<airport>` replies with the latest METAR text
+for the requested airport.
 
 ## Testing
 
