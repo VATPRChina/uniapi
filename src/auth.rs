@@ -6,7 +6,7 @@ use axum::http::{HeaderMap, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use thiserror::Error;
-use tracing::instrument;
+use tracing::{Instrument, instrument};
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -83,17 +83,20 @@ impl IntoResponse for AuthError {
     }
 }
 
-#[instrument(skip(services, request, next), fields(http.target = %request.uri().path()))]
 pub async fn authenticate(
     State(services): State<Services>,
     mut request: axum::extract::Request,
     next: Next,
 ) -> Result<Response, AuthError> {
-    if let Some(token) = bearer_token(request.headers())? {
-        let user = authenticate_token(&services, token).await?;
-        tracing::info!(subject = %user.subject, user_id = ?user.user_id, "authenticated bearer token");
-        request.extensions_mut().insert(user);
-    }
+    let span = tracing::info_span!("authenticate", http.target = %request.uri().path());
+    async {
+        if let Some(token) = bearer_token(request.headers())? {
+            let user = authenticate_token(&services, token).await?;
+            tracing::info!(subject = %user.subject, user_id = ?user.user_id, "authenticated bearer token");
+            request.extensions_mut().insert(user);
+        }
+        Ok::<_, AuthError>(())
+    }.instrument(span).await?;
     Ok(next.run(request).await)
 }
 
