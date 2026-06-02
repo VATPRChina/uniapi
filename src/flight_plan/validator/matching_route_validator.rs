@@ -18,18 +18,15 @@ impl Validator<(Option<&PreferredRoute>, Vec<&PreferredRoute>)> for NoMatchingRo
                 .filter(|route| !route.is_public())
                 .sorted_by_key(|route| &route.name)
                 .collect::<Vec<_>>();
-            WarningMessage {
-                field: WarningMessageField::Route,
-                field_index: None,
-                message_code: WarningMessageCode::NotPreferredRoute,
-                parameter: Some(
-                    routes
-                        .into_iter()
-                        .map(|route| route.raw_route.clone())
-                        .collect::<Vec<_>>()
-                        .join(","),
-                ),
-            }
+            WarningMessage::with_parameter(
+                WarningMessageField::Route,
+                WarningMessageCode::NotPreferredRoute,
+                routes
+                    .into_iter()
+                    .map(|route| route.raw_route.clone())
+                    .collect::<Vec<_>>()
+                    .join(","),
+            )
         })
     }
 }
@@ -42,15 +39,16 @@ impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for RouteMatchValidator {
     fn validate(
         (flight, preferred_route): MatchingRouteContext<'a, 'b>,
     ) -> impl IntoIterator<Item = WarningMessage> {
-        preferred_route.map(|route| WarningMessage {
-            field: WarningMessageField::Route,
-            field_index: None,
-            message_code: WarningMessageCode::RouteMatchPreferred,
-            parameter: Some(if route.is_public() {
-                route.raw_route.clone()
-            } else {
-                flight.raw_route.clone()
-            }),
+        preferred_route.map(|route| {
+            WarningMessage::with_parameter(
+                WarningMessageField::Route,
+                WarningMessageCode::RouteMatchPreferred,
+                if route.is_public() {
+                    route.raw_route.clone()
+                } else {
+                    flight.raw_route.clone()
+                },
+            )
         })
     }
 }
@@ -66,11 +64,12 @@ impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for CruisingLevelRestrictio
                 let actual = level_restriction_type(flight.cruising_level as i32);
                 !level_restriction_matches(actual, route.cruising_level_restriction)
             })
-            .map(|route| WarningMessage {
-                field: WarningMessageField::CruisingLevel,
-                field_index: None,
-                message_code: WarningMessageCode::CruisingLevelMismatch,
-                parameter: Some(level_restriction_param(route.cruising_level_restriction)),
+            .map(|route| {
+                WarningMessage::with_parameter(
+                    WarningMessageField::CruisingLevel,
+                    WarningMessageCode::CruisingLevelMismatch,
+                    level_restriction_param(route.cruising_level_restriction),
+                )
             })
     }
 }
@@ -88,18 +87,17 @@ impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for AllowedAltitudesValidat
                         .allowed_altitudes
                         .contains(&(flight.cruising_level as i32))
             })
-            .map(|route| WarningMessage {
-                field: WarningMessageField::CruisingLevel,
-                field_index: None,
-                message_code: WarningMessageCode::CruisingLevelNotAllowed,
-                parameter: Some(
+            .map(|route| {
+                WarningMessage::with_parameter(
+                    WarningMessageField::CruisingLevel,
+                    WarningMessageCode::CruisingLevelNotAllowed,
                     route
                         .allowed_altitudes
                         .iter()
                         .map(ToString::to_string)
                         .collect::<Vec<_>>()
                         .join(","),
-                ),
+                )
             })
     }
 }
@@ -115,11 +113,12 @@ impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for MinimalAltitudeValidato
                 route.minimal_altitude != 0
                     && (flight.cruising_level as i32) < route.minimal_altitude
             })
-            .map(|route| WarningMessage {
-                field: WarningMessageField::CruisingLevel,
-                field_index: None,
-                message_code: WarningMessageCode::CruisingLevelTooLow,
-                parameter: Some(route.minimal_altitude.to_string()),
+            .map(|route| {
+                WarningMessage::with_parameter(
+                    WarningMessageField::CruisingLevel,
+                    WarningMessageCode::CruisingLevelTooLow,
+                    route.minimal_altitude.to_string(),
+                )
             })
     }
 }

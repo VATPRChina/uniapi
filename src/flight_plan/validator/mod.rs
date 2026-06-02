@@ -37,6 +37,35 @@ pub struct WarningMessage {
     pub field_index: Option<usize>,
 }
 
+impl WarningMessage {
+    pub fn new(field: WarningMessageField, code: WarningMessageCode) -> Self {
+        Self {
+            message_code: code,
+            parameter: None,
+            field,
+            field_index: None,
+        }
+    }
+
+    pub fn with_parameter(
+        field: WarningMessageField,
+        code: WarningMessageCode,
+        parameter: impl Into<String>,
+    ) -> Self {
+        Self {
+            parameter: Some(parameter.into()),
+            ..Self::new(field, code)
+        }
+    }
+
+    pub fn route_indexed(index: usize, code: WarningMessageCode) -> Self {
+        Self {
+            field_index: Some(index),
+            ..Self::new(WarningMessageField::Route, code)
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum WarningMessageField {

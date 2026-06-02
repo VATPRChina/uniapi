@@ -1,5 +1,5 @@
 use crate::flight_plan::validator::{
-    MessageContainer, Validator, WarningMessage, WarningMessageCode, WarningMessageField,
+    MessageContainer, Validator, WarningMessage, WarningMessageCode,
 };
 use crate::model::navdata::{AnyFix, DirectionRestriction, ResolvedLeg};
 
@@ -22,7 +22,7 @@ pub struct RouteLegDirectionValidator;
 impl<'a> Validator<LegContext<'a>> for RouteLegDirectionValidator {
     fn validate((index, leg): LegContext<'a>) -> impl IntoIterator<Item = WarningMessage> {
         (leg.identifier.is_some() && leg.direction_restriction == DirectionRestriction::Backward)
-            .then(|| route_indexed_message(index, WarningMessageCode::RouteLegDirection))
+            .then(|| WarningMessage::route_indexed(index, WarningMessageCode::RouteLegDirection))
     }
 }
 
@@ -44,7 +44,9 @@ impl<'a> Validator<LegContext<'a>> for AirwayRequireApprovalValidator {
 
                 from_zh && to_zh && (ident.starts_with('V') || ident.starts_with('X'))
             })
-            .map(|_| route_indexed_message(index, WarningMessageCode::AirwayRequireApproval))
+            .map(|_| {
+                WarningMessage::route_indexed(index, WarningMessageCode::AirwayRequireApproval)
+            })
     }
 }
 
@@ -66,15 +68,6 @@ impl<'a> Validator<LegContext<'a>> for RouteDirectSegmentValidator {
             && !matches!(leg.to, AnyFix::Airport { .. })
             && is_from_zh
             && is_to_zh)
-            .then(|| route_indexed_message(index, WarningMessageCode::RouteDirectSegment))
-    }
-}
-
-fn route_indexed_message(index: usize, code: WarningMessageCode) -> WarningMessage {
-    WarningMessage {
-        message_code: code,
-        parameter: None,
-        field: WarningMessageField::Route,
-        field_index: Some(index),
+            .then(|| WarningMessage::route_indexed(index, WarningMessageCode::RouteDirectSegment))
     }
 }
