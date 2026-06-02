@@ -1,44 +1,35 @@
 use crate::flight_plan::validator::{
-    MessageContainer, WarningMessage, WarningMessageCode, WarningMessageField,
+    MessageContainer, Validator, WarningMessage, WarningMessageCode, WarningMessageField,
 };
 use crate::model::navdata::{AnyFix, DirectionRestriction, ResolvedLeg};
 
-pub fn validate_leg(leg: &ResolvedLeg, index: usize) -> impl IntoIterator<Item = WarningMessage> {
-    MessageContainer::new()
-        .validate_leg::<RouteLegDirectionValidator>(leg, index)
-        .validate_leg::<AirwayRequireApprovalValidator>(leg, index)
-        .validate_leg::<RouteDirectSegmentValidator>(leg, index)
-        .build()
-}
+type LegContext<'a> = (usize, &'a ResolvedLeg);
 
-impl<T: IntoIterator<Item = WarningMessage>> MessageContainer<T> {
-    fn validate_leg<V: LegValidator>(
-        self,
-        leg: &ResolvedLeg,
-        index: usize,
-    ) -> MessageContainer<impl IntoIterator<Item = WarningMessage>> {
-        MessageContainer(self.0.into_iter().chain(V::validate_leg(leg, index)))
+pub struct LegValidator;
+
+impl<'a> Validator<LegContext<'a>> for LegValidator {
+    fn validate((index, leg): LegContext<'a>) -> impl IntoIterator<Item = WarningMessage> {
+        MessageContainer::new()
+            .validate::<RouteLegDirectionValidator, _>((index, leg))
+            .validate::<AirwayRequireApprovalValidator, _>((index, leg))
+            .validate::<RouteDirectSegmentValidator, _>((index, leg))
+            .build()
     }
 }
 
-trait LegValidator {
-    #[must_use]
-    fn validate_leg(leg: &ResolvedLeg, index: usize) -> impl IntoIterator<Item = WarningMessage>;
-}
+pub struct RouteLegDirectionValidator;
 
-struct RouteLegDirectionValidator;
-
-impl LegValidator for RouteLegDirectionValidator {
-    fn validate_leg(leg: &ResolvedLeg, index: usize) -> impl IntoIterator<Item = WarningMessage> {
+impl<'a> Validator<LegContext<'a>> for RouteLegDirectionValidator {
+    fn validate((index, leg): LegContext<'a>) -> impl IntoIterator<Item = WarningMessage> {
         (leg.identifier.is_some() && leg.direction_restriction == DirectionRestriction::Backward)
             .then(|| route_indexed_message(index, WarningMessageCode::RouteLegDirection))
     }
 }
 
-struct AirwayRequireApprovalValidator;
+pub struct AirwayRequireApprovalValidator;
 
-impl LegValidator for AirwayRequireApprovalValidator {
-    fn validate_leg(leg: &ResolvedLeg, index: usize) -> impl IntoIterator<Item = WarningMessage> {
+impl<'a> Validator<LegContext<'a>> for AirwayRequireApprovalValidator {
+    fn validate((index, leg): LegContext<'a>) -> impl IntoIterator<Item = WarningMessage> {
         leg.identifier
             .as_deref()
             .filter(|ident| {
@@ -57,10 +48,10 @@ impl LegValidator for AirwayRequireApprovalValidator {
     }
 }
 
-struct RouteDirectSegmentValidator;
+pub struct RouteDirectSegmentValidator;
 
-impl LegValidator for RouteDirectSegmentValidator {
-    fn validate_leg(leg: &ResolvedLeg, index: usize) -> impl IntoIterator<Item = WarningMessage> {
+impl<'a> Validator<LegContext<'a>> for RouteDirectSegmentValidator {
+    fn validate((index, leg): LegContext<'a>) -> impl IntoIterator<Item = WarningMessage> {
         let is_from_zh = leg
             .from
             .identifier()

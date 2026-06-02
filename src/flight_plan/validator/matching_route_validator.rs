@@ -1,49 +1,46 @@
+use itertools::Itertools;
+
 use crate::adapter::flight::Flight;
 use crate::flight_plan::validator::{
-    MessageContainer, WarningMessage, WarningMessageCode, WarningMessageField,
+    Validator, WarningMessage, WarningMessageCode, WarningMessageField,
 };
 use crate::model::navdata::{LevelRestrictionType, PreferredRoute};
 
-pub fn validate_matching_route(
-    flight: &Flight,
-    preferred_route: Option<&PreferredRoute>,
-) -> impl IntoIterator<Item = WarningMessage> {
-    MessageContainer::new()
-        .validate_matching_route::<RouteMatchValidator>(flight, preferred_route)
-        .validate_matching_route::<CruisingLevelRestrictionValidator>(flight, preferred_route)
-        .validate_matching_route::<AllowedAltitudesValidator>(flight, preferred_route)
-        .validate_matching_route::<MinimalAltitudeValidator>(flight, preferred_route)
-        .build()
-}
+pub struct NoMatchingRouteValidator;
 
-impl<T: IntoIterator<Item = WarningMessage>> MessageContainer<T> {
-    fn validate_matching_route<V: MatchingRouteValidator>(
-        self,
-        flight: &Flight,
-        preferred_route: Option<&PreferredRoute>,
-    ) -> MessageContainer<impl IntoIterator<Item = WarningMessage>> {
-        MessageContainer(
-            self.0
-                .into_iter()
-                .chain(V::validate_matching_route(flight, preferred_route)),
-        )
+impl Validator<(Option<&PreferredRoute>, Vec<&PreferredRoute>)> for NoMatchingRouteValidator {
+    fn validate(
+        (matching_route, preferred_routes): (Option<&PreferredRoute>, Vec<&PreferredRoute>),
+    ) -> impl IntoIterator<Item = WarningMessage> {
+        (matching_route.is_none() && !preferred_routes.is_empty()).then(|| {
+            let routes = preferred_routes
+                .iter()
+                .filter(|route| !route.is_public())
+                .sorted_by_key(|route| &route.name)
+                .collect::<Vec<_>>();
+            WarningMessage {
+                field: WarningMessageField::Route,
+                field_index: None,
+                message_code: WarningMessageCode::NotPreferredRoute,
+                parameter: Some(
+                    routes
+                        .into_iter()
+                        .map(|route| route.raw_route.clone())
+                        .collect::<Vec<_>>()
+                        .join(","),
+                ),
+            }
+        })
     }
 }
 
-trait MatchingRouteValidator {
-    #[must_use]
-    fn validate_matching_route(
-        flight: &Flight,
-        preferred_route: Option<&PreferredRoute>,
-    ) -> impl IntoIterator<Item = WarningMessage>;
-}
+type MatchingRouteContext<'a, 'b> = (&'a Flight, Option<&'b PreferredRoute>);
 
-struct RouteMatchValidator;
+pub struct RouteMatchValidator;
 
-impl MatchingRouteValidator for RouteMatchValidator {
-    fn validate_matching_route(
-        flight: &Flight,
-        preferred_route: Option<&PreferredRoute>,
+impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for RouteMatchValidator {
+    fn validate(
+        (flight, preferred_route): MatchingRouteContext<'a, 'b>,
     ) -> impl IntoIterator<Item = WarningMessage> {
         preferred_route.map(|route| WarningMessage {
             field: WarningMessageField::Route,
@@ -58,12 +55,11 @@ impl MatchingRouteValidator for RouteMatchValidator {
     }
 }
 
-struct CruisingLevelRestrictionValidator;
+pub struct CruisingLevelRestrictionValidator;
 
-impl MatchingRouteValidator for CruisingLevelRestrictionValidator {
-    fn validate_matching_route(
-        flight: &Flight,
-        preferred_route: Option<&PreferredRoute>,
+impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for CruisingLevelRestrictionValidator {
+    fn validate(
+        (flight, preferred_route): MatchingRouteContext<'a, 'b>,
     ) -> impl IntoIterator<Item = WarningMessage> {
         preferred_route
             .filter(|route| {
@@ -79,12 +75,11 @@ impl MatchingRouteValidator for CruisingLevelRestrictionValidator {
     }
 }
 
-struct AllowedAltitudesValidator;
+pub struct AllowedAltitudesValidator;
 
-impl MatchingRouteValidator for AllowedAltitudesValidator {
-    fn validate_matching_route(
-        flight: &Flight,
-        preferred_route: Option<&PreferredRoute>,
+impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for AllowedAltitudesValidator {
+    fn validate(
+        (flight, preferred_route): MatchingRouteContext<'a, 'b>,
     ) -> impl IntoIterator<Item = WarningMessage> {
         preferred_route
             .filter(|route| {
@@ -109,12 +104,11 @@ impl MatchingRouteValidator for AllowedAltitudesValidator {
     }
 }
 
-struct MinimalAltitudeValidator;
+pub struct MinimalAltitudeValidator;
 
-impl MatchingRouteValidator for MinimalAltitudeValidator {
-    fn validate_matching_route(
-        flight: &Flight,
-        preferred_route: Option<&PreferredRoute>,
+impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for MinimalAltitudeValidator {
+    fn validate(
+        (flight, preferred_route): MatchingRouteContext<'a, 'b>,
     ) -> impl IntoIterator<Item = WarningMessage> {
         preferred_route
             .filter(|route| {

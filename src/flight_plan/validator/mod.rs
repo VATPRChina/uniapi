@@ -4,9 +4,15 @@ use serde::Serialize;
 use crate::adapter::flight::Flight;
 use crate::adapter::navdata::{InvalidNavdataError, NavdataAdapter};
 use crate::flight_plan::parser::{self, ParserError};
-use crate::flight_plan::validator::flight_validator::validate_plan;
-use crate::flight_plan::validator::leg_validator::validate_leg;
-use crate::flight_plan::validator::matching_route_validator::validate_matching_route;
+use crate::flight_plan::validator::flight_validator::{
+    EquipmentRnav1Validator, NavigationPerformanceRnav1Validator, RnpArValidator,
+    RnpArWithoutRfValidator, RvsmValidator,
+};
+use crate::flight_plan::validator::leg_validator::LegValidator;
+use crate::flight_plan::validator::matching_route_validator::{
+    AllowedAltitudesValidator, CruisingLevelRestrictionValidator, MinimalAltitudeValidator,
+    NoMatchingRouteValidator, RouteMatchValidator,
+};
 use crate::model::navdata::{AnyFix, Fix, PreferredRoute, ResolvedLeg};
 
 mod flight_validator;
@@ -33,7 +39,6 @@ pub struct WarningMessage {
 
 #[derive(Debug, Clone, Copy, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
-#[allow(dead_code)]
 pub enum WarningMessageField {
     Equipment,
     Transponder,
@@ -44,7 +49,6 @@ pub enum WarningMessageField {
 
 #[derive(Debug, Clone, Copy, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
-#[allow(dead_code)]
 pub enum WarningMessageCode {
     NoRvsm,
     NoRnav1,
@@ -66,25 +70,34 @@ pub async fn validate_route(
     flight: &Flight,
     legs: &[ResolvedLeg],
 ) -> Result<Vec<WarningMessage>, ValidatorError> {
-    let mut messages = validate_plan(flight).into_iter().collect::<Vec<_>>();
-
     let preferred_routes = navdata
         .list_preferred_routes(&flight.departure, &flight.arrival)
         .await
         .map_err(ValidatorError::Navdata)?;
     let matching_route = find_matching_route(navdata, legs, &preferred_routes).await?;
-    messages.extend(validate_preferred_route_match(
-        flight,
-        matching_route,
-        &preferred_routes,
-    ));
 
-    for (index, leg) in legs.iter().enumerate() {
-        messages.extend(validate_leg(leg, index));
-    }
+    let messages = MessageContainer::new()
+        .validate::<RvsmValidator, _>(flight)
+        .validate::<EquipmentRnav1Validator, _>(flight)
+        .validate::<NavigationPerformanceRnav1Validator, _>(flight)
+        .validate::<RnpArWithoutRfValidator, _>(flight)
+        .validate::<RnpArValidator, _>(flight);
 
-    Ok(messages)
+    let messages =
+        messages.validate::<NoMatchingRouteValidator, _>((matching_route, preferred_routes));
+
+    let context_matching_route = (flight, matching_route);
+    let messages = messages
+        .validate::<RouteMatchValidator, _>(context_matching_route)
+        .validate::<CruisingLevelRestrictionValidator, _>(context_matching_route)
+        .validate::<AllowedAltitudesValidator, _>(context_matching_route)
+        .validate::<MinimalAltitudeValidator, _>(context_matching_route);
+
+    let messages = messages.validate_over::<LegValidator, _>(legs.iter().enumerate());
+
+    Ok(messages.build().into_iter().collect())
 }
+
 struct MessageContainer<T: IntoIterator<Item = WarningMessage>>(T);
 
 impl MessageContainer<std::iter::Empty<WarningMessage>> {
@@ -93,7 +106,36 @@ impl MessageContainer<std::iter::Empty<WarningMessage>> {
     }
 }
 
+trait Validator<C> {
+    fn validate(context: C) -> impl IntoIterator<Item = WarningMessage>;
+}
+
 impl<T: IntoIterator<Item = WarningMessage>> MessageContainer<T> {
+    pub fn join(
+        self,
+        other: impl IntoIterator<Item = WarningMessage>,
+    ) -> MessageContainer<impl IntoIterator<Item = WarningMessage>> {
+        MessageContainer(self.0.into_iter().chain(other))
+    }
+
+    pub fn validate<V: Validator<C>, C>(
+        self,
+        context: C,
+    ) -> MessageContainer<impl IntoIterator<Item = WarningMessage>> {
+        self.join(V::validate(context))
+    }
+
+    pub fn validate_over<V: Validator<C>, C>(
+        self,
+        contexts: impl IntoIterator<Item = C>,
+    ) -> MessageContainer<impl IntoIterator<Item = WarningMessage>> {
+        self.join(
+            contexts
+                .into_iter()
+                .flat_map(|context| V::validate(context)),
+        )
+    }
+
     pub fn build(self) -> T {
         self.0
     }
@@ -119,36 +161,6 @@ async fn find_matching_route<'a>(
         }
     }
     Ok(None)
-}
-
-fn validate_preferred_route_match(
-    flight: &Flight,
-    preferred_route: Option<&PreferredRoute>,
-    preferred_routes: &[&PreferredRoute],
-) -> Vec<WarningMessage> {
-    let mut messages = Vec::new();
-    messages.extend(validate_matching_route(flight, preferred_route));
-
-    if preferred_route.is_none() && !preferred_routes.is_empty() {
-        let routes = preferred_routes
-            .iter()
-            .filter(|route| !route.is_public())
-            .sorted_by_key(|route| &route.name)
-            .collect::<Vec<_>>();
-        messages.push(WarningMessage {
-            field: WarningMessageField::Route,
-            field_index: None,
-            message_code: WarningMessageCode::NotPreferredRoute,
-            parameter: Some(
-                routes
-                    .into_iter()
-                    .map(|route| route.raw_route.clone())
-                    .collect::<Vec<_>>()
-                    .join(","),
-            ),
-        });
-    }
-    messages
 }
 
 fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {

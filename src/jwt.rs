@@ -99,7 +99,6 @@ impl JwtService {
         }
     }
 
-    #[allow(dead_code)]
     pub fn validate_access_token(&self, token: &str) -> Result<String, JwtError> {
         Ok(self.validate_access_token_claims(token)?.subject)
     }
@@ -146,7 +145,6 @@ impl JwtService {
         )
     }
 
-    #[allow(dead_code)]
     pub fn issue_auth_code(
         &self,
         code: Ulid,
