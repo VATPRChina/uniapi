@@ -5,6 +5,7 @@ use axum::routing::get;
 use axum::{Json, Router, middleware};
 use opentelemetry::KeyValue;
 use serde::Serialize;
+use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{Level, instrument};
@@ -12,6 +13,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
 use crate::auth;
+use crate::error::ApiError;
 use crate::openapi::{openapi, openapi_json};
 use crate::routes::atc::build_atc_routes;
 use crate::routes::atc_applications::build_atc_application_routes;
@@ -88,6 +90,21 @@ pub fn router(services: Services) -> Router {
         ))
         .layer(middleware::from_fn(record_request_status))
         .layer(cors_layer())
+        .layer(CatchPanicLayer::custom(
+            |e: Box<dyn std::any::Any + Send + 'static>| {
+                if let Some(s) = e.downcast_ref::<String>() {
+                    tracing::error!("service panicked: {}", s);
+                } else if let Some(s) = e.downcast_ref::<&str>() {
+                    tracing::error!("service panicked: {}", s);
+                } else {
+                    tracing::error!(
+                        "service panicked but `CatchPanic` was unable to downcast the panic info"
+                    );
+                };
+
+                ApiError::Internal.into_response()
+            },
+        ))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

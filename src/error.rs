@@ -117,6 +117,7 @@ api_errors!(
         => "transient error",
     Smms { #[from] source: SmmsError } => StatusCode::SERVICE_UNAVAILABLE
         => "transient error",
+    Internal => StatusCode::INTERNAL_SERVER_ERROR => "internal error",
 );
 
 impl ApiError {
