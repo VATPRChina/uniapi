@@ -1,4 +1,4 @@
-use axum::extract::{Multipart, State};
+use axum::extract::{DefaultBodyLimit, Multipart, State};
 use axum::routing::post;
 use axum::{Json, Router};
 
@@ -13,7 +13,9 @@ use crate::services::Services;
 pub(crate) struct ApiDoc;
 
 pub fn build_storage_routes() -> Router<Services> {
-    Router::new().route("/images", post(upload_image))
+    Router::new()
+        .route("/images", post(upload_image))
+        .layer(DefaultBodyLimit::max(10_000_000))
 }
 
 #[utoipa::path(post, path = "api/storage/images", tag = "Storage", security(("oauth2" = [])), request_body(content = String, content_type = "multipart/form-data"), responses((status = 200, description = "Successful response", body = UploadImageResponse)))]
