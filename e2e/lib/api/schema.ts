@@ -905,6 +905,7 @@ export type components = {
             review_filing_answers?: components["schemas"]["SheetFieldAnswerDto"][] | null;
             status: components["schemas"]["AtcApplicationStatus"];
             user: components["schemas"]["UserDto"];
+            user_email?: string | null;
             user_id: string;
         };
         AtcApplicationRequest: {

@@ -901,6 +901,8 @@ impl AtcApplicationStatus {
 pub struct AtcApplicationSummaryDto {
     pub id: String,
     pub user_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_email: Option<String>,
     pub user: UserDto,
     pub applied_at: DateTime<Utc>,
     pub status: AtcApplicationStatus,
@@ -912,9 +914,11 @@ impl AtcApplicationSummaryDto {
         is_admin: bool,
         current_user_id: Uuid,
     ) -> Self {
+        let user_email = is_admin.then_some(application.user_email.clone()).flatten();
         Self {
             id: Ulid::from(application.id).to_string(),
             user_id: Ulid::from(application.user_id).to_string(),
+            user_email,
             user: UserDto::from_application_user(
                 &application,
                 is_admin || application.user_id == current_user_id,

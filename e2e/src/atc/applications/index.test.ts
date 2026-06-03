@@ -1,9 +1,13 @@
 import { expect, test as baseTest } from "vitest";
 import { getClient } from "../../../lib/backend.js";
 
+const applicantEmail = `e2e-atc-application-${Date.now()}@example.test`;
+
 const test = baseTest
   .extend("applicant", async ({}) => {
-    return await getClient([]);
+    return await getClient([], {
+      email: applicantEmail,
+    });
   })
   .extend("otherApplicant", async ({}) => {
     return await getClient([]);
@@ -134,6 +138,7 @@ test("GET /api/atc/applications lists all applications for ATC application revie
       expect.objectContaining({
         id: application.id,
         user_id: application.user_id,
+        user_email: applicantEmail,
         status: "submitted",
         user: expect.objectContaining({
           full_name: expect.any(String),
