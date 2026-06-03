@@ -1074,6 +1074,8 @@ pub struct TrainingApplicationResponseRequest {
 pub struct TrainingApplicationDto {
     pub id: String,
     pub trainee_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trainee_email: Option<String>,
     pub trainee: UserDto,
     pub status: TrainingApplicationStatus,
     pub name: String,
@@ -1087,11 +1089,16 @@ impl TrainingApplicationDto {
     pub fn from_record(
         application: TrainingApplicationRecord,
         slots: Vec<TrainingApplicationSlotRecord>,
+        include_trainee_email: bool,
     ) -> Self {
         let status = TrainingApplicationStatus::from_record(&application, &slots);
+        let trainee_email = include_trainee_email
+            .then_some(application.trainee_email)
+            .flatten();
         Self {
             id: Ulid::from(application.id).to_string(),
             trainee_id: Ulid::from(application.trainee_id).to_string(),
+            trainee_email,
             trainee: UserDto::from_role_strings(
                 application.trainee_id,
                 application.trainee_cid,

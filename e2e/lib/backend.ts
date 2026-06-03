@@ -25,12 +25,26 @@ export const getBaseUrl = (): string => {
  * @param roles List of roles
  * @returns API client
  */
-export const getClient = async (roles: string[] | null = null) => {
+type GetClientOptions = {
+  cid?: string;
+  email?: string;
+  fullName?: string;
+  id?: string;
+};
+
+export const getClient = async (
+  roles: string[] | null = null,
+  options: GetClientOptions = {},
+) => {
   const baseUrl = getBaseUrl();
 
   if (roles !== null) {
     return createApiClientWithRoles(baseUrl, {
-      cid: Math.floor(10000000 + Math.random() * 9000000).toString(),
+      cid:
+        options.cid ?? Math.floor(10000000 + Math.random() * 9000000).toString(),
+      email: options.email,
+      fullName: options.fullName,
+      id: options.id,
       roles,
     });
   }

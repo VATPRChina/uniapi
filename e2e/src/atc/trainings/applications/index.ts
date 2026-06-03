@@ -1,12 +1,16 @@
 import { expect, test as baseTest } from "vitest";
 import { getClient } from "../../../../lib/backend.js";
 
+const traineeEmail = `e2e-training-application-${Date.now()}@example.test`;
+
 const test = baseTest
   .extend("admin", async ({}) => {
     return await getClient(["controller-training-director-assistant"]);
   })
   .extend("trainee", async ({}) => {
-    return await getClient([]);
+    return await getClient([], {
+      email: traineeEmail,
+    });
   })
   .extend("otherTrainee", async ({}) => {
     return await getClient([]);
@@ -186,6 +190,7 @@ test("GET /api/atc/trainings/applications lists visible training applications", 
     expect.arrayContaining([
       expect.objectContaining({
         id: application.id,
+        trainee_email: traineeEmail,
       }),
       expect.objectContaining({
         id: otherApplication.id,

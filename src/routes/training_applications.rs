@@ -53,7 +53,9 @@ async fn list_applications(
     let applications =
         training_application_repository::list(services.db(), current_user_id, is_admin).await?;
 
-    applications_to_dto(&services, applications).await.map(Json)
+    applications_to_dto(&services, applications, is_admin)
+        .await
+        .map(Json)
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/applications/{id}", operation_id = "get_training_application", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
@@ -63,7 +65,9 @@ async fn get_application(
     Path(id): Path<String>,
 ) -> Result<Json<TrainingApplicationDto>, ApiError> {
     let application = find_visible_application(&services, &current_user, &id).await?;
-    application_to_dto(&services, application).await.map(Json)
+    application_to_dto(&services, application, false)
+        .await
+        .map(Json)
 }
 
 #[utoipa::path(delete, path = "api/atc/trainings/applications/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
@@ -78,7 +82,9 @@ async fn delete_application(
         .await?
         .ok_or(ApiError::not_found("resource", "unknown"))?;
 
-    application_to_dto(&services, application).await.map(Json)
+    application_to_dto(&services, application, false)
+        .await
+        .map(Json)
 }
 
 #[utoipa::path(post, path = "api/atc/trainings/applications", operation_id = "create_training_application", tag = "ATC", security(("oauth2" = [])), request_body = TrainingApplicationCreateRequest, responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
@@ -110,7 +116,9 @@ async fn create_application(
         .await?
         .ok_or(ApiError::not_found("resource", "unknown"))?;
 
-    application_to_dto(&services, application).await.map(Json)
+    application_to_dto(&services, application, false)
+        .await
+        .map(Json)
 }
 
 #[utoipa::path(put, path = "api/atc/trainings/applications/{id}", operation_id = "update_training_application", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), request_body = TrainingApplicationCreateRequest, responses((status = 200, description = "Successful response", body = TrainingApplicationDto)))]
@@ -139,7 +147,9 @@ async fn update_application(
         .await?
         .ok_or(ApiError::not_found("resource", "unknown"))?;
 
-    application_to_dto(&services, application).await.map(Json)
+    application_to_dto(&services, application, false)
+        .await
+        .map(Json)
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/applications/{id}/responses", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training application ULID")), responses((status = 200, description = "Successful response", body = Vec<TrainingApplicationResponseDto>)))]
@@ -228,10 +238,11 @@ async fn find_visible_application(
 async fn applications_to_dto(
     services: &Services,
     applications: Vec<TrainingApplicationRecord>,
+    include_trainee_email: bool,
 ) -> Result<Vec<TrainingApplicationDto>, ApiError> {
     let mut dtos = Vec::with_capacity(applications.len());
     for application in applications {
-        dtos.push(application_to_dto(services, application).await?);
+        dtos.push(application_to_dto(services, application, include_trainee_email).await?);
     }
     Ok(dtos)
 }
@@ -239,10 +250,15 @@ async fn applications_to_dto(
 async fn application_to_dto(
     services: &Services,
     application: TrainingApplicationRecord,
+    include_trainee_email: bool,
 ) -> Result<TrainingApplicationDto, ApiError> {
     let slots = training_application_slot_repository::list(services.db(), application.id).await?;
 
-    Ok(TrainingApplicationDto::from_record(application, slots))
+    Ok(TrainingApplicationDto::from_record(
+        application,
+        slots,
+        include_trainee_email,
+    ))
 }
 
 fn is_admin(current_user: &CurrentUser) -> bool {

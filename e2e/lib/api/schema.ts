@@ -1279,6 +1279,7 @@ export type components = {
             status: components["schemas"]["TrainingApplicationStatus"];
             train_id?: string | null;
             trainee: components["schemas"]["UserDto"];
+            trainee_email?: string | null;
             trainee_id: string;
             /** Format: date-time */
             updated_at: string;
