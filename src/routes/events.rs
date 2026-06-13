@@ -83,6 +83,7 @@ async fn create_event(
         &mut transaction,
         AuditLog {
             entity: AuditLogEntity::Event(event.id),
+            child_entity: None,
             before: serde_json::Value::Null,
             after: serde_json::to_value(&event).map_err(|_| ApiError::Internal)?,
             operated_by,
@@ -116,6 +117,7 @@ async fn update_event(
         &mut transaction,
         AuditLog {
             entity: AuditLogEntity::Event(event.id),
+            child_entity: None,
             before: serde_json::to_value(before).map_err(|_| ApiError::Internal)?,
             after: serde_json::to_value(&event).map_err(|_| ApiError::Internal)?,
             operated_by,

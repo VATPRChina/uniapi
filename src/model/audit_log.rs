@@ -16,6 +16,7 @@ pub enum AuditLogEntity {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct AuditLog {
     pub entity: AuditLogEntity,
+    pub child_entity: Option<AuditLogEntity>,
     pub before: Value,
     pub after: Value,
     pub operated_by: Uuid,
@@ -36,6 +37,7 @@ mod tests {
         let created_at = Utc.with_ymd_and_hms(2026, 6, 13, 4, 0, 0).unwrap();
         let audit_log = AuditLog {
             entity: AuditLogEntity::Event(entity_id),
+            child_entity: None,
             before: Value::Null,
             after: json!({"title": "VATPRC Event"}),
             operated_by,
@@ -46,6 +48,7 @@ mod tests {
             serde_json::to_value(audit_log).unwrap(),
             json!({
                 "entity": {"Event": entity_id},
+                "child_entity": null,
                 "before": null,
                 "after": {"title": "VATPRC Event"},
                 "operated_by": operated_by,

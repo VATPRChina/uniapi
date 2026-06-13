@@ -72,6 +72,7 @@ async fn set_roles(
         &mut transaction,
         AuditLog {
             entity: AuditLogEntity::UserRole(id),
+            child_entity: None,
             before,
             after: serde_json::to_value(&user).map_err(|_| ApiError::Internal)?,
             operated_by,

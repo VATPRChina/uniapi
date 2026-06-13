@@ -36,6 +36,8 @@ impl std::str::FromStr for AuditLogEntityKind {
 pub struct AuditLogRecord {
     pub entity_kind: String,
     pub entity_id: Uuid,
+    pub child_entity_kind: Option<String>,
+    pub child_entity_id: Option<Uuid>,
     pub before: Value,
     pub after: Value,
     pub operated_by: Uuid,
@@ -49,10 +51,17 @@ pub struct InvalidAuditLogEntityKind(pub String);
 impl From<AuditLog> for AuditLogRecord {
     fn from(audit_log: AuditLog) -> Self {
         let (entity_kind, entity_id) = entity_to_record(audit_log.entity);
+        let (child_entity_kind, child_entity_id) = audit_log
+            .child_entity
+            .map(entity_to_record)
+            .map(|(kind, id)| (Some(kind.to_string()), Some(id)))
+            .unwrap_or((None, None));
 
         Self {
             entity_kind: entity_kind.to_string(),
             entity_id,
+            child_entity_kind,
+            child_entity_id,
             before: audit_log.before,
             after: audit_log.after,
             operated_by: audit_log.operated_by,
@@ -67,6 +76,15 @@ impl TryFrom<AuditLogRecord> for AuditLog {
     fn try_from(record: AuditLogRecord) -> Result<Self, Self::Error> {
         Ok(Self {
             entity: entity_from_record(&record.entity_kind, record.entity_id)?,
+            child_entity: match (record.child_entity_kind, record.child_entity_id) {
+                (Some(kind), Some(id)) => Some(entity_from_record(&kind, id)?),
+                (None, None) => None,
+                (kind, id) => {
+                    return Err(InvalidAuditLogEntityKind(format!(
+                        "incomplete child entity: kind={kind:?}, id={id:?}"
+                    )));
+                }
+            },
             before: record.before,
             after: record.after,
             operated_by: record.operated_by,
@@ -84,14 +102,18 @@ pub async fn create(
     sqlx::query_as::<_, AuditLogRecord>(
         r#"
         INSERT INTO public.audit_log (
-            entity_kind, entity_id, before, after, operated_by, created_at
+            entity_kind, entity_id, child_entity_kind, child_entity_id,
+            before, after, operated_by, created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING entity_kind, entity_id, before, after, operated_by, created_at
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING entity_kind, entity_id, child_entity_kind, child_entity_id,
+                  before, after, operated_by, created_at
         "#,
     )
     .bind(record.entity_kind)
     .bind(record.entity_id)
+    .bind(record.child_entity_kind)
+    .bind(record.child_entity_id)
     .bind(record.before)
     .bind(record.after)
     .bind(record.operated_by)
@@ -139,6 +161,8 @@ mod tests {
         AuditLogRecord {
             entity_kind: entity_kind.to_owned(),
             entity_id,
+            child_entity_kind: None,
+            child_entity_id: None,
             before: Value::Null,
             after: Value::Null,
             operated_by: Uuid::nil(),
@@ -148,9 +172,11 @@ mod tests {
 
     #[test]
     fn converts_business_entity_to_database_columns() {
-        let entity_id = Uuid::from_u128(1);
+        let event_id = Uuid::from_u128(1);
+        let position_id = Uuid::from_u128(2);
         let audit_log = AuditLog {
-            entity: AuditLogEntity::EventAtcPosition(entity_id),
+            entity: AuditLogEntity::Event(event_id),
+            child_entity: Some(AuditLogEntity::EventAtcPosition(position_id)),
             before: Value::Null,
             after: Value::Null,
             operated_by: Uuid::nil(),
@@ -159,8 +185,13 @@ mod tests {
 
         let record = AuditLogRecord::from(audit_log);
 
-        assert_eq!(record.entity_kind, "event-atc-position");
-        assert_eq!(record.entity_id, entity_id);
+        assert_eq!(record.entity_kind, "event");
+        assert_eq!(record.entity_id, event_id);
+        assert_eq!(
+            record.child_entity_kind.as_deref(),
+            Some("event-atc-position")
+        );
+        assert_eq!(record.child_entity_id, Some(position_id));
     }
 
     #[test]

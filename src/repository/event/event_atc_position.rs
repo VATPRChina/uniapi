@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use ulid::Ulid;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct EventAtcPositionRecord {
     pub id: Uuid,
     pub event_id: Uuid,
@@ -83,8 +84,31 @@ pub async fn find_by_event_and_id(
     .await
 }
 
+pub async fn find_by_event_and_id_in_transaction(
+    transaction: &mut Transaction<'_, Postgres>,
+    event_id: Uuid,
+    position_id: Uuid,
+    for_update: bool,
+) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
+    let lock_clause = if for_update {
+        "FOR UPDATE OF event_atc_position"
+    } else {
+        ""
+    };
+    sqlx::query_as::<_, EventAtcPositionRecord>(&position_select_sql(&format!(
+        r#"
+        WHERE event_atc_position.event_id = $1 AND event_atc_position.id = $2
+        {lock_clause}
+        "#
+    )))
+    .bind(event_id)
+    .bind(position_id)
+    .fetch_optional(&mut **transaction)
+    .await
+}
+
 pub async fn create(
-    db: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     event_id: Uuid,
     position: EventAtcPositionSave,
 ) -> Result<EventAtcPositionRecord, sqlx::Error> {
@@ -112,16 +136,16 @@ pub async fn create(
     .bind(position.remarks)
     .bind(position.position_kind_id)
     .bind(position.minimum_controller_state)
-    .execute(db)
+    .execute(&mut **transaction)
     .await?;
 
-    find_by_event_and_id(db, event_id, id)
+    find_by_event_and_id_in_transaction(transaction, event_id, id, false)
         .await?
         .ok_or(sqlx::Error::RowNotFound)
 }
 
 pub async fn update(
-    db: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     event_id: Uuid,
     position_id: Uuid,
     position: EventAtcPositionSave,
@@ -152,17 +176,21 @@ pub async fn update(
     .bind(position.remarks)
     .bind(position.position_kind_id)
     .bind(position.minimum_controller_state)
-    .execute(db)
+    .execute(&mut **transaction)
     .await?;
 
     if result.rows_affected() == 0 {
         return Ok(None);
     }
 
-    find_by_event_and_id(db, event_id, position_id).await
+    find_by_event_and_id_in_transaction(transaction, event_id, position_id, false).await
 }
 
-pub async fn delete(db: &PgPool, event_id: Uuid, position_id: Uuid) -> Result<bool, sqlx::Error> {
+pub async fn delete(
+    transaction: &mut Transaction<'_, Postgres>,
+    event_id: Uuid,
+    position_id: Uuid,
+) -> Result<bool, sqlx::Error> {
     tracing::info!(
         operation = "delete",
         repository = "src/repository/event/event_atc_position.rs",
@@ -177,7 +205,7 @@ pub async fn delete(db: &PgPool, event_id: Uuid, position_id: Uuid) -> Result<bo
     )
     .bind(event_id)
     .bind(position_id)
-    .execute(db)
+    .execute(&mut **transaction)
     .await?;
 
     Ok(result.rows_affected() > 0)
