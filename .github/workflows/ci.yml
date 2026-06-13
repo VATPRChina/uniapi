@@ -14,7 +14,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            src/target
+            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
