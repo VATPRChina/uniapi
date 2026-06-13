@@ -4,6 +4,7 @@ import {
   type ChildProcessWithoutNullStreams,
 } from "node:child_process";
 import { once } from "node:events";
+import { existsSync } from "node:fs";
 import process from "node:process";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -22,7 +23,8 @@ const baseUrl = `http://${backendHost}:${backendPort}`;
 
 export async function startBackend(): Promise<BackendHandle> {
   const repoRoot = resolve(process.cwd(), "..");
-  const build = spawnSync("cargo", ["build"], {
+  const release = process.env.E2E_BACKEND_BUILD_MODE === "release";
+  const build = spawnSync("cargo", ["build", ...(release ? ["--release"] : [])], {
     cwd: repoRoot,
     encoding: "utf8",
     env: process.env,
@@ -37,9 +39,13 @@ export async function startBackend(): Promise<BackendHandle> {
   const binary = resolve(
     repoRoot,
     "target",
-    "debug",
+    release ? "release" : "debug",
     process.platform === "win32" ? "vatprc-uniapi.exe" : "vatprc-uniapi",
   );
+  if (!existsSync(binary)) {
+    throw new Error(`Backend binary not found at ${binary}`);
+  }
+
   const child = spawn(binary, [], {
     cwd: repoRoot,
     detached: process.platform !== "win32",

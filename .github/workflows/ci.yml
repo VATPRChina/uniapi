@@ -53,25 +53,37 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Rust dependencies
+      - name: Cache server build
         uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-e2e-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-e2e-cargo-
-            ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache sqlx build
+        id: cache-cargo-sqlx
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: ${{ runner.os }}-cargo-install-sqlx-cli-0.8.6
 
       - name: Install sqlx
-        run: cargo install sqlx-cli
+        run: cargo install sqlx-cli --version 0.8.6 --locked
+
+      - name: Build release server
+        if: steps.cache-cargo-sqlx.outputs.cache-hit != 'true'
+        run: cargo build --release
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
           version: 11.0.8
+          cache: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -101,3 +113,4 @@ jobs:
         working-directory: e2e
         env:
           APP_DATABASE__URL: postgres://postgres@localhost/vatprc
+          E2E_BACKEND_BUILD_MODE: release
