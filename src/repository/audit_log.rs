@@ -1,0 +1,160 @@
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize, de::IntoDeserializer};
+use serde_json::Value;
+use sqlx::FromRow;
+use thiserror::Error;
+use uuid::Uuid;
+
+use crate::model::audit_log::{AuditLog, AuditLogEntity};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum AuditLogEntityKind {
+    Event,
+    AtcApplication,
+    UserRole,
+    UserAtcPermission,
+    EventAtcPosition,
+    EventSlot,
+}
+
+impl std::fmt::Display for AuditLogEntityKind {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.serialize(formatter)
+    }
+}
+
+impl std::str::FromStr for AuditLogEntityKind {
+    type Err = serde::de::value::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::deserialize(value.into_deserializer())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, FromRow)]
+pub struct AuditLogRecord {
+    pub entity_kind: String,
+    pub entity_id: Uuid,
+    pub before: Value,
+    pub after: Value,
+    pub operated_by: Uuid,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[error("invalid audit log entity kind {0}")]
+pub struct InvalidAuditLogEntityKind(pub String);
+
+impl From<AuditLog> for AuditLogRecord {
+    fn from(audit_log: AuditLog) -> Self {
+        let (entity_kind, entity_id) = entity_to_record(audit_log.entity);
+
+        Self {
+            entity_kind: entity_kind.to_string(),
+            entity_id,
+            before: audit_log.before,
+            after: audit_log.after,
+            operated_by: audit_log.operated_by,
+            created_at: audit_log.created_at,
+        }
+    }
+}
+
+impl TryFrom<AuditLogRecord> for AuditLog {
+    type Error = InvalidAuditLogEntityKind;
+
+    fn try_from(record: AuditLogRecord) -> Result<Self, Self::Error> {
+        Ok(Self {
+            entity: entity_from_record(&record.entity_kind, record.entity_id)?,
+            before: record.before,
+            after: record.after,
+            operated_by: record.operated_by,
+            created_at: record.created_at,
+        })
+    }
+}
+
+fn entity_to_record(entity: AuditLogEntity) -> (AuditLogEntityKind, Uuid) {
+    match entity {
+        AuditLogEntity::Event(id) => (AuditLogEntityKind::Event, id),
+        AuditLogEntity::AtcApplication(id) => (AuditLogEntityKind::AtcApplication, id),
+        AuditLogEntity::UserRole(id) => (AuditLogEntityKind::UserRole, id),
+        AuditLogEntity::UserAtcPermission(id) => (AuditLogEntityKind::UserAtcPermission, id),
+        AuditLogEntity::EventAtcPosition(id) => (AuditLogEntityKind::EventAtcPosition, id),
+        AuditLogEntity::EventSlot(id) => (AuditLogEntityKind::EventSlot, id),
+    }
+}
+
+fn entity_from_record(
+    entity_kind: &str,
+    entity_id: Uuid,
+) -> Result<AuditLogEntity, InvalidAuditLogEntityKind> {
+    let entity_kind = entity_kind
+        .parse()
+        .map_err(|_| InvalidAuditLogEntityKind(entity_kind.to_owned()))?;
+
+    Ok(match entity_kind {
+        AuditLogEntityKind::Event => AuditLogEntity::Event(entity_id),
+        AuditLogEntityKind::AtcApplication => AuditLogEntity::AtcApplication(entity_id),
+        AuditLogEntityKind::UserRole => AuditLogEntity::UserRole(entity_id),
+        AuditLogEntityKind::UserAtcPermission => AuditLogEntity::UserAtcPermission(entity_id),
+        AuditLogEntityKind::EventAtcPosition => AuditLogEntity::EventAtcPosition(entity_id),
+        AuditLogEntityKind::EventSlot => AuditLogEntity::EventSlot(entity_id),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::TimeZone;
+
+    use super::*;
+
+    fn record(entity_kind: &str, entity_id: Uuid) -> AuditLogRecord {
+        AuditLogRecord {
+            entity_kind: entity_kind.to_owned(),
+            entity_id,
+            before: Value::Null,
+            after: Value::Null,
+            operated_by: Uuid::nil(),
+            created_at: Utc.with_ymd_and_hms(2026, 6, 13, 4, 0, 0).unwrap(),
+        }
+    }
+
+    #[test]
+    fn converts_business_entity_to_database_columns() {
+        let entity_id = Uuid::from_u128(1);
+        let audit_log = AuditLog {
+            entity: AuditLogEntity::EventAtcPosition(entity_id),
+            before: Value::Null,
+            after: Value::Null,
+            operated_by: Uuid::nil(),
+            created_at: Utc.with_ymd_and_hms(2026, 6, 13, 4, 0, 0).unwrap(),
+        };
+
+        let record = AuditLogRecord::from(audit_log);
+
+        assert_eq!(record.entity_kind, "event-atc-position");
+        assert_eq!(record.entity_id, entity_id);
+    }
+
+    #[test]
+    fn converts_database_columns_to_business_entity() {
+        let entity_id = Uuid::from_u128(2);
+
+        assert_eq!(
+            AuditLog::try_from(record("user-atc-permission", entity_id))
+                .unwrap()
+                .entity,
+            AuditLogEntity::UserAtcPermission(entity_id)
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_database_entity_kind() {
+        assert_eq!(
+            AuditLog::try_from(record("unknown", Uuid::nil())).unwrap_err(),
+            InvalidAuditLogEntityKind("unknown".to_owned())
+        );
+    }
+}

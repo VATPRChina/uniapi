@@ -1,5 +1,6 @@
 pub mod atc;
 pub mod atc_training;
+pub mod audit_log;
 pub mod auth;
 pub mod compat;
 pub mod event;
