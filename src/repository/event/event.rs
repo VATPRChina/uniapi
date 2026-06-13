@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use serde::Serialize;
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use ulid::Ulid;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct EventRecord {
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
@@ -103,7 +104,10 @@ pub async fn exists(db: &PgPool, id: Uuid) -> Result<bool, sqlx::Error> {
     .await
 }
 
-pub async fn create(db: &PgPool, event: EventSave) -> Result<EventRecord, sqlx::Error> {
+pub async fn create(
+    transaction: &mut Transaction<'_, Postgres>,
+    event: EventSave,
+) -> Result<EventRecord, sqlx::Error> {
     tracing::info!(
         operation = "create",
         repository = "src/repository/event/event.rs",
@@ -134,12 +138,31 @@ pub async fn create(db: &PgPool, event: EventSave) -> Result<EventRecord, sqlx::
     .bind(event.community_link)
     .bind(event.vatsim_link)
     .bind(event.description)
-    .fetch_one(db)
+    .fetch_one(&mut **transaction)
+    .await
+}
+
+pub async fn find_by_id_for_update(
+    transaction: &mut Transaction<'_, Postgres>,
+    id: Uuid,
+) -> Result<Option<EventRecord>, sqlx::Error> {
+    sqlx::query_as::<_, EventRecord>(
+        r#"
+        SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
+               start_booking_at, end_booking_at, start_atc_booking_at, image_url,
+               community_link, vatsim_link, description
+        FROM public.event
+        WHERE id = $1
+        FOR UPDATE
+        "#,
+    )
+    .bind(id)
+    .fetch_optional(&mut **transaction)
     .await
 }
 
 pub async fn update(
-    db: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     id: Uuid,
     event: EventSave,
 ) -> Result<Option<EventRecord>, sqlx::Error> {
@@ -182,6 +205,6 @@ pub async fn update(
     .bind(event.community_link)
     .bind(event.vatsim_link)
     .bind(event.description)
-    .fetch_optional(db)
+    .fetch_optional(&mut **transaction)
     .await
 }

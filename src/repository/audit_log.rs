@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize, de::IntoDeserializer};
 use serde_json::Value;
-use sqlx::FromRow;
+use sqlx::{FromRow, Postgres, Transaction};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -73,6 +73,31 @@ impl TryFrom<AuditLogRecord> for AuditLog {
             created_at: record.created_at,
         })
     }
+}
+
+pub async fn create(
+    transaction: &mut Transaction<'_, Postgres>,
+    audit_log: AuditLog,
+) -> Result<AuditLogRecord, sqlx::Error> {
+    let record = AuditLogRecord::from(audit_log);
+
+    sqlx::query_as::<_, AuditLogRecord>(
+        r#"
+        INSERT INTO public.audit_log (
+            entity_kind, entity_id, before, after, operated_by, created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING entity_kind, entity_id, before, after, operated_by, created_at
+        "#,
+    )
+    .bind(record.entity_kind)
+    .bind(record.entity_id)
+    .bind(record.before)
+    .bind(record.after)
+    .bind(record.operated_by)
+    .bind(record.created_at)
+    .fetch_one(&mut **transaction)
+    .await
 }
 
 fn entity_to_record(entity: AuditLogEntity) -> (AuditLogEntityKind, Uuid) {

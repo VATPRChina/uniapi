@@ -1,10 +1,13 @@
 use axum::extract::{Path, Query, State};
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
+use chrono::Utc;
 
 use crate::auth::CurrentUser;
 use crate::dto::*;
+use crate::model::audit_log::{AuditLog, AuditLogEntity};
 use crate::model::user_role::UserRole;
+use crate::repository::audit_log as audit_log_repository;
 use crate::repository::event::event::{self as event_repository};
 use crate::routes::ApiError;
 use crate::services::Services;
@@ -73,7 +76,21 @@ async fn create_event(
     Json(request): Json<EventSaveRequest>,
 ) -> Result<Json<EventDto>, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
-    let event = event_repository::create(services.db(), request.try_into()?).await?;
+    let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    let mut transaction = services.db().begin().await?;
+    let event = event_repository::create(&mut transaction, request.try_into()?).await?;
+    audit_log_repository::create(
+        &mut transaction,
+        AuditLog {
+            entity: AuditLogEntity::Event(event.id),
+            before: serde_json::Value::Null,
+            after: serde_json::to_value(&event).map_err(|_| ApiError::Internal)?,
+            operated_by,
+            created_at: Utc::now(),
+        },
+    )
+    .await?;
+    transaction.commit().await?;
 
     Ok(Json(EventDto::from(event)))
 }
@@ -86,10 +103,27 @@ async fn update_event(
     Json(request): Json<EventSaveRequest>,
 ) -> Result<Json<EventDto>, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
+    let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let id = parse_ulid_uuid("event_id", &eid)?;
-    let event = event_repository::update(services.db(), id, request.try_into()?)
+    let mut transaction = services.db().begin().await?;
+    let before = event_repository::find_by_id_for_update(&mut transaction, id)
         .await?
         .ok_or(ApiError::not_found("event", "unknown"))?;
+    let event = event_repository::update(&mut transaction, id, request.try_into()?)
+        .await?
+        .ok_or(ApiError::not_found("event", "unknown"))?;
+    audit_log_repository::create(
+        &mut transaction,
+        AuditLog {
+            entity: AuditLogEntity::Event(event.id),
+            before: serde_json::to_value(before).map_err(|_| ApiError::Internal)?,
+            after: serde_json::to_value(&event).map_err(|_| ApiError::Internal)?,
+            operated_by,
+            created_at: Utc::now(),
+        },
+    )
+    .await?;
+    transaction.commit().await?;
 
     Ok(Json(EventDto::from(event)))
 }
