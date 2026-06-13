@@ -19,9 +19,8 @@ endpoint = "https://community.vatprc.net"
 api_key = ""
 
 [navdata]
-local_data_path = "data/dfd_v2.db"
+local_data_path = "data/navdata.db"
 preferred_routes_path = "data/routes.csv"
-download_file = true
 
 [telemetry]
 service_name = "vatprc-uniapi"
@@ -45,3 +44,6 @@ headers = {}
 [discord]
 enabled = false
 token = ""
+
+[utils.metar]
+endpoint = "https://metar.vatsim.net"

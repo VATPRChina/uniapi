@@ -40,3 +40,9 @@ endpoint = "https://auth-dev.vatsim.net"
 client_id = "1392"
 client_secret = "fDMUqXa4gGuQRq4MxR8NNXVIUGcD3WpEwNZPSiLz"
 redirect_uri = "http://localhost:3000/auth/callback/vatsim"
+
+[storage.image.smms]
+secret_token = ""
+
+[moodle]
+api_key = ""
