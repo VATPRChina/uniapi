@@ -82,7 +82,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          cache: true
+          package_json_file: e2e/package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
