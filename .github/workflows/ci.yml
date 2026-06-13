@@ -24,7 +24,7 @@ jobs:
       - name: Prepare test data
         run: |
           curl -L -o navdata.zip https://developers.navigraph.com/downloads/navigation-data/navigraph-dfd-sample-sqlite-dfdv2-2401.zip
-          unzip navdata.zip -d test_data
+          unzip navdata.zip -d data
       - name: Run tests
         run: cargo test --release
 

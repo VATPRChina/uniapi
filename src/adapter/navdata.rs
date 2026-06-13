@@ -534,7 +534,7 @@ fn geo_distance_ordering(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 mod test {
     use super::*;
 
-    const LOCAL_DATA_PATH: &str = "test_data/ng_jeppesen_fwdfd_2401.s3db";
+    const LOCAL_DATA_PATH: &str = "data/ng_jeppesen_fwdfd_2401.s3db";
     const PREFERRED_ROUTES_PATH: &str = "assets/test/routes.csv";
 
     async fn get_navdata_adapter() -> NavdataAdapter {
