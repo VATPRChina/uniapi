@@ -118,6 +118,8 @@ api_errors!(
     Smms { #[from] source: SmmsError } => StatusCode::SERVICE_UNAVAILABLE
         => "transient error",
     Internal => StatusCode::INTERNAL_SERVER_ERROR => "internal error",
+    InvalidDatabaseValue { field: String, value: String } => StatusCode::INTERNAL_SERVER_ERROR
+        => "invalid database value for {field}: {value}",
 );
 
 impl ApiError {
@@ -138,6 +140,13 @@ impl ApiError {
     pub fn forbidden(allowed_roles: impl IntoIterator<Item = impl Into<UserRole>>) -> Self {
         ApiError::Forbidden {
             allowed_roles: allowed_roles.into_iter().map(Into::into).collect(),
+        }
+    }
+
+    pub fn invalid_database_value(field: impl Into<String>, value: impl Into<String>) -> Self {
+        ApiError::InvalidDatabaseValue {
+            field: field.into(),
+            value: value.into(),
         }
     }
 }

@@ -1,10 +1,11 @@
 import { expect, test as baseTest } from "vitest";
 import { getClient } from "../../../lib/backend.js";
 
-const applicantEmail = `e2e-atc-application-${Date.now()}@example.test`;
-
 const test = baseTest
-  .extend("applicant", async ({}) => {
+  .extend("applicantEmail", async ({}) => {
+    return `e2e-atc-application-${Date.now()}-${Math.random()}@example.test`;
+  })
+  .extend("applicant", async ({ applicantEmail }) => {
     return await getClient([], {
       email: applicantEmail,
     });
@@ -128,6 +129,7 @@ test("GET /api/atc/applications lists only the current user's applications for n
 test("GET /api/atc/applications lists all applications for ATC application reviewers", async ({
   reviewer,
   application,
+  applicantEmail,
 }) => {
   const { data, error, response } = await reviewer.GET("/api/atc/applications");
 

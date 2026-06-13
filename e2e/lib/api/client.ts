@@ -72,7 +72,9 @@ export async function issueUserTokenWithRoles(
   });
 
   if (error || !data?.access_token) {
-    throw new Error("Failed to issue user token with roles");
+    throw new Error(
+      `Failed to issue user token with roles: ${JSON.stringify(error)}`,
+    );
   }
 
   return data.access_token;

@@ -72,7 +72,7 @@ async fn get_status_for_user(services: &Services, user_id: Uuid) -> Result<AtcSt
         .ok_or(ApiError::not_found("user", "unknown"))?;
     let permissions = atc_permission_repository::list_by_user_id(services.db(), user_id).await?;
 
-    Ok(AtcStatusDto::from_records(status, permissions))
+    AtcStatusDto::from_records(status, permissions)
 }
 
 fn require_admin_role(current_user: &CurrentUser) -> Result<(), ApiError> {

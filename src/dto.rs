@@ -588,8 +588,11 @@ pub struct AtcStatusDto {
 }
 
 impl AtcStatusDto {
-    pub fn from_records(status: AtcStatusRecord, permissions: Vec<AtcPermissionRecord>) -> Self {
-        Self {
+    pub fn from_records(
+        status: AtcStatusRecord,
+        permissions: Vec<AtcPermissionRecord>,
+    ) -> Result<Self, ApiError> {
+        Ok(Self {
             user_id: Ulid::from(status.user_id).to_string(),
             user: UserDto::from_role_strings(
                 status.user_id,
@@ -604,25 +607,28 @@ impl AtcStatusDto {
             rating: status.rating.unwrap_or_else(|| "OBS".to_owned()),
             permissions: permissions
                 .into_iter()
-                .map(AtcPermissionDto::from)
-                .collect(),
-        }
+                .map(AtcPermissionDto::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
     }
 
-    pub fn from_controller_rows(rows: Vec<AtcControllerPermissionRecord>) -> Vec<Self> {
+    pub fn from_controller_rows(
+        rows: Vec<AtcControllerPermissionRecord>,
+    ) -> Result<Vec<Self>, ApiError> {
         let mut statuses = std::collections::BTreeMap::<Uuid, AtcStatusControllerBuilder>::new();
         for row in rows {
+            let permission = AtcPermissionDto::try_from(&row)?;
             statuses
                 .entry(row.user_id)
                 .or_insert_with(|| AtcStatusControllerBuilder::from(&row))
                 .permissions
-                .push(AtcPermissionDto::from(&row));
+                .push(permission);
         }
 
-        statuses
+        Ok(statuses
             .into_values()
             .map(AtcStatusDto::from)
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>())
     }
 }
 
@@ -675,29 +681,53 @@ pub struct AtcPermissionDto {
     pub solo_expires_at: Option<DateTime<Utc>>,
 }
 
-impl From<AtcPermissionRecord> for AtcPermissionDto {
-    fn from(permission: AtcPermissionRecord) -> Self {
-        Self {
+impl TryFrom<AtcPermissionRecord> for AtcPermissionDto {
+    type Error = ApiError;
+
+    fn try_from(permission: AtcPermissionRecord) -> Result<Self, Self::Error> {
+        Ok(Self {
             position_kind_id: permission.position_kind_id,
-            state: permission
-                .state
-                .parse()
-                .unwrap_or(UserControllerState::Student),
+            state: permission.state.parse().map_err(|_| {
+                ApiError::invalid_database_value(
+                    "user_atc_permission.state",
+                    permission.state.clone(),
+                )
+            })?,
             solo_expires_at: permission.solo_expires_at,
-        }
+        })
     }
 }
 
-impl From<&AtcControllerPermissionRecord> for AtcPermissionDto {
-    fn from(permission: &AtcControllerPermissionRecord) -> Self {
-        Self {
+impl TryFrom<&AtcControllerPermissionRecord> for AtcPermissionDto {
+    type Error = ApiError;
+
+    fn try_from(permission: &AtcControllerPermissionRecord) -> Result<Self, Self::Error> {
+        Ok(Self {
             position_kind_id: permission.position_kind_id.clone(),
-            state: permission
-                .state
-                .parse()
-                .unwrap_or(UserControllerState::Student),
+            state: permission.state.parse().map_err(|_| {
+                ApiError::invalid_database_value(
+                    "user_atc_permission.state",
+                    permission.state.clone(),
+                )
+            })?,
             solo_expires_at: permission.solo_expires_at,
-        }
+        })
+    }
+}
+
+#[cfg(test)]
+mod atc_permission_dto_tests {
+    use super::*;
+
+    #[test]
+    fn invalid_controller_state_returns_error() {
+        let record = AtcPermissionRecord {
+            position_kind_id: "APP".to_owned(),
+            state: "student".to_owned(),
+            solo_expires_at: None,
+        };
+
+        assert!(AtcPermissionDto::try_from(record).is_err());
     }
 }
 
@@ -886,14 +916,28 @@ impl AtcApplicationStatus {
         }
     }
 
-    pub fn from_db_str(status: &str) -> Self {
+    pub fn from_db_str(status: &str) -> Result<Self, ApiError> {
         match status {
-            "InWaitlist" => Self::InWaitlist,
-            "Approved" => Self::Approved,
-            "Rejected" => Self::Rejected,
-            "Aborted" => Self::Aborted,
-            _ => Self::Submitted,
+            "Submitted" => Ok(Self::Submitted),
+            "InWaitlist" => Ok(Self::InWaitlist),
+            "Approved" => Ok(Self::Approved),
+            "Rejected" => Ok(Self::Rejected),
+            "Aborted" => Ok(Self::Aborted),
+            _ => Err(ApiError::invalid_database_value(
+                "atc_application.status",
+                status,
+            )),
         }
+    }
+}
+
+#[cfg(test)]
+mod atc_application_status_tests {
+    use super::*;
+
+    #[test]
+    fn invalid_database_status_returns_error() {
+        assert!(AtcApplicationStatus::from_db_str("submitted").is_err());
     }
 }
 
@@ -913,9 +957,9 @@ impl AtcApplicationSummaryDto {
         application: AtcApplicationRecord,
         is_admin: bool,
         current_user_id: Uuid,
-    ) -> Self {
+    ) -> Result<Self, ApiError> {
         let user_email = is_admin.then_some(application.user_email.clone()).flatten();
-        Self {
+        Ok(Self {
             id: Ulid::from(application.id).to_string(),
             user_id: Ulid::from(application.user_id).to_string(),
             user_email,
@@ -924,8 +968,8 @@ impl AtcApplicationSummaryDto {
                 is_admin || application.user_id == current_user_id,
             ),
             applied_at: application.applied_at,
-            status: AtcApplicationStatus::from_db_str(&application.status),
-        }
+            status: AtcApplicationStatus::from_db_str(&application.status)?,
+        })
     }
 }
 
@@ -947,8 +991,8 @@ impl AtcApplicationDto {
         current_user_id: Uuid,
         application_filing_answers: Vec<SheetFieldAnswerDto>,
         review_filing_answers: Option<Vec<SheetFieldAnswerDto>>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, ApiError> {
+        Ok(Self {
             id: Ulid::from(application.id).to_string(),
             user_id: Ulid::from(application.user_id).to_string(),
             user: UserDto::from_application_user(
@@ -956,10 +1000,10 @@ impl AtcApplicationDto {
                 is_admin || application.user_id == current_user_id,
             ),
             applied_at: application.applied_at,
-            status: AtcApplicationStatus::from_db_str(&application.status),
+            status: AtcApplicationStatus::from_db_str(&application.status)?,
             application_filing_answers,
             review_filing_answers,
-        }
+        })
     }
 }
 

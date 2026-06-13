@@ -20,5 +20,5 @@ async fn list_controllers(
     State(services): State<Services>,
 ) -> Result<Json<Vec<AtcStatusDto>>, ApiError> {
     let rows = atc_repository::list_controllers(services.db()).await?;
-    Ok(Json(AtcStatusDto::from_controller_rows(rows)))
+    Ok(Json(AtcStatusDto::from_controller_rows(rows)?))
 }

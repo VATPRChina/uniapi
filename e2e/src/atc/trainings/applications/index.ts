@@ -1,13 +1,14 @@
 import { expect, test as baseTest } from "vitest";
 import { getClient } from "../../../../lib/backend.js";
 
-const traineeEmail = `e2e-training-application-${Date.now()}@example.test`;
-
 const test = baseTest
+  .extend("traineeEmail", async ({}) => {
+    return `e2e-training-application-${Date.now()}-${Math.random()}@example.test`;
+  })
   .extend("admin", async ({}) => {
     return await getClient(["controller-training-director-assistant"]);
   })
-  .extend("trainee", async ({}) => {
+  .extend("trainee", async ({ traineeEmail }) => {
     return await getClient([], {
       email: traineeEmail,
     });
@@ -162,6 +163,7 @@ test("GET /api/atc/trainings/applications lists visible training applications", 
   admin,
   application,
   otherApplication,
+  traineeEmail,
 }) => {
   const ownApplications = await trainee.GET("/api/atc/trainings/applications");
 

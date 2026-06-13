@@ -57,7 +57,7 @@ async fn list_applications(
         .map(|application| {
             AtcApplicationSummaryDto::from_record(application, is_admin, current_user_id)
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(Json(applications))
 }
@@ -96,7 +96,7 @@ async fn create_application(
         application,
         false,
         current_user_id,
-    )))
+    )?))
 }
 
 #[utoipa::path(get, path = "api/atc/applications/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
@@ -135,7 +135,7 @@ async fn update_application(
         is_admin,
     )
     .await?;
-    if AtcApplicationStatus::from_db_str(&application.status) != AtcApplicationStatus::Submitted {
+    if AtcApplicationStatus::from_db_str(&application.status)? != AtcApplicationStatus::Submitted {
         return Err(ApiError::ApplicationCannotUpdate);
     }
 
@@ -263,13 +263,13 @@ async fn application_to_dto(
         None => None,
     };
 
-    Ok(AtcApplicationDto::from_record(
+    AtcApplicationDto::from_record(
         application,
         is_admin,
         current_user_id,
         application_filing_answers,
         review_filing_answers,
-    ))
+    )
 }
 
 async fn sheet_dto(
