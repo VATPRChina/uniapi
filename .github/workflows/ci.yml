@@ -73,11 +73,8 @@ jobs:
           key: ${{ runner.os }}-cargo-install-sqlx-cli-0.8.6
 
       - name: Install sqlx
-        run: cargo install sqlx-cli --version 0.8.6 --locked
-
-      - name: Build release server
         if: steps.cache-cargo-sqlx.outputs.cache-hit != 'true'
-        run: cargo build --release
+        run: cargo install sqlx-cli --version 0.8.6 --locked
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -91,21 +88,24 @@ jobs:
           cache: pnpm
           cache-dependency-path: e2e/pnpm-lock.yaml
 
-      - name: Install E2E dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: e2e
-
-      - name: Prepare database
-        env:
-          DATABASE_URL: postgres://postgres@localhost/vatprc
-        run: sqlx database setup
-
       - name: Prepare navdata
         run: |
           mkdir -p data
           curl --fail --location --output navdata.zip https://developers.navigraph.com/downloads/navigation-data/navigraph-dfd-sample-sqlite-dfdv2-2401.zip
           unzip -p navdata.zip ng_jeppesen_fwdfd_2401.s3db > data/navdata.db
           cp assets/test/routes.csv data/routes.csv
+
+      - name: Install E2E dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: e2e
+
+      - name: Build release server
+        run: cargo build --release
+
+      - name: Prepare database
+        env:
+          DATABASE_URL: postgres://postgres@localhost/vatprc
+        run: sqlx database setup
 
       - name: Run E2E tests
         run: pnpm test
