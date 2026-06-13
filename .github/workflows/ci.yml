@@ -87,8 +87,6 @@ jobs:
       - name: Prepare database
         env:
           DATABASE_URL: postgres://postgres@localhost/vatprc
-          PGUSER: postgres
-          PGDATABASE: vatprc
         run: sqlx database setup
 
       - name: Prepare navdata
@@ -101,3 +99,5 @@ jobs:
       - name: Run E2E tests
         run: pnpm test
         working-directory: e2e
+        env:
+          APP_DATABASE__URL: postgres://postgres@localhost/vatprc

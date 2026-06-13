@@ -137,7 +137,12 @@ impl Settings {
             ))
             .add_source(File::with_name(&format!("settings.{}", run_mode)).required(false))
             .add_source(File::with_name("settings.local").required(false))
-            .add_source(Environment::with_prefix("app"))
+            .add_source(File::with_name(&format!("settings.{}.local", run_mode)).required(false))
+            .add_source(
+                Environment::with_prefix("app")
+                    .prefix_separator("_")
+                    .separator("__"),
+            )
             .build()?;
 
         s.try_deserialize()
