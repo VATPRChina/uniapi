@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use serde::Serialize;
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use ulid::Ulid;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct AtcApplicationRecord {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -43,6 +44,21 @@ pub async fn find_by_id(
     .await
 }
 
+pub async fn find_by_id_for_update(
+    transaction: &mut Transaction<'_, Postgres>,
+    id: Uuid,
+) -> Result<Option<AtcApplicationRecord>, sqlx::Error> {
+    sqlx::query_as::<_, AtcApplicationRecord>(&application_select_sql(
+        r#"
+        WHERE atc_application.id = $1
+        FOR UPDATE OF atc_application
+        "#,
+    ))
+    .bind(id)
+    .fetch_optional(&mut **transaction)
+    .await
+}
+
 pub async fn count_active_by_user(db: &PgPool, user_id: Uuid) -> Result<i64, sqlx::Error> {
     sqlx::query_scalar::<_, i64>(
         r#"
@@ -57,7 +73,7 @@ pub async fn count_active_by_user(db: &PgPool, user_id: Uuid) -> Result<i64, sql
 }
 
 pub async fn create(
-    db: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     user_id: Uuid,
     application_filing_id: Uuid,
 ) -> Result<AtcApplicationRecord, sqlx::Error> {
@@ -80,14 +96,16 @@ pub async fn create(
     .bind(user_id)
     .bind(application_filing_id)
     .bind(Utc::now())
-    .execute(db)
+    .execute(&mut **transaction)
     .await?;
 
-    find_by_id(db, id).await?.ok_or(sqlx::Error::RowNotFound)
+    find_by_id_for_update(transaction, id)
+        .await?
+        .ok_or(sqlx::Error::RowNotFound)
 }
 
 pub async fn set_review(
-    db: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     id: Uuid,
     status: &str,
     review_filing_id: Uuid,
@@ -108,14 +126,14 @@ pub async fn set_review(
     .bind(id)
     .bind(status)
     .bind(review_filing_id)
-    .execute(db)
+    .execute(&mut **transaction)
     .await?;
 
     if result.rows_affected() == 0 {
         return Ok(None);
     }
 
-    find_by_id(db, id).await
+    find_by_id_for_update(transaction, id).await
 }
 
 fn application_select_sql(where_clause: &str) -> String {
