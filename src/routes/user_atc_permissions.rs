@@ -1,13 +1,22 @@
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
+use chrono::Utc;
+use serde::Serialize;
+use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
 use crate::dto::*;
+use crate::model::audit_log::{AuditLog, AuditLogEntity};
 use crate::model::user_role::UserRole;
-use crate::repository::atc::user_atc_permission::{self as atc_permission_repository};
-use crate::repository::atc::user_atc_status::{self as atc_status_repository, AtcStatusSave};
+use crate::repository::atc::user_atc_permission::{
+    self as atc_permission_repository, AtcPermissionRecord,
+};
+use crate::repository::atc::user_atc_status::{
+    self as atc_status_repository, AtcStatusRecord, AtcStatusSave,
+};
+use crate::repository::audit_log as audit_log_repository;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -49,21 +58,56 @@ async fn set_status(
     Json(request): Json<AtcStatusRequest>,
 ) -> Result<Json<AtcStatusDto>, ApiError> {
     require_admin_role(&current_user)?;
+    let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let user_id = parse_ulid_uuid("user_id", &id)?;
     let status = AtcStatusSave::try_from(request)?;
 
-    if atc_status_repository::find_by_user_id(services.db(), user_id)
-        .await?
-        .is_none()
-    {
-        return Err(ApiError::not_found("user", "unknown"));
-    }
-
     let mut transaction = services.db().begin().await?;
+    let before = atc_status_audit_snapshot(&mut transaction, user_id)
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
     atc_status_repository::upsert(&mut transaction, user_id, &status).await?;
+    let after = atc_status_audit_snapshot(&mut transaction, user_id)
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
+    audit_log_repository::create(
+        &mut transaction,
+        AuditLog {
+            entity: AuditLogEntity::UserAtcPermission(user_id),
+            before: serde_json::to_value(before).map_err(|_| ApiError::Internal)?,
+            after: serde_json::to_value(after).map_err(|_| ApiError::Internal)?,
+            operated_by,
+            created_at: Utc::now(),
+        },
+    )
+    .await?;
     transaction.commit().await?;
 
     get_status_for_user(&services, user_id).await.map(Json)
+}
+
+#[derive(Serialize)]
+struct AtcStatusAuditSnapshot {
+    status: AtcStatusRecord,
+    permissions: Vec<AtcPermissionRecord>,
+}
+
+async fn atc_status_audit_snapshot(
+    transaction: &mut Transaction<'_, Postgres>,
+    user_id: Uuid,
+) -> Result<Option<AtcStatusAuditSnapshot>, ApiError> {
+    let Some(status) =
+        atc_status_repository::find_by_user_id_for_update(transaction, user_id).await?
+    else {
+        return Ok(None);
+    };
+    let permissions =
+        atc_permission_repository::list_by_user_id_in_transaction(transaction, user_id).await?;
+
+    Ok(Some(AtcStatusAuditSnapshot {
+        status,
+        permissions,
+    }))
 }
 
 async fn get_status_for_user(services: &Services, user_id: Uuid) -> Result<AtcStatusDto, ApiError> {

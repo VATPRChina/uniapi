@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::repository::atc::user_atc_permission::{self, AtcPermissionSave};
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct AtcStatusRecord {
     pub user_id: Uuid,
     pub user_cid: String,
@@ -47,6 +48,32 @@ pub async fn find_by_user_id(
     )
     .bind(user_id)
     .fetch_optional(db)
+    .await
+}
+
+pub async fn find_by_user_id_for_update(
+    transaction: &mut Transaction<'_, Postgres>,
+    user_id: Uuid,
+) -> Result<Option<AtcStatusRecord>, sqlx::Error> {
+    sqlx::query_as::<_, AtcStatusRecord>(
+        r#"
+        SELECT "user".id AS user_id,
+               "user".cid AS user_cid,
+               "user".full_name AS user_full_name,
+               "user".created_at AS user_created_at,
+               "user".updated_at AS user_updated_at,
+               "user".roles AS user_roles,
+               user_atc_status.is_visiting,
+               user_atc_status.is_absent,
+               user_atc_status.rating
+        FROM public."user"
+        LEFT JOIN public.user_atc_status ON user_atc_status.user_id = "user".id
+        WHERE "user".id = $1
+        FOR UPDATE OF "user"
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(&mut **transaction)
     .await
 }
 

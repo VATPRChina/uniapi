@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct AtcPermissionRecord {
     pub position_kind_id: String,
     pub state: String,
@@ -60,6 +61,23 @@ pub async fn list_by_user_id(
     )
     .bind(user_id)
     .fetch_all(db)
+    .await
+}
+
+pub async fn list_by_user_id_in_transaction(
+    transaction: &mut Transaction<'_, Postgres>,
+    user_id: Uuid,
+) -> Result<Vec<AtcPermissionRecord>, sqlx::Error> {
+    sqlx::query_as::<_, AtcPermissionRecord>(
+        r#"
+        SELECT position_kind_id, state, solo_expires_at
+        FROM public.user_atc_permission
+        WHERE user_id = $1
+        ORDER BY position_kind_id
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(&mut **transaction)
     .await
 }
 
