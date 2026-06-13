@@ -1,11 +1,14 @@
 use axum::extract::{Path, State};
 use axum::routing::{get, put};
 use axum::{Json, Router};
+use chrono::Utc;
 use std::collections::BTreeSet;
 
 use crate::auth::CurrentUser;
 use crate::dto::*;
+use crate::model::audit_log::{AuditLog, AuditLogEntity};
 use crate::model::user_role::{UserRole, role_closure_from_strings};
+use crate::repository::audit_log as audit_log_repository;
 use crate::repository::auth::user::{self as user_repository, UserDetailRecord};
 use crate::routes::ApiError;
 use crate::services::Services;
@@ -45,8 +48,10 @@ async fn set_roles(
     Json(roles): Json<BTreeSet<String>>,
 ) -> Result<Json<UserDto>, ApiError> {
     current_user.require_role(UserRole::Staff)?;
+    let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let id = parse_ulid_uuid("user_id", &id)?;
-    let user = user_repository::find_detail_by_id(services.db(), id)
+    let mut transaction = services.db().begin().await?;
+    let user = user_repository::find_detail_by_id_for_update(&mut transaction, id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
 
@@ -59,9 +64,22 @@ async fn set_roles(
         return Err(ApiError::RemoveStaffForbidden);
     }
 
-    let user = user_repository::set_roles(services.db(), id, roles.into_iter().collect())
+    let before = serde_json::to_value(&user).map_err(|_| ApiError::Internal)?;
+    let user = user_repository::set_roles(&mut transaction, id, roles.into_iter().collect())
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
+    audit_log_repository::create(
+        &mut transaction,
+        AuditLog {
+            entity: AuditLogEntity::UserRole(id),
+            before,
+            after: serde_json::to_value(&user).map_err(|_| ApiError::Internal)?,
+            operated_by,
+            created_at: Utc::now(),
+        },
+    )
+    .await?;
+    transaction.commit().await?;
 
     Ok(Json(user_dto(user, None, false, None)))
 }

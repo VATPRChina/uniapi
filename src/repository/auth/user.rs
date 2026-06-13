@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use serde::Serialize;
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -9,7 +10,7 @@ pub struct UserRecord {
     pub roles: Vec<String>,
 }
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct UserDetailRecord {
     pub id: Uuid,
     pub cid: String,
@@ -51,6 +52,23 @@ pub async fn find_detail_by_id(
     )
     .bind(id)
     .fetch_optional(db)
+    .await
+}
+
+pub async fn find_detail_by_id_for_update(
+    transaction: &mut Transaction<'_, Postgres>,
+    id: Uuid,
+) -> Result<Option<UserDetailRecord>, sqlx::Error> {
+    sqlx::query_as::<_, UserDetailRecord>(
+        r#"
+        SELECT id, cid, full_name, created_at, updated_at, roles
+        FROM public."user"
+        WHERE id = $1
+        FOR UPDATE
+        "#,
+    )
+    .bind(id)
+    .fetch_optional(&mut **transaction)
     .await
 }
 
@@ -98,7 +116,7 @@ pub async fn upsert_assumed_user(
 }
 
 pub async fn set_roles(
-    db: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     id: Uuid,
     roles: Vec<String>,
 ) -> Result<Option<UserDetailRecord>, sqlx::Error> {
@@ -112,7 +130,7 @@ pub async fn set_roles(
     )
     .bind(id)
     .bind(roles)
-    .fetch_optional(db)
+    .fetch_optional(&mut **transaction)
     .await
 }
 
