@@ -1,5 +1,6 @@
 pub mod atc;
 pub mod atc_applications;
+pub mod audit_logs;
 pub mod auth;
 pub mod compat;
 pub mod event_airspaces;

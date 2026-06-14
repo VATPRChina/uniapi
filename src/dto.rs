@@ -54,6 +54,33 @@ fn roles_to_dto(roles: &[String]) -> Vec<UserRole> {
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum AuditLogEntityKindDto {
+    Event,
+    AtcApplication,
+    UserRole,
+    UserAtcPermission,
+    EventAtcPosition,
+    EventSlot,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct AuditLogEntityDto {
+    pub kind: AuditLogEntityKindDto,
+    pub id: String,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct AuditLogDto {
+    pub entity: AuditLogEntityDto,
+    pub child_entity: Option<AuditLogEntityDto>,
+    pub before: serde_json::Value,
+    pub after: serde_json::Value,
+    pub operated_by: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct UserMoodleInfoDto {
     pub id: String,
 }

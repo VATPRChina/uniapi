@@ -17,6 +17,7 @@ use crate::error::ApiError;
 use crate::openapi::{openapi, openapi_json};
 use crate::routes::atc::build_atc_routes;
 use crate::routes::atc_applications::build_atc_application_routes;
+use crate::routes::audit_logs::build_audit_log_routes;
 use crate::routes::auth::build_auth_routes;
 use crate::routes::compat::build_compat_routes;
 use crate::routes::event_airspaces::build_event_airspace_routes;
@@ -52,6 +53,7 @@ pub fn router(services: Services) -> Router {
         .route("/", get(root))
         .route("/health", get(health))
         .nest("/auth", build_auth_routes())
+        .nest("/api", build_audit_log_routes())
         .nest("/api/atc/controllers", build_atc_routes())
         .nest("/api/atc/applications", build_atc_application_routes())
         .nest("/api/compat", build_compat_routes())

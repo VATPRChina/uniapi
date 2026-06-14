@@ -9,6 +9,7 @@ use utoipa::{OpenApi, PartialSchema, ToSchema};
         (path = "/", api = crate::app::ApiDoc),
         (path = "/", api = crate::routes::auth::ApiDoc),
         (path = "/", api = crate::routes::session::ApiDoc),
+        (path = "/", api = crate::routes::audit_logs::ApiDoc),
         (path = "/", api = crate::routes::users::ApiDoc),
         (path = "/", api = crate::routes::atc::ApiDoc),
         (path = "/", api = crate::routes::user_atc_permissions::ApiDoc),
@@ -30,6 +31,7 @@ use utoipa::{OpenApi, PartialSchema, ToSchema};
     modifiers(&SecurityAddon, &InternalServerErrorAddon),
     tags(
         (name = "Auth", description = "OAuth and session endpoints"),
+        (name = "Audit Logs", description = "Audit log history"),
         (name = "ATC", description = "ATC status, bookings, applications, and training"),
         (name = "Compat", description = "Compatibility endpoints"),
         (name = "Events", description = "Events, slots, airspaces, and event ATC positions"),
