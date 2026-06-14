@@ -8,26 +8,30 @@ TODO.
 
 ## Development
 
-```
-just run
---- OR ---
-just watch
+The application binary supports these commands:
+
+```sh
+vatprc-uniapi              # start the web application
+vatprc-uniapi run          # start the web application
+vatprc-uniapi openapi      # save the specification to openapi.json
+vatprc-uniapi openapi -o api.json
+vatprc-uniapi migrate      # apply pending database migrations
 ```
 
 ### Database
 
 This server requires a local PostgreSQL server. Please start one and specify the
-following in `Net.Vatprc.Uniapi/appsettings.Local.toml`.
+following in `settings.local.toml`.
 
 ```
-[ConnectionStrings]
-VATPRCContext = "Host=localhost;Port=5432;Username=postgres;Password=;Database=vatprc"
+[database]
+url = "postgres://postgres:password@localhost/vatprc"
 ```
 
 And, to migrate the database:
 
 ```
-just db-update
+cargo run -- migrate
 ```
 
 To create a new migration:

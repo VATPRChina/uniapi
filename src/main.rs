@@ -1,10 +1,22 @@
+use std::io::Write;
+use std::path::Path;
+
+use clap::Parser;
 use vatprc_uniapi::discord::DiscordBot;
 use vatprc_uniapi::services::Services;
-use vatprc_uniapi::{app, settings, telemetry};
+use vatprc_uniapi::{app, command, openapi, repository, settings, telemetry};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    let settings = settings::Settings::new().expect("failed to load settings");
+    match command::Cli::parse().command() {
+        command::Command::Run => run().await,
+        command::Command::Openapi { output } => save_openapi(&output),
+        command::Command::Migrate => migrate().await,
+    }
+}
+
+async fn run() -> Result<(), anyhow::Error> {
+    let settings = settings::Settings::new()?;
     let _telemetry = telemetry::init(&settings.telemetry)?;
 
     let discord_bot = DiscordBot::from_settings(&settings.discord)?;
@@ -35,6 +47,23 @@ async fn main() -> Result<(), anyhow::Error> {
         },
     )
     .map(|_| ())
+}
+
+fn save_openapi(output: &Path) -> Result<(), anyhow::Error> {
+    let file = std::fs::File::create(output)?;
+    let mut writer = std::io::BufWriter::new(file);
+
+    serde_json::to_writer_pretty(&mut writer, &openapi::openapi())?;
+    writeln!(writer)?;
+
+    Ok(())
+}
+
+async fn migrate() -> Result<(), anyhow::Error> {
+    let settings = settings::Settings::new()?;
+    repository::migration::migrate(&settings.database.url).await?;
+
+    Ok(())
 }
 
 async fn shutdown_signal() {

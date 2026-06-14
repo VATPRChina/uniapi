@@ -1,8 +1,7 @@
-#![recursion_limit = "256"]
-
 pub mod adapter;
 pub mod app;
 pub mod auth;
+pub mod command;
 pub mod discord;
 pub mod dto;
 pub mod error;
