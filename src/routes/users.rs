@@ -71,8 +71,8 @@ async fn set_roles(
     audit_log_repository::create(
         &mut transaction,
         AuditLog {
-            entity: AuditLogEntity::UserRole(id),
-            child_entity: None,
+            entity: AuditLogEntity::User(id),
+            child_entity: Some(AuditLogEntity::UserRole(id)),
             before,
             after: serde_json::to_value(&user).map_err(|_| ApiError::Internal)?,
             operated_by,

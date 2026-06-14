@@ -4,6 +4,7 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::adapter::flight::Flight;
+use crate::model::audit_log::{AuditLog, AuditLogEntity};
 use crate::model::navdata::{AnyFix, ResolvedLeg};
 use crate::model::user_controller_state::UserControllerState;
 use crate::model::user_role::{UserRole, role_closure_from_strings};
@@ -58,6 +59,7 @@ fn roles_to_dto(roles: &[String]) -> Vec<UserRole> {
 pub enum AuditLogEntityKindDto {
     Event,
     AtcApplication,
+    User,
     UserRole,
     UserAtcPermission,
     EventAtcPosition,
@@ -78,6 +80,38 @@ pub struct AuditLogDto {
     pub after: serde_json::Value,
     pub operated_by: String,
     pub created_at: DateTime<Utc>,
+}
+
+impl From<AuditLogEntity> for AuditLogEntityDto {
+    fn from(entity: AuditLogEntity) -> Self {
+        let (kind, id) = match entity {
+            AuditLogEntity::Event(id) => (AuditLogEntityKindDto::Event, id),
+            AuditLogEntity::AtcApplication(id) => (AuditLogEntityKindDto::AtcApplication, id),
+            AuditLogEntity::User(id) => (AuditLogEntityKindDto::User, id),
+            AuditLogEntity::UserRole(id) => (AuditLogEntityKindDto::UserRole, id),
+            AuditLogEntity::UserAtcPermission(id) => (AuditLogEntityKindDto::UserAtcPermission, id),
+            AuditLogEntity::EventAtcPosition(id) => (AuditLogEntityKindDto::EventAtcPosition, id),
+            AuditLogEntity::EventSlot(id) => (AuditLogEntityKindDto::EventSlot, id),
+        };
+
+        Self {
+            kind,
+            id: Ulid::from(id).to_string(),
+        }
+    }
+}
+
+impl From<AuditLog> for AuditLogDto {
+    fn from(audit_log: AuditLog) -> Self {
+        Self {
+            entity: audit_log.entity.into(),
+            child_entity: audit_log.child_entity.map(Into::into),
+            before: audit_log.before,
+            after: audit_log.after,
+            operated_by: Ulid::from(audit_log.operated_by).to_string(),
+            created_at: audit_log.created_at,
+        }
+    }
 }
 
 #[derive(Serialize, utoipa::ToSchema)]

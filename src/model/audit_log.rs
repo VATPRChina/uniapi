@@ -7,6 +7,7 @@ use uuid::Uuid;
 pub enum AuditLogEntity {
     Event(Uuid),
     AtcApplication(Uuid),
+    User(Uuid),
     UserRole(Uuid),
     UserAtcPermission(Uuid),
     EventAtcPosition(Uuid),

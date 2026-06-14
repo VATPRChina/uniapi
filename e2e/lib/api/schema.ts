@@ -20,6 +20,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/atc/applications/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_atc_application_audit_logs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/atc/applications/review-sheet": {
         parameters: {
             query?: never;
@@ -61,6 +77,22 @@ export type paths = {
         };
         get: operations["get_application"];
         put: operations["update_application"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/atc/applications/{id}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_atc_application_audit_logs_by_application"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -372,6 +404,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/events/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_event_audit_logs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events/past": {
         parameters: {
             query?: never;
@@ -509,6 +557,22 @@ export type paths = {
         };
         get: operations["get_event"];
         put: operations["update_event"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{id}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_event_audit_logs_by_event"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -740,6 +804,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/users/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_user_audit_logs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/me": {
         parameters: {
             query?: never;
@@ -781,6 +861,38 @@ export type paths = {
         };
         get: operations["get_status"];
         put: operations["set_status"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{id}/atc/status/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_user_atc_status_audit_logs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{id}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_user_audit_logs_by_user"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -905,7 +1017,6 @@ export type components = {
             review_filing_answers?: components["schemas"]["SheetFieldAnswerDto"][] | null;
             status: components["schemas"]["AtcApplicationStatus"];
             user: components["schemas"]["UserDto"];
-            user_email?: string | null;
             user_id: string;
         };
         AtcApplicationRequest: {
@@ -923,6 +1034,7 @@ export type components = {
             id: string;
             status: components["schemas"]["AtcApplicationStatus"];
             user: components["schemas"]["UserDto"];
+            user_email?: string | null;
             user_id: string;
         };
         AtcPermissionDto: {
@@ -951,6 +1063,21 @@ export type components = {
             permissions: components["schemas"]["AtcPermissionRequest"][];
             rating: string;
         };
+        AuditLogDto: {
+            after: unknown;
+            before: unknown;
+            child_entity?: null | components["schemas"]["AuditLogEntityDto"];
+            /** Format: date-time */
+            created_at: string;
+            entity: components["schemas"]["AuditLogEntityDto"];
+            operated_by: string;
+        };
+        AuditLogEntityDto: {
+            id: string;
+            kind: components["schemas"]["AuditLogEntityKindDto"];
+        };
+        /** @enum {string} */
+        AuditLogEntityKindDto: "event" | "atc-application" | "user" | "user-role" | "user-atc-permission" | "event-atc-position" | "event-slot";
         AuthApiErrorBody: {
             error: components["schemas"]["OAuthErrorCode"];
             error_description: string;
@@ -1447,6 +1574,27 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    list_atc_application_audit_logs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ATC-application-related audit logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogDto"][];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     get_review_sheet: {
         parameters: {
             query?: never;
@@ -1536,6 +1684,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AtcApplicationDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    list_atc_application_audit_logs_by_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ATC application ULID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit logs for an ATC application */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogDto"][];
                 };
             };
             500: components["responses"]["InternalServerError"];
@@ -2135,6 +2307,27 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    list_event_audit_logs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event-related audit logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogDto"][];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     list_past_events: {
         parameters: {
             query?: {
@@ -2528,6 +2721,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    list_event_audit_logs_by_event: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Event ULID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit logs for an event */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogDto"][];
                 };
             };
             500: components["responses"]["InternalServerError"];
@@ -2946,6 +3163,27 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    list_user_audit_logs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User-related audit logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogDto"][];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     me: {
         parameters: {
             query?: never;
@@ -3035,6 +3273,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AtcStatusDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    list_user_atc_status_audit_logs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User ULID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ATC-status audit logs for a user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogDto"][];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    list_user_audit_logs_by_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User ULID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit logs for a user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogDto"][];
                 };
             };
             500: components["responses"]["InternalServerError"];

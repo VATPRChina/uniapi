@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize, de::IntoDeserializer};
 use serde_json::Value;
-use sqlx::{FromRow, Postgres, Transaction};
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -9,9 +9,10 @@ use crate::model::audit_log::{AuditLog, AuditLogEntity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-enum AuditLogEntityKind {
+pub enum AuditLogEntityKind {
     Event,
     AtcApplication,
+    User,
     UserRole,
     UserAtcPermission,
     EventAtcPosition,
@@ -122,10 +123,62 @@ pub async fn create(
     .await
 }
 
+pub async fn list_by_entity_kind(
+    db: &PgPool,
+    entity_kind: AuditLogEntityKind,
+) -> Result<Vec<AuditLog>, sqlx::Error> {
+    list_records(
+        sqlx::query_as::<_, AuditLogRecord>(
+            r#"
+            SELECT entity_kind, entity_id, child_entity_kind, child_entity_id,
+                   before, after, operated_by, created_at
+            FROM public.audit_log
+            WHERE entity_kind = $1
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(entity_kind.to_string())
+        .fetch_all(db)
+        .await?,
+    )
+}
+
+pub async fn list_by_entity_kind_and_id(
+    db: &PgPool,
+    entity_kind: AuditLogEntityKind,
+    entity_id: Uuid,
+) -> Result<Vec<AuditLog>, sqlx::Error> {
+    list_records(
+        sqlx::query_as::<_, AuditLogRecord>(
+            r#"
+            SELECT entity_kind, entity_id, child_entity_kind, child_entity_id,
+                   before, after, operated_by, created_at
+            FROM public.audit_log
+            WHERE entity_kind = $1 AND entity_id = $2
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(entity_kind.to_string())
+        .bind(entity_id)
+        .fetch_all(db)
+        .await?,
+    )
+}
+
+fn list_records(records: Vec<AuditLogRecord>) -> Result<Vec<AuditLog>, sqlx::Error> {
+    records
+        .into_iter()
+        .map(|record| {
+            AuditLog::try_from(record).map_err(|error| sqlx::Error::Decode(Box::new(error)))
+        })
+        .collect()
+}
+
 fn entity_to_record(entity: AuditLogEntity) -> (AuditLogEntityKind, Uuid) {
     match entity {
         AuditLogEntity::Event(id) => (AuditLogEntityKind::Event, id),
         AuditLogEntity::AtcApplication(id) => (AuditLogEntityKind::AtcApplication, id),
+        AuditLogEntity::User(id) => (AuditLogEntityKind::User, id),
         AuditLogEntity::UserRole(id) => (AuditLogEntityKind::UserRole, id),
         AuditLogEntity::UserAtcPermission(id) => (AuditLogEntityKind::UserAtcPermission, id),
         AuditLogEntity::EventAtcPosition(id) => (AuditLogEntityKind::EventAtcPosition, id),
@@ -144,6 +197,7 @@ fn entity_from_record(
     Ok(match entity_kind {
         AuditLogEntityKind::Event => AuditLogEntity::Event(entity_id),
         AuditLogEntityKind::AtcApplication => AuditLogEntity::AtcApplication(entity_id),
+        AuditLogEntityKind::User => AuditLogEntity::User(entity_id),
         AuditLogEntityKind::UserRole => AuditLogEntity::UserRole(entity_id),
         AuditLogEntityKind::UserAtcPermission => AuditLogEntity::UserAtcPermission(entity_id),
         AuditLogEntityKind::EventAtcPosition => AuditLogEntity::EventAtcPosition(entity_id),
@@ -197,12 +251,20 @@ mod tests {
     #[test]
     fn converts_database_columns_to_business_entity() {
         let entity_id = Uuid::from_u128(2);
+        let mut record = record("user", entity_id);
+        record.child_entity_kind = Some("user-atc-permission".to_owned());
+        record.child_entity_id = Some(entity_id);
 
         assert_eq!(
-            AuditLog::try_from(record("user-atc-permission", entity_id))
-                .unwrap()
-                .entity,
-            AuditLogEntity::UserAtcPermission(entity_id)
+            AuditLog::try_from(record).unwrap(),
+            AuditLog {
+                entity: AuditLogEntity::User(entity_id),
+                child_entity: Some(AuditLogEntity::UserAtcPermission(entity_id)),
+                before: Value::Null,
+                after: Value::Null,
+                operated_by: Uuid::nil(),
+                created_at: Utc.with_ymd_and_hms(2026, 6, 13, 4, 0, 0).unwrap(),
+            }
         );
     }
 
