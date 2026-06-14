@@ -46,4 +46,4 @@ WORKDIR /app
 
 COPY --from=builder /app/target/release/vatprc-uniapi vatprc-uniapi
 
-CMD ["/usr/bin/tini", "--", "/app/vatprc-uniapi"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/app/vatprc-uniapi"]
