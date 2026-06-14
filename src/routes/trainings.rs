@@ -52,7 +52,7 @@ pub fn build_training_routes() -> Router<Services> {
         .route("/{id}/record", axum::routing::put(set_record_sheet))
 }
 
-#[utoipa::path(get, path = "api/atc/trainings/active", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
+#[utoipa::path(get, path = "api/atc/trainings/active", tag = "Training", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
 async fn list_active(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -71,7 +71,7 @@ async fn list_active(
     .map(Json)
 }
 
-#[utoipa::path(get, path = "api/atc/trainings/by-user/{userId}", tag = "ATC", security(("oauth2" = [])), params(("userId" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
+#[utoipa::path(get, path = "api/atc/trainings/by-user/{userId}", tag = "Training", security(("oauth2" = [])), params(("userId" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
 async fn list_by_user(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -94,7 +94,7 @@ async fn list_by_user(
     .map(Json)
 }
 
-#[utoipa::path(get, path = "api/atc/trainings/finished", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
+#[utoipa::path(get, path = "api/atc/trainings/finished", tag = "Training", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
 async fn list_finished(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -113,7 +113,7 @@ async fn list_finished(
     .map(Json)
 }
 
-#[utoipa::path(get, path = "api/atc/trainings/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = TrainingDto)))]
+#[utoipa::path(get, path = "api/atc/trainings/{id}", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn get_training(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -124,7 +124,7 @@ async fn get_training(
     training_to_dto(&services, training).await.map(Json)
 }
 
-#[utoipa::path(post, path = "api/atc/trainings", tag = "ATC", security(("oauth2" = [])), request_body = TrainingSaveRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
+#[utoipa::path(post, path = "api/atc/trainings", tag = "Training", security(("oauth2" = [])), request_body = TrainingSaveRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn create_training(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -143,7 +143,7 @@ async fn create_training(
     training_to_dto(&services, training).await.map(Json)
 }
 
-#[utoipa::path(put, path = "api/atc/trainings/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), request_body = TrainingSaveRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
+#[utoipa::path(put, path = "api/atc/trainings/{id}", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), request_body = TrainingSaveRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn update_training(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -167,7 +167,7 @@ async fn update_training(
     training_to_dto(&services, training).await.map(Json)
 }
 
-#[utoipa::path(get, path = "api/atc/trainings/record-sheet", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
+#[utoipa::path(get, path = "api/atc/trainings/record-sheet", tag = "Training", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
 async fn get_record_sheet(State(services): State<Services>) -> Result<Json<SheetDto>, ApiError> {
     sheet_repository::ensure(services.db(), RECORD_SHEET_ID, "Training Record Sheet").await?;
     let sheet = sheet_repository::find(services.db(), RECORD_SHEET_ID)
@@ -186,7 +186,7 @@ async fn get_record_sheet(State(services): State<Services>) -> Result<Json<Sheet
     }))
 }
 
-#[utoipa::path(put, path = "api/atc/trainings/{id}/record", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), request_body = TrainingRecordRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
+#[utoipa::path(put, path = "api/atc/trainings/{id}/record", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), request_body = TrainingRecordRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
 async fn set_record_sheet(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -222,7 +222,7 @@ async fn set_record_sheet(
     training_to_dto(&services, training).await.map(Json)
 }
 
-#[utoipa::path(delete, path = "api/atc/trainings/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 204, description = "No content")))]
+#[utoipa::path(delete, path = "api/atc/trainings/{id}", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 204, description = "No content")))]
 async fn delete_training(
     State(services): State<Services>,
     current_user: CurrentUser,

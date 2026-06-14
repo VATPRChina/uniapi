@@ -48,7 +48,7 @@ pub fn build_atc_application_routes() -> Router<Services> {
         .route("/{id}/review", axum::routing::put(review_application))
 }
 
-#[utoipa::path(get, path = "api/atc/applications", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<AtcApplicationSummaryDto>)))]
+#[utoipa::path(get, path = "api/atc/applications", tag = "ATC Application", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<AtcApplicationSummaryDto>)))]
 async fn list_applications(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -67,7 +67,7 @@ async fn list_applications(
     Ok(Json(applications))
 }
 
-#[utoipa::path(post, path = "api/atc/applications", tag = "ATC", security(("oauth2" = [])), request_body = AtcApplicationRequest, responses((status = 200, description = "Successful response", body = AtcApplicationSummaryDto)))]
+#[utoipa::path(post, path = "api/atc/applications", tag = "ATC Application", security(("oauth2" = [])), request_body = AtcApplicationRequest, responses((status = 200, description = "Successful response", body = AtcApplicationSummaryDto)))]
 async fn create_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -104,7 +104,7 @@ async fn create_application(
     )?))
 }
 
-#[utoipa::path(get, path = "api/atc/applications/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
+#[utoipa::path(get, path = "api/atc/applications/{id}", tag = "ATC Application", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
 async fn get_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -124,7 +124,7 @@ async fn get_application(
         .map(Json)
 }
 
-#[utoipa::path(put, path = "api/atc/applications/{id}", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), request_body = AtcApplicationRequest, responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
+#[utoipa::path(put, path = "api/atc/applications/{id}", tag = "ATC Application", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), request_body = AtcApplicationRequest, responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
 async fn update_application(
     State(services): State<Services>,
     current_user: CurrentUser,
@@ -176,7 +176,7 @@ async fn update_application(
         .map(Json)
 }
 
-#[utoipa::path(get, path = "api/atc/applications/sheet", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
+#[utoipa::path(get, path = "api/atc/applications/sheet", tag = "ATC Application", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
 async fn get_application_sheet(
     State(services): State<Services>,
 ) -> Result<Json<SheetDto>, ApiError> {
@@ -185,14 +185,14 @@ async fn get_application_sheet(
         .map(Json)
 }
 
-#[utoipa::path(get, path = "api/atc/applications/review-sheet", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
+#[utoipa::path(get, path = "api/atc/applications/review-sheet", tag = "ATC Application", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
 async fn get_review_sheet(State(services): State<Services>) -> Result<Json<SheetDto>, ApiError> {
     sheet_dto(&services, REVIEW_SHEET_ID, "ATC Application Review Sheet")
         .await
         .map(Json)
 }
 
-#[utoipa::path(put, path = "api/atc/applications/{id}/review", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), request_body = AtcApplicationReviewRequest, responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
+#[utoipa::path(put, path = "api/atc/applications/{id}/review", tag = "ATC Application", security(("oauth2" = [])), params(("id" = String, Path, description = "Application ULID")), request_body = AtcApplicationReviewRequest, responses((status = 200, description = "Successful response", body = AtcApplicationDto)))]
 async fn review_application(
     State(services): State<Services>,
     current_user: CurrentUser,

@@ -32,7 +32,8 @@ use utoipa::{OpenApi, PartialSchema, ToSchema};
     tags(
         (name = "Auth", description = "OAuth and session endpoints"),
         (name = "Audit Logs", description = "Audit log history"),
-        (name = "ATC", description = "ATC status, bookings, applications, and training"),
+        (name = "ATC", description = "ATC status and controllers"),
+        (name = "ATC Application", description = "ATC applications"),
         (name = "Compat", description = "Compatibility endpoints"),
         (name = "Events", description = "Events, slots, airspaces, and event ATC positions"),
         (name = "Flights", description = "VATSIM flight information"),
@@ -43,6 +44,8 @@ use utoipa::{OpenApi, PartialSchema, ToSchema};
         (name = "Session", description = "Current session endpoints"),
         (name = "Sheets", description = "Sheet definitions"),
         (name = "Storage", description = "File storage endpoints"),
+        (name = "Training", description = "ATC trainings"),
+        (name = "Training Application", description = "ATC training applications"),
         (name = "Users", description = "User and role endpoints")
     )
 )]
