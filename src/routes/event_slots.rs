@@ -4,11 +4,14 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use chrono::Utc;
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
 use crate::dto::*;
+use crate::model::audit_log::{AuditLog, AuditLogEntity};
 use crate::model::user_role::UserRole;
+use crate::repository::audit_log as audit_log_repository;
 use crate::repository::event::event as event_repository;
 use crate::repository::event::event_slot::{self as slot_repository};
 use crate::routes::ApiError;
@@ -75,8 +78,26 @@ async fn create_slot(
     Json(request): Json<EventSlotSaveRequest>,
 ) -> Result<Json<EventSlotDto>, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
-    let _event_id = parse_ulid_uuid("event_id", &eid)?;
-    let slot = slot_repository::create(services.db(), request.try_into()?).await?;
+    let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    let event_id = parse_ulid_uuid("event_id", &eid)?;
+    let mut transaction = services.db().begin().await?;
+    let slot = slot_repository::create(&mut transaction, request.try_into()?).await?;
+    if slot.event_id != event_id {
+        return Err(ApiError::not_found("event airspace", "unknown"));
+    }
+    audit_log_repository::create(
+        &mut transaction,
+        AuditLog {
+            entity: AuditLogEntity::Event(event_id),
+            child_entity: Some(AuditLogEntity::EventSlot(slot.id)),
+            before: serde_json::Value::Null,
+            after: serde_json::to_value(&slot).map_err(|_| ApiError::Internal)?,
+            operated_by,
+            created_at: Utc::now(),
+        },
+    )
+    .await?;
+    transaction.commit().await?;
 
     Ok(Json(EventSlotDto::from_record(
         slot,

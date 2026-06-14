@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use serde::Serialize;
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use ulid::Ulid;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct EventSlotRecord {
     pub id: Uuid,
     pub event_id: Uuid,
@@ -53,7 +54,10 @@ pub async fn list_by_event(
     .await
 }
 
-pub async fn create(db: &PgPool, slot: EventSlotSave) -> Result<EventSlotRecord, sqlx::Error> {
+pub async fn create(
+    transaction: &mut Transaction<'_, Postgres>,
+    slot: EventSlotSave,
+) -> Result<EventSlotRecord, sqlx::Error> {
     tracing::info!(
         operation = "create",
         repository = "src/repository/event/event_slot.rs",
@@ -75,10 +79,12 @@ pub async fn create(db: &PgPool, slot: EventSlotSave) -> Result<EventSlotRecord,
     .bind(slot.leave_at)
     .bind(slot.callsign)
     .bind(slot.aircraft_type_icao)
-    .execute(db)
+    .execute(&mut **transaction)
     .await?;
 
-    find_by_id(db, id).await?.ok_or(sqlx::Error::RowNotFound)
+    find_by_id(transaction, id)
+        .await?
+        .ok_or(sqlx::Error::RowNotFound)
 }
 
 pub async fn booking_export_rows(db: &PgPool, event_id: Uuid) -> Result<Vec<String>, sqlx::Error> {
@@ -98,10 +104,13 @@ pub async fn booking_export_rows(db: &PgPool, event_id: Uuid) -> Result<Vec<Stri
     .await
 }
 
-async fn find_by_id(db: &PgPool, id: Uuid) -> Result<Option<EventSlotRecord>, sqlx::Error> {
+async fn find_by_id(
+    transaction: &mut Transaction<'_, Postgres>,
+    id: Uuid,
+) -> Result<Option<EventSlotRecord>, sqlx::Error> {
     sqlx::query_as::<_, EventSlotRecord>(&slot_select_sql("WHERE event_slot.id = $1"))
         .bind(id)
-        .fetch_optional(db)
+        .fetch_optional(&mut **transaction)
         .await
 }
 
