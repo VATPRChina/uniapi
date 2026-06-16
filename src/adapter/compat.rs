@@ -11,6 +11,7 @@ const VATSIM_METAR_BASE_URL: &str = "https://metar.vatsim.net";
 const TRACK_AUDIO_VERSION_URL: &str =
     "https://raw.githubusercontent.com/pierr3/TrackAudio/main/MANDATORY_VERSION";
 const VPLAAF_AREAS_URL: &str = "https://airspace.vplaaf.org/Areas.json";
+const RUDI_METAR_TIMEOUT: Duration = Duration::from_secs(10);
 const OUTBOUND_HTTP_CACHE_CAPACITY: usize = 256;
 const OUTBOUND_HTTP_CACHE_TTL: Duration = Duration::from_secs(30);
 
@@ -71,11 +72,10 @@ impl CompatClient {
     #[instrument(skip(self), fields(icao = %icao))]
     pub async fn get_metar(&self, icao: &str) -> String {
         let rudi_metar = self
-            .cached_get(&format!(
-                "{}/{}",
-                self.metar_endpoint.trim_end_matches('/'),
-                icao
-            ))
+            .cached_get_with_timeout(
+                &format!("{}/{}", self.metar_endpoint.trim_end_matches('/'), icao),
+                RUDI_METAR_TIMEOUT,
+            )
             .await
             .map(|metar| metar.trim().to_string())
             .unwrap_or_default();
@@ -95,18 +95,34 @@ impl CompatClient {
 
     #[instrument(skip(self), fields(url = %url))]
     async fn cached_get(&self, url: &str) -> Result<String, CompatClientError> {
+        self.cached_get_with_optional_timeout(url, None).await
+    }
+
+    async fn cached_get_with_timeout(
+        &self,
+        url: &str,
+        timeout: Duration,
+    ) -> Result<String, CompatClientError> {
+        self.cached_get_with_optional_timeout(url, Some(timeout))
+            .await
+    }
+
+    #[instrument(skip(self), fields(url = %url))]
+    async fn cached_get_with_optional_timeout(
+        &self,
+        url: &str,
+        timeout: Option<Duration>,
+    ) -> Result<String, CompatClientError> {
         if let Some(cached) = self.cached_text(url) {
             return Ok(cached);
         }
 
-        let text = self
-            .http
-            .get(url)
-            .send()
-            .await?
-            .error_for_status()?
-            .text()
-            .await?;
+        let mut request = self.http.get(url);
+        if let Some(timeout) = timeout {
+            request = request.timeout(timeout);
+        }
+
+        let text = request.send().await?.error_for_status()?.text().await?;
 
         self.cache_text(url, &text);
         Ok(text)
