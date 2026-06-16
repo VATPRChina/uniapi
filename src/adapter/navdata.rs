@@ -738,6 +738,48 @@ mod test {
     }
 
     #[tokio::test]
+    async fn test_list_airway_legs_between_present2() {
+        let adapter = get_navdata_adapter().await;
+        sqlx::query(r#"
+            WITH rows("area_code","crusing_table_identifier","direction_restriction","flightlevel","icao_code","inbound_course","inbound_distance","maximum_altitude","minimum_altitude1","minimum_altitude2","outbound_course","route_identifier_postfix","route_identifier","route_type","seqno","waypoint_description_code","waypoint_identifier","waypoint_latitude","waypoint_longitude","waypoint_ref_table") AS (
+                VALUES
+                ('PAC','XX',NULL,'B','VH',0,31.6,NULL,8000,NULL,400,NULL,'A470','O',5510,'E   ','MAGOG',22.296111111111113,115.82500000000002,'EA'),
+                ('EEU','EE',NULL,'B','ZG',0,17.3,NULL,NULL,NULL,180,NULL,'A470','R',5520,'E C ','DOTMI',22.718333333333334,116.16833333333334,'EA'),
+                ('PAC',NULL,NULL,'B','ZG',400,0,NULL,NULL,NULL,0,NULL,'A470','O',5520,'EEC ','DOTMI',22.718333333333334,116.16833333333334,'EA'),
+                ('EEU','EE',NULL,'B','ZG',400,36.7,NULL,NULL,NULL,400,NULL,'A470','R',5521,'E C ','BEBEM',22.95,116.36055555555555,'EA')
+            )
+            INSERT INTO "tbl_er_enroute_airways"("area_code","crusing_table_identifier","direction_restriction","flightlevel","icao_code","inbound_course","inbound_distance","maximum_altitude","minimum_altitude1","minimum_altitude2","outbound_course","route_identifier_postfix","route_identifier","route_type","seqno","waypoint_description_code","waypoint_identifier","waypoint_latitude","waypoint_longitude","waypoint_ref_table")
+            SELECT *
+            FROM rows
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM "tbl_er_enroute_airways"
+                WHERE "area_code" IS rows."area_code"
+                    AND "icao_code" IS rows."icao_code"
+                    AND "route_identifier_postfix" IS rows."route_identifier_postfix"
+                    AND "route_identifier" IS rows."route_identifier"
+                    AND "route_type" IS rows."route_type"
+                    AND "seqno" IS rows."seqno"
+                    AND "waypoint_identifier" IS rows."waypoint_identifier"
+                    AND "waypoint_ref_table" IS rows."waypoint_ref_table"
+            );
+            "#).execute(&adapter.db).await.unwrap();
+        let legs = adapter
+            .list_airway_legs_between("A470", "BEBEM", "DOTMI")
+            .await
+            .unwrap();
+        assert_eq!(legs.len(), 1);
+
+        let leg = &legs[0];
+        assert_eq!(leg.identifier.as_deref(), Some("A470"));
+        assert_eq!(leg.direction_restriction, DirectionRestriction::None);
+        assert_eq!(leg.from.identifier(), Some("DOTMI"));
+        assert_eq!(leg.to.identifier(), Some("BEBEM"));
+        assert!(matches!(leg.from, AnyFix::Waypoint(_)));
+        assert!(matches!(leg.to, AnyFix::Waypoint(_)));
+    }
+
+    #[tokio::test]
     async fn test_list_airway_legs_between_absent_airway() {
         let adapter = get_navdata_adapter().await;
         let legs = adapter
