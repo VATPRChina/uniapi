@@ -319,7 +319,9 @@ impl NavdataAdapter {
             WHERE route_identifier = $1
                 AND seqno >= (SELECT min(seqno) FROM boundary) 
                 AND seqno <= (SELECT max(seqno) FROM boundary)
-            ORDER BY area_code, seqno;
+            ORDER BY MIN(seqno) OVER (PARTITION BY area_code),
+                MAX(seqno) OVER (PARTITION BY area_code),
+                seqno;
             "#,
         )
         .bind(airway_ident)
