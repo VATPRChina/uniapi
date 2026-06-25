@@ -63,7 +63,7 @@ async fn list_active(
         training_repository::list_active(
             services.db(),
             user_id,
-            current_user.has_role(UserRole::ControllerTrainingMentor),
+            is_training_history_admin(&current_user),
         )
         .await?,
     )
@@ -79,7 +79,7 @@ async fn list_by_user(
 ) -> Result<Json<Vec<TrainingDto>>, ApiError> {
     let user_id = parse_ulid_uuid("user_id", &user_id)?;
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    if current_user_id != user_id && !current_user.has_role(UserRole::ControllerTrainingMentor) {
+    if current_user_id != user_id && !is_training_history_admin(&current_user) {
         return Err(ApiError::NotOwned {
             entity: "user".to_string(),
             id: user_id.to_string(),
@@ -105,7 +105,7 @@ async fn list_finished(
         training_repository::list_finished(
             services.db(),
             user_id,
-            current_user.has_role(UserRole::ControllerTrainingMentor),
+            is_training_history_admin(&current_user),
         )
         .await?,
     )
@@ -120,7 +120,7 @@ async fn get_training(
     Path(id): Path<String>,
 ) -> Result<Json<TrainingDto>, ApiError> {
     let training = find_training(&services, &id).await?;
-    validate_ownership(&current_user, &training, false)?;
+    validate_view_access(&current_user, &training)?;
     training_to_dto(&services, training).await.map(Json)
 }
 
@@ -297,4 +297,27 @@ fn validate_ownership(
         entity: "training".to_string(),
         id: training.id.to_string(),
     })
+}
+
+fn validate_view_access(
+    current_user: &CurrentUser,
+    training: &TrainingRecord,
+) -> Result<(), ApiError> {
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    if training.trainer_id == current_user_id
+        || training.trainee_id == current_user_id
+        || is_training_history_admin(current_user)
+    {
+        return Ok(());
+    }
+
+    Err(ApiError::NotOwned {
+        entity: "training".to_string(),
+        id: training.id.to_string(),
+    })
+}
+
+fn is_training_history_admin(current_user: &CurrentUser) -> bool {
+    current_user.has_role(UserRole::ControllerTrainingDirectorAssistant)
+        || current_user.has_role(UserRole::ControllerTrainingMentor)
 }

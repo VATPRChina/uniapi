@@ -2,6 +2,9 @@ import { expect, test as baseTest } from "vitest";
 import { getClient } from "../../lib/backend.js";
 
 const test = baseTest
+  .extend("admin", async ({}) => {
+    return await getClient(["controller-training-director-assistant"]);
+  })
   .extend("mentor", async ({}) => {
     return await getClient(["controller-training-mentor"]);
   })
@@ -116,6 +119,7 @@ test("POST /api/atc/trainings creates a training", async ({
 
 test("GET /api/atc/trainings/active lists active trainings", async ({
   mentor,
+  admin,
   activeTraining,
 }) => {
   const { data, error, response } = await mentor.GET(
@@ -134,10 +138,23 @@ test("GET /api/atc/trainings/active lists active trainings", async ({
       }),
     ]),
   );
+
+  const adminTrainings = await admin.GET("/api/atc/trainings/active");
+
+  expect(adminTrainings.error).toBeFalsy();
+  expect(adminTrainings.response.status).toBe(200);
+  expect(adminTrainings.data).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: activeTraining.id,
+      }),
+    ]),
+  );
 });
 
 test("GET /api/atc/trainings/finished lists finished trainings", async ({
   mentor,
+  admin,
   finishedTraining,
 }) => {
   const { data, error, response } = await mentor.GET(
@@ -156,10 +173,23 @@ test("GET /api/atc/trainings/finished lists finished trainings", async ({
       }),
     ]),
   );
+
+  const adminTrainings = await admin.GET("/api/atc/trainings/finished");
+
+  expect(adminTrainings.error).toBeFalsy();
+  expect(adminTrainings.response.status).toBe(200);
+  expect(adminTrainings.data).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: finishedTraining.id,
+      }),
+    ]),
+  );
 });
 
 test("GET /api/atc/trainings/by-user/{userId} lists trainings for a user", async ({
   mentor,
+  admin,
   traineeSession,
   activeTraining,
   finishedTraining,
@@ -186,6 +216,27 @@ test("GET /api/atc/trainings/by-user/{userId} lists trainings for a user", async
       expect.objectContaining({
         id: finishedTraining.id,
         trainee_id: traineeSession.user.id,
+      }),
+    ]),
+  );
+
+  const adminTrainings = await admin.GET("/api/atc/trainings/by-user/{userId}", {
+    params: {
+      path: {
+        userId: traineeSession.user.id,
+      },
+    },
+  });
+
+  expect(adminTrainings.error).toBeFalsy();
+  expect(adminTrainings.response.status).toBe(200);
+  expect(adminTrainings.data).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: activeTraining.id,
+      }),
+      expect.objectContaining({
+        id: finishedTraining.id,
       }),
     ]),
   );

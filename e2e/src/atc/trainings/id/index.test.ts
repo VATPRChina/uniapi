@@ -2,6 +2,9 @@ import { expect, test as baseTest } from "vitest";
 import { getClient } from "../../../../lib/backend.js";
 
 const test = baseTest
+  .extend("admin", async ({}) => {
+    return await getClient(["controller-training-director-assistant"]);
+  })
   .extend("mentor", async ({}) => {
     return await getClient(["controller-training-mentor"]);
   })
@@ -36,6 +39,7 @@ const test = baseTest
 
 test("GET /api/atc/trainings/{id} returns a training", async ({
   mentor,
+  admin,
   training,
 }) => {
   const { data, error, response } = await mentor.GET(
@@ -62,6 +66,23 @@ test("GET /api/atc/trainings/{id} returns a training", async ({
       deleted_at: null,
       record_sheet_filing_id: null,
       record_sheet_filing: null,
+    }),
+  );
+
+  const adminTraining = await admin.GET("/api/atc/trainings/{id}", {
+    params: {
+      path: {
+        id: training.id,
+      },
+    },
+  });
+
+  expect(adminTraining.error).toBeFalsy();
+  expect(adminTraining.response.status).toBe(200);
+  expect(adminTraining.data).toEqual(
+    expect.objectContaining({
+      id: training.id,
+      name: training.name,
     }),
   );
 });
