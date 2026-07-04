@@ -608,6 +608,17 @@ impl TryFrom<AtcStatusRequest> for AtcStatusSave {
             return Err(ApiError::SoloExpirationNotProvided);
         }
 
+        if request.is_absent
+            && request.permissions.iter().any(|permission| {
+                permission.state.to_db_value() > UserControllerState::UnderMentor.to_db_value()
+            })
+        {
+            return Err(ApiError::bad_request(
+                "permissions",
+                "absent users cannot have ATC permission higher than under mentor",
+            ));
+        }
+
         Ok(Self {
             is_visiting: request.is_visiting,
             is_absent: request.is_absent,
@@ -780,6 +791,19 @@ impl TryFrom<&AtcControllerPermissionRecord> for AtcPermissionDto {
 mod atc_permission_dto_tests {
     use super::*;
 
+    fn atc_status_request(is_absent: bool, state: UserControllerState) -> AtcStatusRequest {
+        AtcStatusRequest {
+            is_visiting: false,
+            is_absent,
+            rating: "S2".to_owned(),
+            permissions: vec![AtcPermissionRequest {
+                position_kind_id: "TWR".to_owned(),
+                state,
+                solo_expires_at: Some(Utc::now()),
+            }],
+        }
+    }
+
     #[test]
     fn invalid_controller_state_returns_error() {
         let record = AtcPermissionRecord {
@@ -789,6 +813,37 @@ mod atc_permission_dto_tests {
         };
 
         assert!(AtcPermissionDto::try_from(record).is_err());
+    }
+
+    #[test]
+    fn absent_user_cannot_have_permission_higher_than_under_mentor() {
+        for state in [
+            UserControllerState::Solo,
+            UserControllerState::Certified,
+            UserControllerState::Mentor,
+        ] {
+            assert!(matches!(
+                AtcStatusSave::try_from(atc_status_request(true, state)),
+                Err(ApiError::BadRequest { field, .. }) if field == "permissions"
+            ));
+        }
+    }
+
+    #[test]
+    fn absent_user_can_have_permission_up_to_under_mentor() {
+        for state in [
+            UserControllerState::Student,
+            UserControllerState::UnderMentor,
+        ] {
+            assert!(AtcStatusSave::try_from(atc_status_request(true, state)).is_ok());
+        }
+    }
+
+    #[test]
+    fn non_absent_user_can_have_permission_higher_than_under_mentor() {
+        assert!(
+            AtcStatusSave::try_from(atc_status_request(false, UserControllerState::Mentor)).is_ok()
+        );
     }
 }
 

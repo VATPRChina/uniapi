@@ -2,11 +2,16 @@ import { expect, test as baseTest } from "vitest";
 import { getClient } from "../../../../../lib/backend.js";
 
 const test = baseTest
+  .extend("traineeEmail", async ({}) => {
+    return `e2e-training-application-id-${Date.now()}-${Math.random()}@example.test`;
+  })
   .extend("admin", async ({}) => {
     return await getClient(["controller-training-director-assistant"]);
   })
-  .extend("trainee", async ({}) => {
-    return await getClient([]);
+  .extend("trainee", async ({ traineeEmail }) => {
+    return await getClient([], {
+      email: traineeEmail,
+    });
   })
   .extend("traineeSession", async ({ trainee }) => {
     const session = await trainee.GET("/api/session");
@@ -58,7 +63,9 @@ const test = baseTest
 
 test("GET /api/atc/trainings/applications/{id} returns a training application", async ({
   trainee,
+  admin,
   application,
+  traineeEmail,
 }) => {
   const { data, error, response } = await trainee.GET(
     "/api/atc/trainings/applications/{id}",
@@ -87,6 +94,27 @@ test("GET /api/atc/trainings/applications/{id} returns a training application", 
           end_at: "2031-08-01T11:00:00Z",
         }),
       ],
+    }),
+  );
+
+  const adminApplication = await admin.GET(
+    "/api/atc/trainings/applications/{id}",
+    {
+      params: {
+        path: {
+          id: application.id,
+        },
+      },
+    },
+  );
+
+  expect(adminApplication.error).toBeFalsy();
+  expect(adminApplication.response.status).toBe(200);
+  expect(adminApplication.data).toEqual(
+    expect.objectContaining({
+      id: application.id,
+      trainee_id: application.trainee_id,
+      trainee_email: traineeEmail,
     }),
   );
 });

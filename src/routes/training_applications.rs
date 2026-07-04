@@ -65,7 +65,7 @@ async fn get_application(
     Path(id): Path<String>,
 ) -> Result<Json<TrainingApplicationDto>, ApiError> {
     let application = find_visible_application(&services, &current_user, &id).await?;
-    application_to_dto(&services, application, false)
+    application_to_dto(&services, application, is_admin(&current_user))
         .await
         .map(Json)
 }
