@@ -9,12 +9,14 @@ use crate::dto::*;
 use crate::model::audit_log::{AuditLog, AuditLogEntity};
 use crate::model::user_role::{UserRole, role_closure_from_strings};
 use crate::repository::audit_log as audit_log_repository;
-use crate::repository::auth::user::{self as user_repository, UserDetailRecord};
+use crate::repository::auth::user::{
+    self as user_repository, UserDetailRecord, UserMoodleProvisionRecord,
+};
 use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(list_users, me, set_roles))]
+#[openapi(paths(list_users, me, set_roles, ensure_moodle_account))]
 pub(crate) struct ApiDoc;
 
 pub fn build_user_routes() -> Router<Services> {
@@ -22,6 +24,7 @@ pub fn build_user_routes() -> Router<Services> {
         .route("/", get(list_users))
         .route("/me", get(me))
         .route("/{id}/roles", put(set_roles))
+        .route("/{id}/moodle-account", put(ensure_moodle_account))
 }
 
 #[utoipa::path(get, path = "api/users", tag = "Users", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<UserDto>)))]
@@ -85,6 +88,25 @@ async fn set_roles(
     Ok(Json(user_dto(user, None, false, None)))
 }
 
+#[utoipa::path(put, path = "api/users/{id}/moodle-account", tag = "Users", security(("oauth2" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = UserDto)))]
+async fn ensure_moodle_account(
+    State(services): State<Services>,
+    current_user: CurrentUser,
+    Path(id): Path<String>,
+) -> Result<Json<UserDto>, ApiError> {
+    current_user.require_role(UserRole::TechDirector)?;
+    let id = parse_ulid_uuid("user_id", &id)?;
+    let user = user_repository::find_detail_by_id(services.db(), id)
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
+    let provision = user_repository::find_moodle_provision_by_id(services.db(), id)
+        .await?
+        .ok_or(ApiError::not_found("user", "unknown"))?;
+    let moodle_account = ensure_moodle_user(&services, &provision).await?;
+
+    Ok(Json(user_dto(user, moodle_account, true, None)))
+}
+
 #[utoipa::path(get, path = "api/users/me", tag = "Users", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = UserDto)))]
 async fn me(
     State(services): State<Services>,
@@ -112,6 +134,50 @@ async fn moodle_account(
         .map(|user| UserMoodleInfoDto {
             id: user.id.to_string(),
         }))
+}
+
+async fn ensure_moodle_user(
+    services: &Services,
+    user: &UserMoodleProvisionRecord,
+) -> Result<Option<UserMoodleInfoDto>, ApiError> {
+    if let Some(moodle_user) = services.moodle().get_user_by_cid(&user.cid).await? {
+        tracing::info!(
+            user_id = %user.id,
+            moodle_user_id = moodle_user.id,
+            cid = %user.cid,
+            "Moodle user found for CID, skipping user creation"
+        );
+        return Ok(Some(UserMoodleInfoDto {
+            id: moodle_user.id.to_string(),
+        }));
+    }
+
+    tracing::info!(
+        user_id = %user.id,
+        cid = %user.cid,
+        "No Moodle user found for CID, creating new user"
+    );
+    let created_user = services
+        .moodle()
+        .create_user(&user.cid, &user.full_name, user.email.as_deref())
+        .await?
+        .into_iter()
+        .next();
+
+    if let Some(created_user) = created_user {
+        tracing::info!(
+            user_id = %user.id,
+            moodle_user_id = created_user.id,
+            moodle_username = %created_user.username,
+            cid = %user.cid,
+            "Created Moodle user"
+        );
+        return Ok(Some(UserMoodleInfoDto {
+            id: created_user.id.to_string(),
+        }));
+    }
+
+    moodle_account(services, &user.cid).await
 }
 
 fn user_dto(

@@ -20,6 +20,14 @@ pub struct UserDetailRecord {
     pub roles: Vec<String>,
 }
 
+#[derive(Debug, Clone, FromRow)]
+pub struct UserMoodleProvisionRecord {
+    pub id: Uuid,
+    pub cid: String,
+    pub full_name: String,
+    pub email: Option<String>,
+}
+
 #[derive(FromRow)]
 pub struct UserLoginRow {
     pub id: Uuid,
@@ -46,6 +54,22 @@ pub async fn find_detail_by_id(
     sqlx::query_as::<_, UserDetailRecord>(
         r#"
         SELECT id, cid, full_name, created_at, updated_at, roles
+        FROM public."user"
+        WHERE id = $1
+        "#,
+    )
+    .bind(id)
+    .fetch_optional(db)
+    .await
+}
+
+pub async fn find_moodle_provision_by_id(
+    db: &PgPool,
+    id: Uuid,
+) -> Result<Option<UserMoodleProvisionRecord>, sqlx::Error> {
+    sqlx::query_as::<_, UserMoodleProvisionRecord>(
+        r#"
+        SELECT id, cid, full_name, email
         FROM public."user"
         WHERE id = $1
         "#,

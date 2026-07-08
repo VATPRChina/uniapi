@@ -900,6 +900,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/users/{id}/moodle-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["ensure_moodle_account"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/{id}/roles": {
         parameters: {
             query?: never;
@@ -3321,6 +3337,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditLogDto"][];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    ensure_moodle_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User ULID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDto"];
                 };
             };
             500: components["responses"]["InternalServerError"];
