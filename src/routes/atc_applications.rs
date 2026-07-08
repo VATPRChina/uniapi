@@ -359,6 +359,7 @@ async fn application_to_dto(
         ),
         None => None,
     };
+    let moodle_account = moodle_account(services, &application.user_cid).await?;
 
     AtcApplicationDto::from_record(
         application,
@@ -366,6 +367,7 @@ async fn application_to_dto(
         current_user_id,
         application_filing_answers,
         review_filing_answers,
+        moodle_account,
     )
 }
 
@@ -408,6 +410,19 @@ async fn ensure_moodle_user(
     }
 
     Ok(())
+}
+
+async fn moodle_account(
+    services: &Services,
+    cid: &str,
+) -> Result<Option<UserMoodleInfoDto>, ApiError> {
+    Ok(services
+        .moodle()
+        .get_user_by_cid(cid)
+        .await?
+        .map(|user| UserMoodleInfoDto {
+            id: user.id.to_string(),
+        }))
 }
 
 async fn sheet_dto(

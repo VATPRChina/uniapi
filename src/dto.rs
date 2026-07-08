@@ -192,7 +192,11 @@ impl UserDto {
         }
     }
 
-    pub fn from_application_user(application: &AtcApplicationRecord, show_full_name: bool) -> Self {
+    pub fn from_application_user(
+        application: &AtcApplicationRecord,
+        show_full_name: bool,
+        moodle_account: Option<UserMoodleInfoDto>,
+    ) -> Self {
         Self {
             id: Ulid::from(application.user_id).to_string(),
             cid: application.user_cid.clone(),
@@ -205,7 +209,7 @@ impl UserDto {
             updated_at: application.user_updated_at,
             roles: roles_to_dto(&application.user_roles),
             direct_roles: direct_roles_to_dto(&application.user_roles),
-            moodle_account: None,
+            moodle_account,
         }
     }
 }
@@ -1082,6 +1086,7 @@ impl AtcApplicationSummaryDto {
             user: UserDto::from_application_user(
                 &application,
                 is_admin || application.user_id == current_user_id,
+                None,
             ),
             applied_at: application.applied_at,
             status: AtcApplicationStatus::from_db_str(&application.status)?,
@@ -1107,6 +1112,7 @@ impl AtcApplicationDto {
         current_user_id: Uuid,
         application_filing_answers: Vec<SheetFieldAnswerDto>,
         review_filing_answers: Option<Vec<SheetFieldAnswerDto>>,
+        moodle_account: Option<UserMoodleInfoDto>,
     ) -> Result<Self, ApiError> {
         Ok(Self {
             id: Ulid::from(application.id).to_string(),
@@ -1114,6 +1120,7 @@ impl AtcApplicationDto {
             user: UserDto::from_application_user(
                 &application,
                 is_admin || application.user_id == current_user_id,
+                moodle_account,
             ),
             applied_at: application.applied_at,
             status: AtcApplicationStatus::from_db_str(&application.status)?,
