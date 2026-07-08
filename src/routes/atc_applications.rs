@@ -202,6 +202,7 @@ async fn review_application(
     current_user.require_role(UserRole::ControllerTrainingDirectorAssistant)?;
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let application_id = parse_ulid_uuid("id", &id)?;
+    let approved = request.status == AtcApplicationStatus::Approved;
     let mut transaction = services.db().begin().await?;
     let application =
         application_repository::find_by_id_for_update(&mut transaction, application_id)
@@ -237,6 +238,10 @@ async fn review_application(
     )
     .await?;
     transaction.commit().await?;
+
+    if approved {
+        ensure_moodle_user(&services, &application).await?;
+    }
 
     application_to_dto(&services, application, true, current_user_id)
         .await
@@ -362,6 +367,47 @@ async fn application_to_dto(
         application_filing_answers,
         review_filing_answers,
     )
+}
+
+async fn ensure_moodle_user(
+    services: &Services,
+    application: &AtcApplicationRecord,
+) -> Result<(), ApiError> {
+    let moodle_user = services
+        .moodle()
+        .get_user_by_cid(&application.user_cid)
+        .await?;
+    if let Some(moodle_user) = moodle_user {
+        tracing::info!(
+            moodle_user_id = moodle_user.id,
+            cid = %application.user_cid,
+            "Moodle user found for CID, skipping user creation"
+        );
+        return Ok(());
+    }
+
+    tracing::info!(
+        cid = %application.user_cid,
+        "No Moodle user found for CID, creating new user"
+    );
+    let created_users = services
+        .moodle()
+        .create_user(
+            &application.user_cid,
+            &application.user_full_name,
+            application.user_email.as_deref(),
+        )
+        .await?;
+    for created_user in created_users {
+        tracing::info!(
+            moodle_user_id = created_user.id,
+            moodle_username = %created_user.username,
+            cid = %application.user_cid,
+            "Created Moodle user"
+        );
+    }
+
+    Ok(())
 }
 
 async fn sheet_dto(
