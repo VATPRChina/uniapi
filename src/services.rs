@@ -3,6 +3,7 @@ use sqlx::postgres::PgPoolOptions;
 
 use crate::adapter::compat::CompatClient;
 use crate::adapter::discourse::DiscourseClient;
+use crate::adapter::email::EmailClient;
 use crate::adapter::moodle::MoodleClient;
 use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
@@ -18,6 +19,7 @@ pub struct Services {
     compat: CompatClient,
     #[allow(dead_code)]
     discourse: DiscourseClient,
+    email: EmailClient,
     moodle: MoodleClient,
     vatsim_auth: VatsimAuthClient,
     navdata: NavdataAdapter,
@@ -47,6 +49,7 @@ impl Services {
                 settings.discourse.endpoint.clone(),
                 settings.discourse.api_key.clone(),
             ),
+            email: EmailClient::new(&settings.email)?,
             moodle: MoodleClient::new(settings.moodle.api_key.clone()),
             vatsim_auth: VatsimAuthClient::new(settings.authentication.vatsim.clone()),
             navdata,
@@ -77,6 +80,10 @@ impl Services {
 
     pub fn moodle(&self) -> &MoodleClient {
         &self.moodle
+    }
+
+    pub fn email(&self) -> &EmailClient {
+        &self.email
     }
 
     pub fn vatsim_auth(&self) -> &VatsimAuthClient {

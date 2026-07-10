@@ -2,6 +2,7 @@ use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
 
+use crate::adapter::email::EmailContent;
 use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::user_role::UserRole;
@@ -214,6 +215,16 @@ async fn respond_to_application(
     let response = training_application_response_repository::find(services.db(), response_id)
         .await?
         .ok_or(ApiError::not_found("resource", "unknown"))?;
+
+    if let Some(email) = application.trainee_email.as_deref() {
+        services
+            .email()
+            .send(
+                email,
+                EmailContent::training_application_response(&application, &response),
+            )
+            .await?;
+    }
 
     Ok(Json(TrainingApplicationResponseDto::from(response)))
 }

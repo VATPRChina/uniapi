@@ -18,6 +18,16 @@ base_url = "https://s.ee/api/v1/file"
 endpoint = "https://community.vatprc.net"
 api_key = ""
 
+[email]
+enabled = false
+
+[email.smtp]
+server = ""
+port = 587
+username = ""
+password = ""
+from = ""
+
 [navdata]
 local_data_path = "data/navdata.db"
 preferred_routes_path = "data/routes.csv"

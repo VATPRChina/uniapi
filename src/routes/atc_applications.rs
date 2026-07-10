@@ -6,6 +6,7 @@ use serde::Serialize;
 use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
+use crate::adapter::email::EmailContent;
 use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::audit_log::{AuditLog, AuditLogEntity};
@@ -238,6 +239,16 @@ async fn review_application(
     )
     .await?;
     transaction.commit().await?;
+
+    if let Some(email) = application.user_email.as_deref() {
+        services
+            .email()
+            .send(
+                email,
+                EmailContent::atc_application_status_change(&application),
+            )
+            .await?;
+    }
 
     if approved {
         ensure_moodle_user(&services, &application).await?;

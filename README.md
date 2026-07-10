@@ -55,6 +55,26 @@ When connected, the bot registers global `/ping` and `/metar` commands. `/ping`
 replies with `pong`; `/metar icao:<airport>` replies with the latest METAR text
 for the requested airport.
 
+### Email notifications
+
+ATC application review and training application response notifications can be
+sent through an SMTP server. Email is disabled by default. Enable it in local
+settings (or provide the equivalent `APP_EMAIL__*` environment variables):
+
+```toml
+[email]
+enabled = true
+
+[email.smtp]
+server = "smtp.example.com"
+port = 587
+username = "smtp-user"
+password = "smtp-password"
+from = "VATPRC <no-reply@example.com>"
+```
+
+The SMTP connection uses STARTTLS.
+
 ## Testing
 
 There is E2E testing for each API endpoint. It is still missing test coverage on some endpoints.

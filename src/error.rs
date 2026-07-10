@@ -6,6 +6,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 
 use crate::adapter::compat::CompatClientError;
+use crate::adapter::email::EmailError;
 use crate::adapter::moodle::MoodleError;
 use crate::adapter::smms::SmmsError;
 use crate::auth::AuthError;
@@ -111,6 +112,8 @@ api_errors!(
         => "transient error",
     Database { #[from] source: sqlx::Error} => StatusCode::SERVICE_UNAVAILABLE
         => "transient error",
+    Email { #[from] source: EmailError } => StatusCode::SERVICE_UNAVAILABLE
+        => "transient error",
     Moodle { #[from] source: MoodleError } => StatusCode::SERVICE_UNAVAILABLE
         => "transient error",
     Multipart { #[from] source: axum::extract::multipart::MultipartError } => StatusCode::SERVICE_UNAVAILABLE
@@ -178,6 +181,7 @@ impl IntoResponse for ApiError {
         match &self {
             ApiError::Compat { source } => tracing::error!("API error: {:?}", source),
             ApiError::Database { source } => tracing::error!("API error: {:?}", source),
+            ApiError::Email { source } => tracing::error!("API error: {:?}", source),
             ApiError::Moodle { source } => tracing::error!("API error: {:?}", source),
             ApiError::Multipart { source } => tracing::error!("API error: {:?}", source),
             ApiError::Smms { source } => tracing::error!("API error: {:?}", source),

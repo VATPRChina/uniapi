@@ -10,6 +10,11 @@ chrono = { version = "0.4.44", features = ["clock", "serde"] }
 config = "0.15.22"
 futures = "0.3.32"
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
+lettre = { version = "0.11.19", default-features = false, features = [
+  "builder",
+  "smtp-transport",
+  "tokio1-rustls-tls",
+] }
 rand = "0.10.1"
 regex = "1.12.3"
 serenity = { version = "0.12.4", features = [

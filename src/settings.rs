@@ -10,6 +10,8 @@ pub struct Settings {
     pub database: Database,
     pub discord: Discord,
     pub discourse: Discourse,
+    #[serde(default)]
+    pub email: Email,
     pub moodle: Moodle,
     pub storage: Storage,
     pub utils: Utils,
@@ -87,6 +89,35 @@ pub struct Discord {
 pub struct Discourse {
     pub endpoint: String,
     pub api_key: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Email {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub smtp: SmtpEmail,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SmtpEmail {
+    pub server: String,
+    pub port: u16,
+    pub username: String,
+    pub password: String,
+    pub from: String,
+}
+
+impl Default for SmtpEmail {
+    fn default() -> Self {
+        Self {
+            server: String::new(),
+            port: 587,
+            username: String::new(),
+            password: String::new(),
+            from: String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
