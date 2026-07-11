@@ -281,8 +281,7 @@ async fn create_position_audit_log(
     audit_log_repository::create(
         transaction,
         AuditLog {
-            entity: AuditLogEntity::Event(position.event_id),
-            child_entity: Some(AuditLogEntity::EventAtcPosition(position.id)),
+            entity: AuditLogEntity::EventAtcPosition(position.event_id, position.id),
             before,
             after,
             operated_by,

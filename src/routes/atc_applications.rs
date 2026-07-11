@@ -330,7 +330,6 @@ async fn create_application_audit_log(
         transaction,
         AuditLog {
             entity: AuditLogEntity::AtcApplication(application.id),
-            child_entity: None,
             before: before
                 .map(serde_json::to_value)
                 .transpose()

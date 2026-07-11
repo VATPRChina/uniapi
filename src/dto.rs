@@ -82,30 +82,81 @@ pub struct AuditLogDto {
     pub created_at: DateTime<Utc>,
 }
 
-impl From<AuditLogEntity> for AuditLogEntityDto {
+impl From<AuditLogEntity> for (AuditLogEntityDto, Option<AuditLogEntityDto>) {
     fn from(entity: AuditLogEntity) -> Self {
-        let (kind, id) = match entity {
-            AuditLogEntity::Event(id) => (AuditLogEntityKindDto::Event, id),
-            AuditLogEntity::AtcApplication(id) => (AuditLogEntityKindDto::AtcApplication, id),
-            AuditLogEntity::User(id) => (AuditLogEntityKindDto::User, id),
-            AuditLogEntity::UserRole(id) => (AuditLogEntityKindDto::UserRole, id),
-            AuditLogEntity::UserAtcPermission(id) => (AuditLogEntityKindDto::UserAtcPermission, id),
-            AuditLogEntity::EventAtcPosition(id) => (AuditLogEntityKindDto::EventAtcPosition, id),
-            AuditLogEntity::EventSlot(id) => (AuditLogEntityKindDto::EventSlot, id),
-        };
-
-        Self {
-            kind,
-            id: Ulid::from(id).to_string(),
+        match entity {
+            AuditLogEntity::AtcApplication(id) => (
+                AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::AtcApplication,
+                    id: id.to_string(),
+                },
+                None,
+            ),
+            AuditLogEntity::Event(id) => (
+                AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::Event,
+                    id: id.to_string(),
+                },
+                None,
+            ),
+            AuditLogEntity::EventAtcPosition(pid, id) => (
+                AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::Event,
+                    id: pid.to_string(),
+                },
+                Some(AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::EventAtcPosition,
+                    id: id.to_string(),
+                }),
+            ),
+            AuditLogEntity::EventSlot(pid, id) => (
+                AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::Event,
+                    id: pid.to_string(),
+                },
+                Some(AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::EventSlot,
+                    id: id.to_string(),
+                }),
+            ),
+            AuditLogEntity::User(id) => (
+                AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::User,
+                    id: id.to_string(),
+                },
+                None,
+            ),
+            AuditLogEntity::UserAtcPermission(pid, id) => (
+                AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::User,
+                    id: pid.to_string(),
+                },
+                Some(AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::UserAtcPermission,
+                    id: id.to_string(),
+                }),
+            ),
+            AuditLogEntity::UserRole(pid, id) => (
+                AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::User,
+                    id: pid.to_string(),
+                },
+                Some(AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::UserRole,
+                    id: id.to_string(),
+                }),
+            ),
         }
     }
 }
 
 impl From<AuditLog> for AuditLogDto {
     fn from(audit_log: AuditLog) -> Self {
+        let (entity, child_entity) = audit_log.entity.into();
+
         Self {
-            entity: audit_log.entity.into(),
-            child_entity: audit_log.child_entity.map(Into::into),
+            entity,
+            child_entity,
             before: audit_log.before,
             after: audit_log.after,
             operated_by: Ulid::from(audit_log.operated_by).to_string(),

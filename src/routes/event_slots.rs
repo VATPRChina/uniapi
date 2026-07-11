@@ -88,8 +88,7 @@ async fn create_slot(
     audit_log_repository::create(
         &mut transaction,
         AuditLog {
-            entity: AuditLogEntity::Event(event_id),
-            child_entity: Some(AuditLogEntity::EventSlot(slot.id)),
+            entity: AuditLogEntity::EventSlot(event_id, slot.id),
             before: serde_json::Value::Null,
             after: serde_json::to_value(&slot).map_err(|_| ApiError::Internal)?,
             operated_by,

@@ -4,6 +4,7 @@ use axum::{Json, Router};
 
 use crate::auth::CurrentUser;
 use crate::dto::{AuditLogDto, parse_ulid_uuid};
+use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
 use crate::repository::audit_log::{self as audit_log_repository, AuditLogEntityKind};
 use crate::routes::ApiError;
@@ -209,14 +210,7 @@ async fn list_user_atc_status_audit_logs(
     )
     .await?
     .into_iter()
-    .filter(|audit_log| {
-        matches!(
-            audit_log.child_entity,
-            Some(crate::model::audit_log::AuditLogEntity::UserAtcPermission(
-                _
-            ))
-        )
-    });
+    .filter(|audit_log| matches!(audit_log.entity, AuditLogEntity::UserAtcPermission(_, _)));
 
     Ok(Json(audit_logs.map(Into::into).collect()))
 }

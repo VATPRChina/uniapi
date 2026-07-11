@@ -51,17 +51,42 @@ pub struct InvalidAuditLogEntityKind(pub String);
 
 impl From<AuditLog> for AuditLogRecord {
     fn from(audit_log: AuditLog) -> Self {
-        let (entity_kind, entity_id) = entity_to_record(audit_log.entity);
-        let (child_entity_kind, child_entity_id) = audit_log
-            .child_entity
-            .map(entity_to_record)
-            .map(|(kind, id)| (Some(kind.to_string()), Some(id)))
-            .unwrap_or((None, None));
+        let (entity_kind, entity_id, child_entity_kind, child_entity_id) = match audit_log.entity {
+            AuditLogEntity::AtcApplication(id) => {
+                (AuditLogEntityKind::AtcApplication, id, None, None)
+            }
+            AuditLogEntity::Event(id) => (AuditLogEntityKind::Event, id, None, None),
+            AuditLogEntity::EventAtcPosition(pid, id) => (
+                AuditLogEntityKind::Event,
+                pid,
+                Some(AuditLogEntityKind::EventAtcPosition),
+                Some(id),
+            ),
+            AuditLogEntity::EventSlot(pid, id) => (
+                AuditLogEntityKind::Event,
+                pid,
+                Some(AuditLogEntityKind::EventSlot),
+                Some(id),
+            ),
+            AuditLogEntity::User(id) => (AuditLogEntityKind::User, id, None, None),
+            AuditLogEntity::UserAtcPermission(pid, id) => (
+                AuditLogEntityKind::User,
+                pid,
+                Some(AuditLogEntityKind::UserAtcPermission),
+                Some(id),
+            ),
+            AuditLogEntity::UserRole(pid, id) => (
+                AuditLogEntityKind::User,
+                pid,
+                Some(AuditLogEntityKind::UserRole),
+                Some(id),
+            ),
+        };
 
         Self {
             entity_kind: entity_kind.to_string(),
             entity_id,
-            child_entity_kind,
+            child_entity_kind: child_entity_kind.as_ref().map(ToString::to_string),
             child_entity_id,
             before: audit_log.before,
             after: audit_log.after,
@@ -75,17 +100,39 @@ impl TryFrom<AuditLogRecord> for AuditLog {
     type Error = InvalidAuditLogEntityKind;
 
     fn try_from(record: AuditLogRecord) -> Result<Self, Self::Error> {
+        let entity_kind: AuditLogEntityKind = record
+            .child_entity_kind
+            .as_ref()
+            .unwrap_or(&record.entity_kind)
+            .parse()
+            .map_err(|_| InvalidAuditLogEntityKind(record.entity_kind.to_owned()))?;
+
+        let incomplete_error = || InvalidAuditLogEntityKind(format!("incomplete {entity_kind}"));
+
+        let entity = match entity_kind {
+            AuditLogEntityKind::Event => AuditLogEntity::Event(record.entity_id),
+            AuditLogEntityKind::AtcApplication => AuditLogEntity::AtcApplication(record.entity_id),
+            AuditLogEntityKind::User => AuditLogEntity::User(record.entity_id),
+            AuditLogEntityKind::UserRole => AuditLogEntity::UserRole(
+                record.entity_id,
+                record.child_entity_id.ok_or_else(incomplete_error)?,
+            ),
+            AuditLogEntityKind::UserAtcPermission => AuditLogEntity::UserAtcPermission(
+                record.entity_id,
+                record.child_entity_id.ok_or_else(incomplete_error)?,
+            ),
+            AuditLogEntityKind::EventAtcPosition => AuditLogEntity::EventAtcPosition(
+                record.entity_id,
+                record.child_entity_id.ok_or_else(incomplete_error)?,
+            ),
+            AuditLogEntityKind::EventSlot => AuditLogEntity::EventSlot(
+                record.entity_id,
+                record.child_entity_id.ok_or_else(incomplete_error)?,
+            ),
+        };
+
         Ok(Self {
-            entity: entity_from_record(&record.entity_kind, record.entity_id)?,
-            child_entity: match (record.child_entity_kind, record.child_entity_id) {
-                (Some(kind), Some(id)) => Some(entity_from_record(&kind, id)?),
-                (None, None) => None,
-                (kind, id) => {
-                    return Err(InvalidAuditLogEntityKind(format!(
-                        "incomplete child entity: kind={kind:?}, id={id:?}"
-                    )));
-                }
-            },
+            entity,
             before: record.before,
             after: record.after,
             operated_by: record.operated_by,
@@ -174,37 +221,6 @@ fn list_records(records: Vec<AuditLogRecord>) -> Result<Vec<AuditLog>, sqlx::Err
         .collect()
 }
 
-fn entity_to_record(entity: AuditLogEntity) -> (AuditLogEntityKind, Uuid) {
-    match entity {
-        AuditLogEntity::Event(id) => (AuditLogEntityKind::Event, id),
-        AuditLogEntity::AtcApplication(id) => (AuditLogEntityKind::AtcApplication, id),
-        AuditLogEntity::User(id) => (AuditLogEntityKind::User, id),
-        AuditLogEntity::UserRole(id) => (AuditLogEntityKind::UserRole, id),
-        AuditLogEntity::UserAtcPermission(id) => (AuditLogEntityKind::UserAtcPermission, id),
-        AuditLogEntity::EventAtcPosition(id) => (AuditLogEntityKind::EventAtcPosition, id),
-        AuditLogEntity::EventSlot(id) => (AuditLogEntityKind::EventSlot, id),
-    }
-}
-
-fn entity_from_record(
-    entity_kind: &str,
-    entity_id: Uuid,
-) -> Result<AuditLogEntity, InvalidAuditLogEntityKind> {
-    let entity_kind = entity_kind
-        .parse()
-        .map_err(|_| InvalidAuditLogEntityKind(entity_kind.to_owned()))?;
-
-    Ok(match entity_kind {
-        AuditLogEntityKind::Event => AuditLogEntity::Event(entity_id),
-        AuditLogEntityKind::AtcApplication => AuditLogEntity::AtcApplication(entity_id),
-        AuditLogEntityKind::User => AuditLogEntity::User(entity_id),
-        AuditLogEntityKind::UserRole => AuditLogEntity::UserRole(entity_id),
-        AuditLogEntityKind::UserAtcPermission => AuditLogEntity::UserAtcPermission(entity_id),
-        AuditLogEntityKind::EventAtcPosition => AuditLogEntity::EventAtcPosition(entity_id),
-        AuditLogEntityKind::EventSlot => AuditLogEntity::EventSlot(entity_id),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use chrono::TimeZone;
@@ -229,8 +245,7 @@ mod tests {
         let event_id = Uuid::from_u128(1);
         let position_id = Uuid::from_u128(2);
         let audit_log = AuditLog {
-            entity: AuditLogEntity::Event(event_id),
-            child_entity: Some(AuditLogEntity::EventAtcPosition(position_id)),
+            entity: AuditLogEntity::EventAtcPosition(event_id, position_id),
             before: Value::Null,
             after: Value::Null,
             operated_by: Uuid::nil(),
@@ -258,8 +273,7 @@ mod tests {
         assert_eq!(
             AuditLog::try_from(record).unwrap(),
             AuditLog {
-                entity: AuditLogEntity::User(entity_id),
-                child_entity: Some(AuditLogEntity::UserAtcPermission(entity_id)),
+                entity: AuditLogEntity::UserAtcPermission(entity_id, entity_id),
                 before: Value::Null,
                 after: Value::Null,
                 operated_by: Uuid::nil(),

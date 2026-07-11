@@ -73,8 +73,7 @@ async fn set_status(
     audit_log_repository::create(
         &mut transaction,
         AuditLog {
-            entity: AuditLogEntity::User(user_id),
-            child_entity: Some(AuditLogEntity::UserAtcPermission(user_id)),
+            entity: AuditLogEntity::UserAtcPermission(user_id, user_id),
             before: serde_json::to_value(before).map_err(|_| ApiError::Internal)?,
             after: serde_json::to_value(after).map_err(|_| ApiError::Internal)?,
             operated_by,
