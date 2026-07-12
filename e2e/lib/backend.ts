@@ -39,9 +39,10 @@ export const getClient = async (
   const baseUrl = getBaseUrl();
 
   if (roles !== null) {
+    const cid =
+      options.cid ?? Math.floor(10000000 + Math.random() * 9000000).toString();
     return createApiClientWithRoles(baseUrl, {
-      cid:
-        options.cid ?? Math.floor(10000000 + Math.random() * 9000000).toString(),
+      cid,
       email: options.email,
       fullName: options.fullName,
       id: options.id,

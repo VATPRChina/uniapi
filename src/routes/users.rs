@@ -72,6 +72,7 @@ async fn set_roles(
         .set_user_roles(id, roles.into_iter().collect())
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
+    transaction.commit().await?;
     services
         .audit_log()
         .record(
@@ -81,7 +82,6 @@ async fn set_roles(
             Some(&user),
         )
         .await?;
-    transaction.commit().await?;
 
     Ok(Json(user_dto(user, None, false, None)))
 }

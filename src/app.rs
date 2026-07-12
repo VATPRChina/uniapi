@@ -175,8 +175,7 @@ async fn health(State(services): State<Services>) -> impl IntoResponse {
     tracing::info!("performing health check");
     let database_is_healthy = matches!(
         sqlx::query_scalar::<_, i32>("SELECT 1")
-            .fetch_oneservices
-            .db()
+            .fetch_one(services.db())
             .await,
         Ok(1)
     );

@@ -90,6 +90,7 @@ async fn create_slot(
     if slot.event_id != event_id {
         return Err(ApiError::not_found("event airspace", "unknown"));
     }
+    transaction.commit().await?;
     services
         .audit_log()
         .record(
@@ -99,7 +100,6 @@ async fn create_slot(
             Some(&slot),
         )
         .await?;
-    transaction.commit().await?;
 
     Ok(Json(EventSlotDto::from_record(
         slot,

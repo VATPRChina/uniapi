@@ -37,6 +37,10 @@ pub struct TrainingSave {
 }
 
 fn training_select_sql(where_clause: &str) -> String {
+    training_select_sql_from("public.training", where_clause)
+}
+
+fn training_select_sql_from(source: &str, where_clause: &str) -> String {
     format!(
         r#"
         SELECT training.id,
@@ -59,7 +63,7 @@ fn training_select_sql(where_clause: &str) -> String {
                training.updated_at,
                training.deleted_at,
                training.record_sheet_filing_id
-        FROM public.training
+        FROM {source}
         INNER JOIN public."user" AS trainer ON trainer.id = training.trainer_id
         INNER JOIN public."user" AS trainee ON trainee.id = training.trainee_id
         {where_clause}
@@ -181,11 +185,11 @@ where
             id, name, trainer_id, trainee_id, start_at, end_at, created_at, updated_at
           )
           VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
-          RETURNING id
+          RETURNING *
         )
         {}
         "#,
-            training_select_sql("WHERE training.id = $1 AND EXISTS (SELECT 1 FROM inserted)"),
+            training_select_sql_from("inserted AS training", "WHERE training.id = $1"),
         );
         sqlx::query_as::<_, TrainingRecord>(&query)
             .bind(id)
@@ -215,11 +219,11 @@ where
           UPDATE public.training
           SET name = $2, start_at = $3, end_at = $4, updated_at = $5
           WHERE id = $1
-          RETURNING id
+          RETURNING *
         )
         {}
         "#,
-            training_select_sql("WHERE training.id = $1 AND EXISTS (SELECT 1 FROM updated)"),
+            training_select_sql_from("updated AS training", "WHERE training.id = $1"),
         );
         sqlx::query_as::<_, TrainingRecord>(&query)
             .bind(id)
@@ -247,11 +251,11 @@ where
           UPDATE public.training
           SET record_sheet_filing_id = $2, updated_at = $3
           WHERE id = $1
-          RETURNING id
+          RETURNING *
         )
         {}
         "#,
-            training_select_sql("WHERE training.id = $1 AND EXISTS (SELECT 1 FROM updated)"),
+            training_select_sql_from("updated AS training", "WHERE training.id = $1"),
         );
         sqlx::query_as::<_, TrainingRecord>(&query)
             .bind(id)

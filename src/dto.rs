@@ -88,62 +88,62 @@ impl From<AuditLogEntity> for (AuditLogEntityDto, Option<AuditLogEntityDto>) {
             AuditLogEntity::AtcApplication(id) => (
                 AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::AtcApplication,
-                    id: id.to_string(),
+                    id: Ulid::from(id).to_string(),
                 },
                 None,
             ),
             AuditLogEntity::Event(id) => (
                 AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::Event,
-                    id: id.to_string(),
+                    id: Ulid::from(id).to_string(),
                 },
                 None,
             ),
             AuditLogEntity::EventAtcPosition(pid, id) => (
                 AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::Event,
-                    id: pid.to_string(),
+                    id: Ulid::from(pid).to_string(),
                 },
                 Some(AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::EventAtcPosition,
-                    id: id.to_string(),
+                    id: Ulid::from(id).to_string(),
                 }),
             ),
             AuditLogEntity::EventSlot(pid, id) => (
                 AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::Event,
-                    id: pid.to_string(),
+                    id: Ulid::from(pid).to_string(),
                 },
                 Some(AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::EventSlot,
-                    id: id.to_string(),
+                    id: Ulid::from(id).to_string(),
                 }),
             ),
             AuditLogEntity::User(id) => (
                 AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::User,
-                    id: id.to_string(),
+                    id: Ulid::from(id).to_string(),
                 },
                 None,
             ),
             AuditLogEntity::UserAtcPermission(pid, id) => (
                 AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::User,
-                    id: pid.to_string(),
+                    id: Ulid::from(pid).to_string(),
                 },
                 Some(AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::UserAtcPermission,
-                    id: id.to_string(),
+                    id: Ulid::from(id).to_string(),
                 }),
             ),
             AuditLogEntity::UserRole(pid, id) => (
                 AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::User,
-                    id: pid.to_string(),
+                    id: Ulid::from(pid).to_string(),
                 },
                 Some(AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::UserRole,
-                    id: id.to_string(),
+                    id: Ulid::from(id).to_string(),
                 }),
             ),
         }

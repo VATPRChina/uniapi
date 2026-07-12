@@ -210,7 +210,7 @@ async fn set_record_sheet(
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
     let mut transaction = services.db().begin().await?;
-    let filing_id = (&mut transaction)
+    let filing_id = transaction
         .set_sheet_filing(
             RECORD_SHEET_ID,
             training.record_sheet_filing_id,

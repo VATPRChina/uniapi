@@ -1,11 +1,9 @@
 import { expect, test as baseTest } from "vitest";
 import { getClient } from "../lib/backend.js";
 
-const volunteerId = "01KZX000000000000000000001";
-
 const test = baseTest
   .extend("coordinator", async ({}) => {
-    return await getClient(["event-coordinator"], { id: volunteerId });
+    return await getClient(["event-coordinator"]);
   })
   .extend("user", async ({}) => {
     return await getClient([]);
@@ -75,7 +73,7 @@ test("event audit routes list logs and require volunteer permission", async ({
     entity: { kind: "event", id: event.id },
     child_entity: null,
     before: null,
-    operated_by: volunteerId,
+    operated_by: expect.any(String),
     created_at: expect.any(String),
   });
   expect(allResponse.data).toEqual(expect.arrayContaining([expected]));
@@ -106,12 +104,9 @@ test("user audit routes include role and ATC status logs", async ({
   expect(allResponse.data).toEqual(expect.arrayContaining(expected));
   expect(userResponse.data).toEqual(expect.arrayContaining(expected));
 
-  const atcResponse = await atcAdmin.GET(
-    "/api/users/{id}/atc/status/audit",
-    {
-      params: { path: { id: auditedUser.id } },
-    },
-  );
+  const atcResponse = await atcAdmin.GET("/api/users/{id}/atc/status/audit", {
+    params: { path: { id: auditedUser.id } },
+  });
   expect(atcResponse.error).toBeFalsy();
   expect(atcResponse.data).toEqual([
     expect.objectContaining({

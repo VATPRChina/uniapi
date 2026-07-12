@@ -63,12 +63,13 @@ async fn set_status(
     let before = atc_status_audit_snapshot(&mut transaction, user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
-    (&mut transaction)
+    transaction
         .upsert_user_atc_status(user_id, &status)
         .await?;
     let after = atc_status_audit_snapshot(&mut transaction, user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
+    transaction.commit().await?;
     services
         .audit_log()
         .record(
@@ -78,7 +79,6 @@ async fn set_status(
             Some(&after),
         )
         .await?;
-    transaction.commit().await?;
 
     get_status_for_user(&services, user_id).await.map(Json)
 }

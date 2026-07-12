@@ -215,8 +215,7 @@ where
         );
 
         let id = Uuid::from(Ulid::new());
-        let query = format!(
-            r#"
+        let query = r#"
         WITH inserted_position AS (
             INSERT INTO public.event_atc_position (
                 id, event_id, callsign, start_at, end_at, remarks,
@@ -225,8 +224,7 @@ where
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
         )
-        "#,
-        ) + &position_select_sql_from(
+        "#.to_string() + &position_select_sql_from(
             "inserted_position AS event_atc_position",
             "WHERE event_atc_position.id = $1",
         );
@@ -254,8 +252,7 @@ where
             "modifying data"
         );
 
-        let query = format!(
-            r#"
+        let query = r#"
         WITH updated_position AS (
             UPDATE public.event_atc_position
             SET callsign = $3,
@@ -267,8 +264,7 @@ where
             WHERE event_id = $1 AND id = $2
             RETURNING *
         )
-        "#,
-        ) + &position_select_sql_from(
+        "#.to_string() + &position_select_sql_from(
             "updated_position AS event_atc_position",
             "WHERE event_atc_position.id = $2",
         );

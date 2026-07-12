@@ -88,21 +88,15 @@ async fn create_application(
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
     let mut transaction = services.db().begin().await?;
-    let filing_id = (&mut transaction)
+    let filing_id = transaction
         .set_sheet_filing(APPLICATION_SHEET_ID, None, current_user_id, &answers)
         .await?;
     let application = (&mut *transaction)
         .create_atc_application(current_user_id, filing_id)
         .await?;
-    create_application_audit_log(
-        services.audit_log(),
-        &mut transaction,
-        None,
-        &application,
-        current_user_id,
-    )
-    .await?;
+    let after = application_audit_snapshot(&mut transaction, &application).await?;
     transaction.commit().await?;
+    create_application_audit_log(services.audit_log(), None, &after, current_user_id).await?;
 
     Ok(Json(AtcApplicationSummaryDto::from_record(
         application,
@@ -157,7 +151,7 @@ async fn update_application(
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    (&mut transaction)
+    transaction
         .set_sheet_filing(
             APPLICATION_SHEET_ID,
             Some(application.application_filing_id),
@@ -169,15 +163,10 @@ async fn update_application(
         .find_atc_application_by_id_for_update(application.id)
         .await?
         .ok_or(ApiError::not_found("application", &id))?;
-    create_application_audit_log(
-        services.audit_log(),
-        &mut transaction,
-        Some(before),
-        &application,
-        current_user_id,
-    )
-    .await?;
+    let after = application_audit_snapshot(&mut transaction, &application).await?;
     transaction.commit().await?;
+    create_application_audit_log(services.audit_log(), Some(&before), &after, current_user_id)
+        .await?;
 
     application_to_dto(&services, application, false, current_user_id)
         .await
@@ -222,7 +211,7 @@ async fn review_application(
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let filing_id = (&mut transaction)
+    let filing_id = transaction
         .set_sheet_filing(
             REVIEW_SHEET_ID,
             application.review_filing_id,
@@ -234,15 +223,10 @@ async fn review_application(
         .set_atc_application_review(application_id, request.status.as_db_str(), filing_id)
         .await?
         .ok_or(ApiError::not_found("application", &id))?;
-    create_application_audit_log(
-        services.audit_log(),
-        &mut transaction,
-        Some(before),
-        &application,
-        current_user_id,
-    )
-    .await?;
+    let after = application_audit_snapshot(&mut transaction, &application).await?;
     transaction.commit().await?;
+    create_application_audit_log(services.audit_log(), Some(&before), &after, current_user_id)
+        .await?;
 
     if let Some(email) = application.user_email.as_deref() {
         services
@@ -326,18 +310,16 @@ async fn application_audit_snapshot(
 
 async fn create_application_audit_log(
     audit_log: &AuditLogService,
-    transaction: &mut Transaction<'_, Postgres>,
-    before: Option<AtcApplicationAuditSnapshot>,
-    application: &AtcApplicationRecord,
+    before: Option<&AtcApplicationAuditSnapshot>,
+    after: &AtcApplicationAuditSnapshot,
     operated_by: Uuid,
 ) -> Result<(), ApiError> {
-    let after = application_audit_snapshot(transaction, application).await?;
     audit_log
         .record(
-            AuditLogEntity::AtcApplication(application.id),
+            AuditLogEntity::AtcApplication(after.application.id),
             operated_by,
-            before.as_ref(),
-            Some(&after),
+            before,
+            Some(after),
         )
         .await?;
 

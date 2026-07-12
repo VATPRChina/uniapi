@@ -113,7 +113,7 @@ async fn create_application(
         .map(Into::into)
         .collect::<Vec<_>>();
     let mut transaction = services.db().begin().await?;
-    let id = (&mut transaction)
+    let id = transaction
         .create_training_application(trainee_id, &request.name, &slots)
         .await?;
     transaction.commit().await?;
@@ -142,7 +142,7 @@ async fn update_application(
         .map(Into::into)
         .collect::<Vec<_>>();
     let mut transaction = services.db().begin().await?;
-    (&mut transaction)
+    transaction
         .update_training_application(application.id, &request.name, &slots)
         .await?;
     transaction.commit().await?;
@@ -209,7 +209,7 @@ async fn respond_to_application(
     };
 
     let mut transaction = services.db().begin().await?;
-    let response_id = (&mut transaction)
+    let response_id = transaction
         .create_training_application_response(
             &application,
             trainer_id,

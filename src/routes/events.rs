@@ -85,6 +85,7 @@ async fn create_event(
     let event = (&mut *transaction)
         .create_event(request.try_into()?)
         .await?;
+    transaction.commit().await?;
     services
         .audit_log()
         .record(
@@ -94,7 +95,6 @@ async fn create_event(
             Some(&event),
         )
         .await?;
-    transaction.commit().await?;
 
     Ok(Json(EventDto::from(event)))
 }
@@ -118,6 +118,7 @@ async fn update_event(
         .update_event(id, request.try_into()?)
         .await?
         .ok_or(ApiError::not_found("event", "unknown"))?;
+    transaction.commit().await?;
     services
         .audit_log()
         .record(
@@ -127,7 +128,6 @@ async fn update_event(
             Some(&event),
         )
         .await?;
-    transaction.commit().await?;
 
     Ok(Json(EventDto::from(event)))
 }
