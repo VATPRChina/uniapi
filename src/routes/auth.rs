@@ -14,13 +14,12 @@ use uuid::Uuid;
 use crate::adapter::vatsim_auth::{VatsimAuthError, generate_pkce};
 use crate::dto::*;
 use crate::jwt::JwtError;
-use crate::repository::auth::device_authorization::{
-    self as device_authorization_repository, NewDeviceAuthorization,
-};
-use crate::repository::auth::session::{
-    self as session_repository, RefreshSessionIssue, RefreshSessionRow,
-};
-use crate::repository::auth::user::{self as user_repository, UserLoginRow};
+use crate::repository::auth::device_authorization::DeviceAuthorizationRepositoryExt;
+use crate::repository::auth::device_authorization::NewDeviceAuthorization;
+use crate::repository::auth::session::{RefreshSessionIssue, RefreshSessionRow};
+use crate::repository::auth::session::{SessionRepositoryExt, SessionTransactionExt};
+use crate::repository::auth::user::UserLoginRow;
+use crate::repository::auth::user::UserRepositoryExt;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -127,17 +126,16 @@ async fn device_authorization(
     let user_code = random_user_code();
     let expires_at = Utc::now() + Duration::seconds(services.jwt().device_authz_expires_seconds());
 
-    device_authorization_repository::create(
-        services.db(),
-        NewDeviceAuthorization {
+    services
+        .db()
+        .create_device_authorization(NewDeviceAuthorization {
             device_code,
             user_code: &user_code,
             expires_at,
             client_id: &request.client_id,
-        },
-    )
-    .await
-    .map_err(AuthApiError::from)?;
+        })
+        .await
+        .map_err(AuthApiError::from)?;
 
     let verification_uri = format!("{}/auth/device", request_origin(&headers));
     let formatted_user_code = format!("{}-{}", &user_code[..4], &user_code[4..]);
@@ -164,10 +162,11 @@ async fn device_confirm(
     }
 
     let code = normalize_user_code(query.user_code.as_deref());
-    let Some(device_authz) =
-        device_authorization_repository::find_by_user_code(services.db(), &code)
-            .await
-            .map_err(AuthUserError::from)?
+    let Some(device_authz) = services
+        .db()
+        .find_device_authorization_by_user_code(&code)
+        .await
+        .map_err(AuthUserError::from)?
     else {
         return Ok(render_callback_ui(
             "Error",
@@ -350,7 +349,9 @@ async fn vatsim_callback(
                 ));
             };
             tracing::info!(%user_code, user_id = %user.id, "associating device authorization with user");
-            device_authorization_repository::associate_user(services.db(), &user_code, user.id)
+            services
+                .db()
+                .associate_device_authorization_user(&user_code, user.id)
                 .await
                 .map_err(AuthUserError::from)?;
             render_callback_ui(
@@ -461,16 +462,11 @@ async fn unsafe_assume_user(
         .into_iter()
         .collect();
 
-    let user = user_repository::upsert_assumed_user(
-        services.db(),
-        id,
-        cid,
-        full_name,
-        request.email.as_deref(),
-        roles,
-    )
-    .await
-    .map_err(AuthApiError::from)?;
+    let user = services
+        .db()
+        .upsert_user_assumed_user(id, cid, full_name, request.email.as_deref(), roles)
+        .await
+        .map_err(AuthApiError::from)?;
 
     tracing::info!(assumed_user_id = %user.id, client_id = %client_id, "issuing unsafe assumed user token");
     let refresh =
@@ -499,10 +495,11 @@ async fn device_code_grant(
         return Err(AuthApiError::invalid_grant("Device code not found"));
     };
 
-    let Some(device_authz) =
-        device_authorization_repository::find_for_grant(services.db(), device_code)
-            .await
-            .map_err(AuthApiError::from)?
+    let Some(device_authz) = services
+        .db()
+        .find_device_authorization_for_grant(device_code)
+        .await
+        .map_err(AuthApiError::from)?
     else {
         return Err(AuthApiError::invalid_grant("Device code not found"));
     };
@@ -680,16 +677,19 @@ async fn issue_refresh_token(
     let expires_in = Utc::now() + Duration::days(services.jwt().refresh_expires_days());
 
     tracing::info!(%user_id, %client_id, old_token = ?old_token, create_code, "issuing refresh token");
-    session_repository::issue_refresh_token(
-        services.db(),
-        user_id,
-        user_updated_at,
-        expires_in,
-        client_id,
-        old_token,
-        create_code,
-    )
-    .await
+    let mut transaction = services.db().begin().await?;
+    let issue = transaction
+        .issue_session_refresh_token(
+            user_id,
+            user_updated_at,
+            expires_in,
+            client_id,
+            old_token,
+            create_code,
+        )
+        .await?;
+    transaction.commit().await?;
+    Ok(issue)
 }
 
 #[instrument(skip(services), fields(token = %token))]
@@ -697,7 +697,9 @@ async fn find_session(
     services: &Services,
     token: Ulid,
 ) -> Result<Option<RefreshSessionRow>, AuthApiError> {
-    session_repository::find(services.db(), token)
+    services
+        .db()
+        .find_session(token)
         .await
         .map_err(AuthApiError::from)
 }
@@ -707,14 +709,18 @@ async fn find_session_by_code(
     services: &Services,
     code: Ulid,
 ) -> Result<Option<RefreshSessionRow>, AuthApiError> {
-    session_repository::find_by_code(services.db(), code)
+    services
+        .db()
+        .find_session_by_code(code)
         .await
         .map_err(AuthApiError::from)
 }
 
 #[instrument(skip(services), fields(code = %code))]
 async fn clear_code(services: &Services, code: Ulid) -> Result<(), AuthApiError> {
-    session_repository::clear_code(services.db(), code)
+    services
+        .db()
+        .clear_session_code(code)
         .await
         .map_err(AuthApiError::from)
 }
@@ -725,7 +731,7 @@ async fn delete_device_authorization(
     device_code: Ulid,
 ) -> Result<(), sqlx::Error> {
     tracing::info!(%device_code, "deleting device authorization");
-    device_authorization_repository::delete(services.db(), device_code).await
+    services.db().delete_device_authorization(device_code).await
 }
 
 fn parse_required_ulid(value: &str, missing: &'static str) -> Result<Option<Ulid>, AuthApiError> {
@@ -947,7 +953,9 @@ async fn upsert_user(
     email: &str,
 ) -> Result<UserLoginRow, AuthUserError> {
     tracing::info!(%cid, "upserting authenticated user login");
-    user_repository::upsert_login(services.db(), cid, full_name, email)
+    services
+        .db()
+        .upsert_user_login(cid, full_name, email)
         .await
         .map_err(AuthUserError::from)
 }

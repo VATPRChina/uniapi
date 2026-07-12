@@ -1,5 +1,5 @@
 use serde::Serialize;
-use sqlx::{FromRow, PgPool, Postgres, Transaction};
+use sqlx::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, FromRow, Serialize)]
@@ -23,26 +23,6 @@ pub struct SheetAnswerSave {
     pub answer: String,
 }
 
-pub async fn list_by_filing(
-    db: &PgPool,
-    filing_id: Uuid,
-) -> Result<Vec<SheetAnswerRecord>, sqlx::Error> {
-    sqlx::query_as::<_, SheetAnswerRecord>(list_by_filing_sql())
-        .bind(filing_id)
-        .fetch_all(db)
-        .await
-}
-
-pub async fn list_by_filing_in_transaction(
-    transaction: &mut Transaction<'_, Postgres>,
-    filing_id: Uuid,
-) -> Result<Vec<SheetAnswerRecord>, sqlx::Error> {
-    sqlx::query_as::<_, SheetAnswerRecord>(list_by_filing_sql())
-        .bind(filing_id)
-        .fetch_all(&mut **transaction)
-        .await
-}
-
 fn list_by_filing_sql() -> &'static str {
     r#"
     SELECT sheet_filing_answer.answer,
@@ -63,4 +43,40 @@ fn list_by_filing_sql() -> &'static str {
     WHERE sheet_filing_answer.filing_id = $1
     ORDER BY sheet_field.sequence
     "#
+}
+
+pub trait SheetFilingAnswerRepositoryExt<'executor> {
+    async fn list_sheet_filing_answer_by_filing(
+        self,
+        filing_id: Uuid,
+    ) -> Result<Vec<SheetAnswerRecord>, sqlx::Error>;
+
+    async fn list_sheet_filing_answer_by_filing_in_transaction(
+        self,
+        filing_id: Uuid,
+    ) -> Result<Vec<SheetAnswerRecord>, sqlx::Error>;
+}
+
+impl<'executor, E> SheetFilingAnswerRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn list_sheet_filing_answer_by_filing(
+        self,
+        filing_id: Uuid,
+    ) -> Result<Vec<SheetAnswerRecord>, sqlx::Error> {
+        sqlx::query_as::<_, SheetAnswerRecord>(list_by_filing_sql())
+            .bind(filing_id)
+            .fetch_all(self)
+            .await
+    }
+    async fn list_sheet_filing_answer_by_filing_in_transaction(
+        self,
+        filing_id: Uuid,
+    ) -> Result<Vec<SheetAnswerRecord>, sqlx::Error> {
+        sqlx::query_as::<_, SheetAnswerRecord>(list_by_filing_sql())
+            .bind(filing_id)
+            .fetch_all(self)
+            .await
+    }
 }

@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -21,29 +21,42 @@ pub struct EventAirspaceSave {
     pub description: String,
 }
 
-pub async fn create(
-    db: &PgPool,
-    event_id: Uuid,
-    airspace: EventAirspaceSave,
-) -> Result<EventAirspaceRecord, sqlx::Error> {
-    tracing::info!(
-        operation = "create",
-        repository = "src/repository/event/event_airspace.rs",
-        "modifying data"
-    );
+pub trait EventAirspaceRepositoryExt<'executor> {
+    async fn create_event_airspace(
+        self,
+        event_id: Uuid,
+        airspace: EventAirspaceSave,
+    ) -> Result<EventAirspaceRecord, sqlx::Error>;
+}
 
-    sqlx::query_as::<_, EventAirspaceRecord>(
-        r#"
+impl<'executor, E> EventAirspaceRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn create_event_airspace(
+        self,
+        event_id: Uuid,
+        airspace: EventAirspaceSave,
+    ) -> Result<EventAirspaceRecord, sqlx::Error> {
+        tracing::info!(
+            operation = "create",
+            repository = "src/repository/event/event_airspace.rs",
+            "modifying data"
+        );
+
+        sqlx::query_as::<_, EventAirspaceRecord>(
+            r#"
         INSERT INTO public.event_airspace (id, event_id, name, icao_codes, description)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id, event_id, name, created_at, updated_at, icao_codes, description
         "#,
-    )
-    .bind(Uuid::from(Ulid::new()))
-    .bind(event_id)
-    .bind(airspace.name)
-    .bind(airspace.icao_codes)
-    .bind(airspace.description)
-    .fetch_one(db)
-    .await
+        )
+        .bind(Uuid::from(Ulid::new()))
+        .bind(event_id)
+        .bind(airspace.name)
+        .bind(airspace.icao_codes)
+        .bind(airspace.description)
+        .fetch_one(self)
+        .await
+    }
 }

@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool, Postgres, Transaction};
+use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::repository::atc_training::training_application_slot::{
-    self, TrainingApplicationSlotSave,
+    TrainingApplicationSlotSave, TrainingApplicationSlotTransactionExt,
 };
 
 #[derive(Debug, Clone, FromRow)]
@@ -22,134 +22,6 @@ pub struct TrainingApplicationRecord {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
-}
-
-pub async fn list(
-    db: &PgPool,
-    current_user_id: Uuid,
-    is_admin: bool,
-) -> Result<Vec<TrainingApplicationRecord>, sqlx::Error> {
-    sqlx::query_as::<_, TrainingApplicationRecord>(&application_select_sql(
-        r#"
-        WHERE ($1 OR training_application.trainee_id = $2)
-        ORDER BY training_application.created_at DESC
-        "#,
-    ))
-    .bind(is_admin)
-    .bind(current_user_id)
-    .fetch_all(db)
-    .await
-}
-
-pub async fn find_visible_by_id(
-    db: &PgPool,
-    id: Uuid,
-    current_user_id: Uuid,
-    is_admin: bool,
-) -> Result<Option<TrainingApplicationRecord>, sqlx::Error> {
-    sqlx::query_as::<_, TrainingApplicationRecord>(&application_select_sql(
-        r#"
-        WHERE training_application.id = $1
-          AND ($2 OR training_application.trainee_id = $3)
-        "#,
-    ))
-    .bind(id)
-    .bind(is_admin)
-    .bind(current_user_id)
-    .fetch_optional(db)
-    .await
-}
-
-pub async fn find_by_id(
-    db: &PgPool,
-    id: Uuid,
-) -> Result<Option<TrainingApplicationRecord>, sqlx::Error> {
-    sqlx::query_as::<_, TrainingApplicationRecord>(&application_select_sql(
-        r#"
-        WHERE training_application.id = $1
-        "#,
-    ))
-    .bind(id)
-    .fetch_optional(db)
-    .await
-}
-
-pub async fn create(
-    transaction: &mut Transaction<'_, Postgres>,
-    trainee_id: Uuid,
-    name: &str,
-    slots: &[TrainingApplicationSlotSave],
-) -> Result<Uuid, sqlx::Error> {
-    tracing::info!(
-        operation = "create",
-        repository = "src/repository/atc_training/training_application.rs",
-        "modifying data"
-    );
-
-    let id = Uuid::from(Ulid::new());
-    let now = Utc::now();
-    sqlx::query(
-        r#"
-        INSERT INTO public.training_application (
-            id, trainee_id, name, created_at, updated_at
-        )
-        VALUES ($1, $2, $3, $4, $4)
-        "#,
-    )
-    .bind(id)
-    .bind(trainee_id)
-    .bind(name)
-    .bind(now)
-    .execute(&mut **transaction)
-    .await?;
-
-    training_application_slot::replace(transaction, id, slots).await?;
-    Ok(id)
-}
-
-pub async fn update(
-    transaction: &mut Transaction<'_, Postgres>,
-    id: Uuid,
-    name: &str,
-    slots: &[TrainingApplicationSlotSave],
-) -> Result<bool, sqlx::Error> {
-    tracing::info!(
-        operation = "update",
-        repository = "src/repository/atc_training/training_application.rs",
-        "modifying data"
-    );
-
-    let result = sqlx::query(
-        r#"
-        UPDATE public.training_application
-        SET name = $2, updated_at = $3
-        WHERE id = $1
-        "#,
-    )
-    .bind(id)
-    .bind(name)
-    .bind(Utc::now())
-    .execute(&mut **transaction)
-    .await?;
-
-    training_application_slot::replace(transaction, id, slots).await?;
-    Ok(result.rows_affected() > 0)
-}
-
-pub async fn mark_deleted(db: &PgPool, id: Uuid) -> Result<bool, sqlx::Error> {
-    let result = sqlx::query(
-        r#"
-        UPDATE public.training_application
-        SET deleted_at = $2, updated_at = $2
-        WHERE id = $1
-        "#,
-    )
-    .bind(id)
-    .bind(Utc::now())
-    .execute(db)
-    .await?;
-
-    Ok(result.rows_affected() > 0)
 }
 
 fn application_select_sql(where_clause: &str) -> String {
@@ -173,4 +45,174 @@ fn application_select_sql(where_clause: &str) -> String {
         {where_clause}
         "#
     )
+}
+
+pub trait TrainingApplicationRepositoryExt<'executor> {
+    async fn list_training_application(
+        self,
+        current_user_id: Uuid,
+        is_admin: bool,
+    ) -> Result<Vec<TrainingApplicationRecord>, sqlx::Error>;
+
+    async fn find_training_application_visible_by_id(
+        self,
+        id: Uuid,
+        current_user_id: Uuid,
+        is_admin: bool,
+    ) -> Result<Option<TrainingApplicationRecord>, sqlx::Error>;
+
+    async fn find_training_application_by_id(
+        self,
+        id: Uuid,
+    ) -> Result<Option<TrainingApplicationRecord>, sqlx::Error>;
+
+    async fn mark_training_application_deleted(self, id: Uuid) -> Result<bool, sqlx::Error>;
+}
+
+impl<'executor, E> TrainingApplicationRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn list_training_application(
+        self,
+        current_user_id: Uuid,
+        is_admin: bool,
+    ) -> Result<Vec<TrainingApplicationRecord>, sqlx::Error> {
+        sqlx::query_as::<_, TrainingApplicationRecord>(&application_select_sql(
+            r#"
+        WHERE ($1 OR training_application.trainee_id = $2)
+        ORDER BY training_application.created_at DESC
+        "#,
+        ))
+        .bind(is_admin)
+        .bind(current_user_id)
+        .fetch_all(self)
+        .await
+    }
+    async fn find_training_application_visible_by_id(
+        self,
+        id: Uuid,
+        current_user_id: Uuid,
+        is_admin: bool,
+    ) -> Result<Option<TrainingApplicationRecord>, sqlx::Error> {
+        sqlx::query_as::<_, TrainingApplicationRecord>(&application_select_sql(
+            r#"
+        WHERE training_application.id = $1
+          AND ($2 OR training_application.trainee_id = $3)
+        "#,
+        ))
+        .bind(id)
+        .bind(is_admin)
+        .bind(current_user_id)
+        .fetch_optional(self)
+        .await
+    }
+    async fn find_training_application_by_id(
+        self,
+        id: Uuid,
+    ) -> Result<Option<TrainingApplicationRecord>, sqlx::Error> {
+        sqlx::query_as::<_, TrainingApplicationRecord>(&application_select_sql(
+            r#"
+        WHERE training_application.id = $1
+        "#,
+        ))
+        .bind(id)
+        .fetch_optional(self)
+        .await
+    }
+    async fn mark_training_application_deleted(self, id: Uuid) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+        UPDATE public.training_application
+        SET deleted_at = $2, updated_at = $2
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(Utc::now())
+        .execute(self)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+}
+
+pub trait TrainingApplicationTransactionExt {
+    async fn create_training_application(
+        &mut self,
+        trainee_id: Uuid,
+        name: &str,
+        slots: &[TrainingApplicationSlotSave],
+    ) -> Result<Uuid, sqlx::Error>;
+
+    async fn update_training_application(
+        &mut self,
+        id: Uuid,
+        name: &str,
+        slots: &[TrainingApplicationSlotSave],
+    ) -> Result<bool, sqlx::Error>;
+}
+
+impl TrainingApplicationTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+    async fn create_training_application(
+        &mut self,
+        trainee_id: Uuid,
+        name: &str,
+        slots: &[TrainingApplicationSlotSave],
+    ) -> Result<Uuid, sqlx::Error> {
+        tracing::info!(
+            operation = "create",
+            repository = "src/repository/atc_training/training_application.rs",
+            "modifying data"
+        );
+
+        let id = Uuid::from(Ulid::new());
+        let now = Utc::now();
+        sqlx::query(
+            r#"
+        INSERT INTO public.training_application (
+            id, trainee_id, name, created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $4)
+        "#,
+        )
+        .bind(id)
+        .bind(trainee_id)
+        .bind(name)
+        .bind(now)
+        .execute(&mut **self)
+        .await?;
+
+        self.replace_training_application_slot(id, slots).await?;
+        Ok(id)
+    }
+
+    async fn update_training_application(
+        &mut self,
+        id: Uuid,
+        name: &str,
+        slots: &[TrainingApplicationSlotSave],
+    ) -> Result<bool, sqlx::Error> {
+        tracing::info!(
+            operation = "update",
+            repository = "src/repository/atc_training/training_application.rs",
+            "modifying data"
+        );
+
+        let result = sqlx::query(
+            r#"
+        UPDATE public.training_application
+        SET name = $2, updated_at = $3
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(name)
+        .bind(Utc::now())
+        .execute(&mut **self)
+        .await?;
+
+        self.replace_training_application_slot(id, slots).await?;
+        Ok(result.rows_affected() > 0)
+    }
 }

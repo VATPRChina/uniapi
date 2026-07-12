@@ -3,7 +3,7 @@ use axum::routing::get;
 use axum::{Json, Router};
 
 use crate::dto::*;
-use crate::repository::atc::atc as atc_repository;
+use crate::repository::atc::atc::AtcRepositoryExt;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -19,6 +19,6 @@ pub fn build_atc_routes() -> Router<Services> {
 async fn list_controllers(
     State(services): State<Services>,
 ) -> Result<Json<Vec<AtcStatusDto>>, ApiError> {
-    let rows = atc_repository::list_controllers(services.db()).await?;
+    let rows = services.db().list_atc_controllers().await?;
     Ok(Json(AtcStatusDto::from_controller_rows(rows)?))
 }

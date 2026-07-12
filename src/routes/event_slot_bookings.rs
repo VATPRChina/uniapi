@@ -5,7 +5,7 @@ use axum::{Json, Router};
 use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::user_role::UserRole;
-use crate::repository::event::event_slot_booking::{self as booking_repository};
+use crate::repository::event::event_slot_booking::EventSlotBookingRepositoryExt;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -39,8 +39,9 @@ async fn put_booking(
     };
 
     let mut transaction = services.db().begin().await?;
-    let state =
-        booking_repository::load_state_for_update(&mut transaction, event_id, slot_id).await?;
+    let state = (&mut *transaction)
+        .load_event_slot_booking_state_for_update(event_id, slot_id)
+        .await?;
     if !state.event_exists {
         return Err(ApiError::not_found("event", "unknown"));
     }
@@ -54,10 +55,14 @@ async fn put_booking(
         return Err(ApiError::EventNotInBookingTime);
     }
 
-    booking_repository::create_booking(&mut transaction, slot_id, user_id).await?;
+    (&mut *transaction)
+        .create_event_slot_booking_booking(slot_id, user_id)
+        .await?;
     transaction.commit().await?;
 
-    let booking = booking_repository::find_booking(services.db(), event_id, slot_id)
+    let booking = services
+        .db()
+        .find_event_slot_booking_booking(event_id, slot_id)
         .await?
         .ok_or(ApiError::SlotNotBooked)?;
 
@@ -76,8 +81,9 @@ async fn delete_booking(
     let event_id = parse_ulid_uuid("event_id", &eid)?;
     let slot_id = parse_ulid_uuid("slot_id", &sid)?;
     let mut transaction = services.db().begin().await?;
-    let state =
-        booking_repository::load_state_for_update(&mut transaction, event_id, slot_id).await?;
+    let state = (&mut *transaction)
+        .load_event_slot_booking_state_for_update(event_id, slot_id)
+        .await?;
     if !state.slot_exists {
         return Err(ApiError::not_found("event slot", "unknown"));
     }
@@ -93,10 +99,14 @@ async fn delete_booking(
         return Err(ApiError::SlotBookedByAnotherUser);
     }
 
-    let booking = booking_repository::find_booking(services.db(), event_id, slot_id)
+    let booking = services
+        .db()
+        .find_event_slot_booking_booking(event_id, slot_id)
         .await?
         .ok_or(ApiError::SlotNotBooked)?;
-    booking_repository::delete_booking(&mut transaction, booking_id).await?;
+    (&mut *transaction)
+        .delete_event_slot_booking_booking(booking_id)
+        .await?;
     transaction.commit().await?;
 
     Ok(Json(EventBookingDto::from_booking_record(

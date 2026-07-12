@@ -6,8 +6,8 @@ use uuid::Uuid;
 use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::user_role::UserRole;
-use crate::repository::event::event as event_repository;
-use crate::repository::event::event_airspace::{self as airspace_repository};
+use crate::repository::event::event::EventRepositoryExt;
+use crate::repository::event::event_airspace::EventAirspaceRepositoryExt;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -29,13 +29,16 @@ async fn create_airspace(
     current_user.require_role(UserRole::EventCoordinator)?;
     let event_id = parse_ulid_uuid("event_id", &eid)?;
     ensure_event_exists(&services, event_id).await?;
-    let airspace = airspace_repository::create(services.db(), event_id, request.into()).await?;
+    let airspace = services
+        .db()
+        .create_event_airspace(event_id, request.into())
+        .await?;
 
     Ok(Json(EventAirspaceDto::from(airspace)))
 }
 
 async fn ensure_event_exists(services: &Services, event_id: Uuid) -> Result<(), ApiError> {
-    if event_repository::exists(services.db(), event_id).await? {
+    if services.db().exists_event(event_id).await? {
         Ok(())
     } else {
         Err(ApiError::not_found("event", "unknown"))

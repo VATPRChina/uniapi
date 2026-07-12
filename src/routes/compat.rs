@@ -9,7 +9,7 @@ use std::sync::LazyLock;
 use crate::adapter::compat::CompatClientError;
 use crate::dto::*;
 use crate::error::ApiError;
-use crate::repository::compat::{self as compat_repository};
+use crate::repository::compat::CompatRepositoryExt;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -44,7 +44,9 @@ async fn online_status(
     State(services): State<Services>,
 ) -> Result<Json<CompatVatprcStatusDto>, ApiError> {
     let vatsim_data = services.compat().get_online_data().await?;
-    let future_controllers = compat_repository::future_controllers(services.db())
+    let future_controllers = services
+        .db()
+        .future_compat_controllers()
         .await?
         .into_iter()
         .map(CompatFutureControllerDto::from)

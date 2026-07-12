@@ -7,8 +7,8 @@ use axum::{Json, Router};
 use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::user_role::UserRole;
-use crate::repository::sheet::sheet::{self as sheet_repository};
-use crate::repository::sheet::sheet_field::{self as sheet_field_repository};
+use crate::repository::sheet::sheet::{SheetRepositoryExt, SheetTransactionExt};
+use crate::repository::sheet::sheet_field::SheetFieldRepositoryExt;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -25,11 +25,11 @@ pub fn build_sheet_routes() -> Router<Services> {
 
 #[utoipa::path(get, path = "api/sheets", tag = "Sheets", responses((status = 200, description = "Successful response", body = Vec<SheetDto>)))]
 async fn list_sheets(State(services): State<Services>) -> Result<Json<Vec<SheetDto>>, ApiError> {
-    let sheets = sheet_repository::list(services.db()).await?;
+    let sheets = services.db().list_sheet().await?;
     let mut response = Vec::with_capacity(sheets.len());
 
     for sheet in sheets {
-        let fields = sheet_field_repository::list(services.db(), &sheet.id).await?;
+        let fields = services.db().list_sheet_field(&sheet.id).await?;
         response.push(SheetDto::from_records(sheet, fields));
     }
 
@@ -41,10 +41,12 @@ async fn get_sheet(
     State(services): State<Services>,
     Path(sheet_id): Path<String>,
 ) -> Result<Json<SheetDto>, ApiError> {
-    let sheet = sheet_repository::find(services.db(), &sheet_id)
+    let sheet = services
+        .db()
+        .find_sheet(&sheet_id)
         .await?
         .ok_or_else(|| ApiError::not_found("sheet", &sheet_id))?;
-    let fields = sheet_field_repository::list(services.db(), &sheet_id).await?;
+    let fields = services.db().list_sheet_field(&sheet_id).await?;
 
     Ok(Json(SheetDto::from_records(sheet, fields)))
 }
@@ -59,8 +61,10 @@ async fn upsert_sheet(
     current_user.require_role(UserRole::Staff)?;
     validate_sheet_request(&request)?;
 
-    let sheet = sheet_repository::upsert(services.db(), &sheet_id, request.into()).await?;
-    let fields = sheet_field_repository::list(services.db(), &sheet_id).await?;
+    let mut transaction = services.db().begin().await?;
+    let sheet = transaction.upsert_sheet(&sheet_id, request.into()).await?;
+    transaction.commit().await?;
+    let fields = services.db().list_sheet_field(&sheet_id).await?;
 
     Ok(Json(SheetDto::from_records(sheet, fields)))
 }

@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool, Postgres, Transaction};
+use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -24,13 +24,39 @@ pub struct SlotBookingState {
     pub is_in_booking_period: bool,
 }
 
-pub async fn find_booking(
-    db: &PgPool,
-    event_id: Uuid,
-    slot_id: Uuid,
-) -> Result<Option<EventBookingRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventBookingRecord>(
-        r#"
+pub trait EventSlotBookingRepositoryExt<'executor> {
+    async fn find_event_slot_booking_booking(
+        self,
+        event_id: Uuid,
+        slot_id: Uuid,
+    ) -> Result<Option<EventBookingRecord>, sqlx::Error>;
+
+    async fn load_event_slot_booking_state_for_update(
+        self,
+        event_id: Uuid,
+        slot_id: Uuid,
+    ) -> Result<SlotBookingState, sqlx::Error>;
+
+    async fn create_event_slot_booking_booking(
+        self,
+        slot_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Uuid, sqlx::Error>;
+
+    async fn delete_event_slot_booking_booking(self, booking_id: Uuid) -> Result<(), sqlx::Error>;
+}
+
+impl<'executor, E> EventSlotBookingRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn find_event_slot_booking_booking(
+        self,
+        event_id: Uuid,
+        slot_id: Uuid,
+    ) -> Result<Option<EventBookingRecord>, sqlx::Error> {
+        sqlx::query_as::<_, EventBookingRecord>(
+            r#"
         SELECT event_booking.id,
                event_booking.user_id,
                event_booking.created_at,
@@ -45,20 +71,19 @@ pub async fn find_booking(
         LEFT JOIN public."user" ON "user".id = event_booking.user_id
         WHERE event_airspace.event_id = $1 AND event_slot.id = $2
         "#,
-    )
-    .bind(event_id)
-    .bind(slot_id)
-    .fetch_optional(db)
-    .await
-}
-
-pub async fn load_state_for_update(
-    transaction: &mut Transaction<'_, Postgres>,
-    event_id: Uuid,
-    slot_id: Uuid,
-) -> Result<SlotBookingState, sqlx::Error> {
-    sqlx::query_as::<_, SlotBookingState>(
-        r#"
+        )
+        .bind(event_id)
+        .bind(slot_id)
+        .fetch_optional(self)
+        .await
+    }
+    async fn load_event_slot_booking_state_for_update(
+        self,
+        event_id: Uuid,
+        slot_id: Uuid,
+    ) -> Result<SlotBookingState, sqlx::Error> {
+        sqlx::query_as::<_, SlotBookingState>(
+            r#"
         WITH locked_slot AS (
             SELECT event_slot.id
             FROM public.event_slot
@@ -81,54 +106,50 @@ pub async fn load_state_for_update(
         LEFT JOIN locked_slot ON TRUE
         LEFT JOIN public.event_booking ON event_booking.event_slot_id = locked_slot.id
         "#,
-    )
-    .bind(event_id)
-    .bind(slot_id)
-    .fetch_one(&mut **transaction)
-    .await
-}
+        )
+        .bind(event_id)
+        .bind(slot_id)
+        .fetch_one(self)
+        .await
+    }
+    async fn create_event_slot_booking_booking(
+        self,
+        slot_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Uuid, sqlx::Error> {
+        tracing::info!(
+            operation = "create_booking",
+            repository = "src/repository/event/event_slot_booking.rs",
+            "modifying data"
+        );
 
-pub async fn create_booking(
-    transaction: &mut Transaction<'_, Postgres>,
-    slot_id: Uuid,
-    user_id: Uuid,
-) -> Result<Uuid, sqlx::Error> {
-    tracing::info!(
-        operation = "create_booking",
-        repository = "src/repository/event/event_slot_booking.rs",
-        "modifying data"
-    );
-
-    let id = Uuid::from(Ulid::new());
-    sqlx::query(
-        r#"
+        let id = Uuid::from(Ulid::new());
+        sqlx::query(
+            r#"
         INSERT INTO public.event_booking (id, user_id, event_slot_id)
         VALUES ($1, $2, $3)
         "#,
-    )
-    .bind(id)
-    .bind(user_id)
-    .bind(slot_id)
-    .execute(&mut **transaction)
-    .await?;
-
-    Ok(id)
-}
-
-pub async fn delete_booking(
-    transaction: &mut Transaction<'_, Postgres>,
-    booking_id: Uuid,
-) -> Result<(), sqlx::Error> {
-    tracing::info!(
-        operation = "delete_booking",
-        repository = "src/repository/event/event_slot_booking.rs",
-        "modifying data"
-    );
-
-    sqlx::query("DELETE FROM public.event_booking WHERE id = $1")
-        .bind(booking_id)
-        .execute(&mut **transaction)
+        )
+        .bind(id)
+        .bind(user_id)
+        .bind(slot_id)
+        .execute(self)
         .await?;
 
-    Ok(())
+        Ok(id)
+    }
+    async fn delete_event_slot_booking_booking(self, booking_id: Uuid) -> Result<(), sqlx::Error> {
+        tracing::info!(
+            operation = "delete_booking",
+            repository = "src/repository/event/event_slot_booking.rs",
+            "modifying data"
+        );
+
+        sqlx::query("DELETE FROM public.event_booking WHERE id = $1")
+            .bind(booking_id)
+            .execute(self)
+            .await?;
+
+        Ok(())
+    }
 }

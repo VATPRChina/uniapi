@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize, de::IntoDeserializer};
 use serde_json::Value;
-use sqlx::{Executor, FromRow, PgPool, Postgres};
+use sqlx::FromRow;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -141,80 +141,6 @@ impl TryFrom<AuditLogRecord> for AuditLog {
     }
 }
 
-pub async fn create<'executor, E>(
-    executor: E,
-    audit_log: AuditLog,
-) -> Result<AuditLogRecord, sqlx::Error>
-where
-    E: Executor<'executor, Database = Postgres>,
-{
-    let record = AuditLogRecord::from(audit_log);
-
-    sqlx::query_as::<_, AuditLogRecord>(
-        r#"
-        INSERT INTO public.audit_log (
-            entity_kind, entity_id, child_entity_kind, child_entity_id,
-            before, after, operated_by, created_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING entity_kind, entity_id, child_entity_kind, child_entity_id,
-                  before, after, operated_by, created_at
-        "#,
-    )
-    .bind(record.entity_kind)
-    .bind(record.entity_id)
-    .bind(record.child_entity_kind)
-    .bind(record.child_entity_id)
-    .bind(record.before)
-    .bind(record.after)
-    .bind(record.operated_by)
-    .bind(record.created_at)
-    .fetch_one(executor)
-    .await
-}
-
-pub async fn list_by_entity_kind(
-    db: &PgPool,
-    entity_kind: AuditLogEntityKind,
-) -> Result<Vec<AuditLog>, sqlx::Error> {
-    list_records(
-        sqlx::query_as::<_, AuditLogRecord>(
-            r#"
-            SELECT entity_kind, entity_id, child_entity_kind, child_entity_id,
-                   before, after, operated_by, created_at
-            FROM public.audit_log
-            WHERE entity_kind = $1
-            ORDER BY created_at DESC
-            "#,
-        )
-        .bind(entity_kind.to_string())
-        .fetch_all(db)
-        .await?,
-    )
-}
-
-pub async fn list_by_entity_kind_and_id(
-    db: &PgPool,
-    entity_kind: AuditLogEntityKind,
-    entity_id: Uuid,
-) -> Result<Vec<AuditLog>, sqlx::Error> {
-    list_records(
-        sqlx::query_as::<_, AuditLogRecord>(
-            r#"
-            SELECT entity_kind, entity_id, child_entity_kind, child_entity_id,
-                   before, after, operated_by, created_at
-            FROM public.audit_log
-            WHERE entity_kind = $1 AND entity_id = $2
-            ORDER BY created_at DESC
-            "#,
-        )
-        .bind(entity_kind.to_string())
-        .bind(entity_id)
-        .fetch_all(db)
-        .await?,
-    )
-}
-
 fn list_records(records: Vec<AuditLogRecord>) -> Result<Vec<AuditLog>, sqlx::Error> {
     records
         .into_iter()
@@ -291,5 +217,91 @@ mod tests {
             AuditLog::try_from(record("unknown", Uuid::nil())).unwrap_err(),
             InvalidAuditLogEntityKind("unknown".to_owned())
         );
+    }
+}
+
+pub trait AuditLogRepositoryExt<'executor> {
+    async fn create_audit_log(self, audit_log: AuditLog) -> Result<AuditLogRecord, sqlx::Error>;
+
+    async fn list_audit_log_by_entity_kind(
+        self,
+        entity_kind: AuditLogEntityKind,
+    ) -> Result<Vec<AuditLog>, sqlx::Error>;
+
+    async fn list_audit_log_by_entity_kind_and_id(
+        self,
+        entity_kind: AuditLogEntityKind,
+        entity_id: Uuid,
+    ) -> Result<Vec<AuditLog>, sqlx::Error>;
+}
+
+impl<'executor, E> AuditLogRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn create_audit_log(self, audit_log: AuditLog) -> Result<AuditLogRecord, sqlx::Error> {
+        let record = AuditLogRecord::from(audit_log);
+
+        sqlx::query_as::<_, AuditLogRecord>(
+            r#"
+        INSERT INTO public.audit_log (
+            entity_kind, entity_id, child_entity_kind, child_entity_id,
+            before, after, operated_by, created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING entity_kind, entity_id, child_entity_kind, child_entity_id,
+                  before, after, operated_by, created_at
+        "#,
+        )
+        .bind(record.entity_kind)
+        .bind(record.entity_id)
+        .bind(record.child_entity_kind)
+        .bind(record.child_entity_id)
+        .bind(record.before)
+        .bind(record.after)
+        .bind(record.operated_by)
+        .bind(record.created_at)
+        .fetch_one(self)
+        .await
+    }
+    async fn list_audit_log_by_entity_kind(
+        self,
+        entity_kind: AuditLogEntityKind,
+    ) -> Result<Vec<AuditLog>, sqlx::Error> {
+        list_records(
+            sqlx::query_as::<_, AuditLogRecord>(
+                r#"
+            SELECT entity_kind, entity_id, child_entity_kind, child_entity_id,
+                   before, after, operated_by, created_at
+            FROM public.audit_log
+            WHERE entity_kind = $1
+            ORDER BY created_at DESC
+            "#,
+            )
+            .bind(entity_kind.to_string())
+            .fetch_all(self)
+            .await?,
+        )
+    }
+    async fn list_audit_log_by_entity_kind_and_id(
+        self,
+        entity_kind: AuditLogEntityKind,
+        entity_id: Uuid,
+    ) -> Result<Vec<AuditLog>, sqlx::Error> {
+        list_records(
+            sqlx::query_as::<_, AuditLogRecord>(
+                r#"
+            SELECT entity_kind, entity_id, child_entity_kind, child_entity_id,
+                   before, after, operated_by, created_at
+            FROM public.audit_log
+            WHERE entity_kind = $1 AND entity_id = $2
+            ORDER BY created_at DESC
+            "#,
+            )
+            .bind(entity_kind.to_string())
+            .bind(entity_id)
+            .fetch_all(self)
+            .await?,
+        )
     }
 }

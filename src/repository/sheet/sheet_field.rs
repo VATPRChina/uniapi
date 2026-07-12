@@ -1,4 +1,4 @@
-use sqlx::{FromRow, PgPool};
+use sqlx::FromRow;
 
 #[derive(Debug, Clone, FromRow)]
 pub struct SheetFieldRecord {
@@ -27,9 +27,17 @@ pub struct SheetFieldSave {
     pub is_deleted: bool,
 }
 
-pub async fn list(db: &PgPool, sheet_id: &str) -> Result<Vec<SheetFieldRecord>, sqlx::Error> {
-    sqlx::query_as::<_, SheetFieldRecord>(
-        r#"
+pub trait SheetFieldRepositoryExt<'executor> {
+    async fn list_sheet_field(self, sheet_id: &str) -> Result<Vec<SheetFieldRecord>, sqlx::Error>;
+}
+
+impl<'executor, E> SheetFieldRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn list_sheet_field(self, sheet_id: &str) -> Result<Vec<SheetFieldRecord>, sqlx::Error> {
+        sqlx::query_as::<_, SheetFieldRecord>(
+            r#"
         SELECT sheet_id,
                id,
                sequence,
@@ -44,8 +52,9 @@ pub async fn list(db: &PgPool, sheet_id: &str) -> Result<Vec<SheetFieldRecord>, 
         WHERE sheet_id = $1
         ORDER BY sequence
         "#,
-    )
-    .bind(sheet_id)
-    .fetch_all(db)
-    .await
+        )
+        .bind(sheet_id)
+        .fetch_all(self)
+        .await
+    }
 }

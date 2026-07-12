@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use sqlx::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, FromRow)]
@@ -18,11 +18,17 @@ pub struct AtcControllerPermissionRecord {
     pub solo_expires_at: Option<DateTime<Utc>>,
 }
 
-pub async fn list_controllers(
-    db: &PgPool,
-) -> Result<Vec<AtcControllerPermissionRecord>, sqlx::Error> {
-    sqlx::query_as::<_, AtcControllerPermissionRecord>(
-        r#"
+pub trait AtcRepositoryExt<'executor> {
+    async fn list_atc_controllers(self) -> Result<Vec<AtcControllerPermissionRecord>, sqlx::Error>;
+}
+
+impl<'executor, E> AtcRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn list_atc_controllers(self) -> Result<Vec<AtcControllerPermissionRecord>, sqlx::Error> {
+        sqlx::query_as::<_, AtcControllerPermissionRecord>(
+            r#"
         SELECT user_atc_permission.user_id,
                "user".cid AS user_cid,
                "user".full_name AS user_full_name,
@@ -40,7 +46,8 @@ pub async fn list_controllers(
         LEFT JOIN public.user_atc_status ON user_atc_status.user_id = user_atc_permission.user_id
         ORDER BY "user".cid, user_atc_permission.position_kind_id
         "#,
-    )
-    .fetch_all(db)
-    .await
+        )
+        .fetch_all(self)
+        .await
+    }
 }

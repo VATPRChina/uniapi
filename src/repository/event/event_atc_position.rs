@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use sqlx::{FromRow, PgPool, Postgres, Transaction};
+use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -54,253 +54,11 @@ pub struct UserAtcPermissionRecord {
     pub solo_expires_at: Option<DateTime<Utc>>,
 }
 
-pub async fn list_by_event(
-    db: &PgPool,
-    event_id: Uuid,
-) -> Result<Vec<EventAtcPositionRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventAtcPositionRecord>(&position_select_sql(
-        r#"
-        WHERE event_atc_position.event_id = $1
-        "#,
-    ))
-    .bind(event_id)
-    .fetch_all(db)
-    .await
-}
-
-pub async fn find_by_event_and_id(
-    db: &PgPool,
-    event_id: Uuid,
-    position_id: Uuid,
-) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventAtcPositionRecord>(&position_select_sql(
-        r#"
-        WHERE event_atc_position.event_id = $1 AND event_atc_position.id = $2
-        "#,
-    ))
-    .bind(event_id)
-    .bind(position_id)
-    .fetch_optional(db)
-    .await
-}
-
-pub async fn find_by_event_and_id_in_transaction(
-    transaction: &mut Transaction<'_, Postgres>,
-    event_id: Uuid,
-    position_id: Uuid,
-    for_update: bool,
-) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
-    let lock_clause = if for_update {
-        "FOR UPDATE OF event_atc_position"
-    } else {
-        ""
-    };
-    sqlx::query_as::<_, EventAtcPositionRecord>(&position_select_sql(&format!(
-        r#"
-        WHERE event_atc_position.event_id = $1 AND event_atc_position.id = $2
-        {lock_clause}
-        "#
-    )))
-    .bind(event_id)
-    .bind(position_id)
-    .fetch_optional(&mut **transaction)
-    .await
-}
-
-pub async fn create(
-    transaction: &mut Transaction<'_, Postgres>,
-    event_id: Uuid,
-    position: EventAtcPositionSave,
-) -> Result<EventAtcPositionRecord, sqlx::Error> {
-    tracing::info!(
-        operation = "create",
-        repository = "src/repository/event/event_atc_position.rs",
-        "modifying data"
-    );
-
-    let id = Uuid::from(Ulid::new());
-    sqlx::query(
-        r#"
-        INSERT INTO public.event_atc_position (
-            id, event_id, callsign, start_at, end_at, remarks,
-            position_kind_id, minimum_controller_state
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        "#,
-    )
-    .bind(id)
-    .bind(event_id)
-    .bind(position.callsign)
-    .bind(position.start_at)
-    .bind(position.end_at)
-    .bind(position.remarks)
-    .bind(position.position_kind_id)
-    .bind(position.minimum_controller_state)
-    .execute(&mut **transaction)
-    .await?;
-
-    find_by_event_and_id_in_transaction(transaction, event_id, id, false)
-        .await?
-        .ok_or(sqlx::Error::RowNotFound)
-}
-
-pub async fn update(
-    transaction: &mut Transaction<'_, Postgres>,
-    event_id: Uuid,
-    position_id: Uuid,
-    position: EventAtcPositionSave,
-) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
-    tracing::info!(
-        operation = "update",
-        repository = "src/repository/event/event_atc_position.rs",
-        "modifying data"
-    );
-
-    let result = sqlx::query(
-        r#"
-        UPDATE public.event_atc_position
-        SET callsign = $3,
-            start_at = $4,
-            end_at = $5,
-            remarks = $6,
-            position_kind_id = $7,
-            minimum_controller_state = $8
-        WHERE event_id = $1 AND id = $2
-        "#,
-    )
-    .bind(event_id)
-    .bind(position_id)
-    .bind(position.callsign)
-    .bind(position.start_at)
-    .bind(position.end_at)
-    .bind(position.remarks)
-    .bind(position.position_kind_id)
-    .bind(position.minimum_controller_state)
-    .execute(&mut **transaction)
-    .await?;
-
-    if result.rows_affected() == 0 {
-        return Ok(None);
-    }
-
-    find_by_event_and_id_in_transaction(transaction, event_id, position_id, false).await
-}
-
-pub async fn delete(
-    transaction: &mut Transaction<'_, Postgres>,
-    event_id: Uuid,
-    position_id: Uuid,
-) -> Result<bool, sqlx::Error> {
-    tracing::info!(
-        operation = "delete",
-        repository = "src/repository/event/event_atc_position.rs",
-        "modifying data"
-    );
-
-    let result = sqlx::query(
-        r#"
-        DELETE FROM public.event_atc_position
-        WHERE event_id = $1 AND id = $2
-        "#,
-    )
-    .bind(event_id)
-    .bind(position_id)
-    .execute(&mut **transaction)
-    .await?;
-
-    Ok(result.rows_affected() > 0)
-}
-
-pub async fn user_permission(
-    db: &PgPool,
-    user_id: Uuid,
-    position_kind_id: &str,
-) -> Result<Option<UserAtcPermissionRecord>, sqlx::Error> {
-    sqlx::query_as::<_, UserAtcPermissionRecord>(
-        r#"
-        SELECT state, solo_expires_at
-        FROM public.user_atc_permission
-        WHERE user_id = $1 AND position_kind_id = $2
-        "#,
-    )
-    .bind(user_id)
-    .bind(position_kind_id)
-    .fetch_optional(db)
-    .await
-}
-
-pub async fn create_booking(
-    transaction: &mut Transaction<'_, Postgres>,
-    position: &EventAtcPositionRecord,
-    user_id: Uuid,
-) -> Result<(), sqlx::Error> {
-    tracing::info!(
-        operation = "create_booking",
-        repository = "src/repository/event/event_atc_position.rs",
-        "modifying data"
-    );
-
-    let atc_booking_id = Uuid::from(Ulid::new());
-    let now = Utc::now();
-    sqlx::query(
-        r#"
-        INSERT INTO public.atc_booking (id, user_id, callsign, booked_at, start_at, end_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        "#,
-    )
-    .bind(atc_booking_id)
-    .bind(user_id)
-    .bind(&position.callsign)
-    .bind(now)
-    .bind(position.start_at)
-    .bind(position.end_at)
-    .execute(&mut **transaction)
-    .await?;
-    sqlx::query(
-        r#"
-        INSERT INTO public.event_atc_position_booking (
-            event_atc_position_id, user_id, created_at, atc_booking_id
-        )
-        VALUES ($1, $2, $3, $4)
-        "#,
-    )
-    .bind(position.id)
-    .bind(user_id)
-    .bind(now)
-    .bind(atc_booking_id)
-    .execute(&mut **transaction)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn delete_booking(
-    transaction: &mut Transaction<'_, Postgres>,
-    position_id: Uuid,
-    atc_booking_id: Option<Uuid>,
-) -> Result<(), sqlx::Error> {
-    tracing::info!(
-        operation = "delete_booking",
-        repository = "src/repository/event/event_atc_position.rs",
-        "modifying data"
-    );
-
-    sqlx::query("DELETE FROM public.event_atc_position_booking WHERE event_atc_position_id = $1")
-        .bind(position_id)
-        .execute(&mut **transaction)
-        .await?;
-
-    if let Some(atc_booking_id) = atc_booking_id {
-        sqlx::query("DELETE FROM public.atc_booking WHERE id = $1")
-            .bind(atc_booking_id)
-            .execute(&mut **transaction)
-            .await?;
-    }
-
-    Ok(())
-}
-
 fn position_select_sql(where_clause: &str) -> String {
+    position_select_sql_from("public.event_atc_position", where_clause)
+}
+
+fn position_select_sql_from(source: &str, where_clause: &str) -> String {
     format!(
         r#"
         SELECT event_atc_position.id,
@@ -336,7 +94,7 @@ fn position_select_sql(where_clause: &str) -> String {
                "user".updated_at AS booking_user_updated_at,
                "user".roles AS booking_user_roles,
                event_atc_position_booking.atc_booking_id
-        FROM public.event_atc_position
+        FROM {source}
         JOIN public.event ON event.id = event_atc_position.event_id
         LEFT JOIN public.event_atc_position_booking
             ON event_atc_position_booking.event_atc_position_id = event_atc_position.id
@@ -344,4 +102,316 @@ fn position_select_sql(where_clause: &str) -> String {
         {where_clause}
         "#
     )
+}
+
+pub trait EventAtcPositionRepositoryExt<'executor> {
+    async fn list_event_atc_position_by_event(
+        self,
+        event_id: Uuid,
+    ) -> Result<Vec<EventAtcPositionRecord>, sqlx::Error>;
+
+    async fn find_event_atc_position_by_event_and_id(
+        self,
+        event_id: Uuid,
+        position_id: Uuid,
+    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error>;
+
+    async fn find_event_atc_position_by_event_and_id_in_transaction(
+        self,
+        event_id: Uuid,
+        position_id: Uuid,
+        for_update: bool,
+    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error>;
+
+    async fn create_event_atc_position(
+        self,
+        event_id: Uuid,
+        position: EventAtcPositionSave,
+    ) -> Result<EventAtcPositionRecord, sqlx::Error>;
+
+    async fn update_event_atc_position(
+        self,
+        event_id: Uuid,
+        position_id: Uuid,
+        position: EventAtcPositionSave,
+    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error>;
+
+    async fn delete_event_atc_position(
+        self,
+        event_id: Uuid,
+        position_id: Uuid,
+    ) -> Result<bool, sqlx::Error>;
+
+    async fn user_event_atc_position_permission(
+        self,
+        user_id: Uuid,
+        position_kind_id: &str,
+    ) -> Result<Option<UserAtcPermissionRecord>, sqlx::Error>;
+}
+
+impl<'executor, E> EventAtcPositionRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn list_event_atc_position_by_event(
+        self,
+        event_id: Uuid,
+    ) -> Result<Vec<EventAtcPositionRecord>, sqlx::Error> {
+        sqlx::query_as::<_, EventAtcPositionRecord>(&position_select_sql(
+            r#"
+        WHERE event_atc_position.event_id = $1
+        "#,
+        ))
+        .bind(event_id)
+        .fetch_all(self)
+        .await
+    }
+    async fn find_event_atc_position_by_event_and_id(
+        self,
+        event_id: Uuid,
+        position_id: Uuid,
+    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
+        sqlx::query_as::<_, EventAtcPositionRecord>(&position_select_sql(
+            r#"
+        WHERE event_atc_position.event_id = $1 AND event_atc_position.id = $2
+        "#,
+        ))
+        .bind(event_id)
+        .bind(position_id)
+        .fetch_optional(self)
+        .await
+    }
+    async fn find_event_atc_position_by_event_and_id_in_transaction(
+        self,
+        event_id: Uuid,
+        position_id: Uuid,
+        for_update: bool,
+    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
+        let lock_clause = if for_update {
+            "FOR UPDATE OF event_atc_position"
+        } else {
+            ""
+        };
+        sqlx::query_as::<_, EventAtcPositionRecord>(&position_select_sql(&format!(
+            r#"
+        WHERE event_atc_position.event_id = $1 AND event_atc_position.id = $2
+        {lock_clause}
+        "#
+        )))
+        .bind(event_id)
+        .bind(position_id)
+        .fetch_optional(self)
+        .await
+    }
+    async fn create_event_atc_position(
+        self,
+        event_id: Uuid,
+        position: EventAtcPositionSave,
+    ) -> Result<EventAtcPositionRecord, sqlx::Error> {
+        tracing::info!(
+            operation = "create",
+            repository = "src/repository/event/event_atc_position.rs",
+            "modifying data"
+        );
+
+        let id = Uuid::from(Ulid::new());
+        let query = format!(
+            r#"
+        WITH inserted_position AS (
+            INSERT INTO public.event_atc_position (
+                id, event_id, callsign, start_at, end_at, remarks,
+                position_kind_id, minimum_controller_state
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *
+        )
+        "#,
+        ) + &position_select_sql_from(
+            "inserted_position AS event_atc_position",
+            "WHERE event_atc_position.id = $1",
+        );
+        sqlx::query_as::<_, EventAtcPositionRecord>(&query)
+            .bind(id)
+            .bind(event_id)
+            .bind(position.callsign)
+            .bind(position.start_at)
+            .bind(position.end_at)
+            .bind(position.remarks)
+            .bind(position.position_kind_id)
+            .bind(position.minimum_controller_state)
+            .fetch_one(self)
+            .await
+    }
+    async fn update_event_atc_position(
+        self,
+        event_id: Uuid,
+        position_id: Uuid,
+        position: EventAtcPositionSave,
+    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
+        tracing::info!(
+            operation = "update",
+            repository = "src/repository/event/event_atc_position.rs",
+            "modifying data"
+        );
+
+        let query = format!(
+            r#"
+        WITH updated_position AS (
+            UPDATE public.event_atc_position
+            SET callsign = $3,
+                start_at = $4,
+                end_at = $5,
+                remarks = $6,
+                position_kind_id = $7,
+                minimum_controller_state = $8
+            WHERE event_id = $1 AND id = $2
+            RETURNING *
+        )
+        "#,
+        ) + &position_select_sql_from(
+            "updated_position AS event_atc_position",
+            "WHERE event_atc_position.id = $2",
+        );
+        sqlx::query_as::<_, EventAtcPositionRecord>(&query)
+            .bind(event_id)
+            .bind(position_id)
+            .bind(position.callsign)
+            .bind(position.start_at)
+            .bind(position.end_at)
+            .bind(position.remarks)
+            .bind(position.position_kind_id)
+            .bind(position.minimum_controller_state)
+            .fetch_optional(self)
+            .await
+    }
+    async fn delete_event_atc_position(
+        self,
+        event_id: Uuid,
+        position_id: Uuid,
+    ) -> Result<bool, sqlx::Error> {
+        tracing::info!(
+            operation = "delete",
+            repository = "src/repository/event/event_atc_position.rs",
+            "modifying data"
+        );
+
+        let result = sqlx::query(
+            r#"
+        DELETE FROM public.event_atc_position
+        WHERE event_id = $1 AND id = $2
+        "#,
+        )
+        .bind(event_id)
+        .bind(position_id)
+        .execute(self)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+    async fn user_event_atc_position_permission(
+        self,
+        user_id: Uuid,
+        position_kind_id: &str,
+    ) -> Result<Option<UserAtcPermissionRecord>, sqlx::Error> {
+        sqlx::query_as::<_, UserAtcPermissionRecord>(
+            r#"
+        SELECT state, solo_expires_at
+        FROM public.user_atc_permission
+        WHERE user_id = $1 AND position_kind_id = $2
+        "#,
+        )
+        .bind(user_id)
+        .bind(position_kind_id)
+        .fetch_optional(self)
+        .await
+    }
+}
+
+pub trait EventAtcPositionTransactionExt {
+    async fn create_event_atc_position_booking(
+        &mut self,
+        position: &EventAtcPositionRecord,
+        user_id: Uuid,
+    ) -> Result<(), sqlx::Error>;
+
+    async fn delete_event_atc_position_booking(
+        &mut self,
+        position_id: Uuid,
+        atc_booking_id: Option<Uuid>,
+    ) -> Result<(), sqlx::Error>;
+}
+
+impl EventAtcPositionTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+    async fn create_event_atc_position_booking(
+        &mut self,
+        position: &EventAtcPositionRecord,
+        user_id: Uuid,
+    ) -> Result<(), sqlx::Error> {
+        tracing::info!(
+            operation = "create_booking",
+            repository = "src/repository/event/event_atc_position.rs",
+            "modifying data"
+        );
+
+        let atc_booking_id = Uuid::from(Ulid::new());
+        let now = Utc::now();
+        sqlx::query(
+            r#"
+        INSERT INTO public.atc_booking (id, user_id, callsign, booked_at, start_at, end_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        "#,
+        )
+        .bind(atc_booking_id)
+        .bind(user_id)
+        .bind(&position.callsign)
+        .bind(now)
+        .bind(position.start_at)
+        .bind(position.end_at)
+        .execute(&mut **self)
+        .await?;
+        sqlx::query(
+            r#"
+        INSERT INTO public.event_atc_position_booking (
+            event_atc_position_id, user_id, created_at, atc_booking_id
+        )
+        VALUES ($1, $2, $3, $4)
+        "#,
+        )
+        .bind(position.id)
+        .bind(user_id)
+        .bind(now)
+        .bind(atc_booking_id)
+        .execute(&mut **self)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn delete_event_atc_position_booking(
+        &mut self,
+        position_id: Uuid,
+        atc_booking_id: Option<Uuid>,
+    ) -> Result<(), sqlx::Error> {
+        tracing::info!(
+            operation = "delete_booking",
+            repository = "src/repository/event/event_atc_position.rs",
+            "modifying data"
+        );
+
+        sqlx::query(
+            "DELETE FROM public.event_atc_position_booking WHERE event_atc_position_id = $1",
+        )
+        .bind(position_id)
+        .execute(&mut **self)
+        .await?;
+
+        if let Some(atc_booking_id) = atc_booking_id {
+            sqlx::query("DELETE FROM public.atc_booking WHERE id = $1")
+                .bind(atc_booking_id)
+                .execute(&mut **self)
+                .await?;
+        }
+
+        Ok(())
+    }
 }

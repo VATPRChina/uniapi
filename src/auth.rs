@@ -13,8 +13,8 @@ use uuid::Uuid;
 use crate::error::ApiError;
 use crate::jwt::JwtError;
 use crate::model::user_role::{UserRole, role_closure_from_strings};
-use crate::repository::atc::user_atc_permission;
-use crate::repository::auth::user;
+use crate::repository::atc::user_atc_permission::UserAtcPermissionRepositoryExt;
+use crate::repository::auth::user::UserRepositoryExt;
 use crate::services::Services;
 
 #[derive(Debug, Clone)]
@@ -132,17 +132,25 @@ async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentU
     };
     let user_id = Uuid::from(user_ulid);
 
-    if let Some(user) = user::find_by_id(services.db(), user_id).await? {
+    if let Some(user) = services.db().find_user_by_id(user_id).await? {
         roles.insert(UserRole::User);
         roles.extend(role_closure_from_strings(
             user.roles.iter().map(String::as_str),
         ));
 
-        if user_atc_permission::has_any_by_user_id(services.db(), user.id).await? {
+        if services
+            .db()
+            .has_user_atc_permission_any_by_user_id(user.id)
+            .await?
+        {
             roles.insert(UserRole::Controller);
         }
 
-        if user_atc_permission::has_mentor_by_user_id(services.db(), user.id).await? {
+        if services
+            .db()
+            .has_user_atc_permission_mentor_by_user_id(user.id)
+            .await?
+        {
             roles.insert(UserRole::ControllerTrainingMentor);
             roles.insert(UserRole::Volunteer);
         }

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use sqlx::{FromRow, PgPool, Postgres, Transaction};
+use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -39,82 +39,11 @@ pub struct EventSlotSave {
     pub aircraft_type_icao: Option<String>,
 }
 
-pub async fn list_by_event(
-    db: &PgPool,
-    event_id: Uuid,
-) -> Result<Vec<EventSlotRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventSlotRecord>(&slot_select_sql(
-        r#"
-        WHERE event_airspace.event_id = $1
-        ORDER BY event_slot.enter_at, event_slot.leave_at
-        "#,
-    ))
-    .bind(event_id)
-    .fetch_all(db)
-    .await
-}
-
-pub async fn create(
-    transaction: &mut Transaction<'_, Postgres>,
-    slot: EventSlotSave,
-) -> Result<EventSlotRecord, sqlx::Error> {
-    tracing::info!(
-        operation = "create",
-        repository = "src/repository/event/event_slot.rs",
-        "modifying data"
-    );
-
-    let id = Uuid::from(Ulid::new());
-    sqlx::query(
-        r#"
-        INSERT INTO public.event_slot (
-            id, event_airspace_id, enter_at, leave_at, callsign, aircraft_type_icao
-        )
-        VALUES ($1, $2, $3, $4, $5, $6)
-        "#,
-    )
-    .bind(id)
-    .bind(slot.airspace_id)
-    .bind(slot.enter_at)
-    .bind(slot.leave_at)
-    .bind(slot.callsign)
-    .bind(slot.aircraft_type_icao)
-    .execute(&mut **transaction)
-    .await?;
-
-    find_by_id(transaction, id)
-        .await?
-        .ok_or(sqlx::Error::RowNotFound)
-}
-
-pub async fn booking_export_rows(db: &PgPool, event_id: Uuid) -> Result<Vec<String>, sqlx::Error> {
-    sqlx::query_scalar::<_, String>(
-        r#"
-        SELECT "user".cid || ',' || to_char(event_slot.enter_at AT TIME ZONE 'UTC', 'HH24MI')
-        FROM public.event_booking
-        JOIN public."user" ON "user".id = event_booking.user_id
-        JOIN public.event_slot ON event_slot.id = event_booking.event_slot_id
-        JOIN public.event_airspace ON event_airspace.id = event_slot.event_airspace_id
-        WHERE event_airspace.event_id = $1
-        ORDER BY event_slot.enter_at
-        "#,
-    )
-    .bind(event_id)
-    .fetch_all(db)
-    .await
-}
-
-async fn find_by_id(
-    transaction: &mut Transaction<'_, Postgres>,
-    id: Uuid,
-) -> Result<Option<EventSlotRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventSlotRecord>(&slot_select_sql("WHERE event_slot.id = $1"))
-        .bind(id)
-        .fetch_optional(&mut **transaction)
-        .await
-}
-
 fn slot_select_sql(where_clause: &str) -> String {
+    slot_select_sql_from("public.event_slot", where_clause)
+}
+
+fn slot_select_sql_from(source: &str, where_clause: &str) -> String {
     format!(
         r#"
         SELECT event_slot.id,
@@ -139,11 +68,94 @@ fn slot_select_sql(where_clause: &str) -> String {
                "user".created_at AS booking_user_created_at,
                "user".updated_at AS booking_user_updated_at,
                "user".roles AS booking_user_roles
-        FROM public.event_slot
+        FROM {source}
         JOIN public.event_airspace ON event_airspace.id = event_slot.event_airspace_id
         LEFT JOIN public.event_booking ON event_booking.event_slot_id = event_slot.id
         LEFT JOIN public."user" ON "user".id = event_booking.user_id
         {where_clause}
         "#
     )
+}
+
+pub trait EventSlotRepositoryExt<'executor> {
+    async fn list_event_slot_by_event(
+        self,
+        event_id: Uuid,
+    ) -> Result<Vec<EventSlotRecord>, sqlx::Error>;
+
+    async fn create_event_slot(self, slot: EventSlotSave) -> Result<EventSlotRecord, sqlx::Error>;
+
+    async fn booking_event_slot_export_rows(
+        self,
+        event_id: Uuid,
+    ) -> Result<Vec<String>, sqlx::Error>;
+}
+
+impl<'executor, E> EventSlotRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn list_event_slot_by_event(
+        self,
+        event_id: Uuid,
+    ) -> Result<Vec<EventSlotRecord>, sqlx::Error> {
+        sqlx::query_as::<_, EventSlotRecord>(&slot_select_sql(
+            r#"
+        WHERE event_airspace.event_id = $1
+        ORDER BY event_slot.enter_at, event_slot.leave_at
+        "#,
+        ))
+        .bind(event_id)
+        .fetch_all(self)
+        .await
+    }
+    async fn create_event_slot(self, slot: EventSlotSave) -> Result<EventSlotRecord, sqlx::Error> {
+        tracing::info!(
+            operation = "create",
+            repository = "src/repository/event/event_slot.rs",
+            "modifying data"
+        );
+
+        let id = Uuid::from(Ulid::new());
+        let query =
+            format!(
+                r#"
+        WITH inserted_slot AS (
+            INSERT INTO public.event_slot (
+                id, event_airspace_id, enter_at, leave_at, callsign, aircraft_type_icao
+            )
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+        )
+        "#,
+            ) + &slot_select_sql_from("inserted_slot AS event_slot", "WHERE event_slot.id = $1");
+        sqlx::query_as::<_, EventSlotRecord>(&query)
+            .bind(id)
+            .bind(slot.airspace_id)
+            .bind(slot.enter_at)
+            .bind(slot.leave_at)
+            .bind(slot.callsign)
+            .bind(slot.aircraft_type_icao)
+            .fetch_one(self)
+            .await
+    }
+    async fn booking_event_slot_export_rows(
+        self,
+        event_id: Uuid,
+    ) -> Result<Vec<String>, sqlx::Error> {
+        sqlx::query_scalar::<_, String>(
+            r#"
+        SELECT "user".cid || ',' || to_char(event_slot.enter_at AT TIME ZONE 'UTC', 'HH24MI')
+        FROM public.event_booking
+        JOIN public."user" ON "user".id = event_booking.user_id
+        JOIN public.event_slot ON event_slot.id = event_booking.event_slot_id
+        JOIN public.event_airspace ON event_airspace.id = event_slot.event_airspace_id
+        WHERE event_airspace.event_id = $1
+        ORDER BY event_slot.enter_at
+        "#,
+        )
+        .bind(event_id)
+        .fetch_all(self)
+        .await
+    }
 }

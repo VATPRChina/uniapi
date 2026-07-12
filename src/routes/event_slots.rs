@@ -10,8 +10,8 @@ use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
-use crate::repository::event::event as event_repository;
-use crate::repository::event::event_slot::{self as slot_repository};
+use crate::repository::event::event::EventRepositoryExt;
+use crate::repository::event::event_slot::EventSlotRepositoryExt;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -35,7 +35,9 @@ async fn list_slots(
     ensure_event_exists(&services, event_id).await?;
 
     Ok(Json(
-        slot_repository::list_by_event(services.db(), event_id)
+        services
+            .db()
+            .list_event_slot_by_event(event_id)
             .await?
             .into_iter()
             .map(|slot| EventSlotDto::from_record(slot, false))
@@ -52,7 +54,10 @@ async fn export_bookings(
     current_user.require_role(UserRole::EventCoordinator)?;
     let event_id = parse_ulid_uuid("event_id", &eid)?;
     ensure_event_exists(&services, event_id).await?;
-    let rows = slot_repository::booking_export_rows(services.db(), event_id).await?;
+    let rows = services
+        .db()
+        .booking_event_slot_export_rows(event_id)
+        .await?;
 
     Ok((
         StatusCode::OK,
@@ -79,7 +84,9 @@ async fn create_slot(
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let event_id = parse_ulid_uuid("event_id", &eid)?;
     let mut transaction = services.db().begin().await?;
-    let slot = slot_repository::create(&mut transaction, request.try_into()?).await?;
+    let slot = (&mut *transaction)
+        .create_event_slot(request.try_into()?)
+        .await?;
     if slot.event_id != event_id {
         return Err(ApiError::not_found("event airspace", "unknown"));
     }
@@ -101,7 +108,7 @@ async fn create_slot(
 }
 
 async fn ensure_event_exists(services: &Services, event_id: Uuid) -> Result<(), ApiError> {
-    if event_repository::exists(services.db(), event_id).await? {
+    if services.db().exists_event(event_id).await? {
         Ok(())
     } else {
         Err(ApiError::not_found("event", "unknown"))

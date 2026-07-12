@@ -7,9 +7,8 @@ use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::{UserRole, role_closure_from_strings};
-use crate::repository::auth::user::{
-    self as user_repository, UserDetailRecord, UserMoodleProvisionRecord,
-};
+use crate::repository::auth::user::UserRepositoryExt;
+use crate::repository::auth::user::{UserDetailRecord, UserMoodleProvisionRecord};
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -32,7 +31,9 @@ async fn list_users(
 ) -> Result<Json<Vec<UserDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
     let show_full_name = current_user.has_role(UserRole::Staff);
-    let users = user_repository::list_details_ordered_by_cid(services.db())
+    let users = services
+        .db()
+        .list_user_details_ordered_by_cid()
         .await?
         .into_iter()
         .map(|user| user_dto(user, None, show_full_name, None))
@@ -52,7 +53,8 @@ async fn set_roles(
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let id = parse_ulid_uuid("user_id", &id)?;
     let mut transaction = services.db().begin().await?;
-    let user = user_repository::find_detail_by_id_for_update(&mut transaction, id)
+    let user = (&mut *transaction)
+        .find_user_detail_by_id_for_update(id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
 
@@ -66,7 +68,8 @@ async fn set_roles(
     }
 
     let before = user;
-    let user = user_repository::set_roles(&mut transaction, id, roles.into_iter().collect())
+    let user = (&mut *transaction)
+        .set_user_roles(id, roles.into_iter().collect())
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
     services
@@ -91,10 +94,14 @@ async fn ensure_moodle_account(
 ) -> Result<Json<UserDto>, ApiError> {
     current_user.require_role(UserRole::TechDirector)?;
     let id = parse_ulid_uuid("user_id", &id)?;
-    let user = user_repository::find_detail_by_id(services.db(), id)
+    let user = services
+        .db()
+        .find_user_detail_by_id(id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
-    let provision = user_repository::find_moodle_provision_by_id(services.db(), id)
+    let provision = services
+        .db()
+        .find_user_moodle_provision_by_id(id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
     let moodle_account = ensure_moodle_user(&services, &provision).await?;
@@ -110,7 +117,9 @@ async fn me(
     let user_id = current_user
         .user_id
         .ok_or(ApiError::not_found("user", "unknown"))?;
-    let user = user_repository::find_detail_by_id(services.db(), user_id)
+    let user = services
+        .db()
+        .find_user_detail_by_id(user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
     let moodle_account = moodle_account(&services, &user.cid).await?;

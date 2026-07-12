@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use sqlx::{FromRow, PgPool, Postgres, Transaction};
+use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -37,9 +37,39 @@ pub struct EventSave {
     pub description: String,
 }
 
-pub async fn list_current(db: &PgPool) -> Result<Vec<EventRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventRecord>(
-        r#"
+pub trait EventRepositoryExt<'executor> {
+    async fn list_event_current(self) -> Result<Vec<EventRecord>, sqlx::Error>;
+
+    async fn list_event_past(
+        self,
+        until: Option<DateTime<Utc>>,
+    ) -> Result<Vec<EventRecord>, sqlx::Error>;
+
+    async fn find_event_by_id(self, id: Uuid) -> Result<Option<EventRecord>, sqlx::Error>;
+
+    async fn exists_event(self, id: Uuid) -> Result<bool, sqlx::Error>;
+
+    async fn create_event(self, event: EventSave) -> Result<EventRecord, sqlx::Error>;
+
+    async fn find_event_by_id_for_update(
+        self,
+        id: Uuid,
+    ) -> Result<Option<EventRecord>, sqlx::Error>;
+
+    async fn update_event(
+        self,
+        id: Uuid,
+        event: EventSave,
+    ) -> Result<Option<EventRecord>, sqlx::Error>;
+}
+
+impl<'executor, E> EventRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn list_event_current(self) -> Result<Vec<EventRecord>, sqlx::Error> {
+        sqlx::query_as::<_, EventRecord>(
+            r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
                community_link, vatsim_link, description
@@ -48,17 +78,16 @@ pub async fn list_current(db: &PgPool) -> Result<Vec<EventRecord>, sqlx::Error> 
           AND now() < end_at
         ORDER BY start_at
         "#,
-    )
-    .fetch_all(db)
-    .await
-}
-
-pub async fn list_past(
-    db: &PgPool,
-    until: Option<DateTime<Utc>>,
-) -> Result<Vec<EventRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventRecord>(
-        r#"
+        )
+        .fetch_all(self)
+        .await
+    }
+    async fn list_event_past(
+        self,
+        until: Option<DateTime<Utc>>,
+    ) -> Result<Vec<EventRecord>, sqlx::Error> {
+        sqlx::query_as::<_, EventRecord>(
+            r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
                community_link, vatsim_link, description
@@ -68,54 +97,48 @@ pub async fn list_past(
           AND ($1::timestamptz IS NULL OR start_at <= $1)
         ORDER BY start_at DESC
         "#,
-    )
-    .bind(until)
-    .fetch_all(db)
-    .await
-}
-
-pub async fn find_by_id(db: &PgPool, id: Uuid) -> Result<Option<EventRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventRecord>(
-        r#"
+        )
+        .bind(until)
+        .fetch_all(self)
+        .await
+    }
+    async fn find_event_by_id(self, id: Uuid) -> Result<Option<EventRecord>, sqlx::Error> {
+        sqlx::query_as::<_, EventRecord>(
+            r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
                community_link, vatsim_link, description
         FROM public.event
         WHERE id = $1
         "#,
-    )
-    .bind(id)
-    .fetch_optional(db)
-    .await
-}
-
-pub async fn exists(db: &PgPool, id: Uuid) -> Result<bool, sqlx::Error> {
-    sqlx::query_scalar::<_, bool>(
-        r#"
+        )
+        .bind(id)
+        .fetch_optional(self)
+        .await
+    }
+    async fn exists_event(self, id: Uuid) -> Result<bool, sqlx::Error> {
+        sqlx::query_scalar::<_, bool>(
+            r#"
         SELECT EXISTS (
             SELECT 1
             FROM public.event
             WHERE id = $1
         )
         "#,
-    )
-    .bind(id)
-    .fetch_one(db)
-    .await
-}
+        )
+        .bind(id)
+        .fetch_one(self)
+        .await
+    }
+    async fn create_event(self, event: EventSave) -> Result<EventRecord, sqlx::Error> {
+        tracing::info!(
+            operation = "create",
+            repository = "src/repository/event/event.rs",
+            "modifying data"
+        );
 
-pub async fn create(
-    transaction: &mut Transaction<'_, Postgres>,
-    event: EventSave,
-) -> Result<EventRecord, sqlx::Error> {
-    tracing::info!(
-        operation = "create",
-        repository = "src/repository/event/event.rs",
-        "modifying data"
-    );
-
-    sqlx::query_as::<_, EventRecord>(
-        r#"
+        sqlx::query_as::<_, EventRecord>(
+            r#"
         INSERT INTO public.event (
             id, title, title_en, start_at, end_at, start_booking_at, end_booking_at,
             start_atc_booking_at, image_url, community_link, vatsim_link, description
@@ -125,29 +148,28 @@ pub async fn create(
                   start_booking_at, end_booking_at, start_atc_booking_at, image_url,
                   community_link, vatsim_link, description
         "#,
-    )
-    .bind(Uuid::from(Ulid::new()))
-    .bind(event.title)
-    .bind(event.title_en)
-    .bind(event.start_at)
-    .bind(event.end_at)
-    .bind(event.start_booking_at)
-    .bind(event.end_booking_at)
-    .bind(event.start_atc_booking_at)
-    .bind(event.image_url)
-    .bind(event.community_link)
-    .bind(event.vatsim_link)
-    .bind(event.description)
-    .fetch_one(&mut **transaction)
-    .await
-}
-
-pub async fn find_by_id_for_update(
-    transaction: &mut Transaction<'_, Postgres>,
-    id: Uuid,
-) -> Result<Option<EventRecord>, sqlx::Error> {
-    sqlx::query_as::<_, EventRecord>(
-        r#"
+        )
+        .bind(Uuid::from(Ulid::new()))
+        .bind(event.title)
+        .bind(event.title_en)
+        .bind(event.start_at)
+        .bind(event.end_at)
+        .bind(event.start_booking_at)
+        .bind(event.end_booking_at)
+        .bind(event.start_atc_booking_at)
+        .bind(event.image_url)
+        .bind(event.community_link)
+        .bind(event.vatsim_link)
+        .bind(event.description)
+        .fetch_one(self)
+        .await
+    }
+    async fn find_event_by_id_for_update(
+        self,
+        id: Uuid,
+    ) -> Result<Option<EventRecord>, sqlx::Error> {
+        sqlx::query_as::<_, EventRecord>(
+            r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
                community_link, vatsim_link, description
@@ -155,25 +177,24 @@ pub async fn find_by_id_for_update(
         WHERE id = $1
         FOR UPDATE
         "#,
-    )
-    .bind(id)
-    .fetch_optional(&mut **transaction)
-    .await
-}
+        )
+        .bind(id)
+        .fetch_optional(self)
+        .await
+    }
+    async fn update_event(
+        self,
+        id: Uuid,
+        event: EventSave,
+    ) -> Result<Option<EventRecord>, sqlx::Error> {
+        tracing::info!(
+            operation = "update",
+            repository = "src/repository/event/event.rs",
+            "modifying data"
+        );
 
-pub async fn update(
-    transaction: &mut Transaction<'_, Postgres>,
-    id: Uuid,
-    event: EventSave,
-) -> Result<Option<EventRecord>, sqlx::Error> {
-    tracing::info!(
-        operation = "update",
-        repository = "src/repository/event/event.rs",
-        "modifying data"
-    );
-
-    sqlx::query_as::<_, EventRecord>(
-        r#"
+        sqlx::query_as::<_, EventRecord>(
+            r#"
         UPDATE public.event
         SET title = $2,
             title_en = $3,
@@ -192,19 +213,20 @@ pub async fn update(
                   start_booking_at, end_booking_at, start_atc_booking_at, image_url,
                   community_link, vatsim_link, description
         "#,
-    )
-    .bind(id)
-    .bind(event.title)
-    .bind(event.title_en)
-    .bind(event.start_at)
-    .bind(event.end_at)
-    .bind(event.start_booking_at)
-    .bind(event.end_booking_at)
-    .bind(event.start_atc_booking_at)
-    .bind(event.image_url)
-    .bind(event.community_link)
-    .bind(event.vatsim_link)
-    .bind(event.description)
-    .fetch_optional(&mut **transaction)
-    .await
+        )
+        .bind(id)
+        .bind(event.title)
+        .bind(event.title_en)
+        .bind(event.start_at)
+        .bind(event.end_at)
+        .bind(event.start_booking_at)
+        .bind(event.end_booking_at)
+        .bind(event.start_atc_booking_at)
+        .bind(event.image_url)
+        .bind(event.community_link)
+        .bind(event.vatsim_link)
+        .bind(event.description)
+        .fetch_optional(self)
+        .await
+    }
 }

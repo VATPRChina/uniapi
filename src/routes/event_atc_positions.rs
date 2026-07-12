@@ -10,8 +10,10 @@ use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
+use crate::repository::event::event_atc_position::EventAtcPositionRepositoryExt;
+use crate::repository::event::event_atc_position::EventAtcPositionTransactionExt;
 use crate::repository::event::event_atc_position::{
-    self as position_repository, EventAtcPositionRecord, UserAtcPermissionRecord,
+    EventAtcPositionRecord, UserAtcPermissionRecord,
 };
 use crate::routes::ApiError;
 use crate::services::Services;
@@ -48,7 +50,9 @@ async fn list_positions(
 ) -> Result<Json<Vec<EventAtcPositionDto>>, ApiError> {
     let event_id = parse_ulid_uuid("event_id", &event_id)?;
     Ok(Json(
-        position_repository::list_by_event(services.db(), event_id)
+        services
+            .db()
+            .list_event_atc_position_by_event(event_id)
             .await?
             .into_iter()
             .map(EventAtcPositionDto::from)
@@ -67,8 +71,9 @@ async fn create_position(
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let event_id = parse_ulid_uuid("event_id", &event_id)?;
     let mut transaction = services.db().begin().await?;
-    let position =
-        position_repository::create(&mut transaction, event_id, request.try_into()?).await?;
+    let position = (&mut *transaction)
+        .create_event_atc_position(event_id, request.try_into()?)
+        .await?;
     create_position_audit_log(
         services.audit_log(),
         &position,
@@ -94,18 +99,14 @@ async fn update_position(
     let event_id = parse_ulid_uuid("event_id", &event_id)?;
     let position_id = parse_ulid_uuid("position_id", &position_id)?;
     let mut transaction = services.db().begin().await?;
-    let before = position_repository::find_by_event_and_id_in_transaction(
-        &mut transaction,
-        event_id,
-        position_id,
-        true,
-    )
-    .await?
-    .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
-    let position =
-        position_repository::update(&mut transaction, event_id, position_id, request.try_into()?)
-            .await?
-            .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
+    let before = (&mut *transaction)
+        .find_event_atc_position_by_event_and_id_in_transaction(event_id, position_id, true)
+        .await?
+        .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
+    let position = (&mut *transaction)
+        .update_event_atc_position(event_id, position_id, request.try_into()?)
+        .await?
+        .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
     create_position_audit_log(
         services.audit_log(),
         &position,
@@ -130,15 +131,14 @@ async fn delete_position(
     let event_id = parse_ulid_uuid("event_id", &event_id)?;
     let position_id = parse_ulid_uuid("position_id", &position_id)?;
     let mut transaction = services.db().begin().await?;
-    let position = position_repository::find_by_event_and_id_in_transaction(
-        &mut transaction,
-        event_id,
-        position_id,
-        true,
-    )
-    .await?
-    .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
-    if !position_repository::delete(&mut transaction, event_id, position_id).await? {
+    let position = (&mut *transaction)
+        .find_event_atc_position_by_event_and_id_in_transaction(event_id, position_id, true)
+        .await?
+        .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
+    if !(&mut *transaction)
+        .delete_event_atc_position(event_id, position_id)
+        .await?
+    {
         return Err(ApiError::not_found("event ATC position", "unknown"));
     }
     create_position_audit_log(
@@ -178,37 +178,32 @@ async fn book_position(
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin_booking = request.user_id.is_some();
     let mut transaction = services.db().begin().await?;
-    let position = position_repository::find_by_event_and_id_in_transaction(
-        &mut transaction,
-        event_id,
-        position_id,
-        true,
-    )
-    .await?
-    .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
+    let position = (&mut *transaction)
+        .find_event_atc_position_by_event_and_id_in_transaction(event_id, position_id, true)
+        .await?
+        .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
     if position.booking_user_id.is_some() {
         return Err(ApiError::PositionBooked);
     }
     if !position.event_is_in_atc_booking_period && !is_admin_booking {
         return Err(ApiError::EventNotInBookingTime);
     }
-    let permission =
-        position_repository::user_permission(services.db(), user_id, &position.position_kind_id)
-            .await?
-            .ok_or(ApiError::InsufficientAtcPermission)?;
+    let permission = services
+        .db()
+        .user_event_atc_position_permission(user_id, &position.position_kind_id)
+        .await?
+        .ok_or(ApiError::InsufficientAtcPermission)?;
     if !permission_satisfies(&permission, position.minimum_controller_state) {
         return Err(ApiError::InsufficientAtcPermission);
     }
 
-    position_repository::create_booking(&mut transaction, &position, user_id).await?;
-    let after = position_repository::find_by_event_and_id_in_transaction(
-        &mut transaction,
-        event_id,
-        position_id,
-        false,
-    )
-    .await?
-    .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
+    (&mut transaction)
+        .create_event_atc_position_booking(&position, user_id)
+        .await?;
+    let after = (&mut *transaction)
+        .find_event_atc_position_by_event_and_id_in_transaction(event_id, position_id, false)
+        .await?
+        .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
     create_position_audit_log(
         services.audit_log(),
         &after,
@@ -233,14 +228,10 @@ async fn cancel_position_booking(
     let position_id = parse_ulid_uuid("position_id", &position_id)?;
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let mut transaction = services.db().begin().await?;
-    let position = position_repository::find_by_event_and_id_in_transaction(
-        &mut transaction,
-        event_id,
-        position_id,
-        true,
-    )
-    .await?
-    .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
+    let position = (&mut *transaction)
+        .find_event_atc_position_by_event_and_id_in_transaction(event_id, position_id, true)
+        .await?
+        .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
     let Some(booking_user_id) = position.booking_user_id else {
         return Err(ApiError::PositionNotBooked);
     };
@@ -248,16 +239,13 @@ async fn cancel_position_booking(
         return Err(ApiError::PositionBookedByAnotherUser);
     }
     let dto = EventAtcPositionBookingDto::try_from(position.clone())?;
-    position_repository::delete_booking(&mut transaction, position.id, position.atc_booking_id)
+    (&mut transaction)
+        .delete_event_atc_position_booking(position.id, position.atc_booking_id)
         .await?;
-    let after = position_repository::find_by_event_and_id_in_transaction(
-        &mut transaction,
-        event_id,
-        position_id,
-        false,
-    )
-    .await?
-    .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
+    let after = (&mut *transaction)
+        .find_event_atc_position_by_event_and_id_in_transaction(event_id, position_id, false)
+        .await?
+        .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
     create_position_audit_log(
         services.audit_log(),
         &after,

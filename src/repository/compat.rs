@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use sqlx::FromRow;
 
 #[derive(FromRow)]
 pub struct FutureControllerRow {
@@ -9,8 +9,16 @@ pub struct FutureControllerRow {
     pub end_at: DateTime<Utc>,
 }
 
-pub async fn future_controllers(db: &PgPool) -> Result<Vec<FutureControllerRow>, sqlx::Error> {
-    sqlx::query_as::<_, FutureControllerRow>(
+pub trait CompatRepositoryExt<'executor> {
+    async fn future_compat_controllers(self) -> Result<Vec<FutureControllerRow>, sqlx::Error>;
+}
+
+impl<'executor, E> CompatRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn future_compat_controllers(self) -> Result<Vec<FutureControllerRow>, sqlx::Error> {
+        sqlx::query_as::<_, FutureControllerRow>(
         r#"
         SELECT atc_booking.callsign, "user".full_name AS name, atc_booking.start_at, atc_booking.end_at
         FROM atc_booking
@@ -18,6 +26,7 @@ pub async fn future_controllers(db: &PgPool) -> Result<Vec<FutureControllerRow>,
         WHERE atc_booking.start_at >= now()
         "#,
     )
-    .fetch_all(db)
+    .fetch_all(self)
     .await
+    }
 }

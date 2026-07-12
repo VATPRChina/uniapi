@@ -8,7 +8,8 @@ use ulid::Ulid;
 use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::user_role::UserRole;
-use crate::repository::auth::{session as session_repository, user as user_repository};
+use crate::repository::auth::session::SessionRepositoryExt;
+use crate::repository::auth::user::UserRepositoryExt;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -28,7 +29,9 @@ async fn get_current(
     let user_id = current_user
         .user_id
         .ok_or(ApiError::not_found("user", "unknown"))?;
-    let user = user_repository::find_detail_by_id(services.db(), user_id)
+    let user = services
+        .db()
+        .find_user_detail_by_id(user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
     let moodle_account = services
@@ -86,7 +89,7 @@ async fn logout(
         .parse::<Ulid>()
         .map_err(|_| ApiError::bad_request("session_id", "invalid ULID"))?;
 
-    if !session_repository::delete(services.db(), session_id).await? {
+    if !services.db().delete_session(session_id).await? {
         return Err(ApiError::not_found("refresh token", session_id.to_string()));
     }
 

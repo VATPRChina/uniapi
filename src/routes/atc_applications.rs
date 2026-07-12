@@ -11,16 +11,13 @@ use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
-use crate::repository::atc::atc_application::{
-    self as application_repository, AtcApplicationRecord,
-};
-use crate::repository::sheet::sheet_field::{self as sheet_field_repository};
-use crate::repository::sheet::sheet_filing_answer::{
-    self as sheet_filing_answer_repository, SheetAnswerRecord, SheetAnswerSave,
-};
-use crate::repository::sheet::{
-    sheet as sheet_repository, sheet_filing as sheet_filing_repository,
-};
+use crate::repository::atc::atc_application::AtcApplicationRecord;
+use crate::repository::atc::atc_application::AtcApplicationRepositoryExt;
+use crate::repository::sheet::sheet::SheetRepositoryExt;
+use crate::repository::sheet::sheet_field::SheetFieldRepositoryExt;
+use crate::repository::sheet::sheet_filing::SheetFilingTransactionExt;
+use crate::repository::sheet::sheet_filing_answer::SheetFilingAnswerRepositoryExt;
+use crate::repository::sheet::sheet_filing_answer::{SheetAnswerRecord, SheetAnswerSave};
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -55,7 +52,9 @@ async fn list_applications(
 ) -> Result<Json<Vec<AtcApplicationSummaryDto>>, ApiError> {
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin = current_user.has_role(UserRole::ControllerTrainingDirectorAssistant);
-    let applications = application_repository::list(services.db())
+    let applications = services
+        .db()
+        .list_atc_application()
         .await?
         .into_iter()
         .filter(|application| is_admin || application.user_id == current_user_id)
@@ -74,7 +73,12 @@ async fn create_application(
     Json(request): Json<AtcApplicationRequest>,
 ) -> Result<Json<AtcApplicationSummaryDto>, ApiError> {
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    if application_repository::count_active_by_user(services.db(), current_user_id).await? > 0 {
+    if services
+        .db()
+        .count_atc_application_active_by_user(current_user_id)
+        .await?
+        > 0
+    {
         return Err(ApiError::ApplicationAlreadyExists);
     }
 
@@ -84,16 +88,12 @@ async fn create_application(
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
     let mut transaction = services.db().begin().await?;
-    let filing_id = sheet_filing_repository::set(
-        &mut transaction,
-        APPLICATION_SHEET_ID,
-        None,
-        current_user_id,
-        &answers,
-    )
-    .await?;
-    let application =
-        application_repository::create(&mut transaction, current_user_id, filing_id).await?;
+    let filing_id = (&mut transaction)
+        .set_sheet_filing(APPLICATION_SHEET_ID, None, current_user_id, &answers)
+        .await?;
+    let application = (&mut *transaction)
+        .create_atc_application(current_user_id, filing_id)
+        .await?;
     create_application_audit_log(
         services.audit_log(),
         &mut transaction,
@@ -142,10 +142,10 @@ async fn update_application(
     let is_admin = current_user.has_role(UserRole::ControllerTrainingDirectorAssistant);
     let application_id = parse_ulid_uuid("id", &id)?;
     let mut transaction = services.db().begin().await?;
-    let application =
-        application_repository::find_by_id_for_update(&mut transaction, application_id)
-            .await?
-            .ok_or(ApiError::not_found("application", &id))?;
+    let application = (&mut *transaction)
+        .find_atc_application_by_id_for_update(application_id)
+        .await?
+        .ok_or(ApiError::not_found("application", &id))?;
     ensure_application_visible(&application, current_user_id, is_admin)?;
     if AtcApplicationStatus::from_db_str(&application.status)? != AtcApplicationStatus::Submitted {
         return Err(ApiError::ApplicationCannotUpdate);
@@ -157,18 +157,18 @@ async fn update_application(
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    sheet_filing_repository::set(
-        &mut transaction,
-        APPLICATION_SHEET_ID,
-        Some(application.application_filing_id),
-        current_user_id,
-        &answers,
-    )
-    .await?;
-    let application =
-        application_repository::find_by_id_for_update(&mut transaction, application.id)
-            .await?
-            .ok_or(ApiError::not_found("application", &id))?;
+    (&mut transaction)
+        .set_sheet_filing(
+            APPLICATION_SHEET_ID,
+            Some(application.application_filing_id),
+            current_user_id,
+            &answers,
+        )
+        .await?;
+    let application = (&mut *transaction)
+        .find_atc_application_by_id_for_update(application.id)
+        .await?
+        .ok_or(ApiError::not_found("application", &id))?;
     create_application_audit_log(
         services.audit_log(),
         &mut transaction,
@@ -212,32 +212,28 @@ async fn review_application(
     let application_id = parse_ulid_uuid("id", &id)?;
     let approved = request.status == AtcApplicationStatus::Approved;
     let mut transaction = services.db().begin().await?;
-    let application =
-        application_repository::find_by_id_for_update(&mut transaction, application_id)
-            .await?
-            .ok_or(ApiError::not_found("application", &id))?;
+    let application = (&mut *transaction)
+        .find_atc_application_by_id_for_update(application_id)
+        .await?
+        .ok_or(ApiError::not_found("application", &id))?;
     let before = application_audit_snapshot(&mut transaction, &application).await?;
     let answers = request
         .review_answers
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let filing_id = sheet_filing_repository::set(
-        &mut transaction,
-        REVIEW_SHEET_ID,
-        application.review_filing_id,
-        current_user_id,
-        &answers,
-    )
-    .await?;
-    let application = application_repository::set_review(
-        &mut transaction,
-        application_id,
-        request.status.as_db_str(),
-        filing_id,
-    )
-    .await?
-    .ok_or(ApiError::not_found("application", &id))?;
+    let filing_id = (&mut transaction)
+        .set_sheet_filing(
+            REVIEW_SHEET_ID,
+            application.review_filing_id,
+            current_user_id,
+            &answers,
+        )
+        .await?;
+    let application = (&mut *transaction)
+        .set_atc_application_review(application_id, request.status.as_db_str(), filing_id)
+        .await?
+        .ok_or(ApiError::not_found("application", &id))?;
     create_application_audit_log(
         services.audit_log(),
         &mut transaction,
@@ -273,7 +269,9 @@ async fn get_visible_application(
     current_user_id: Uuid,
     is_admin: bool,
 ) -> Result<AtcApplicationRecord, ApiError> {
-    let application = application_repository::find_by_id(services.db(), id)
+    let application = services
+        .db()
+        .find_atc_application_by_id(id)
         .await?
         .ok_or(ApiError::not_found("application", id.to_string()))?;
     ensure_application_visible(&application, current_user_id, is_admin)?;
@@ -307,14 +305,13 @@ async fn application_audit_snapshot(
     transaction: &mut Transaction<'_, Postgres>,
     application: &AtcApplicationRecord,
 ) -> Result<AtcApplicationAuditSnapshot, ApiError> {
-    let application_filing_answers = sheet_filing_answer_repository::list_by_filing_in_transaction(
-        transaction,
-        application.application_filing_id,
-    )
-    .await?;
+    let application_filing_answers = (&mut **transaction)
+        .list_sheet_filing_answer_by_filing_in_transaction(application.application_filing_id)
+        .await?;
     let review_filing_answers = match application.review_filing_id {
         Some(filing_id) => Some(
-            sheet_filing_answer_repository::list_by_filing_in_transaction(transaction, filing_id)
+            (&mut **transaction)
+                .list_sheet_filing_answer_by_filing_in_transaction(filing_id)
                 .await?,
         ),
         None => None,
@@ -353,17 +350,18 @@ async fn application_to_dto(
     is_admin: bool,
     current_user_id: Uuid,
 ) -> Result<AtcApplicationDto, ApiError> {
-    let application_filing_answers = sheet_filing_answer_repository::list_by_filing(
-        services.db(),
-        application.application_filing_id,
-    )
-    .await?
-    .into_iter()
-    .map(SheetFieldAnswerDto::from)
-    .collect();
+    let application_filing_answers = services
+        .db()
+        .list_sheet_filing_answer_by_filing(application.application_filing_id)
+        .await?
+        .into_iter()
+        .map(SheetFieldAnswerDto::from)
+        .collect();
     let review_filing_answers = match application.review_filing_id {
         Some(review_filing_id) => Some(
-            sheet_filing_answer_repository::list_by_filing(services.db(), review_filing_id)
+            services
+                .db()
+                .list_sheet_filing_answer_by_filing(review_filing_id)
                 .await?
                 .into_iter()
                 .map(SheetFieldAnswerDto::from)
@@ -442,11 +440,13 @@ async fn sheet_dto(
     sheet_id: &str,
     sheet_name: &str,
 ) -> Result<SheetDto, ApiError> {
-    sheet_repository::ensure(services.db(), sheet_id, sheet_name).await?;
-    let sheet = sheet_repository::find(services.db(), sheet_id)
+    services.db().ensure_sheet(sheet_id, sheet_name).await?;
+    let sheet = services
+        .db()
+        .find_sheet(sheet_id)
         .await?
         .ok_or(ApiError::not_found("sheet", sheet_id))?;
-    let fields = sheet_field_repository::list(services.db(), sheet_id).await?;
+    let fields = services.db().list_sheet_field(sheet_id).await?;
 
     Ok(SheetDto {
         id: sheet.id,

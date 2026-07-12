@@ -4,7 +4,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::model::audit_log::{AuditLog, AuditLogEntity};
-use crate::repository::audit_log as audit_log_repository;
+use crate::repository::audit_log::AuditLogRepositoryExt;
 
 #[derive(Debug, Clone)]
 pub struct AuditLogService {
@@ -26,17 +26,15 @@ impl AuditLogService {
         let before = serialize_snapshot(before)?;
         let after = serialize_snapshot(after)?;
 
-        audit_log_repository::create(
-            &self.db,
-            AuditLog {
+        self.db
+            .create_audit_log(AuditLog {
                 entity,
                 before,
                 after,
                 operated_by,
                 created_at: Utc::now(),
-            },
-        )
-        .await?;
+            })
+            .await?;
 
         Ok(())
     }

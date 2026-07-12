@@ -9,12 +9,11 @@ use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
-use crate::repository::atc::user_atc_permission::{
-    self as atc_permission_repository, AtcPermissionRecord,
-};
-use crate::repository::atc::user_atc_status::{
-    self as atc_status_repository, AtcStatusRecord, AtcStatusSave,
-};
+use crate::repository::atc::user_atc_permission::AtcPermissionRecord;
+use crate::repository::atc::user_atc_permission::UserAtcPermissionRepositoryExt;
+use crate::repository::atc::user_atc_status::UserAtcStatusRepositoryExt;
+use crate::repository::atc::user_atc_status::UserAtcStatusTransactionExt;
+use crate::repository::atc::user_atc_status::{AtcStatusRecord, AtcStatusSave};
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -64,7 +63,9 @@ async fn set_status(
     let before = atc_status_audit_snapshot(&mut transaction, user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
-    atc_status_repository::upsert(&mut transaction, user_id, &status).await?;
+    (&mut transaction)
+        .upsert_user_atc_status(user_id, &status)
+        .await?;
     let after = atc_status_audit_snapshot(&mut transaction, user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
@@ -92,13 +93,15 @@ async fn atc_status_audit_snapshot(
     transaction: &mut Transaction<'_, Postgres>,
     user_id: Uuid,
 ) -> Result<Option<AtcStatusAuditSnapshot>, ApiError> {
-    let Some(status) =
-        atc_status_repository::find_by_user_id_for_update(transaction, user_id).await?
+    let Some(status) = (&mut **transaction)
+        .find_user_atc_status_by_user_id_for_update(user_id)
+        .await?
     else {
         return Ok(None);
     };
-    let permissions =
-        atc_permission_repository::list_by_user_id_in_transaction(transaction, user_id).await?;
+    let permissions = (&mut **transaction)
+        .list_user_atc_permission_by_user_id_in_transaction(user_id)
+        .await?;
 
     Ok(Some(AtcStatusAuditSnapshot {
         status,
@@ -107,10 +110,15 @@ async fn atc_status_audit_snapshot(
 }
 
 async fn get_status_for_user(services: &Services, user_id: Uuid) -> Result<AtcStatusDto, ApiError> {
-    let status = atc_status_repository::find_by_user_id(services.db(), user_id)
+    let status = services
+        .db()
+        .find_user_atc_status_by_user_id(user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
-    let permissions = atc_permission_repository::list_by_user_id(services.db(), user_id).await?;
+    let permissions = services
+        .db()
+        .list_user_atc_permission_by_user_id(user_id)
+        .await?;
 
     AtcStatusDto::from_records(status, permissions)
 }

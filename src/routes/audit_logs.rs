@@ -6,7 +6,8 @@ use crate::auth::CurrentUser;
 use crate::dto::{AuditLogDto, parse_ulid_uuid};
 use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
-use crate::repository::audit_log::{self as audit_log_repository, AuditLogEntityKind};
+use crate::repository::audit_log::AuditLogEntityKind;
+use crate::repository::audit_log::AuditLogRepositoryExt;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -56,8 +57,10 @@ async fn list_event_audit_logs(
     current_user: CurrentUser,
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
-    let audit_logs =
-        audit_log_repository::list_by_entity_kind(services.db(), AuditLogEntityKind::Event).await?;
+    let audit_logs = services
+        .db()
+        .list_audit_log_by_entity_kind(AuditLogEntityKind::Event)
+        .await?;
 
     Ok(Json(audit_logs.into_iter().map(Into::into).collect()))
 }
@@ -79,12 +82,10 @@ async fn list_event_audit_logs_by_event(
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
     let id = parse_ulid_uuid("id", &id)?;
-    let audit_logs = audit_log_repository::list_by_entity_kind_and_id(
-        services.db(),
-        AuditLogEntityKind::Event,
-        id,
-    )
-    .await?;
+    let audit_logs = services
+        .db()
+        .list_audit_log_by_entity_kind_and_id(AuditLogEntityKind::Event, id)
+        .await?;
 
     Ok(Json(audit_logs.into_iter().map(Into::into).collect()))
 }
@@ -103,11 +104,10 @@ async fn list_atc_application_audit_logs(
     current_user: CurrentUser,
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
-    let audit_logs = audit_log_repository::list_by_entity_kind(
-        services.db(),
-        AuditLogEntityKind::AtcApplication,
-    )
-    .await?;
+    let audit_logs = services
+        .db()
+        .list_audit_log_by_entity_kind(AuditLogEntityKind::AtcApplication)
+        .await?;
 
     Ok(Json(audit_logs.into_iter().map(Into::into).collect()))
 }
@@ -129,12 +129,10 @@ async fn list_atc_application_audit_logs_by_application(
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
     let id = parse_ulid_uuid("id", &id)?;
-    let audit_logs = audit_log_repository::list_by_entity_kind_and_id(
-        services.db(),
-        AuditLogEntityKind::AtcApplication,
-        id,
-    )
-    .await?;
+    let audit_logs = services
+        .db()
+        .list_audit_log_by_entity_kind_and_id(AuditLogEntityKind::AtcApplication, id)
+        .await?;
 
     Ok(Json(audit_logs.into_iter().map(Into::into).collect()))
 }
@@ -153,8 +151,10 @@ async fn list_user_audit_logs(
     current_user: CurrentUser,
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
-    let audit_logs =
-        audit_log_repository::list_by_entity_kind(services.db(), AuditLogEntityKind::User).await?;
+    let audit_logs = services
+        .db()
+        .list_audit_log_by_entity_kind(AuditLogEntityKind::User)
+        .await?;
 
     Ok(Json(audit_logs.into_iter().map(Into::into).collect()))
 }
@@ -176,12 +176,10 @@ async fn list_user_audit_logs_by_user(
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
     let id = parse_ulid_uuid("id", &id)?;
-    let audit_logs = audit_log_repository::list_by_entity_kind_and_id(
-        services.db(),
-        AuditLogEntityKind::User,
-        id,
-    )
-    .await?;
+    let audit_logs = services
+        .db()
+        .list_audit_log_by_entity_kind_and_id(AuditLogEntityKind::User, id)
+        .await?;
 
     Ok(Json(audit_logs.into_iter().map(Into::into).collect()))
 }
@@ -203,14 +201,12 @@ async fn list_user_atc_status_audit_logs(
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
     let id = parse_ulid_uuid("id", &id)?;
-    let audit_logs = audit_log_repository::list_by_entity_kind_and_id(
-        services.db(),
-        AuditLogEntityKind::User,
-        id,
-    )
-    .await?
-    .into_iter()
-    .filter(|audit_log| matches!(audit_log.entity, AuditLogEntity::UserAtcPermission(_, _)));
+    let audit_logs = services
+        .db()
+        .list_audit_log_by_entity_kind_and_id(AuditLogEntityKind::User, id)
+        .await?
+        .into_iter()
+        .filter(|audit_log| matches!(audit_log.entity, AuditLogEntity::UserAtcPermission(_, _)));
 
     Ok(Json(audit_logs.map(Into::into).collect()))
 }

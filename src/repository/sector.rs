@@ -1,14 +1,21 @@
 use chrono::Utc;
-use sqlx::PgPool;
 use uuid::Uuid;
 
-pub async fn user_can_online(db: &PgPool, user_id: Uuid, cid: &str) -> Result<bool, sqlx::Error> {
-    if cid == "1573922" {
-        return Ok(true);
-    }
+pub trait SectorRepositoryExt<'executor> {
+    async fn user_sector_can_online(self, user_id: Uuid, cid: &str) -> Result<bool, sqlx::Error>;
+}
 
-    sqlx::query_scalar::<_, bool>(
-        r#"
+impl<'executor, E> SectorRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn user_sector_can_online(self, user_id: Uuid, cid: &str) -> Result<bool, sqlx::Error> {
+        if cid == "1573922" {
+            return Ok(true);
+        }
+
+        sqlx::query_scalar::<_, bool>(
+            r#"
         SELECT EXISTS (
             SELECT 1
             FROM public.user_atc_permission
@@ -19,9 +26,10 @@ pub async fn user_can_online(db: &PgPool, user_id: Uuid, cid: &str) -> Result<bo
               )
         )
         "#,
-    )
-    .bind(user_id)
-    .bind(Utc::now())
-    .fetch_one(db)
-    .await
+        )
+        .bind(user_id)
+        .bind(Utc::now())
+        .fetch_one(self)
+        .await
+    }
 }

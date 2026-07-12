@@ -1,9 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use sqlx::{FromRow, PgPool, Postgres, Transaction};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-use crate::repository::atc::user_atc_permission::{self, AtcPermissionSave};
+use crate::repository::atc::user_atc_permission::{
+    AtcPermissionSave, UserAtcPermissionTransactionExt,
+};
 
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct AtcStatusRecord {
@@ -26,12 +28,28 @@ pub struct AtcStatusSave {
     pub permissions: Vec<AtcPermissionSave>,
 }
 
-pub async fn find_by_user_id(
-    db: &PgPool,
-    user_id: Uuid,
-) -> Result<Option<AtcStatusRecord>, sqlx::Error> {
-    sqlx::query_as::<_, AtcStatusRecord>(
-        r#"
+pub trait UserAtcStatusRepositoryExt<'executor> {
+    async fn find_user_atc_status_by_user_id(
+        self,
+        user_id: Uuid,
+    ) -> Result<Option<AtcStatusRecord>, sqlx::Error>;
+
+    async fn find_user_atc_status_by_user_id_for_update(
+        self,
+        user_id: Uuid,
+    ) -> Result<Option<AtcStatusRecord>, sqlx::Error>;
+}
+
+impl<'executor, E> UserAtcStatusRepositoryExt<'executor> for E
+where
+    E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
+{
+    async fn find_user_atc_status_by_user_id(
+        self,
+        user_id: Uuid,
+    ) -> Result<Option<AtcStatusRecord>, sqlx::Error> {
+        sqlx::query_as::<_, AtcStatusRecord>(
+            r#"
         SELECT "user".id AS user_id,
                "user".cid AS user_cid,
                "user".full_name AS user_full_name,
@@ -45,18 +63,17 @@ pub async fn find_by_user_id(
         LEFT JOIN public.user_atc_status ON user_atc_status.user_id = "user".id
         WHERE "user".id = $1
         "#,
-    )
-    .bind(user_id)
-    .fetch_optional(db)
-    .await
-}
-
-pub async fn find_by_user_id_for_update(
-    transaction: &mut Transaction<'_, Postgres>,
-    user_id: Uuid,
-) -> Result<Option<AtcStatusRecord>, sqlx::Error> {
-    sqlx::query_as::<_, AtcStatusRecord>(
-        r#"
+        )
+        .bind(user_id)
+        .fetch_optional(self)
+        .await
+    }
+    async fn find_user_atc_status_by_user_id_for_update(
+        self,
+        user_id: Uuid,
+    ) -> Result<Option<AtcStatusRecord>, sqlx::Error> {
+        sqlx::query_as::<_, AtcStatusRecord>(
+            r#"
         SELECT "user".id AS user_id,
                "user".cid AS user_cid,
                "user".full_name AS user_full_name,
@@ -71,25 +88,35 @@ pub async fn find_by_user_id_for_update(
         WHERE "user".id = $1
         FOR UPDATE OF "user"
         "#,
-    )
-    .bind(user_id)
-    .fetch_optional(&mut **transaction)
-    .await
+        )
+        .bind(user_id)
+        .fetch_optional(self)
+        .await
+    }
 }
 
-pub async fn upsert(
-    transaction: &mut Transaction<'_, Postgres>,
-    user_id: Uuid,
-    status: &AtcStatusSave,
-) -> Result<(), sqlx::Error> {
-    tracing::info!(
-        operation = "upsert",
-        repository = "src/repository/atc/user_atc_status.rs",
-        "modifying data"
-    );
+pub trait UserAtcStatusTransactionExt {
+    async fn upsert_user_atc_status(
+        &mut self,
+        user_id: Uuid,
+        status: &AtcStatusSave,
+    ) -> Result<(), sqlx::Error>;
+}
 
-    sqlx::query(
-        r#"
+impl UserAtcStatusTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+    async fn upsert_user_atc_status(
+        &mut self,
+        user_id: Uuid,
+        status: &AtcStatusSave,
+    ) -> Result<(), sqlx::Error> {
+        tracing::info!(
+            operation = "upsert",
+            repository = "src/repository/atc/user_atc_status.rs",
+            "modifying data"
+        );
+
+        sqlx::query(
+            r#"
         INSERT INTO public.user_atc_status (user_id, is_visiting, is_absent, rating)
         VALUES ($1, $2, $3, $4)
         ON CONFLICT (user_id)
@@ -97,13 +124,15 @@ pub async fn upsert(
                       is_absent = EXCLUDED.is_absent,
                       rating = EXCLUDED.rating
         "#,
-    )
-    .bind(user_id)
-    .bind(status.is_visiting)
-    .bind(status.is_absent)
-    .bind(&status.rating)
-    .execute(&mut **transaction)
-    .await?;
+        )
+        .bind(user_id)
+        .bind(status.is_visiting)
+        .bind(status.is_absent)
+        .bind(&status.rating)
+        .execute(&mut **self)
+        .await?;
 
-    user_atc_permission::replace(transaction, user_id, &status.permissions).await
+        self.replace_user_atc_permission(user_id, &status.permissions)
+            .await
+    }
 }
