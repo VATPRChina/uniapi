@@ -8,6 +8,7 @@ use crate::adapter::moodle::MoodleClient;
 use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
+use crate::audit_log_service::AuditLogService;
 use crate::jwt::JwtService;
 use crate::settings::Settings;
 
@@ -23,6 +24,7 @@ pub struct Services {
     moodle: MoodleClient,
     vatsim_auth: VatsimAuthClient,
     navdata: NavdataAdapter,
+    audit_log: AuditLogService,
 }
 
 impl Services {
@@ -38,6 +40,7 @@ impl Services {
         .await?;
 
         Ok(Self {
+            audit_log: AuditLogService::new(db.clone()),
             db,
             jwt: JwtService::new(&settings.authentication.jwt),
             smms: SmmsClient::new(
@@ -92,5 +95,9 @@ impl Services {
 
     pub fn navdata(&self) -> &NavdataAdapter {
         &self.navdata
+    }
+
+    pub fn audit_log(&self) -> &AuditLogService {
+        &self.audit_log
     }
 }

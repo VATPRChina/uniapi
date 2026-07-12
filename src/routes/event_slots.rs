@@ -4,14 +4,12 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use chrono::Utc;
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
 use crate::dto::*;
-use crate::model::audit_log::{AuditLog, AuditLogEntity};
+use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
-use crate::repository::audit_log as audit_log_repository;
 use crate::repository::event::event as event_repository;
 use crate::repository::event::event_slot::{self as slot_repository};
 use crate::routes::ApiError;
@@ -85,17 +83,15 @@ async fn create_slot(
     if slot.event_id != event_id {
         return Err(ApiError::not_found("event airspace", "unknown"));
     }
-    audit_log_repository::create(
-        &mut transaction,
-        AuditLog {
-            entity: AuditLogEntity::EventSlot(event_id, slot.id),
-            before: serde_json::Value::Null,
-            after: serde_json::to_value(&slot).map_err(|_| ApiError::Internal)?,
+    services
+        .audit_log()
+        .record(
+            AuditLogEntity::EventSlot(event_id, slot.id),
             operated_by,
-            created_at: Utc::now(),
-        },
-    )
-    .await?;
+            None,
+            Some(&slot),
+        )
+        .await?;
     transaction.commit().await?;
 
     Ok(Json(EventSlotDto::from_record(

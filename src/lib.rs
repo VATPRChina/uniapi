@@ -1,5 +1,6 @@
 pub mod adapter;
 pub mod app;
+pub mod audit_log_service;
 pub mod auth;
 pub mod command;
 pub mod discord;

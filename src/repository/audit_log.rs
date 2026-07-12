@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize, de::IntoDeserializer};
 use serde_json::Value;
-use sqlx::{FromRow, PgPool, Postgres, Transaction};
+use sqlx::{Executor, FromRow, PgPool, Postgres};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -141,10 +141,13 @@ impl TryFrom<AuditLogRecord> for AuditLog {
     }
 }
 
-pub async fn create(
-    transaction: &mut Transaction<'_, Postgres>,
+pub async fn create<'executor, E>(
+    executor: E,
     audit_log: AuditLog,
-) -> Result<AuditLogRecord, sqlx::Error> {
+) -> Result<AuditLogRecord, sqlx::Error>
+where
+    E: Executor<'executor, Database = Postgres>,
+{
     let record = AuditLogRecord::from(audit_log);
 
     sqlx::query_as::<_, AuditLogRecord>(
@@ -166,7 +169,7 @@ pub async fn create(
     .bind(record.after)
     .bind(record.operated_by)
     .bind(record.created_at)
-    .fetch_one(&mut **transaction)
+    .fetch_one(executor)
     .await
 }
 

@@ -1,20 +1,19 @@
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::Utc;
 use serde::Serialize;
 use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::adapter::email::EmailContent;
+use crate::audit_log_service::AuditLogService;
 use crate::auth::CurrentUser;
 use crate::dto::*;
-use crate::model::audit_log::{AuditLog, AuditLogEntity};
+use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
 use crate::repository::atc::atc_application::{
     self as application_repository, AtcApplicationRecord,
 };
-use crate::repository::audit_log as audit_log_repository;
 use crate::repository::sheet::sheet_field::{self as sheet_field_repository};
 use crate::repository::sheet::sheet_filing_answer::{
     self as sheet_filing_answer_repository, SheetAnswerRecord, SheetAnswerSave,
@@ -95,7 +94,14 @@ async fn create_application(
     .await?;
     let application =
         application_repository::create(&mut transaction, current_user_id, filing_id).await?;
-    create_application_audit_log(&mut transaction, None, &application, current_user_id).await?;
+    create_application_audit_log(
+        services.audit_log(),
+        &mut transaction,
+        None,
+        &application,
+        current_user_id,
+    )
+    .await?;
     transaction.commit().await?;
 
     Ok(Json(AtcApplicationSummaryDto::from_record(
@@ -164,6 +170,7 @@ async fn update_application(
             .await?
             .ok_or(ApiError::not_found("application", &id))?;
     create_application_audit_log(
+        services.audit_log(),
         &mut transaction,
         Some(before),
         &application,
@@ -232,6 +239,7 @@ async fn review_application(
     .await?
     .ok_or(ApiError::not_found("application", &id))?;
     create_application_audit_log(
+        services.audit_log(),
         &mut transaction,
         Some(before),
         &application,
@@ -320,27 +328,21 @@ async fn application_audit_snapshot(
 }
 
 async fn create_application_audit_log(
+    audit_log: &AuditLogService,
     transaction: &mut Transaction<'_, Postgres>,
     before: Option<AtcApplicationAuditSnapshot>,
     application: &AtcApplicationRecord,
     operated_by: Uuid,
 ) -> Result<(), ApiError> {
     let after = application_audit_snapshot(transaction, application).await?;
-    audit_log_repository::create(
-        transaction,
-        AuditLog {
-            entity: AuditLogEntity::AtcApplication(application.id),
-            before: before
-                .map(serde_json::to_value)
-                .transpose()
-                .map_err(|_| ApiError::Internal)?
-                .unwrap_or(serde_json::Value::Null),
-            after: serde_json::to_value(after).map_err(|_| ApiError::Internal)?,
+    audit_log
+        .record(
+            AuditLogEntity::AtcApplication(application.id),
             operated_by,
-            created_at: Utc::now(),
-        },
-    )
-    .await?;
+            before.as_ref(),
+            Some(&after),
+        )
+        .await?;
 
     Ok(())
 }

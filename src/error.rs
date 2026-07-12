@@ -9,6 +9,7 @@ use crate::adapter::compat::CompatClientError;
 use crate::adapter::email::EmailError;
 use crate::adapter::moodle::MoodleError;
 use crate::adapter::smms::SmmsError;
+use crate::audit_log_service::AuditLogServiceError;
 use crate::auth::AuthError;
 use crate::flight_plan::parser::ParserError;
 use crate::flight_plan::validator::ValidatorError;
@@ -107,6 +108,8 @@ api_errors!(
         => "failed to parse route: {source}",
     RouteValidator { #[from] source: ValidatorError } => StatusCode::INTERNAL_SERVER_ERROR
         => "failed to validate route: {source}",
+    AuditLog { #[from] source: AuditLogServiceError } => StatusCode::INTERNAL_SERVER_ERROR
+        => "failed to record audit log: {source}",
 
     Compat { #[from] source: CompatClientError } => StatusCode::SERVICE_UNAVAILABLE
         => "transient error",

@@ -1,14 +1,13 @@
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::Utc;
 use serde::Serialize;
 use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
 use crate::dto::*;
-use crate::model::audit_log::{AuditLog, AuditLogEntity};
+use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
 use crate::repository::atc::user_atc_permission::{
     self as atc_permission_repository, AtcPermissionRecord,
@@ -16,7 +15,6 @@ use crate::repository::atc::user_atc_permission::{
 use crate::repository::atc::user_atc_status::{
     self as atc_status_repository, AtcStatusRecord, AtcStatusSave,
 };
-use crate::repository::audit_log as audit_log_repository;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -70,17 +68,15 @@ async fn set_status(
     let after = atc_status_audit_snapshot(&mut transaction, user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
-    audit_log_repository::create(
-        &mut transaction,
-        AuditLog {
-            entity: AuditLogEntity::UserAtcPermission(user_id, user_id),
-            before: serde_json::to_value(before).map_err(|_| ApiError::Internal)?,
-            after: serde_json::to_value(after).map_err(|_| ApiError::Internal)?,
+    services
+        .audit_log()
+        .record(
+            AuditLogEntity::UserAtcPermission(user_id, user_id),
             operated_by,
-            created_at: Utc::now(),
-        },
-    )
-    .await?;
+            Some(&before),
+            Some(&after),
+        )
+        .await?;
     transaction.commit().await?;
 
     get_status_for_user(&services, user_id).await.map(Json)

@@ -5,11 +5,11 @@ use axum::{Json, Router};
 use chrono::Utc;
 use uuid::Uuid;
 
+use crate::audit_log_service::AuditLogService;
 use crate::auth::CurrentUser;
 use crate::dto::*;
-use crate::model::audit_log::{AuditLog, AuditLogEntity};
+use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
-use crate::repository::audit_log as audit_log_repository;
 use crate::repository::event::event_atc_position::{
     self as position_repository, EventAtcPositionRecord, UserAtcPermissionRecord,
 };
@@ -70,10 +70,10 @@ async fn create_position(
     let position =
         position_repository::create(&mut transaction, event_id, request.try_into()?).await?;
     create_position_audit_log(
-        &mut transaction,
+        services.audit_log(),
         &position,
-        serde_json::Value::Null,
-        serde_json::to_value(&position).map_err(|_| ApiError::Internal)?,
+        None,
+        Some(&position),
         operated_by,
     )
     .await?;
@@ -107,10 +107,10 @@ async fn update_position(
             .await?
             .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
     create_position_audit_log(
-        &mut transaction,
+        services.audit_log(),
         &position,
-        serde_json::to_value(before).map_err(|_| ApiError::Internal)?,
-        serde_json::to_value(&position).map_err(|_| ApiError::Internal)?,
+        Some(&before),
+        Some(&position),
         operated_by,
     )
     .await?;
@@ -142,10 +142,10 @@ async fn delete_position(
         return Err(ApiError::not_found("event ATC position", "unknown"));
     }
     create_position_audit_log(
-        &mut transaction,
+        services.audit_log(),
         &position,
-        serde_json::to_value(&position).map_err(|_| ApiError::Internal)?,
-        serde_json::Value::Null,
+        Some(&position),
+        None,
         operated_by,
     )
     .await?;
@@ -210,10 +210,10 @@ async fn book_position(
     .await?
     .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
     create_position_audit_log(
-        &mut transaction,
+        services.audit_log(),
         &after,
-        serde_json::to_value(position).map_err(|_| ApiError::Internal)?,
-        serde_json::to_value(&after).map_err(|_| ApiError::Internal)?,
+        Some(&position),
+        Some(&after),
         operated_by,
     )
     .await?;
@@ -259,10 +259,10 @@ async fn cancel_position_booking(
     .await?
     .ok_or(ApiError::not_found("event ATC position", "unknown"))?;
     create_position_audit_log(
-        &mut transaction,
+        services.audit_log(),
         &after,
-        serde_json::to_value(position).map_err(|_| ApiError::Internal)?,
-        serde_json::to_value(&after).map_err(|_| ApiError::Internal)?,
+        Some(&position),
+        Some(&after),
         current_user_id,
     )
     .await?;
@@ -272,23 +272,20 @@ async fn cancel_position_booking(
 }
 
 async fn create_position_audit_log(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    audit_log: &AuditLogService,
     position: &EventAtcPositionRecord,
-    before: serde_json::Value,
-    after: serde_json::Value,
+    before: Option<&EventAtcPositionRecord>,
+    after: Option<&EventAtcPositionRecord>,
     operated_by: Uuid,
 ) -> Result<(), ApiError> {
-    audit_log_repository::create(
-        transaction,
-        AuditLog {
-            entity: AuditLogEntity::EventAtcPosition(position.event_id, position.id),
+    audit_log
+        .record(
+            AuditLogEntity::EventAtcPosition(position.event_id, position.id),
+            operated_by,
             before,
             after,
-            operated_by,
-            created_at: Utc::now(),
-        },
-    )
-    .await?;
+        )
+        .await?;
 
     Ok(())
 }

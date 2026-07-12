@@ -1,14 +1,12 @@
 use axum::extract::{Path, State};
 use axum::routing::{get, put};
 use axum::{Json, Router};
-use chrono::Utc;
 use std::collections::BTreeSet;
 
 use crate::auth::CurrentUser;
 use crate::dto::*;
-use crate::model::audit_log::{AuditLog, AuditLogEntity};
+use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::{UserRole, role_closure_from_strings};
-use crate::repository::audit_log as audit_log_repository;
 use crate::repository::auth::user::{
     self as user_repository, UserDetailRecord, UserMoodleProvisionRecord,
 };
@@ -67,21 +65,19 @@ async fn set_roles(
         return Err(ApiError::RemoveStaffForbidden);
     }
 
-    let before = serde_json::to_value(&user).map_err(|_| ApiError::Internal)?;
+    let before = user;
     let user = user_repository::set_roles(&mut transaction, id, roles.into_iter().collect())
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
-    audit_log_repository::create(
-        &mut transaction,
-        AuditLog {
-            entity: AuditLogEntity::UserRole(id, id),
-            before,
-            after: serde_json::to_value(&user).map_err(|_| ApiError::Internal)?,
+    services
+        .audit_log()
+        .record(
+            AuditLogEntity::UserRole(id, id),
             operated_by,
-            created_at: Utc::now(),
-        },
-    )
-    .await?;
+            Some(&before),
+            Some(&user),
+        )
+        .await?;
     transaction.commit().await?;
 
     Ok(Json(user_dto(user, None, false, None)))
