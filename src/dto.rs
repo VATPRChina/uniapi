@@ -6,8 +6,9 @@ use uuid::Uuid;
 use crate::adapter::flight::Flight;
 use crate::model::audit_log::{AuditLog, AuditLogEntity};
 use crate::model::navdata::{AnyFix, ResolvedLeg};
+use crate::model::user::{User, UserSummary};
 use crate::model::user_controller_state::UserControllerState;
-use crate::model::user_role::{UserRole, role_closure_from_strings};
+use crate::model::user_role::{UserRole, role_closure, role_closure_from_strings};
 use crate::repository::atc::atc::AtcControllerPermissionRecord;
 use crate::repository::atc::atc_application::AtcApplicationRecord;
 use crate::repository::atc::user_atc_permission::{AtcPermissionRecord, AtcPermissionSave};
@@ -18,7 +19,6 @@ use crate::repository::atc_training::training_application_response::TrainingAppl
 use crate::repository::atc_training::training_application_slot::{
     TrainingApplicationSlotRecord, TrainingApplicationSlotSave,
 };
-use crate::repository::auth::user::UserRecord;
 use crate::repository::compat::FutureControllerRow;
 use crate::repository::event::event::{EventRecord, EventSave};
 use crate::repository::event::event_airspace::{EventAirspaceRecord, EventAirspaceSave};
@@ -203,25 +203,9 @@ impl UserDto {
         }
     }
 
-    pub fn from_user_detail(
-        user: UserRecord,
-        moodle_account: Option<UserMoodleInfoDto>,
-        show_full_name: bool,
-        roles_override: Option<Vec<UserRole>>,
-    ) -> Self {
-        let direct_roles = user
-            .roles
-            .iter()
-            .filter_map(|role| role.parse::<UserRole>().ok())
-            .collect::<std::collections::BTreeSet<_>>()
-            .into_iter()
-            .collect();
-        let roles = roles_override
-            .unwrap_or_else(|| {
-                role_closure_from_strings(user.roles.iter().map(String::as_str))
-                    .into_iter()
-                    .collect()
-            })
+    pub fn from_user_summary(user: UserSummary, show_full_name: bool) -> Self {
+        let direct_roles = user.direct_roles;
+        let roles = role_closure(direct_roles.iter().copied())
             .into_iter()
             .collect::<std::collections::BTreeSet<_>>()
             .into_iter()
@@ -239,8 +223,28 @@ impl UserDto {
             updated_at: user.updated_at,
             roles,
             direct_roles,
-            moodle_account,
+            moodle_account: None,
         }
+    }
+
+    pub fn from_user(user: User, show_full_name: bool) -> Self {
+        let moodle_account = user.moodle_user.map(|user| UserMoodleInfoDto {
+            id: user.id.to_string(),
+        });
+        let mut dto = Self::from_user_summary(
+            UserSummary {
+                id: user.id,
+                cid: user.cid,
+                full_name: user.full_name,
+                email: user.email,
+                direct_roles: user.direct_roles,
+                created_at: user.created_at,
+                updated_at: user.updated_at,
+            },
+            show_full_name,
+        );
+        dto.moodle_account = moodle_account;
+        dto
     }
 
     pub fn from_application_user(

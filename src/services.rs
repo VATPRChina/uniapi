@@ -11,6 +11,7 @@ use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::audit_log_service::AuditLogService;
 use crate::jwt::JwtService;
 use crate::settings::Settings;
+use crate::user_service::UserService;
 
 #[derive(Clone)]
 pub struct Services {
@@ -25,6 +26,7 @@ pub struct Services {
     vatsim_auth: VatsimAuthClient,
     navdata: NavdataAdapter,
     audit_log: AuditLogService,
+    user: UserService,
 }
 
 impl Services {
@@ -38,9 +40,12 @@ impl Services {
             &settings.navdata.preferred_routes_path,
         )
         .await?;
+        let audit_log = AuditLogService::new(db.clone());
+        let moodle = MoodleClient::new(settings.moodle.api_key.clone());
 
         Ok(Self {
-            audit_log: AuditLogService::new(db.clone()),
+            user: UserService::new(db.clone(), moodle.clone(), audit_log.clone()),
+            audit_log,
             db,
             jwt: JwtService::new(&settings.authentication.jwt),
             smms: SmmsClient::new(
@@ -53,7 +58,7 @@ impl Services {
                 settings.discourse.api_key.clone(),
             ),
             email: EmailClient::new(&settings.email)?,
-            moodle: MoodleClient::new(settings.moodle.api_key.clone()),
+            moodle,
             vatsim_auth: VatsimAuthClient::new(settings.authentication.vatsim.clone()),
             navdata,
         })
@@ -99,5 +104,9 @@ impl Services {
 
     pub fn audit_log(&self) -> &AuditLogService {
         &self.audit_log
+    }
+
+    pub fn user(&self) -> &UserService {
+        &self.user
     }
 }

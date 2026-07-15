@@ -15,3 +15,4 @@ pub mod routes;
 pub mod services;
 pub mod settings;
 pub mod telemetry;
+pub mod user_service;

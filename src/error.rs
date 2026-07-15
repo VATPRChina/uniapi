@@ -14,6 +14,7 @@ use crate::auth::AuthError;
 use crate::flight_plan::parser::ParserError;
 use crate::flight_plan::validator::ValidatorError;
 use crate::model::user_role::UserRole;
+use crate::user_service::UserServiceError;
 
 macro_rules! api_errors {
     (
@@ -166,6 +167,17 @@ impl From<AuthError> for ApiError {
             AuthError::MissingBearerToken | AuthError::InvalidBearerToken | AuthError::Jwt(_) => {
                 ApiError::Unauthorized
             }
+        }
+    }
+}
+
+impl From<UserServiceError> for ApiError {
+    fn from(error: UserServiceError) -> Self {
+        match error {
+            UserServiceError::RemoveStaffForbidden => ApiError::RemoveStaffForbidden,
+            UserServiceError::Database(source) => ApiError::Database { source },
+            UserServiceError::Moodle(source) => ApiError::Moodle { source },
+            UserServiceError::AuditLog(source) => ApiError::AuditLog { source },
         }
     }
 }
