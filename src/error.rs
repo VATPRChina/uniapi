@@ -9,12 +9,12 @@ use crate::adapter::compat::CompatClientError;
 use crate::adapter::email::EmailError;
 use crate::adapter::moodle::MoodleError;
 use crate::adapter::smms::SmmsError;
-use crate::audit_log_service::AuditLogServiceError;
 use crate::auth::AuthError;
 use crate::flight_plan::parser::ParserError;
 use crate::flight_plan::validator::ValidatorError;
 use crate::model::user_role::UserRole;
-use crate::user_service::UserServiceError;
+use crate::services::audit_log::AuditLogServiceError;
+use crate::services::user::UserServiceError;
 
 macro_rules! api_errors {
     (

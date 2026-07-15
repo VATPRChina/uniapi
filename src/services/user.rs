@@ -2,11 +2,11 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::adapter::moodle::{MoodleClient, MoodleError};
-use crate::audit_log_service::{AuditLogService, AuditLogServiceError};
 use crate::model::audit_log::AuditLogEntity;
 use crate::model::user::{MoodleUser, User, UserSummary};
 use crate::model::user_role::UserRole;
 use crate::repository::auth::user::{UserRecord, UserRepositoryExt};
+use crate::services::audit_log::{AuditLogService, AuditLogServiceError};
 
 #[derive(Clone)]
 pub struct UserService {

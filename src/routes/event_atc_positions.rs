@@ -5,18 +5,17 @@ use axum::{Json, Router};
 use chrono::Utc;
 use uuid::Uuid;
 
-use crate::audit_log_service::AuditLogService;
 use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
+use crate::repository::event::event_atc_position::EventAtcPositionRecord;
 use crate::repository::event::event_atc_position::EventAtcPositionRepositoryExt;
 use crate::repository::event::event_atc_position::EventAtcPositionTransactionExt;
-use crate::repository::event::event_atc_position::{
-    EventAtcPositionRecord, UserAtcPermissionRecord,
-};
+use crate::repository::event::event_atc_position::UserAtcPermissionRecord;
 use crate::routes::ApiError;
 use crate::services::Services;
+use crate::services::audit_log::AuditLogService;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(

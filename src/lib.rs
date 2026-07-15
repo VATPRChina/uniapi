@@ -1,6 +1,5 @@
 pub mod adapter;
 pub mod app;
-pub mod audit_log_service;
 pub mod auth;
 pub mod command;
 pub mod discord;
@@ -15,4 +14,3 @@ pub mod routes;
 pub mod services;
 pub mod settings;
 pub mod telemetry;
-pub mod user_service;

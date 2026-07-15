@@ -8,10 +8,14 @@ use crate::adapter::moodle::MoodleClient;
 use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
-use crate::audit_log_service::AuditLogService;
 use crate::jwt::JwtService;
 use crate::settings::Settings;
-use crate::user_service::UserService;
+
+pub mod audit_log;
+pub mod user;
+
+use audit_log::AuditLogService;
+use user::UserService;
 
 #[derive(Clone)]
 pub struct Services {
