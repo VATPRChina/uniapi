@@ -18,7 +18,7 @@ use crate::repository::auth::device_authorization::DeviceAuthorizationRepository
 use crate::repository::auth::device_authorization::NewDeviceAuthorization;
 use crate::repository::auth::session::{RefreshSessionIssue, RefreshSessionRow};
 use crate::repository::auth::session::{SessionRepositoryExt, SessionTransactionExt};
-use crate::repository::auth::user::UserLoginRow;
+use crate::repository::auth::user::UserRecord;
 use crate::repository::auth::user::UserRepositoryExt;
 use crate::services::Services;
 
@@ -951,7 +951,7 @@ async fn upsert_user(
     cid: &str,
     full_name: &str,
     email: &str,
-) -> Result<UserLoginRow, AuthUserError> {
+) -> Result<UserRecord, AuthUserError> {
     tracing::info!(%cid, "upserting authenticated user login");
     services
         .db()

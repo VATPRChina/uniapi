@@ -18,7 +18,7 @@ use crate::repository::atc_training::training_application_response::TrainingAppl
 use crate::repository::atc_training::training_application_slot::{
     TrainingApplicationSlotRecord, TrainingApplicationSlotSave,
 };
-use crate::repository::auth::user::UserDetailRecord;
+use crate::repository::auth::user::UserRecord;
 use crate::repository::compat::FutureControllerRow;
 use crate::repository::event::event::{EventRecord, EventSave};
 use crate::repository::event::event_airspace::{EventAirspaceRecord, EventAirspaceSave};
@@ -204,7 +204,7 @@ impl UserDto {
     }
 
     pub fn from_user_detail(
-        user: UserDetailRecord,
+        user: UserRecord,
         moodle_account: Option<UserMoodleInfoDto>,
         show_full_name: bool,
         roles_override: Option<Vec<UserRole>>,

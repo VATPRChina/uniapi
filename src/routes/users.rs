@@ -7,8 +7,8 @@ use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::{UserRole, role_closure_from_strings};
+use crate::repository::auth::user::UserRecord;
 use crate::repository::auth::user::UserRepositoryExt;
-use crate::repository::auth::user::{UserDetailRecord, UserMoodleProvisionRecord};
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -142,7 +142,7 @@ async fn moodle_account(
 
 async fn ensure_moodle_user(
     services: &Services,
-    user: &UserMoodleProvisionRecord,
+    user: &UserRecord,
 ) -> Result<Option<UserMoodleInfoDto>, ApiError> {
     if let Some(moodle_user) = services.moodle().get_user_by_cid(&user.cid).await? {
         tracing::info!(
@@ -185,7 +185,7 @@ async fn ensure_moodle_user(
 }
 
 fn user_dto(
-    user: UserDetailRecord,
+    user: UserRecord,
     moodle_account: Option<UserMoodleInfoDto>,
     show_full_name: bool,
     roles_override: Option<Vec<UserRole>>,

@@ -68,3 +68,16 @@ csv = "1.4.0"
 approx = "0.5.1"
 mini-moka = { version = "0.10.3", features = ["sync"] }
 clap = { version = "4.6.1", features = ["derive"] }
+sea-query = { version = "0.32.7", default-features = false, features = [
+  "backend-postgres",
+  "derive",
+  "with-uuid",
+  "with-chrono",
+  "postgres-array",
+] }
+sea-query-binder = { version = "0.7.0", default-features = false, features = [
+  "sqlx-postgres",
+  "with-uuid",
+  "with-chrono",
+  "postgres-array",
+] }
