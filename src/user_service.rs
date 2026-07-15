@@ -144,13 +144,11 @@ impl UserService {
 }
 
 fn user_summary(user: UserRecord) -> UserSummary {
-    let mut direct_roles = user
+    let direct_roles = user
         .roles
         .iter()
         .filter_map(|role| role.parse().ok())
-        .collect::<Vec<_>>();
-    direct_roles.sort_unstable();
-    direct_roles.dedup();
+        .collect();
 
     UserSummary {
         id: user.id,

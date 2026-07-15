@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -9,7 +11,7 @@ pub struct UserSummary {
     pub cid: String,
     pub full_name: String,
     pub email: Option<String>,
-    pub direct_roles: Vec<UserRole>,
+    pub direct_roles: HashSet<UserRole>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -20,7 +22,7 @@ pub struct User {
     pub cid: String,
     pub full_name: String,
     pub email: Option<String>,
-    pub direct_roles: Vec<UserRole>,
+    pub direct_roles: HashSet<UserRole>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub moodle_user: Option<MoodleUser>,

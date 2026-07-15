@@ -117,8 +117,7 @@ where
         );
 
         let id = Uuid::from(Ulid::new());
-        let query =
-            r#"
+        let query = r#"
         WITH inserted_slot AS (
             INSERT INTO public.event_slot (
                 id, event_airspace_id, enter_at, leave_at, callsign, aircraft_type_icao
@@ -126,7 +125,9 @@ where
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *
         )
-        "#.to_string() + &slot_select_sql_from("inserted_slot AS event_slot", "WHERE event_slot.id = $1");
+        "#
+        .to_string()
+            + &slot_select_sql_from("inserted_slot AS event_slot", "WHERE event_slot.id = $1");
         sqlx::query_as::<_, EventSlotRecord>(&query)
             .bind(id)
             .bind(slot.airspace_id)

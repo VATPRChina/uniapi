@@ -63,9 +63,7 @@ async fn set_status(
     let before = atc_status_audit_snapshot(&mut transaction, user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
-    transaction
-        .upsert_user_atc_status(user_id, &status)
-        .await?;
+    transaction.upsert_user_atc_status(user_id, &status).await?;
     let after = atc_status_audit_snapshot(&mut transaction, user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;

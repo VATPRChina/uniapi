@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 #[derive(Clone, Copy, Iden)]
 enum User {
-    User,
+    Table,
     Id,
     Cid,
     FullName,
@@ -86,7 +86,7 @@ where
     async fn find_user_by_id(self, id: Uuid) -> Result<Option<UserRecord>, sqlx::Error> {
         let query = Query::select()
             .columns(USER_COLUMNS)
-            .from(User::User)
+            .from(User::Table)
             .and_where(Expr::col(User::Id).eq(id))
             .to_owned();
         let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
@@ -99,7 +99,7 @@ where
     async fn find_user_detail_by_id(self, id: Uuid) -> Result<Option<UserRecord>, sqlx::Error> {
         let query = Query::select()
             .columns(USER_COLUMNS)
-            .from(User::User)
+            .from(User::Table)
             .and_where(Expr::col(User::Id).eq(id))
             .to_owned();
         let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
@@ -115,7 +115,7 @@ where
     ) -> Result<Option<UserRecord>, sqlx::Error> {
         let query = Query::select()
             .columns(USER_COLUMNS)
-            .from(User::User)
+            .from(User::Table)
             .and_where(Expr::col(User::Id).eq(id))
             .to_owned();
         let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
@@ -131,7 +131,7 @@ where
     ) -> Result<Option<UserRecord>, sqlx::Error> {
         let query = Query::select()
             .columns(USER_COLUMNS)
-            .from(User::User)
+            .from(User::Table)
             .and_where(Expr::col(User::Id).eq(id))
             .lock_exclusive()
             .to_owned();
@@ -145,7 +145,7 @@ where
     async fn list_user_details_ordered_by_cid(self) -> Result<Vec<UserRecord>, sqlx::Error> {
         let query = Query::select()
             .columns(USER_COLUMNS)
-            .from(User::User)
+            .from(User::Table)
             .order_by(User::Cid, Order::Asc)
             .to_owned();
         let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
@@ -164,7 +164,7 @@ where
         roles: Vec<String>,
     ) -> Result<UserRecord, sqlx::Error> {
         let query = Query::insert()
-            .into_table(User::User)
+            .into_table(User::Table)
             .columns([
                 User::Id,
                 User::Cid,
@@ -200,7 +200,7 @@ where
         roles: Vec<String>,
     ) -> Result<Option<UserRecord>, sqlx::Error> {
         let query = Query::update()
-            .table(User::User)
+            .table(User::Table)
             .value(User::Roles, roles)
             .value(User::UpdatedAt, Expr::current_timestamp())
             .and_where(Expr::col(User::Id).eq(id))
@@ -220,7 +220,7 @@ where
         email: &str,
     ) -> Result<UserRecord, sqlx::Error> {
         let query = Query::insert()
-            .into_table(User::User)
+            .into_table(User::Table)
             .columns([
                 User::Id,
                 User::Cid,

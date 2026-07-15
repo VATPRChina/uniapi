@@ -224,10 +224,12 @@ where
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
         )
-        "#.to_string() + &position_select_sql_from(
-            "inserted_position AS event_atc_position",
-            "WHERE event_atc_position.id = $1",
-        );
+        "#
+        .to_string()
+            + &position_select_sql_from(
+                "inserted_position AS event_atc_position",
+                "WHERE event_atc_position.id = $1",
+            );
         sqlx::query_as::<_, EventAtcPositionRecord>(&query)
             .bind(id)
             .bind(event_id)
@@ -264,10 +266,12 @@ where
             WHERE event_id = $1 AND id = $2
             RETURNING *
         )
-        "#.to_string() + &position_select_sql_from(
-            "updated_position AS event_atc_position",
-            "WHERE event_atc_position.id = $2",
-        );
+        "#
+        .to_string()
+            + &position_select_sql_from(
+                "updated_position AS event_atc_position",
+                "WHERE event_atc_position.id = $2",
+            );
         sqlx::query_as::<_, EventAtcPositionRecord>(&query)
             .bind(event_id)
             .bind(position_id)

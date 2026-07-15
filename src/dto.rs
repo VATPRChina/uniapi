@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
@@ -222,7 +223,7 @@ impl UserDto {
             created_at: user.created_at,
             updated_at: user.updated_at,
             roles,
-            direct_roles,
+            direct_roles: direct_roles.into_iter().sorted().collect(),
             moodle_account: None,
         }
     }
