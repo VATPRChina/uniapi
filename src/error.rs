@@ -14,6 +14,7 @@ use crate::flight_plan::parser::ParserError;
 use crate::flight_plan::validator::ValidatorError;
 use crate::model::user_role::UserRole;
 use crate::services::audit_log::AuditLogServiceError;
+use crate::services::controller_info::ControllerInfoServiceError;
 use crate::services::user::UserServiceError;
 
 macro_rules! api_errors {
@@ -178,6 +179,23 @@ impl From<UserServiceError> for ApiError {
             UserServiceError::Database(source) => ApiError::Database { source },
             UserServiceError::Moodle(source) => ApiError::Moodle { source },
             UserServiceError::AuditLog(source) => ApiError::AuditLog { source },
+        }
+    }
+}
+
+impl From<ControllerInfoServiceError> for ApiError {
+    fn from(error: ControllerInfoServiceError) -> Self {
+        match error {
+            ControllerInfoServiceError::Database(source) => ApiError::Database { source },
+            ControllerInfoServiceError::InvalidControllerState(value) => {
+                ApiError::invalid_database_value("user_atc_permission.state", value)
+            }
+            ControllerInfoServiceError::InvalidControllerRating(value) => {
+                ApiError::invalid_database_value("user_atc_status.rating", value)
+            }
+            ControllerInfoServiceError::InvalidControllerPositionKind(value) => {
+                ApiError::invalid_database_value("user_atc_permission.position_kind_id", value)
+            }
         }
     }
 }

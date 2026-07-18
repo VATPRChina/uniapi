@@ -12,9 +12,11 @@ use crate::jwt::JwtService;
 use crate::settings::Settings;
 
 pub mod audit_log;
+pub mod controller_info;
 pub mod user;
 
 use audit_log::AuditLogService;
+use controller_info::ControllerInfoService;
 use user::UserService;
 
 #[derive(Clone)]
@@ -31,6 +33,7 @@ pub struct Services {
     navdata: NavdataAdapter,
     audit_log: AuditLogService,
     user: UserService,
+    controller_info: ControllerInfoService,
 }
 
 impl Services {
@@ -48,6 +51,7 @@ impl Services {
         let moodle = MoodleClient::new(settings.moodle.api_key.clone());
 
         Ok(Self {
+            controller_info: ControllerInfoService::new(db.clone()),
             user: UserService::new(db.clone(), moodle.clone(), audit_log.clone()),
             audit_log,
             db,
@@ -112,5 +116,9 @@ impl Services {
 
     pub fn user(&self) -> &UserService {
         &self.user
+    }
+
+    pub fn controller_info(&self) -> &ControllerInfoService {
+        &self.controller_info
     }
 }

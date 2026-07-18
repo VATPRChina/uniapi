@@ -6,11 +6,13 @@ use uuid::Uuid;
 
 use crate::adapter::flight::Flight;
 use crate::model::audit_log::{AuditLog, AuditLogEntity};
+use crate::model::controller_info::{
+    ControllerInfo, ControllerPermission, ControllerPositionKind, ControllerRating,
+};
 use crate::model::navdata::{AnyFix, ResolvedLeg};
 use crate::model::user::{User, UserSummary};
 use crate::model::user_controller_state::UserControllerState;
 use crate::model::user_role::{UserRole, role_closure, role_closure_from_strings};
-use crate::repository::atc::atc::AtcControllerPermissionRecord;
 use crate::repository::atc::atc_application::AtcApplicationRecord;
 use crate::repository::atc::user_atc_permission::{AtcPermissionRecord, AtcPermissionSave};
 use crate::repository::atc::user_atc_status::{AtcStatusRecord, AtcStatusSave};
@@ -30,9 +32,6 @@ use crate::repository::sheet::sheet::{SheetRecord, SheetSave};
 use crate::repository::sheet::sheet_field::{SheetFieldRecord, SheetFieldSave};
 use crate::repository::sheet::sheet_filing_answer::{SheetAnswerRecord, SheetAnswerSave};
 use crate::routes::ApiError;
-
-const ALLOWED_RATINGS: &[&str] = &["OBS", "S1", "S2", "S3", "C1", "C3", "I1", "I3"];
-const POSITION_KINDS: &[&str] = &["DEL", "GND", "TWR", "T2", "APP", "CTR", "FSS", "FMP"];
 
 pub fn parse_ulid_uuid(field: &'static str, id: &str) -> Result<Uuid, ApiError> {
     id.parse::<Ulid>()
@@ -557,7 +556,11 @@ impl TryFrom<EventAtcPositionSaveRequest> for EventAtcPositionSave {
     type Error = ApiError;
 
     fn try_from(request: EventAtcPositionSaveRequest) -> Result<Self, Self::Error> {
-        if !POSITION_KINDS.contains(&request.position_kind_id.as_str()) {
+        if request
+            .position_kind_id
+            .parse::<ControllerPositionKind>()
+            .is_err()
+        {
             return Err(ApiError::bad_request(
                 "position_kind_id",
                 "invalid ATC position kind",
@@ -658,7 +661,7 @@ impl TryFrom<AtcStatusRequest> for AtcStatusSave {
     type Error = ApiError;
 
     fn try_from(request: AtcStatusRequest) -> Result<Self, Self::Error> {
-        if !ALLOWED_RATINGS.contains(&request.rating.as_str()) {
+        if request.rating.parse::<ControllerRating>().is_err() {
             return Err(ApiError::bad_request("rating", "invalid ATC rating"));
         }
 
@@ -743,65 +746,18 @@ impl AtcStatusDto {
                 .collect::<Result<Vec<_>, _>>()?,
         })
     }
-
-    pub fn from_controller_rows(
-        rows: Vec<AtcControllerPermissionRecord>,
-    ) -> Result<Vec<Self>, ApiError> {
-        let mut statuses = std::collections::BTreeMap::<Uuid, AtcStatusControllerBuilder>::new();
-        for row in rows {
-            let permission = AtcPermissionDto::try_from(&row)?;
-            statuses
-                .entry(row.user_id)
-                .or_insert_with(|| AtcStatusControllerBuilder::from(&row))
-                .permissions
-                .push(permission);
-        }
-
-        Ok(statuses
-            .into_values()
-            .map(AtcStatusDto::from)
-            .collect::<Vec<_>>())
-    }
 }
 
-struct AtcStatusControllerBuilder {
-    user_id: Uuid,
-    user: UserDto,
-    is_visiting: bool,
-    is_absent: bool,
-    rating: String,
-    permissions: Vec<AtcPermissionDto>,
-}
-
-impl AtcStatusControllerBuilder {
-    fn from(row: &AtcControllerPermissionRecord) -> Self {
+impl From<ControllerInfo> for AtcStatusDto {
+    fn from(controller: ControllerInfo) -> Self {
+        let user_id = controller.user.id;
         Self {
-            user_id: row.user_id,
-            user: UserDto::from_role_strings(
-                row.user_id,
-                row.user_cid.clone(),
-                row.user_full_name.clone(),
-                row.user_created_at,
-                row.user_updated_at,
-                row.user_roles.clone(),
-            ),
-            is_visiting: row.is_visiting.unwrap_or(false),
-            is_absent: row.is_absent.unwrap_or(false),
-            rating: row.rating.clone().unwrap_or_else(|| "OBS".to_owned()),
-            permissions: Vec::new(),
-        }
-    }
-}
-
-impl From<AtcStatusControllerBuilder> for AtcStatusDto {
-    fn from(status: AtcStatusControllerBuilder) -> Self {
-        Self {
-            user_id: Ulid::from(status.user_id).to_string(),
-            user: status.user,
-            is_visiting: status.is_visiting,
-            is_absent: status.is_absent,
-            rating: status.rating,
-            permissions: status.permissions,
+            user_id: Ulid::from(user_id).to_string(),
+            user: UserDto::from_user_summary(controller.user, true),
+            is_visiting: controller.is_visiting,
+            is_absent: controller.is_absent,
+            rating: controller.rating.to_string(),
+            permissions: controller.permissions.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -830,20 +786,13 @@ impl TryFrom<AtcPermissionRecord> for AtcPermissionDto {
     }
 }
 
-impl TryFrom<&AtcControllerPermissionRecord> for AtcPermissionDto {
-    type Error = ApiError;
-
-    fn try_from(permission: &AtcControllerPermissionRecord) -> Result<Self, Self::Error> {
-        Ok(Self {
-            position_kind_id: permission.position_kind_id.clone(),
-            state: permission.state.parse().map_err(|_| {
-                ApiError::invalid_database_value(
-                    "user_atc_permission.state",
-                    permission.state.clone(),
-                )
-            })?,
+impl From<ControllerPermission> for AtcPermissionDto {
+    fn from(permission: ControllerPermission) -> Self {
+        Self {
+            position_kind_id: permission.position_kind.to_string(),
+            state: permission.state,
             solo_expires_at: permission.solo_expires_at,
-        })
+        }
     }
 }
 
