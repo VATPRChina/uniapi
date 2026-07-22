@@ -1,6 +1,12 @@
+use std::collections::BTreeMap;
+use std::time::Duration;
+
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, Query, State};
+use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
+use tokio::time;
 
 use crate::adapter::flight::{Flight, flights_from_vatsim};
 use crate::auth::CurrentUser;
@@ -10,6 +16,8 @@ use crate::model::user_role::UserRole;
 use crate::repository::auth::user::UserRepositoryExt;
 use crate::routes::ApiError;
 use crate::services::Services;
+
+const VALIDATION_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(
@@ -25,6 +33,7 @@ pub(crate) struct ApiDoc;
 pub fn build_flight_routes() -> Router<Services> {
     Router::new()
         .route("/active", get(active_flights))
+        .route("/warnings/streaming", get(warnings_websocket))
         .route("/by-callsign/{callsign}", get(flight_by_callsign))
         .route(
             "/by-callsign/{callsign}/warnings",
@@ -65,7 +74,17 @@ async fn warnings_by_callsign(
     Path(callsign): Path<String>,
 ) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
     let flight = find_by_callsign(&services, &callsign).await?;
-    warnings_for_flight(&services, &flight).await
+    warnings_for_flight(&services, &flight).await.map(Json)
+}
+
+async fn warnings_websocket(
+    State(services): State<Services>,
+    websocket: WebSocketUpgrade,
+) -> Result<Response, ApiError> {
+    let initial_snapshot = warnings_for_all_flights(&services).await?;
+
+    Ok(websocket
+        .on_upgrade(move |socket| stream_warning_changes(socket, services, initial_snapshot)))
 }
 
 #[utoipa::path(get, path = "api/flights/by-callsign/{callsign}/route", tag = "Flights", params(("callsign" = String, Path, description = "Callsign")), responses((status = 200, description = "Successful response", body = Vec<FlightLeg>)))]
@@ -86,7 +105,9 @@ async fn temporary_warnings(
     Query(query): Query<TemporaryFlightQuery>,
 ) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
     current_user.require_role(UserRole::ApiClient)?;
-    warnings_for_flight(&services, &Flight::from(query)).await
+    warnings_for_flight(&services, &Flight::from(query))
+        .await
+        .map(Json)
 }
 
 #[utoipa::path(get, path = "api/flights/mine", tag = "Flights", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = FlightDto)))]
@@ -133,9 +154,78 @@ fn route_string(flight: &Flight) -> String {
 async fn warnings_for_flight(
     services: &Services,
     flight: &Flight,
-) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
+) -> Result<Vec<validator::WarningMessage>, ApiError> {
     let route = route_string(flight);
     let legs = parser::parse_route(services.navdata(), &route).await?;
     let messages = validator::validate_route(services.navdata(), flight, &legs).await?;
-    Ok(Json(messages))
+    Ok(messages)
+}
+
+async fn warnings_for_all_flights(
+    services: &Services,
+) -> Result<BTreeMap<String, Vec<validator::WarningMessage>>, ApiError> {
+    let validations = futures::future::join_all(list_flights(services).await?.into_iter().map(
+        |flight| async move {
+            let callsign = flight.callsign.clone();
+            warnings_for_flight(services, &flight)
+                .await
+                .map(|warnings| (callsign, warnings))
+        },
+    ))
+    .await;
+
+    validations.into_iter().collect()
+}
+
+async fn stream_warning_changes(
+    mut socket: WebSocket,
+    services: Services,
+    mut snapshot: BTreeMap<String, Vec<validator::WarningMessage>>,
+) {
+    if send_validation_snapshot(&mut socket, &snapshot)
+        .await
+        .is_err()
+    {
+        return;
+    }
+
+    let mut refresh = time::interval(VALIDATION_REFRESH_INTERVAL);
+    refresh.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
+    refresh.tick().await;
+
+    loop {
+        tokio::select! {
+            message = socket.recv() => match message {
+                Some(Ok(Message::Close(_))) | None => return,
+                Some(Err(error)) => {
+                    tracing::debug!(%error, "flight validation websocket closed");
+                    return;
+                }
+                Some(Ok(_)) => {}
+            },
+            _ = refresh.tick() => {
+                match warnings_for_all_flights(&services).await {
+                    Ok(updated) if updated != snapshot => {
+                        if send_validation_snapshot(&mut socket, &updated).await.is_err() {
+                            return;
+                        }
+                        snapshot = updated;
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        tracing::warn!(%error, "failed to refresh flight validation websocket");
+                    }
+                }
+            }
+        }
+    }
+}
+
+async fn send_validation_snapshot(
+    socket: &mut WebSocket,
+    snapshot: &BTreeMap<String, Vec<validator::WarningMessage>>,
+) -> Result<(), axum::Error> {
+    let payload =
+        serde_json::to_string(snapshot).expect("flight validation snapshot should serialize");
+    socket.send(Message::Text(payload.into())).await
 }

@@ -75,6 +75,15 @@ from = "VATPRC <no-reply@example.com>"
 
 The SMTP connection uses STARTTLS.
 
+### Flight plan validation updates
+
+Connect to `ws(s)://<host>/api/flights/warnings/streaming` to receive flight
+plan validation results for all active flights. The server sends the current
+results as a JSON object keyed by callsign in the first text message, checks all
+flight plans again every 30 seconds, and sends another complete snapshot only
+when the results change. This includes flights appearing and disappearing. The
+existing HTTP validation endpoints remain available for request-based checks.
+
 ## Testing
 
 There is E2E testing for each API endpoint. It is still missing test coverage on some endpoints.

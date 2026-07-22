@@ -29,7 +29,7 @@ pub enum ValidatorError {
     Navdata(InvalidNavdataError),
 }
 
-#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, utoipa::ToSchema)]
 pub struct WarningMessage {
     pub message_code: WarningMessageCode,
     pub parameter: Option<String>,
@@ -66,7 +66,7 @@ impl WarningMessage {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum WarningMessageField {
     Equipment,
@@ -76,7 +76,7 @@ pub enum WarningMessageField {
     CruisingLevel,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum WarningMessageCode {
     NoRvsm,
