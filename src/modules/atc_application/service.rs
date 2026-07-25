@@ -192,6 +192,30 @@ impl AtcApplicationService {
         Ok((application_answers, review_answers))
     }
 
+    pub async fn ensure_moodle_account(
+        &self,
+        user_id: Uuid,
+    ) -> Result<(), AtcApplicationServiceError> {
+        self.user
+            .ensure_moodle_account(user_id)
+            .await?
+            .ok_or(AtcApplicationServiceError::UserNotFound(user_id))?;
+        Ok(())
+    }
+
+    pub async fn moodle_account(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Option<i64>, AtcApplicationServiceError> {
+        Ok(self
+            .user
+            .find_by_id(user_id)
+            .await?
+            .ok_or(AtcApplicationServiceError::UserNotFound(user_id))?
+            .moodle_user
+            .map(|user| user.id))
+    }
+
     async fn with_user(
         &self,
         application: AtcApplication,

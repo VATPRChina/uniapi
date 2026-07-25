@@ -187,7 +187,10 @@ async fn review_application(
     }
 
     if approved {
-        ensure_moodle_user(&services, &view.user).await?;
+        services
+            .atc_application()
+            .ensure_moodle_account(view.user.id)
+            .await?;
     }
 
     application_to_dto(&services, view, true, current_user_id)
@@ -216,7 +219,11 @@ async fn application_to_dto(
             .map(|view| SheetFieldAnswerDto::from_entities(view.answer, view.field))
             .collect()
     });
-    let moodle_account = moodle_account(services, &user.cid).await?;
+    let moodle_account = services
+        .atc_application()
+        .moodle_account(user.id)
+        .await?
+        .map(|id| UserMoodleInfoDto { id: id.to_string() });
 
     Ok(AtcApplicationDto::from_entity(
         application,
@@ -227,53 +234,6 @@ async fn application_to_dto(
         review_filing_answers,
         moodle_account,
     ))
-}
-
-async fn ensure_moodle_user(
-    services: &Services,
-    user: &crate::modules::user::models::UserSummary,
-) -> Result<(), ApiError> {
-    let moodle_user = services.moodle().get_user_by_cid(&user.cid).await?;
-    if let Some(moodle_user) = moodle_user {
-        tracing::info!(
-            moodle_user_id = moodle_user.id,
-            cid = %user.cid,
-            "Moodle user found for CID, skipping user creation"
-        );
-        return Ok(());
-    }
-
-    tracing::info!(
-        cid = %user.cid,
-        "No Moodle user found for CID, creating new user"
-    );
-    let created_users = services
-        .moodle()
-        .create_user(&user.cid, &user.full_name, user.email.as_deref())
-        .await?;
-    for created_user in created_users {
-        tracing::info!(
-            moodle_user_id = created_user.id,
-            moodle_username = %created_user.username,
-            cid = %user.cid,
-            "Created Moodle user"
-        );
-    }
-
-    Ok(())
-}
-
-async fn moodle_account(
-    services: &Services,
-    cid: &str,
-) -> Result<Option<UserMoodleInfoDto>, ApiError> {
-    Ok(services
-        .moodle()
-        .get_user_by_cid(cid)
-        .await?
-        .map(|user| UserMoodleInfoDto {
-            id: user.id.to_string(),
-        }))
 }
 
 async fn sheet_dto(
