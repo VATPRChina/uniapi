@@ -4,13 +4,12 @@ use axum::routing::get;
 use axum::{Json, Router};
 
 use crate::auth::CurrentUser;
-use crate::dto::{SheetDto, SheetFieldAnswerDto, SheetFieldDto, parse_ulid_uuid};
+use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
+use crate::modules::sheet::dto::{SheetDto, SheetFieldAnswerDto};
+use crate::modules::sheet::models::SheetAnswerSave;
 use crate::modules::training::dto::{TrainingDto, TrainingRecordRequest, TrainingSaveRequest};
 use crate::modules::training::service::TrainingView;
-use crate::repository::sheet::sheet::SheetRepositoryExt;
-use crate::repository::sheet::sheet_field::SheetFieldRepositoryExt;
-use crate::repository::sheet::sheet_filing_answer::SheetAnswerSave;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -163,26 +162,17 @@ async fn update_training(
 
 #[utoipa::path(get, path = "api/atc/trainings/record-sheet", tag = "Training", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
 async fn get_record_sheet(State(services): State<Services>) -> Result<Json<SheetDto>, ApiError> {
-    services
-        .db()
-        .ensure_sheet(RECORD_SHEET_ID, "Training Record Sheet")
+    let view = services
+        .sheet()
+        .ensure(RECORD_SHEET_ID, "Training Record Sheet")
         .await?;
-    let sheet = services
-        .db()
-        .find_sheet(RECORD_SHEET_ID)
-        .await?
-        .ok_or(ApiError::not_found("sheet", "training-record"))?;
-    let fields = services.db().list_sheet_field(RECORD_SHEET_ID).await?;
-
-    Ok(Json(SheetDto {
-        id: sheet.id,
-        name: sheet.name,
-        fields: fields
+    Ok(Json(SheetDto::from_entities(
+        view.sheet,
+        view.fields
             .into_iter()
             .filter(|field| !field.is_deleted)
-            .map(SheetFieldDto::from)
             .collect(),
-    }))
+    )))
 }
 
 #[utoipa::path(put, path = "api/atc/trainings/{id}/record", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), request_body = TrainingRecordRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
@@ -235,8 +225,12 @@ fn training_to_dto(view: TrainingView) -> TrainingDto {
         view.training,
         view.trainer,
         view.trainee,
-        view.record_sheet_filing
-            .map(|answers| answers.into_iter().map(SheetFieldAnswerDto::from).collect()),
+        view.record_sheet_filing.map(|answers| {
+            answers
+                .into_iter()
+                .map(|view| SheetFieldAnswerDto::from_entities(view.answer, view.field))
+                .collect()
+        }),
     )
 }
 

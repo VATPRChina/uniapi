@@ -10,6 +10,7 @@ use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::modules::atc_application::service::AtcApplicationService;
 use crate::modules::event::service::EventService;
+use crate::modules::sheet::service::SheetService;
 use crate::modules::training::service::{TrainingApplicationService, TrainingService};
 use crate::modules::user::service::access_token::AccessTokenService;
 use crate::modules::user::service::device_authorization::DeviceAuthorizationService;
@@ -39,6 +40,7 @@ pub struct Services {
     audit_log: AuditLogService,
     atc_application: AtcApplicationService,
     event: EventService,
+    sheet: SheetService,
     training: TrainingService,
     training_application: TrainingApplicationService,
     user: UserService,
@@ -59,8 +61,9 @@ impl Services {
         let audit_log = AuditLogService::new(db.clone());
         let moodle = MoodleClient::new(settings.moodle.api_key.clone());
         let user = UserService::new(db.clone(), moodle.clone(), audit_log.clone());
+        let sheet = SheetService::new(db.clone());
         let atc_application =
-            AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone());
+            AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone(), sheet.clone());
         let event = EventService::new(db.clone(), audit_log.clone(), user.clone());
         let access_token = AccessTokenService::new(&settings.authentication.jwt);
         let refresh_token =
@@ -70,7 +73,7 @@ impl Services {
             settings.authentication.jwt.device_authz_expires_seconds,
         );
         let email = EmailClient::new(&settings.email)?;
-        let training = TrainingService::new(db.clone(), user.clone());
+        let training = TrainingService::new(db.clone(), user.clone(), sheet.clone());
         let training_application =
             TrainingApplicationService::new(db.clone(), email.clone(), user.clone());
 
@@ -80,6 +83,7 @@ impl Services {
             audit_log,
             atc_application,
             event,
+            sheet,
             training,
             training_application,
             db,
@@ -158,6 +162,10 @@ impl Services {
 
     pub fn event(&self) -> &EventService {
         &self.event
+    }
+
+    pub fn sheet(&self) -> &SheetService {
+        &self.sheet
     }
 
     pub fn training(&self) -> &TrainingService {

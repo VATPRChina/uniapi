@@ -17,6 +17,7 @@ use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
 use crate::modules::event::service::EventServiceError;
+use crate::modules::sheet::service::SheetServiceError;
 use crate::modules::training::service::{TrainingApplicationServiceError, TrainingServiceError};
 use crate::modules::user::service::user::UserServiceError;
 use crate::services::controller_info::ControllerInfoServiceError;
@@ -208,6 +209,7 @@ impl From<AtcApplicationServiceError> for ApiError {
             }
             AtcApplicationServiceError::AuditLog(source) => ApiError::AuditLog { source },
             AtcApplicationServiceError::User(source) => source.into(),
+            AtcApplicationServiceError::Sheet(source) => source.into(),
         }
     }
 }
@@ -232,6 +234,7 @@ impl From<TrainingServiceError> for ApiError {
             TrainingServiceError::CannotDeleteStarted => ApiError::CannotDeleteStartedTraining,
             TrainingServiceError::Database(source) => ApiError::Database { source },
             TrainingServiceError::User(source) => source.into(),
+            TrainingServiceError::Sheet(source) => source.into(),
         }
     }
 }
@@ -265,6 +268,18 @@ impl From<EventServiceError> for ApiError {
             EventServiceError::Database(source) => ApiError::Database { source },
             EventServiceError::AuditLog(source) => ApiError::AuditLog { source },
             EventServiceError::User(source) => source.into(),
+        }
+    }
+}
+
+impl From<SheetServiceError> for ApiError {
+    fn from(error: SheetServiceError) -> Self {
+        match error {
+            SheetServiceError::NotFound(id) => ApiError::not_found("sheet", id),
+            SheetServiceError::FieldNotFound { sheet_id, field_id } => {
+                ApiError::not_found("sheet field", format!("{sheet_id}/{field_id}"))
+            }
+            SheetServiceError::Database(source) => ApiError::Database { source },
         }
     }
 }

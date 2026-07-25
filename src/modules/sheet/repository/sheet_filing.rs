@@ -5,10 +5,9 @@ use chrono::Utc;
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::repository::sheet::sheet_field::SheetFieldRecord;
-use crate::repository::sheet::sheet_filing_answer::SheetAnswerSave;
+use crate::modules::sheet::models::{SheetAnswerSave, SheetField};
 
-pub trait SheetFilingTransactionExt {
+pub trait SheetFilingTransactionRepository {
     async fn set_sheet_filing(
         &mut self,
         sheet_id: &str,
@@ -18,7 +17,7 @@ pub trait SheetFilingTransactionExt {
     ) -> Result<Uuid, sqlx::Error>;
 }
 
-impl SheetFilingTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+impl SheetFilingTransactionRepository for sqlx::Transaction<'_, sqlx::Postgres> {
     async fn set_sheet_filing(
         &mut self,
         sheet_id: &str,
@@ -28,7 +27,7 @@ impl SheetFilingTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
     ) -> Result<Uuid, sqlx::Error> {
         tracing::info!(
             operation = "set",
-            repository = "src/repository/sheet/sheet_filing.rs",
+            repository = "src/modules/sheet/repository/sheet_filing.rs",
             "modifying data"
         );
 
@@ -63,7 +62,7 @@ impl SheetFilingTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
             }
         };
 
-        let fields = sqlx::query_as::<_, SheetFieldRecord>(
+        let fields = sqlx::query_as::<_, SheetField>(
             r#"
         SELECT sheet_id, id, sequence, name_zh, name_en, kind,
                single_choice_options, description_zh, description_en, is_deleted

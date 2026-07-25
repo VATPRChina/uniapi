@@ -4,13 +4,12 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::adapter::email::{EmailClient, EmailContent, EmailError};
+use crate::modules::sheet::models::SheetAnswerSave;
+use crate::modules::sheet::repository::sheet_filing::SheetFilingTransactionRepository;
+use crate::modules::sheet::service::{SheetAnswerView, SheetService, SheetServiceError};
 use crate::modules::user::models::UserSummary;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 use crate::repository::atc::user_atc_permission::UserAtcPermissionRepositoryExt;
-use crate::repository::sheet::sheet_filing::SheetFilingTransactionExt;
-use crate::repository::sheet::sheet_filing_answer::{
-    SheetAnswerRecord, SheetAnswerSave, SheetFilingAnswerRepositoryExt,
-};
 
 use super::models::{
     Training, TrainingApplication, TrainingApplicationResponse, TrainingApplicationSlotSave,
@@ -31,11 +30,12 @@ const RECORD_SHEET_ID: &str = "training-record";
 pub struct TrainingService {
     db: PgPool,
     user: UserService,
+    sheet: SheetService,
 }
 
 impl TrainingService {
-    pub fn new(db: PgPool, user: UserService) -> Self {
-        Self { db, user }
+    pub fn new(db: PgPool, user: UserService, sheet: SheetService) -> Self {
+        Self { db, user, sheet }
     }
 
     pub async fn list_active(
@@ -194,11 +194,7 @@ impl TrainingService {
 
     async fn with_filing(&self, training: Training) -> Result<TrainingView, TrainingServiceError> {
         let record_sheet_filing = match training.record_sheet_filing_id {
-            Some(filing_id) => Some(
-                self.db
-                    .list_sheet_filing_answer_by_filing(filing_id)
-                    .await?,
-            ),
+            Some(filing_id) => Some(self.sheet.filing_answers(filing_id).await?),
             None => None,
         };
         let trainer = self
@@ -225,7 +221,7 @@ pub struct TrainingView {
     pub training: Training,
     pub trainer: UserSummary,
     pub trainee: UserSummary,
-    pub record_sheet_filing: Option<Vec<SheetAnswerRecord>>,
+    pub record_sheet_filing: Option<Vec<SheetAnswerView>>,
 }
 
 fn ensure_trainer_access(
@@ -516,6 +512,8 @@ pub enum TrainingServiceError {
     Database(#[from] sqlx::Error),
     #[error("failed to access training user: {0}")]
     User(#[from] UserServiceError),
+    #[error("failed to access training sheet: {0}")]
+    Sheet(#[from] SheetServiceError),
 }
 
 #[derive(Debug, thiserror::Error)]

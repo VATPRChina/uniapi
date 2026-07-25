@@ -4,12 +4,12 @@ use uuid::Uuid;
 
 use crate::modules::audit_log::models::AuditLogEntity;
 use crate::modules::audit_log::service::{AuditLogService, AuditLogServiceError};
+use crate::modules::sheet::models::{SheetAnswer, SheetAnswerSave};
+use crate::modules::sheet::repository::sheet_filing::SheetFilingTransactionRepository;
+use crate::modules::sheet::repository::sheet_filing_answer::SheetFilingAnswerRepository;
+use crate::modules::sheet::service::{SheetAnswerView, SheetService, SheetServiceError};
 use crate::modules::user::models::UserSummary;
 use crate::modules::user::service::user::{UserService, UserServiceError};
-use crate::repository::sheet::sheet_filing::SheetFilingTransactionExt;
-use crate::repository::sheet::sheet_filing_answer::{
-    SheetAnswerRecord, SheetAnswerSave, SheetFilingAnswerRepositoryExt,
-};
 
 use super::models::{AtcApplication, AtcApplicationStatus};
 use super::repository::AtcApplicationRepository;
@@ -22,14 +22,21 @@ pub struct AtcApplicationService {
     db: PgPool,
     audit_log: AuditLogService,
     user: UserService,
+    sheet: SheetService,
 }
 
 impl AtcApplicationService {
-    pub fn new(db: PgPool, audit_log: AuditLogService, user: UserService) -> Self {
+    pub fn new(
+        db: PgPool,
+        audit_log: AuditLogService,
+        user: UserService,
+        sheet: SheetService,
+    ) -> Self {
         Self {
             db,
             audit_log,
             user,
+            sheet,
         }
     }
 
@@ -171,18 +178,14 @@ impl AtcApplicationService {
     pub async fn filing_answers(
         &self,
         application: &AtcApplication,
-    ) -> Result<(Vec<SheetAnswerRecord>, Option<Vec<SheetAnswerRecord>>), AtcApplicationServiceError>
+    ) -> Result<(Vec<SheetAnswerView>, Option<Vec<SheetAnswerView>>), AtcApplicationServiceError>
     {
         let application_answers = self
-            .db
-            .list_sheet_filing_answer_by_filing(application.application_filing_id)
+            .sheet
+            .filing_answers(application.application_filing_id)
             .await?;
         let review_answers = match application.review_filing_id {
-            Some(filing_id) => Some(
-                self.db
-                    .list_sheet_filing_answer_by_filing(filing_id)
-                    .await?,
-            ),
+            Some(filing_id) => Some(self.sheet.filing_answers(filing_id).await?),
             None => None,
         };
 
@@ -244,8 +247,8 @@ fn ensure_visible(
 #[derive(Serialize)]
 struct AtcApplicationAuditSnapshot {
     application: AtcApplication,
-    application_filing_answers: Vec<SheetAnswerRecord>,
-    review_filing_answers: Option<Vec<SheetAnswerRecord>>,
+    application_filing_answers: Vec<SheetAnswer>,
+    review_filing_answers: Option<Vec<SheetAnswer>>,
 }
 
 async fn application_audit_snapshot(
@@ -287,4 +290,6 @@ pub enum AtcApplicationServiceError {
     AuditLog(#[from] AuditLogServiceError),
     #[error("failed to access ATC application user: {0}")]
     User(#[from] UserServiceError),
+    #[error("failed to access ATC application sheet: {0}")]
+    Sheet(#[from] SheetServiceError),
 }

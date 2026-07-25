@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::dto::{SheetFieldAnswerDto, SheetRequestField};
+use crate::modules::sheet::dto::{SheetFieldAnswerDto, SheetRequestField};
 use crate::modules::user::dto::{UserDto, UserMoodleInfoDto};
 use crate::modules::user::models::UserSummary;
 

@@ -1,14 +1,11 @@
-use std::collections::HashSet;
-
 use axum::extract::{Path, State};
 use axum::routing::{get, put};
 use axum::{Json, Router};
 
 use crate::auth::CurrentUser;
-use crate::dto::*;
 use crate::model::user_role::UserRole;
-use crate::repository::sheet::sheet::{SheetRepositoryExt, SheetTransactionExt};
-use crate::repository::sheet::sheet_field::SheetFieldRepositoryExt;
+use crate::modules::sheet::dto::{SheetDto, SheetSaveRequest, validate_sheet_request};
+use crate::modules::sheet::service::SheetView;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -25,15 +22,15 @@ pub fn build_sheet_routes() -> Router<Services> {
 
 #[utoipa::path(get, path = "api/sheets", tag = "Sheets", responses((status = 200, description = "Successful response", body = Vec<SheetDto>)))]
 async fn list_sheets(State(services): State<Services>) -> Result<Json<Vec<SheetDto>>, ApiError> {
-    let sheets = services.db().list_sheet().await?;
-    let mut response = Vec::with_capacity(sheets.len());
-
-    for sheet in sheets {
-        let fields = services.db().list_sheet_field(&sheet.id).await?;
-        response.push(SheetDto::from_records(sheet, fields));
-    }
-
-    Ok(Json(response))
+    Ok(Json(
+        services
+            .sheet()
+            .list()
+            .await?
+            .into_iter()
+            .map(sheet_to_dto)
+            .collect(),
+    ))
 }
 
 #[utoipa::path(get, path = "api/sheets/{sheetId}", tag = "Sheets", params(("sheetId" = String, Path, description = "Sheet ID")), responses((status = 200, description = "Successful response", body = SheetDto)))]
@@ -41,14 +38,7 @@ async fn get_sheet(
     State(services): State<Services>,
     Path(sheet_id): Path<String>,
 ) -> Result<Json<SheetDto>, ApiError> {
-    let sheet = services
-        .db()
-        .find_sheet(&sheet_id)
-        .await?
-        .ok_or_else(|| ApiError::not_found("sheet", &sheet_id))?;
-    let fields = services.db().list_sheet_field(&sheet_id).await?;
-
-    Ok(Json(SheetDto::from_records(sheet, fields)))
+    Ok(Json(sheet_to_dto(services.sheet().find(&sheet_id).await?)))
 }
 
 #[utoipa::path(put, path = "api/sheets/{sheetId}", tag = "Sheets", security(("oauth2" = [])), params(("sheetId" = String, Path, description = "Sheet ID")), request_body = SheetSaveRequest, responses((status = 200, description = "Successful response", body = SheetDto)))]
@@ -61,32 +51,11 @@ async fn upsert_sheet(
     current_user.require_role(UserRole::Staff)?;
     validate_sheet_request(&request)?;
 
-    let mut transaction = services.db().begin().await?;
-    let sheet = transaction.upsert_sheet(&sheet_id, request.into()).await?;
-    transaction.commit().await?;
-    let fields = services.db().list_sheet_field(&sheet_id).await?;
-
-    Ok(Json(SheetDto::from_records(sheet, fields)))
+    Ok(Json(sheet_to_dto(
+        services.sheet().upsert(&sheet_id, request.into()).await?,
+    )))
 }
 
-fn validate_sheet_request(request: &SheetSaveRequest) -> Result<(), ApiError> {
-    let mut field_ids = HashSet::with_capacity(request.fields.len());
-
-    for field in &request.fields {
-        if field.id.trim().is_empty() {
-            return Err(ApiError::bad_request(
-                "fields.id",
-                "field id cannot be empty",
-            ));
-        }
-
-        if !field_ids.insert(field.id.as_str()) {
-            return Err(ApiError::bad_request(
-                "fields.id",
-                "field id must be unique",
-            ));
-        }
-    }
-
-    Ok(())
+fn sheet_to_dto(view: SheetView) -> SheetDto {
+    SheetDto::from_entities(view.sheet, view.fields)
 }

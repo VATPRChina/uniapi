@@ -1,40 +1,26 @@
-use sqlx::FromRow;
+use crate::modules::sheet::models::{Sheet, SheetSave};
 
-use crate::repository::sheet::sheet_field::SheetFieldSave;
-
-#[derive(Debug, Clone, FromRow)]
-pub struct SheetRecord {
-    pub id: String,
-    pub name: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct SheetSave {
-    pub name: String,
-    pub fields: Vec<SheetFieldSave>,
-}
-
-pub trait SheetTransactionExt {
+pub trait SheetTransactionRepository {
     async fn upsert_sheet(
         &mut self,
         sheet_id: &str,
         sheet: SheetSave,
-    ) -> Result<SheetRecord, sqlx::Error>;
+    ) -> Result<Sheet, sqlx::Error>;
 }
 
-impl SheetTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+impl SheetTransactionRepository for sqlx::Transaction<'_, sqlx::Postgres> {
     async fn upsert_sheet(
         &mut self,
         sheet_id: &str,
         sheet: SheetSave,
-    ) -> Result<SheetRecord, sqlx::Error> {
+    ) -> Result<Sheet, sqlx::Error> {
         tracing::info!(
             operation = "upsert",
-            repository = "src/repository/sheet/sheet.rs",
+            repository = "src/modules/sheet/repository/sheet.rs",
             "modifying data"
         );
 
-        let record = sqlx::query_as::<_, SheetRecord>(
+        let record = sqlx::query_as::<_, Sheet>(
             r#"
         INSERT INTO public.sheet (id, name)
         VALUES ($1, $2)
@@ -111,22 +97,22 @@ impl SheetTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
     }
 }
 
-pub trait SheetRepositoryExt<'executor> {
+pub trait SheetRepository<'executor> {
     async fn ensure_sheet(self, sheet_id: &str, name: &str) -> Result<(), sqlx::Error>;
 
-    async fn list_sheet(self) -> Result<Vec<SheetRecord>, sqlx::Error>;
+    async fn list_sheet(self) -> Result<Vec<Sheet>, sqlx::Error>;
 
-    async fn find_sheet(self, sheet_id: &str) -> Result<Option<SheetRecord>, sqlx::Error>;
+    async fn find_sheet(self, sheet_id: &str) -> Result<Option<Sheet>, sqlx::Error>;
 }
 
-impl<'executor, E> SheetRepositoryExt<'executor> for E
+impl<'executor, E> SheetRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
     async fn ensure_sheet(self, sheet_id: &str, name: &str) -> Result<(), sqlx::Error> {
         tracing::info!(
             operation = "ensure",
-            repository = "src/repository/sheet/sheet.rs",
+            repository = "src/modules/sheet/repository/sheet.rs",
             "modifying data"
         );
 
@@ -144,8 +130,8 @@ where
 
         Ok(())
     }
-    async fn list_sheet(self) -> Result<Vec<SheetRecord>, sqlx::Error> {
-        sqlx::query_as::<_, SheetRecord>(
+    async fn list_sheet(self) -> Result<Vec<Sheet>, sqlx::Error> {
+        sqlx::query_as::<_, Sheet>(
             r#"
         SELECT id, name
         FROM public.sheet
@@ -155,8 +141,8 @@ where
         .fetch_all(self)
         .await
     }
-    async fn find_sheet(self, sheet_id: &str) -> Result<Option<SheetRecord>, sqlx::Error> {
-        sqlx::query_as::<_, SheetRecord>(
+    async fn find_sheet(self, sheet_id: &str) -> Result<Option<Sheet>, sqlx::Error> {
+        sqlx::query_as::<_, Sheet>(
             r#"
         SELECT id, name
         FROM public.sheet

@@ -12,10 +12,9 @@ use crate::modules::atc_application::dto::{
     AtcApplicationSummaryDto,
 };
 use crate::modules::atc_application::service::AtcApplicationView;
+use crate::modules::sheet::dto::{SheetDto, SheetFieldAnswerDto};
+use crate::modules::sheet::models::SheetAnswerSave;
 use crate::modules::user::dto::UserMoodleInfoDto;
-use crate::repository::sheet::sheet::SheetRepositoryExt;
-use crate::repository::sheet::sheet_field::SheetFieldRepositoryExt;
-use crate::repository::sheet::sheet_filing_answer::SheetAnswerSave;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -209,10 +208,14 @@ async fn application_to_dto(
         .await?;
     let application_filing_answers = application_filing_answers
         .into_iter()
-        .map(SheetFieldAnswerDto::from)
+        .map(|view| SheetFieldAnswerDto::from_entities(view.answer, view.field))
         .collect();
-    let review_filing_answers = review_filing_answers
-        .map(|answers| answers.into_iter().map(SheetFieldAnswerDto::from).collect());
+    let review_filing_answers = review_filing_answers.map(|answers| {
+        answers
+            .into_iter()
+            .map(|view| SheetFieldAnswerDto::from_entities(view.answer, view.field))
+            .collect()
+    });
     let moodle_account = moodle_account(services, &user.cid).await?;
 
     Ok(AtcApplicationDto::from_entity(
@@ -278,21 +281,12 @@ async fn sheet_dto(
     sheet_id: &str,
     sheet_name: &str,
 ) -> Result<SheetDto, ApiError> {
-    services.db().ensure_sheet(sheet_id, sheet_name).await?;
-    let sheet = services
-        .db()
-        .find_sheet(sheet_id)
-        .await?
-        .ok_or(ApiError::not_found("sheet", sheet_id))?;
-    let fields = services.db().list_sheet_field(sheet_id).await?;
-
-    Ok(SheetDto {
-        id: sheet.id,
-        name: sheet.name,
-        fields: fields
+    let view = services.sheet().ensure(sheet_id, sheet_name).await?;
+    Ok(SheetDto::from_entities(
+        view.sheet,
+        view.fields
             .into_iter()
             .filter(|field| !field.is_deleted)
-            .map(SheetFieldDto::from)
             .collect(),
-    })
+    ))
 }
