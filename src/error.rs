@@ -16,6 +16,7 @@ use crate::model::user_role::UserRole;
 use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
+use crate::modules::training::service::{TrainingApplicationServiceError, TrainingServiceError};
 use crate::modules::user::service::user::UserServiceError;
 use crate::services::controller_info::ControllerInfoServiceError;
 
@@ -206,6 +207,58 @@ impl From<AtcApplicationServiceError> for ApiError {
             }
             AtcApplicationServiceError::AuditLog(source) => ApiError::AuditLog { source },
             AtcApplicationServiceError::User(source) => source.into(),
+        }
+    }
+}
+
+impl From<TrainingServiceError> for ApiError {
+    fn from(error: TrainingServiceError) -> Self {
+        match error {
+            TrainingServiceError::NotFound(id) => {
+                ApiError::not_found("training", ulid::Ulid::from(id).to_string())
+            }
+            TrainingServiceError::UserNotFound(_) => ApiError::Internal,
+            TrainingServiceError::NotOwned { entity, id } => ApiError::NotOwned {
+                entity: entity.to_string(),
+                id: ulid::Ulid::from(id).to_string(),
+            },
+            TrainingServiceError::CannotCreateForOtherTrainer => {
+                ApiError::CannotCreateForOtherTrainer
+            }
+            TrainingServiceError::CannotUpdateTrainerTrainee => {
+                ApiError::CannotUpdateTrainerTrainee
+            }
+            TrainingServiceError::CannotDeleteStarted => ApiError::CannotDeleteStartedTraining,
+            TrainingServiceError::Database(source) => ApiError::Database { source },
+            TrainingServiceError::User(source) => source.into(),
+        }
+    }
+}
+
+impl From<TrainingApplicationServiceError> for ApiError {
+    fn from(error: TrainingApplicationServiceError) -> Self {
+        match error {
+            TrainingApplicationServiceError::NotFound(id) => {
+                ApiError::not_found("training application", ulid::Ulid::from(id).to_string())
+            }
+            TrainingApplicationServiceError::ResponseNotFound(id) => ApiError::not_found(
+                "training application response",
+                ulid::Ulid::from(id).to_string(),
+            ),
+            TrainingApplicationServiceError::SlotNotFound(id) => ApiError::not_found(
+                "training application slot",
+                ulid::Ulid::from(id).to_string(),
+            ),
+            TrainingApplicationServiceError::UserNotFound(_) => ApiError::Internal,
+            TrainingApplicationServiceError::ControllerPermissionRequired => {
+                ApiError::forbidden([UserRole::Controller])
+            }
+            TrainingApplicationServiceError::AlreadyAccepted => {
+                ApiError::TrainingApplicationAlreadyAccepted
+            }
+            TrainingApplicationServiceError::Database(source) => ApiError::Database { source },
+            TrainingApplicationServiceError::Email(source) => ApiError::Email { source },
+            TrainingApplicationServiceError::User(source) => source.into(),
         }
     }
 }

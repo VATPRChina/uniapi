@@ -1,26 +1,10 @@
-use chrono::{DateTime, Utc};
-use sqlx::FromRow;
+use chrono::Utc;
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::repository::atc_training::training_application::TrainingApplicationRecord;
-use crate::repository::atc_training::training_application_slot::TrainingApplicationSlotRecord;
-
-#[derive(Debug, Clone, FromRow)]
-pub struct TrainingApplicationResponseRecord {
-    pub id: Uuid,
-    pub application_id: Uuid,
-    pub trainer_id: Uuid,
-    pub trainer_cid: String,
-    pub trainer_full_name: String,
-    pub trainer_created_at: DateTime<Utc>,
-    pub trainer_updated_at: DateTime<Utc>,
-    pub trainer_roles: Vec<String>,
-    pub slot_id: Option<Uuid>,
-    pub comment: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
+use crate::modules::training::models::{
+    TrainingApplication, TrainingApplicationResponse, TrainingApplicationSlot,
+};
 
 fn select_sql(where_clause: &str) -> String {
     format!(
@@ -28,43 +12,37 @@ fn select_sql(where_clause: &str) -> String {
         SELECT training_application_response.id,
                training_application_response.application_id,
                training_application_response.trainer_id,
-               trainer.cid AS trainer_cid,
-               trainer.full_name AS trainer_full_name,
-               trainer.created_at AS trainer_created_at,
-               trainer.updated_at AS trainer_updated_at,
-               trainer.roles AS trainer_roles,
                training_application_response.slot_id,
                training_application_response.comment,
                training_application_response.created_at,
                training_application_response.updated_at
         FROM public.training_application_response
-        INNER JOIN public."user" AS trainer ON trainer.id = training_application_response.trainer_id
         {where_clause}
         "#
     )
 }
 
-pub trait TrainingApplicationResponseRepositoryExt<'executor> {
+pub(crate) trait TrainingApplicationResponseRepository<'executor> {
     async fn list_training_application_response(
         self,
         application_id: Uuid,
-    ) -> Result<Vec<TrainingApplicationResponseRecord>, sqlx::Error>;
+    ) -> Result<Vec<TrainingApplicationResponse>, sqlx::Error>;
 
     async fn find_training_application_response(
         self,
         id: Uuid,
-    ) -> Result<Option<TrainingApplicationResponseRecord>, sqlx::Error>;
+    ) -> Result<Option<TrainingApplicationResponse>, sqlx::Error>;
 }
 
-impl<'executor, E> TrainingApplicationResponseRepositoryExt<'executor> for E
+impl<'executor, E> TrainingApplicationResponseRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
     async fn list_training_application_response(
         self,
         application_id: Uuid,
-    ) -> Result<Vec<TrainingApplicationResponseRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingApplicationResponseRecord>(&select_sql(
+    ) -> Result<Vec<TrainingApplicationResponse>, sqlx::Error> {
+        sqlx::query_as::<_, TrainingApplicationResponse>(&select_sql(
             r#"
         WHERE training_application_response.application_id = $1
         ORDER BY training_application_response.created_at DESC
@@ -77,8 +55,8 @@ where
     async fn find_training_application_response(
         self,
         id: Uuid,
-    ) -> Result<Option<TrainingApplicationResponseRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingApplicationResponseRecord>(&select_sql(
+    ) -> Result<Option<TrainingApplicationResponse>, sqlx::Error> {
+        sqlx::query_as::<_, TrainingApplicationResponse>(&select_sql(
             r#"
         WHERE training_application_response.id = $1
         "#,
@@ -89,27 +67,27 @@ where
     }
 }
 
-pub trait TrainingApplicationResponseTransactionExt {
+pub(crate) trait TrainingApplicationResponseTransactionRepository {
     async fn create_training_application_response(
         &mut self,
-        application: &TrainingApplicationRecord,
+        application: &TrainingApplication,
         trainer_id: Uuid,
-        slot: Option<&TrainingApplicationSlotRecord>,
+        slot: Option<&TrainingApplicationSlot>,
         comment: &str,
     ) -> Result<Uuid, sqlx::Error>;
 }
 
-impl TrainingApplicationResponseTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+impl TrainingApplicationResponseTransactionRepository for sqlx::Transaction<'_, sqlx::Postgres> {
     async fn create_training_application_response(
         &mut self,
-        application: &TrainingApplicationRecord,
+        application: &TrainingApplication,
         trainer_id: Uuid,
-        slot: Option<&TrainingApplicationSlotRecord>,
+        slot: Option<&TrainingApplicationSlot>,
         comment: &str,
     ) -> Result<Uuid, sqlx::Error> {
         tracing::info!(
             operation = "create",
-            repository = "src/repository/atc_training/training_application_response.rs",
+            repository = "src/modules/training/repository/training_application_response.rs",
             "modifying data"
         );
 

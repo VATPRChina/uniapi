@@ -1,7 +1,6 @@
 #![allow(async_fn_in_trait)]
 
 pub mod atc;
-pub mod atc_training;
 pub mod compat;
 pub mod event;
 pub mod migration;

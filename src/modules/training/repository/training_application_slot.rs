@@ -1,44 +1,30 @@
-use chrono::{DateTime, Utc};
-use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromRow)]
-pub struct TrainingApplicationSlotRecord {
-    pub id: Uuid,
-    pub application_id: Uuid,
-    pub start_at: DateTime<Utc>,
-    pub end_at: DateTime<Utc>,
-}
+use crate::modules::training::models::{TrainingApplicationSlot, TrainingApplicationSlotSave};
 
-#[derive(Debug, Clone)]
-pub struct TrainingApplicationSlotSave {
-    pub start_at: DateTime<Utc>,
-    pub end_at: DateTime<Utc>,
-}
-
-pub trait TrainingApplicationSlotRepositoryExt<'executor> {
+pub(crate) trait TrainingApplicationSlotRepository<'executor> {
     async fn list_training_application_slot(
         self,
         application_id: Uuid,
-    ) -> Result<Vec<TrainingApplicationSlotRecord>, sqlx::Error>;
+    ) -> Result<Vec<TrainingApplicationSlot>, sqlx::Error>;
 
     async fn find_training_application_slot(
         self,
         application_id: Uuid,
         slot_id: Uuid,
-    ) -> Result<Option<TrainingApplicationSlotRecord>, sqlx::Error>;
+    ) -> Result<Option<TrainingApplicationSlot>, sqlx::Error>;
 }
 
-impl<'executor, E> TrainingApplicationSlotRepositoryExt<'executor> for E
+impl<'executor, E> TrainingApplicationSlotRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
     async fn list_training_application_slot(
         self,
         application_id: Uuid,
-    ) -> Result<Vec<TrainingApplicationSlotRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingApplicationSlotRecord>(
+    ) -> Result<Vec<TrainingApplicationSlot>, sqlx::Error> {
+        sqlx::query_as::<_, TrainingApplicationSlot>(
             r#"
         SELECT id, application_id, start_at, end_at
         FROM public.training_application_slot
@@ -54,8 +40,8 @@ where
         self,
         application_id: Uuid,
         slot_id: Uuid,
-    ) -> Result<Option<TrainingApplicationSlotRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingApplicationSlotRecord>(
+    ) -> Result<Option<TrainingApplicationSlot>, sqlx::Error> {
+        sqlx::query_as::<_, TrainingApplicationSlot>(
             r#"
         SELECT id, application_id, start_at, end_at
         FROM public.training_application_slot
@@ -69,7 +55,7 @@ where
     }
 }
 
-pub trait TrainingApplicationSlotTransactionExt {
+pub(crate) trait TrainingApplicationSlotTransactionRepository {
     async fn replace_training_application_slot(
         &mut self,
         application_id: Uuid,
@@ -77,7 +63,7 @@ pub trait TrainingApplicationSlotTransactionExt {
     ) -> Result<(), sqlx::Error>;
 }
 
-impl TrainingApplicationSlotTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+impl TrainingApplicationSlotTransactionRepository for sqlx::Transaction<'_, sqlx::Postgres> {
     async fn replace_training_application_slot(
         &mut self,
         application_id: Uuid,

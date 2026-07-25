@@ -2,18 +2,15 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::Utc;
 
 use crate::auth::CurrentUser;
-use crate::dto::*;
+use crate::dto::{SheetDto, SheetFieldAnswerDto, SheetFieldDto, parse_ulid_uuid};
 use crate::model::user_role::UserRole;
-use crate::repository::atc_training::training::TrainingRepositoryExt;
-use crate::repository::atc_training::training::{TrainingRecord, TrainingSave};
+use crate::modules::training::dto::{TrainingDto, TrainingRecordRequest, TrainingSaveRequest};
+use crate::modules::training::service::TrainingView;
 use crate::repository::sheet::sheet::SheetRepositoryExt;
 use crate::repository::sheet::sheet_field::SheetFieldRepositoryExt;
-use crate::repository::sheet::sheet_filing::SheetFilingTransactionExt;
 use crate::repository::sheet::sheet_filing_answer::SheetAnswerSave;
-use crate::repository::sheet::sheet_filing_answer::SheetFilingAnswerRepositoryExt;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -55,15 +52,15 @@ async fn list_active(
     current_user: CurrentUser,
 ) -> Result<Json<Vec<TrainingDto>>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    trainings_to_dto(
-        &services,
+    Ok(Json(
         services
-            .db()
-            .list_training_active(user_id, is_training_history_admin(&current_user))
-            .await?,
-    )
-    .await
-    .map(Json)
+            .training()
+            .list_active(user_id, is_training_history_admin(&current_user))
+            .await?
+            .into_iter()
+            .map(training_to_dto)
+            .collect(),
+    ))
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/by-user/{userId}", tag = "Training", security(("oauth2" = [])), params(("userId" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
@@ -74,19 +71,19 @@ async fn list_by_user(
 ) -> Result<Json<Vec<TrainingDto>>, ApiError> {
     let user_id = parse_ulid_uuid("user_id", &user_id)?;
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    if current_user_id != user_id && !is_training_history_admin(&current_user) {
-        return Err(ApiError::NotOwned {
-            entity: "user".to_string(),
-            id: user_id.to_string(),
-        });
-    }
-
-    trainings_to_dto(
-        &services,
-        services.db().list_training_by_user(user_id).await?,
-    )
-    .await
-    .map(Json)
+    Ok(Json(
+        services
+            .training()
+            .list_by_user(
+                user_id,
+                current_user_id,
+                is_training_history_admin(&current_user),
+            )
+            .await?
+            .into_iter()
+            .map(training_to_dto)
+            .collect(),
+    ))
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/finished", tag = "Training", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
@@ -95,15 +92,15 @@ async fn list_finished(
     current_user: CurrentUser,
 ) -> Result<Json<Vec<TrainingDto>>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    trainings_to_dto(
-        &services,
+    Ok(Json(
         services
-            .db()
-            .list_training_finished(user_id, is_training_history_admin(&current_user))
-            .await?,
-    )
-    .await
-    .map(Json)
+            .training()
+            .list_finished(user_id, is_training_history_admin(&current_user))
+            .await?
+            .into_iter()
+            .map(training_to_dto)
+            .collect(),
+    ))
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/{id}", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = TrainingDto)))]
@@ -112,9 +109,16 @@ async fn get_training(
     current_user: CurrentUser,
     Path(id): Path<String>,
 ) -> Result<Json<TrainingDto>, ApiError> {
-    let training = find_training(&services, &id).await?;
-    validate_view_access(&current_user, &training)?;
-    training_to_dto(&services, training).await.map(Json)
+    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    let training = services
+        .training()
+        .find_visible(
+            parse_ulid_uuid("id", &id)?,
+            current_user_id,
+            is_training_history_admin(&current_user),
+        )
+        .await?;
+    Ok(Json(training_to_dto(training)))
 }
 
 #[utoipa::path(post, path = "api/atc/trainings", tag = "Training", security(("oauth2" = [])), request_body = TrainingSaveRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
@@ -125,15 +129,15 @@ async fn create_training(
 ) -> Result<Json<TrainingDto>, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let training = TrainingSave::try_from(request)?;
-    if training.trainer_id != current_user_id
-        && !current_user.has_role(UserRole::ControllerTrainingDirectorAssistant)
-    {
-        return Err(ApiError::CannotCreateForOtherTrainer);
-    }
-
-    let training = services.db().create_training(training).await?;
-    training_to_dto(&services, training).await.map(Json)
+    let training = services
+        .training()
+        .create(
+            request.try_into()?,
+            current_user_id,
+            current_user.has_role(UserRole::ControllerTrainingDirectorAssistant),
+        )
+        .await?;
+    Ok(Json(training_to_dto(training)))
 }
 
 #[utoipa::path(put, path = "api/atc/trainings/{id}", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), request_body = TrainingSaveRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
@@ -146,22 +150,15 @@ async fn update_training(
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
     let id = parse_ulid_uuid("id", &id)?;
     let training = services
-        .db()
-        .find_training_by_id(id)
-        .await?
-        .ok_or(ApiError::not_found("resource", "unknown"))?;
-    validate_ownership(&current_user, &training, true)?;
-    let save = TrainingSave::try_from(request)?;
-    if save.trainer_id != training.trainer_id || save.trainee_id != training.trainee_id {
-        return Err(ApiError::CannotUpdateTrainerTrainee);
-    }
-
-    let training = services
-        .db()
-        .update_training(id, save)
-        .await?
-        .ok_or(ApiError::not_found("resource", "unknown"))?;
-    training_to_dto(&services, training).await.map(Json)
+        .training()
+        .update(
+            id,
+            request.try_into()?,
+            current_user.user_id.ok_or(ApiError::Unauthorized)?,
+            current_user.has_role(UserRole::ControllerTrainingMentor),
+        )
+        .await?;
+    Ok(Json(training_to_dto(training)))
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/record-sheet", tag = "Training", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
@@ -197,35 +194,21 @@ async fn set_record_sheet(
 ) -> Result<Json<TrainingDto>, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
     let id = parse_ulid_uuid("id", &id)?;
-    let training = services
-        .db()
-        .find_training_by_id(id)
-        .await?
-        .ok_or(ApiError::not_found("resource", "unknown"))?;
-    validate_ownership(&current_user, &training, true)?;
-
     let answers = request
         .request_answers
         .into_iter()
         .map(SheetAnswerSave::from)
         .collect::<Vec<_>>();
-    let mut transaction = services.db().begin().await?;
-    let filing_id = transaction
-        .set_sheet_filing(
-            RECORD_SHEET_ID,
-            training.record_sheet_filing_id,
-            training.trainer_id,
+    let training = services
+        .training()
+        .set_record(
+            id,
             &answers,
+            current_user.user_id.ok_or(ApiError::Unauthorized)?,
+            current_user.has_role(UserRole::ControllerTrainingMentor),
         )
         .await?;
-    transaction.commit().await?;
-    let training = services
-        .db()
-        .set_training_record_filing(id, filing_id)
-        .await?
-        .ok_or(ApiError::not_found("resource", "unknown"))?;
-
-    training_to_dto(&services, training).await.map(Json)
+    Ok(Json(training_to_dto(training)))
 }
 
 #[utoipa::path(delete, path = "api/atc/trainings/{id}", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 204, description = "No content")))]
@@ -236,97 +219,25 @@ async fn delete_training(
 ) -> Result<StatusCode, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
     let id = parse_ulid_uuid("id", &id)?;
-    let training = services
-        .db()
-        .find_training_by_id(id)
-        .await?
-        .ok_or(ApiError::not_found("resource", "unknown"))?;
-    validate_ownership(&current_user, &training, true)?;
-    if training.start_at <= Utc::now() {
-        return Err(ApiError::CannotDeleteStartedTraining);
-    }
-
-    services.db().mark_training_deleted(id).await?;
+    services
+        .training()
+        .delete(
+            id,
+            current_user.user_id.ok_or(ApiError::Unauthorized)?,
+            current_user.has_role(UserRole::ControllerTrainingMentor),
+        )
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn find_training(services: &Services, id: &str) -> Result<TrainingRecord, ApiError> {
-    services
-        .db()
-        .find_training_by_id(parse_ulid_uuid("id", id)?)
-        .await?
-        .ok_or(ApiError::not_found("resource", "unknown"))
-}
-
-async fn trainings_to_dto(
-    services: &Services,
-    trainings: Vec<TrainingRecord>,
-) -> Result<Vec<TrainingDto>, ApiError> {
-    let mut dtos = Vec::with_capacity(trainings.len());
-    for training in trainings {
-        dtos.push(training_to_dto(services, training).await?);
-    }
-    Ok(dtos)
-}
-
-async fn training_to_dto(
-    services: &Services,
-    training: TrainingRecord,
-) -> Result<TrainingDto, ApiError> {
-    let record_sheet_filing = match training.record_sheet_filing_id {
-        Some(filing_id) => Some(
-            services
-                .db()
-                .list_sheet_filing_answer_by_filing(filing_id)
-                .await?
-                .into_iter()
-                .map(SheetFieldAnswerDto::from)
-                .collect(),
-        ),
-        None => None,
-    };
-
-    Ok(TrainingDto::from_record(training, record_sheet_filing))
-}
-
-fn validate_ownership(
-    current_user: &CurrentUser,
-    training: &TrainingRecord,
-    require_trainer: bool,
-) -> Result<(), ApiError> {
-    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    if training.trainer_id == current_user_id {
-        return Ok(());
-    }
-    if training.trainee_id == current_user_id && !require_trainer {
-        return Ok(());
-    }
-    if current_user.has_role(UserRole::ControllerTrainingMentor) {
-        return Ok(());
-    }
-
-    Err(ApiError::NotOwned {
-        entity: "training".to_string(),
-        id: training.id.to_string(),
-    })
-}
-
-fn validate_view_access(
-    current_user: &CurrentUser,
-    training: &TrainingRecord,
-) -> Result<(), ApiError> {
-    let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    if training.trainer_id == current_user_id
-        || training.trainee_id == current_user_id
-        || is_training_history_admin(current_user)
-    {
-        return Ok(());
-    }
-
-    Err(ApiError::NotOwned {
-        entity: "training".to_string(),
-        id: training.id.to_string(),
-    })
+fn training_to_dto(view: TrainingView) -> TrainingDto {
+    TrainingDto::from_entity(
+        view.training,
+        view.trainer,
+        view.trainee,
+        view.record_sheet_filing
+            .map(|answers| answers.into_iter().map(SheetFieldAnswerDto::from).collect()),
+    )
 }
 
 fn is_training_history_admin(current_user: &CurrentUser) -> bool {

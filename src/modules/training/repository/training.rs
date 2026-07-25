@@ -1,40 +1,8 @@
-use chrono::{DateTime, Utc};
-use sqlx::FromRow;
+use chrono::Utc;
 use ulid::Ulid;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromRow)]
-pub struct TrainingRecord {
-    pub id: Uuid,
-    pub name: String,
-    pub trainer_id: Uuid,
-    pub trainer_cid: String,
-    pub trainer_full_name: String,
-    pub trainer_created_at: DateTime<Utc>,
-    pub trainer_updated_at: DateTime<Utc>,
-    pub trainer_roles: Vec<String>,
-    pub trainee_id: Uuid,
-    pub trainee_cid: String,
-    pub trainee_full_name: String,
-    pub trainee_created_at: DateTime<Utc>,
-    pub trainee_updated_at: DateTime<Utc>,
-    pub trainee_roles: Vec<String>,
-    pub start_at: DateTime<Utc>,
-    pub end_at: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub record_sheet_filing_id: Option<Uuid>,
-}
-
-#[derive(Debug, Clone)]
-pub struct TrainingSave {
-    pub name: String,
-    pub trainer_id: Uuid,
-    pub trainee_id: Uuid,
-    pub start_at: DateTime<Utc>,
-    pub end_at: DateTime<Utc>,
-}
+use crate::modules::training::models::{Training, TrainingSave};
 
 fn training_select_sql(where_clause: &str) -> String {
     training_select_sql_from("public.training", where_clause)
@@ -46,17 +14,7 @@ fn training_select_sql_from(source: &str, where_clause: &str) -> String {
         SELECT training.id,
                training.name,
                training.trainer_id,
-               trainer.cid AS trainer_cid,
-               trainer.full_name AS trainer_full_name,
-               trainer.created_at AS trainer_created_at,
-               trainer.updated_at AS trainer_updated_at,
-               trainer.roles AS trainer_roles,
                training.trainee_id,
-               trainee.cid AS trainee_cid,
-               trainee.full_name AS trainee_full_name,
-               trainee.created_at AS trainee_created_at,
-               trainee.updated_at AS trainee_updated_at,
-               trainee.roles AS trainee_roles,
                training.start_at,
                training.end_at,
                training.created_at,
@@ -64,49 +22,46 @@ fn training_select_sql_from(source: &str, where_clause: &str) -> String {
                training.deleted_at,
                training.record_sheet_filing_id
         FROM {source}
-        INNER JOIN public."user" AS trainer ON trainer.id = training.trainer_id
-        INNER JOIN public."user" AS trainee ON trainee.id = training.trainee_id
         {where_clause}
         "#
     )
 }
 
-pub trait TrainingRepositoryExt<'executor> {
+pub(crate) trait TrainingRepository<'executor> {
     async fn list_training_active(
         self,
         current_user_id: Uuid,
         is_admin: bool,
-    ) -> Result<Vec<TrainingRecord>, sqlx::Error>;
+    ) -> Result<Vec<Training>, sqlx::Error>;
 
     async fn list_training_finished(
         self,
         current_user_id: Uuid,
         is_admin: bool,
-    ) -> Result<Vec<TrainingRecord>, sqlx::Error>;
+    ) -> Result<Vec<Training>, sqlx::Error>;
 
-    async fn list_training_by_user(self, user_id: Uuid)
-    -> Result<Vec<TrainingRecord>, sqlx::Error>;
+    async fn list_training_by_user(self, user_id: Uuid) -> Result<Vec<Training>, sqlx::Error>;
 
-    async fn find_training_by_id(self, id: Uuid) -> Result<Option<TrainingRecord>, sqlx::Error>;
+    async fn find_training_by_id(self, id: Uuid) -> Result<Option<Training>, sqlx::Error>;
 
-    async fn create_training(self, training: TrainingSave) -> Result<TrainingRecord, sqlx::Error>;
+    async fn create_training(self, training: TrainingSave) -> Result<Training, sqlx::Error>;
 
     async fn update_training(
         self,
         id: Uuid,
         training: TrainingSave,
-    ) -> Result<Option<TrainingRecord>, sqlx::Error>;
+    ) -> Result<Option<Training>, sqlx::Error>;
 
     async fn set_training_record_filing(
         self,
         id: Uuid,
         filing_id: Uuid,
-    ) -> Result<Option<TrainingRecord>, sqlx::Error>;
+    ) -> Result<Option<Training>, sqlx::Error>;
 
     async fn mark_training_deleted(self, id: Uuid) -> Result<bool, sqlx::Error>;
 }
 
-impl<'executor, E> TrainingRepositoryExt<'executor> for E
+impl<'executor, E> TrainingRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
@@ -114,8 +69,8 @@ where
         self,
         current_user_id: Uuid,
         is_admin: bool,
-    ) -> Result<Vec<TrainingRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingRecord>(&training_select_sql(
+    ) -> Result<Vec<Training>, sqlx::Error> {
+        sqlx::query_as::<_, Training>(&training_select_sql(
             r#"
         WHERE training.deleted_at IS NULL
           AND training.record_sheet_filing_id IS NULL
@@ -132,8 +87,8 @@ where
         self,
         current_user_id: Uuid,
         is_admin: bool,
-    ) -> Result<Vec<TrainingRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingRecord>(&training_select_sql(
+    ) -> Result<Vec<Training>, sqlx::Error> {
+        sqlx::query_as::<_, Training>(&training_select_sql(
             r#"
         WHERE (training.record_sheet_filing_id IS NOT NULL OR training.deleted_at IS NOT NULL)
           AND ($1 OR training.trainer_id = $2 OR training.trainee_id = $2)
@@ -145,11 +100,8 @@ where
         .fetch_all(self)
         .await
     }
-    async fn list_training_by_user(
-        self,
-        user_id: Uuid,
-    ) -> Result<Vec<TrainingRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingRecord>(&training_select_sql(
+    async fn list_training_by_user(self, user_id: Uuid) -> Result<Vec<Training>, sqlx::Error> {
+        sqlx::query_as::<_, Training>(&training_select_sql(
             r#"
         WHERE training.trainer_id = $1 OR training.trainee_id = $1
         ORDER BY training.created_at DESC
@@ -159,8 +111,8 @@ where
         .fetch_all(self)
         .await
     }
-    async fn find_training_by_id(self, id: Uuid) -> Result<Option<TrainingRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingRecord>(&training_select_sql(
+    async fn find_training_by_id(self, id: Uuid) -> Result<Option<Training>, sqlx::Error> {
+        sqlx::query_as::<_, Training>(&training_select_sql(
             r#"
         WHERE training.id = $1
         "#,
@@ -169,10 +121,10 @@ where
         .fetch_optional(self)
         .await
     }
-    async fn create_training(self, training: TrainingSave) -> Result<TrainingRecord, sqlx::Error> {
+    async fn create_training(self, training: TrainingSave) -> Result<Training, sqlx::Error> {
         tracing::info!(
             operation = "create",
-            repository = "src/repository/atc_training/training.rs",
+            repository = "src/modules/training/repository/training.rs",
             "modifying data"
         );
 
@@ -191,7 +143,7 @@ where
         "#,
             training_select_sql_from("inserted AS training", "WHERE training.id = $1"),
         );
-        sqlx::query_as::<_, TrainingRecord>(&query)
+        sqlx::query_as::<_, Training>(&query)
             .bind(id)
             .bind(training.name)
             .bind(training.trainer_id)
@@ -206,10 +158,10 @@ where
         self,
         id: Uuid,
         training: TrainingSave,
-    ) -> Result<Option<TrainingRecord>, sqlx::Error> {
+    ) -> Result<Option<Training>, sqlx::Error> {
         tracing::info!(
             operation = "update",
-            repository = "src/repository/atc_training/training.rs",
+            repository = "src/modules/training/repository/training.rs",
             "modifying data"
         );
 
@@ -225,7 +177,7 @@ where
         "#,
             training_select_sql_from("updated AS training", "WHERE training.id = $1"),
         );
-        sqlx::query_as::<_, TrainingRecord>(&query)
+        sqlx::query_as::<_, Training>(&query)
             .bind(id)
             .bind(training.name)
             .bind(training.start_at)
@@ -238,10 +190,10 @@ where
         self,
         id: Uuid,
         filing_id: Uuid,
-    ) -> Result<Option<TrainingRecord>, sqlx::Error> {
+    ) -> Result<Option<Training>, sqlx::Error> {
         tracing::info!(
             operation = "set_record_filing",
-            repository = "src/repository/atc_training/training.rs",
+            repository = "src/modules/training/repository/training.rs",
             "modifying data"
         );
 
@@ -257,7 +209,7 @@ where
         "#,
             training_select_sql_from("updated AS training", "WHERE training.id = $1"),
         );
-        sqlx::query_as::<_, TrainingRecord>(&query)
+        sqlx::query_as::<_, Training>(&query)
             .bind(id)
             .bind(filing_id)
             .bind(Utc::now())

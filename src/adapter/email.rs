@@ -6,8 +6,8 @@ use tracing::instrument;
 use ulid::Ulid;
 
 use crate::modules::atc_application::models::{AtcApplication, AtcApplicationStatus};
-use crate::repository::atc_training::training_application::TrainingApplicationRecord;
-use crate::repository::atc_training::training_application_response::TrainingApplicationResponseRecord;
+use crate::modules::training::models::{TrainingApplication, TrainingApplicationResponse};
+use crate::modules::user::models::UserSummary;
 use crate::settings::Email;
 
 const SITE_URL: &str = "https://www.vatprc.net";
@@ -113,8 +113,9 @@ impl EmailContent {
     }
 
     pub fn training_application_response(
-        application: &TrainingApplicationRecord,
-        response: &TrainingApplicationResponseRecord,
+        application: &TrainingApplication,
+        trainee: &UserSummary,
+        response: &TrainingApplicationResponse,
     ) -> Self {
         let decision = if response.slot_id.is_some() {
             "Approved"
@@ -123,11 +124,7 @@ impl EmailContent {
         };
         let details = format!(
             "Response Details\nStudent: {}/{}\nTitle: {}\nResponse: {}\nComments: {}",
-            application.trainee_full_name,
-            application.trainee_cid,
-            application.name,
-            decision,
-            response.comment,
+            trainee.full_name, trainee.cid, application.name, decision, response.comment,
         );
 
         Self::notification(

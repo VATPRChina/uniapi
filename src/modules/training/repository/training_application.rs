@@ -1,75 +1,49 @@
-use chrono::{DateTime, Utc};
-use sqlx::FromRow;
+use chrono::Utc;
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::repository::atc_training::training_application_slot::{
-    TrainingApplicationSlotSave, TrainingApplicationSlotTransactionExt,
-};
-
-#[derive(Debug, Clone, FromRow)]
-pub struct TrainingApplicationRecord {
-    pub id: Uuid,
-    pub trainee_id: Uuid,
-    pub trainee_cid: String,
-    pub trainee_full_name: String,
-    pub trainee_email: Option<String>,
-    pub trainee_created_at: DateTime<Utc>,
-    pub trainee_updated_at: DateTime<Utc>,
-    pub trainee_roles: Vec<String>,
-    pub name: String,
-    pub train_id: Option<Uuid>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub deleted_at: Option<DateTime<Utc>>,
-}
+use crate::modules::training::models::{TrainingApplication, TrainingApplicationSlotSave};
+use crate::modules::training::repository::training_application_slot::TrainingApplicationSlotTransactionRepository;
 
 fn application_select_sql(where_clause: &str) -> String {
     format!(
         r#"
         SELECT training_application.id,
                training_application.trainee_id,
-               trainee.cid AS trainee_cid,
-               trainee.full_name AS trainee_full_name,
-               trainee.email AS trainee_email,
-               trainee.created_at AS trainee_created_at,
-               trainee.updated_at AS trainee_updated_at,
-               trainee.roles AS trainee_roles,
                training_application.name,
                training_application.train_id,
                training_application.created_at,
                training_application.updated_at,
                training_application.deleted_at
         FROM public.training_application
-        INNER JOIN public."user" AS trainee ON trainee.id = training_application.trainee_id
         {where_clause}
         "#
     )
 }
 
-pub trait TrainingApplicationRepositoryExt<'executor> {
+pub(crate) trait TrainingApplicationRepository<'executor> {
     async fn list_training_application(
         self,
         current_user_id: Uuid,
         is_admin: bool,
-    ) -> Result<Vec<TrainingApplicationRecord>, sqlx::Error>;
+    ) -> Result<Vec<TrainingApplication>, sqlx::Error>;
 
     async fn find_training_application_visible_by_id(
         self,
         id: Uuid,
         current_user_id: Uuid,
         is_admin: bool,
-    ) -> Result<Option<TrainingApplicationRecord>, sqlx::Error>;
+    ) -> Result<Option<TrainingApplication>, sqlx::Error>;
 
     async fn find_training_application_by_id(
         self,
         id: Uuid,
-    ) -> Result<Option<TrainingApplicationRecord>, sqlx::Error>;
+    ) -> Result<Option<TrainingApplication>, sqlx::Error>;
 
     async fn mark_training_application_deleted(self, id: Uuid) -> Result<bool, sqlx::Error>;
 }
 
-impl<'executor, E> TrainingApplicationRepositoryExt<'executor> for E
+impl<'executor, E> TrainingApplicationRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
@@ -77,8 +51,8 @@ where
         self,
         current_user_id: Uuid,
         is_admin: bool,
-    ) -> Result<Vec<TrainingApplicationRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingApplicationRecord>(&application_select_sql(
+    ) -> Result<Vec<TrainingApplication>, sqlx::Error> {
+        sqlx::query_as::<_, TrainingApplication>(&application_select_sql(
             r#"
         WHERE ($1 OR training_application.trainee_id = $2)
         ORDER BY training_application.created_at DESC
@@ -94,8 +68,8 @@ where
         id: Uuid,
         current_user_id: Uuid,
         is_admin: bool,
-    ) -> Result<Option<TrainingApplicationRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingApplicationRecord>(&application_select_sql(
+    ) -> Result<Option<TrainingApplication>, sqlx::Error> {
+        sqlx::query_as::<_, TrainingApplication>(&application_select_sql(
             r#"
         WHERE training_application.id = $1
           AND ($2 OR training_application.trainee_id = $3)
@@ -110,8 +84,8 @@ where
     async fn find_training_application_by_id(
         self,
         id: Uuid,
-    ) -> Result<Option<TrainingApplicationRecord>, sqlx::Error> {
-        sqlx::query_as::<_, TrainingApplicationRecord>(&application_select_sql(
+    ) -> Result<Option<TrainingApplication>, sqlx::Error> {
+        sqlx::query_as::<_, TrainingApplication>(&application_select_sql(
             r#"
         WHERE training_application.id = $1
         "#,
@@ -137,7 +111,7 @@ where
     }
 }
 
-pub trait TrainingApplicationTransactionExt {
+pub(crate) trait TrainingApplicationTransactionRepository {
     async fn create_training_application(
         &mut self,
         trainee_id: Uuid,
@@ -153,7 +127,7 @@ pub trait TrainingApplicationTransactionExt {
     ) -> Result<bool, sqlx::Error>;
 }
 
-impl TrainingApplicationTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+impl TrainingApplicationTransactionRepository for sqlx::Transaction<'_, sqlx::Postgres> {
     async fn create_training_application(
         &mut self,
         trainee_id: Uuid,
@@ -162,7 +136,7 @@ impl TrainingApplicationTransactionExt for sqlx::Transaction<'_, sqlx::Postgres>
     ) -> Result<Uuid, sqlx::Error> {
         tracing::info!(
             operation = "create",
-            repository = "src/repository/atc_training/training_application.rs",
+            repository = "src/modules/training/repository/training_application.rs",
             "modifying data"
         );
 
@@ -195,7 +169,7 @@ impl TrainingApplicationTransactionExt for sqlx::Transaction<'_, sqlx::Postgres>
     ) -> Result<bool, sqlx::Error> {
         tracing::info!(
             operation = "update",
-            repository = "src/repository/atc_training/training_application.rs",
+            repository = "src/modules/training/repository/training_application.rs",
             "modifying data"
         );
 

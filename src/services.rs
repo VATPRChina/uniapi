@@ -9,6 +9,7 @@ use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::modules::atc_application::service::AtcApplicationService;
+use crate::modules::training::service::{TrainingApplicationService, TrainingService};
 use crate::modules::user::service::access_token::AccessTokenService;
 use crate::modules::user::service::device_authorization::DeviceAuthorizationService;
 use crate::modules::user::service::refresh_token::RefreshTokenService;
@@ -36,6 +37,8 @@ pub struct Services {
     navdata: NavdataAdapter,
     audit_log: AuditLogService,
     atc_application: AtcApplicationService,
+    training: TrainingService,
+    training_application: TrainingApplicationService,
     user: UserService,
     controller_info: ControllerInfoService,
 }
@@ -63,12 +66,18 @@ impl Services {
             db.clone(),
             settings.authentication.jwt.device_authz_expires_seconds,
         );
+        let email = EmailClient::new(&settings.email)?;
+        let training = TrainingService::new(db.clone(), user.clone());
+        let training_application =
+            TrainingApplicationService::new(db.clone(), email.clone(), user.clone());
 
         Ok(Self {
             controller_info: ControllerInfoService::new(db.clone()),
             user,
             audit_log,
             atc_application,
+            training,
+            training_application,
             db,
             access_token,
             refresh_token,
@@ -82,7 +91,7 @@ impl Services {
                 settings.discourse.endpoint.clone(),
                 settings.discourse.api_key.clone(),
             ),
-            email: EmailClient::new(&settings.email)?,
+            email,
             moodle,
             vatsim_auth: VatsimAuthClient::new(settings.authentication.vatsim.clone()),
             navdata,
@@ -141,6 +150,14 @@ impl Services {
 
     pub fn atc_application(&self) -> &AtcApplicationService {
         &self.atc_application
+    }
+
+    pub fn training(&self) -> &TrainingService {
+        &self.training
+    }
+
+    pub fn training_application(&self) -> &TrainingApplicationService {
+        &self.training_application
     }
 
     pub fn user(&self) -> &UserService {
