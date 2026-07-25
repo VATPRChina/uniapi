@@ -3,8 +3,7 @@ use axum::routing::get;
 use axum::{Json, Router};
 
 use crate::auth::CurrentUser;
-use crate::dto::*;
-use crate::repository::sector::SectorRepositoryExt;
+use crate::modules::sector::dto::SectorPermissionResponse;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -22,18 +21,7 @@ async fn current_permission(
     current_user: CurrentUser,
 ) -> Result<Json<SectorPermissionResponse>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let user = services
-        .user()
-        .find_summary_by_id(user_id)
-        .await?
-        .ok_or(ApiError::not_found("user", "unknown"))?;
-    let has_permission = services
-        .db()
-        .user_sector_can_online(user.id, &user.cid)
-        .await?;
-
-    Ok(Json(SectorPermissionResponse {
-        has_permission,
-        sector_type: "controller",
-    }))
+    Ok(Json(
+        services.sector().current_permission(user_id).await?.into(),
+    ))
 }

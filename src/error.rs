@@ -20,6 +20,7 @@ use crate::modules::event::service::EventServiceError;
 use crate::modules::flight::flight_plan::parser::ParserError;
 use crate::modules::flight::flight_plan::validator::ValidatorError;
 use crate::modules::flight::service::FlightServiceError;
+use crate::modules::sector::service::SectorServiceError;
 use crate::modules::sheet::service::SheetServiceError;
 use crate::modules::training::service::{TrainingApplicationServiceError, TrainingServiceError};
 use crate::modules::user::service::user::UserServiceError;
@@ -301,6 +302,18 @@ impl From<SheetServiceError> for ApiError {
                 ApiError::not_found("sheet field", format!("{sheet_id}/{field_id}"))
             }
             SheetServiceError::Database(source) => ApiError::Database { source },
+        }
+    }
+}
+
+impl From<SectorServiceError> for ApiError {
+    fn from(error: SectorServiceError) -> Self {
+        match error {
+            SectorServiceError::UserNotFound(id) => {
+                ApiError::not_found("user", ulid::Ulid::from(id).to_string())
+            }
+            SectorServiceError::Database(source) => ApiError::Database { source },
+            SectorServiceError::User(source) => source.into(),
         }
     }
 }

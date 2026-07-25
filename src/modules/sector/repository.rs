@@ -1,11 +1,11 @@
 use chrono::Utc;
 use uuid::Uuid;
 
-pub trait SectorRepositoryExt<'executor> {
+pub(crate) trait SectorRepository<'executor> {
     async fn user_sector_can_online(self, user_id: Uuid, cid: &str) -> Result<bool, sqlx::Error>;
 }
 
-impl<'executor, E> SectorRepositoryExt<'executor> for E
+impl<'executor, E> SectorRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {

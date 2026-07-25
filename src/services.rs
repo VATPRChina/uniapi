@@ -13,6 +13,7 @@ use crate::modules::compat::service::CompatService;
 use crate::modules::controller::service::ControllerService;
 use crate::modules::event::service::EventService;
 use crate::modules::flight::service::FlightService;
+use crate::modules::sector::service::SectorService;
 use crate::modules::sheet::service::SheetService;
 use crate::modules::training::service::{TrainingApplicationService, TrainingService};
 use crate::modules::user::service::access_token::AccessTokenService;
@@ -41,6 +42,7 @@ pub struct Services {
     event: EventService,
     flight: FlightService,
     sheet: SheetService,
+    sector: SectorService,
     training: TrainingService,
     training_application: TrainingApplicationService,
     user: UserService,
@@ -66,6 +68,7 @@ impl Services {
         let flight = FlightService::new(compat_client.clone(), navdata, user.clone());
         let compat = CompatService::new(db.clone(), compat_client);
         let sheet = SheetService::new(db.clone());
+        let sector = SectorService::new(db.clone(), user.clone());
         let atc_application =
             AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone(), sheet.clone());
         let event = EventService::new(db.clone(), audit_log.clone(), user.clone());
@@ -93,6 +96,7 @@ impl Services {
             event,
             flight,
             sheet,
+            sector,
             training,
             training_application,
             db,
@@ -174,6 +178,10 @@ impl Services {
 
     pub fn sheet(&self) -> &SheetService {
         &self.sheet
+    }
+
+    pub fn sector(&self) -> &SectorService {
+        &self.sector
     }
 
     pub fn training(&self) -> &TrainingService {

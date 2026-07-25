@@ -56,9 +56,3 @@ pub struct PreferredRouteDto {
 pub struct UploadImageResponse {
     pub url: String,
 }
-
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct SectorPermissionResponse {
-    pub has_permission: bool,
-    pub sector_type: &'static str,
-}
