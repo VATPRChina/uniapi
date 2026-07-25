@@ -16,6 +16,7 @@ use crate::model::user_role::UserRole;
 use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
+use crate::modules::event::service::EventServiceError;
 use crate::modules::training::service::{TrainingApplicationServiceError, TrainingServiceError};
 use crate::modules::user::service::user::UserServiceError;
 use crate::services::controller_info::ControllerInfoServiceError;
@@ -231,6 +232,39 @@ impl From<TrainingServiceError> for ApiError {
             TrainingServiceError::CannotDeleteStarted => ApiError::CannotDeleteStartedTraining,
             TrainingServiceError::Database(source) => ApiError::Database { source },
             TrainingServiceError::User(source) => source.into(),
+        }
+    }
+}
+
+impl From<EventServiceError> for ApiError {
+    fn from(error: EventServiceError) -> Self {
+        match error {
+            EventServiceError::EventNotFound(id) => {
+                ApiError::not_found("event", ulid::Ulid::from(id).to_string())
+            }
+            EventServiceError::SlotNotFound(id) => {
+                ApiError::not_found("event slot", ulid::Ulid::from(id).to_string())
+            }
+            EventServiceError::AirspaceNotFound(id) => {
+                ApiError::not_found("event airspace", ulid::Ulid::from(id).to_string())
+            }
+            EventServiceError::AtcPositionNotFound(id) => {
+                ApiError::not_found("event ATC position", ulid::Ulid::from(id).to_string())
+            }
+            EventServiceError::UserNotFound(_) => ApiError::Internal,
+            EventServiceError::NotInBookingPeriod => ApiError::EventNotInBookingTime,
+            EventServiceError::SlotBooked => ApiError::SlotBooked,
+            EventServiceError::SlotNotBooked => ApiError::SlotNotBooked,
+            EventServiceError::SlotBookedByAnotherUser => ApiError::SlotBookedByAnotherUser,
+            EventServiceError::AtcPositionBooked => ApiError::PositionBooked,
+            EventServiceError::AtcPositionNotBooked => ApiError::PositionNotBooked,
+            EventServiceError::AtcPositionBookedByAnotherUser => {
+                ApiError::PositionBookedByAnotherUser
+            }
+            EventServiceError::InsufficientAtcPermission => ApiError::InsufficientAtcPermission,
+            EventServiceError::Database(source) => ApiError::Database { source },
+            EventServiceError::AuditLog(source) => ApiError::AuditLog { source },
+            EventServiceError::User(source) => source.into(),
         }
     }
 }

@@ -3,10 +3,9 @@ use axum::routing::{get, post, put};
 use axum::{Json, Router};
 
 use crate::auth::CurrentUser;
-use crate::dto::*;
+use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
-use crate::modules::audit_log::models::AuditLogEntity;
-use crate::repository::event::event::EventRepositoryExt;
+use crate::modules::event::dto::{EventDto, EventSaveRequest, ListPastQuery};
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -27,8 +26,8 @@ pub fn build_event_routes() -> Router<Services> {
 async fn list_events(State(services): State<Services>) -> Result<Json<Vec<EventDto>>, ApiError> {
     Ok(Json(
         services
-            .db()
-            .list_event_current()
+            .event()
+            .list_current()
             .await?
             .into_iter()
             .map(EventDto::from)
@@ -49,8 +48,8 @@ async fn list_past_events(
 ) -> Result<Json<Vec<EventDto>>, ApiError> {
     Ok(Json(
         services
-            .db()
-            .list_event_past(query.until)
+            .event()
+            .list_past(query.until)
             .await?
             .into_iter()
             .map(EventDto::from)
@@ -64,11 +63,7 @@ async fn get_event(
     Path(eid): Path<String>,
 ) -> Result<Json<EventDto>, ApiError> {
     let id = parse_ulid_uuid("event_id", &eid)?;
-    let event = services
-        .db()
-        .find_event_by_id(id)
-        .await?
-        .ok_or(ApiError::not_found("event", "unknown"))?;
+    let event = services.event().find(id).await?;
 
     Ok(Json(EventDto::from(event)))
 }
@@ -81,19 +76,9 @@ async fn create_event(
 ) -> Result<Json<EventDto>, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let mut transaction = services.db().begin().await?;
-    let event = (&mut *transaction)
-        .create_event(request.try_into()?)
-        .await?;
-    transaction.commit().await?;
-    services
-        .audit_log()
-        .record(
-            AuditLogEntity::Event(event.id),
-            operated_by,
-            None,
-            Some(&event),
-        )
+    let event = services
+        .event()
+        .create(request.try_into()?, operated_by)
         .await?;
 
     Ok(Json(EventDto::from(event)))
@@ -109,24 +94,9 @@ async fn update_event(
     current_user.require_role(UserRole::EventCoordinator)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let id = parse_ulid_uuid("event_id", &eid)?;
-    let mut transaction = services.db().begin().await?;
-    let before = (&mut *transaction)
-        .find_event_by_id_for_update(id)
-        .await?
-        .ok_or(ApiError::not_found("event", "unknown"))?;
-    let event = (&mut *transaction)
-        .update_event(id, request.try_into()?)
-        .await?
-        .ok_or(ApiError::not_found("event", "unknown"))?;
-    transaction.commit().await?;
-    services
-        .audit_log()
-        .record(
-            AuditLogEntity::Event(event.id),
-            operated_by,
-            Some(&before),
-            Some(&event),
-        )
+    let event = services
+        .event()
+        .update(id, request.try_into()?, operated_by)
         .await?;
 
     Ok(Json(EventDto::from(event)))

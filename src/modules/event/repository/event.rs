@@ -1,74 +1,32 @@
 use chrono::{DateTime, Utc};
-use serde::Serialize;
-use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromRow, Serialize)]
-pub struct EventRecord {
-    pub id: Uuid,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub title: String,
-    pub title_en: Option<String>,
-    pub start_at: DateTime<Utc>,
-    pub end_at: DateTime<Utc>,
-    pub start_booking_at: Option<DateTime<Utc>>,
-    pub end_booking_at: Option<DateTime<Utc>>,
-    pub start_atc_booking_at: Option<DateTime<Utc>>,
-    pub image_url: Option<String>,
-    pub community_link: Option<String>,
-    pub vatsim_link: Option<String>,
-    pub description: String,
-}
+use crate::modules::event::models::{Event, EventSave};
 
-#[derive(Debug, Clone)]
-pub struct EventSave {
-    pub title: String,
-    pub title_en: Option<String>,
-    pub start_at: DateTime<Utc>,
-    pub end_at: DateTime<Utc>,
-    pub start_booking_at: Option<DateTime<Utc>>,
-    pub end_booking_at: Option<DateTime<Utc>>,
-    pub start_atc_booking_at: Option<DateTime<Utc>>,
-    pub image_url: Option<String>,
-    pub community_link: Option<String>,
-    pub vatsim_link: Option<String>,
-    pub description: String,
-}
+pub(crate) trait EventRepository<'executor> {
+    async fn list_event_current(self) -> Result<Vec<Event>, sqlx::Error>;
 
-pub trait EventRepositoryExt<'executor> {
-    async fn list_event_current(self) -> Result<Vec<EventRecord>, sqlx::Error>;
+    async fn list_event_past(self, until: Option<DateTime<Utc>>)
+    -> Result<Vec<Event>, sqlx::Error>;
 
-    async fn list_event_past(
-        self,
-        until: Option<DateTime<Utc>>,
-    ) -> Result<Vec<EventRecord>, sqlx::Error>;
-
-    async fn find_event_by_id(self, id: Uuid) -> Result<Option<EventRecord>, sqlx::Error>;
+    async fn find_event_by_id(self, id: Uuid) -> Result<Option<Event>, sqlx::Error>;
 
     async fn exists_event(self, id: Uuid) -> Result<bool, sqlx::Error>;
 
-    async fn create_event(self, event: EventSave) -> Result<EventRecord, sqlx::Error>;
+    async fn create_event(self, event: EventSave) -> Result<Event, sqlx::Error>;
 
-    async fn find_event_by_id_for_update(
-        self,
-        id: Uuid,
-    ) -> Result<Option<EventRecord>, sqlx::Error>;
+    async fn find_event_by_id_for_update(self, id: Uuid) -> Result<Option<Event>, sqlx::Error>;
 
-    async fn update_event(
-        self,
-        id: Uuid,
-        event: EventSave,
-    ) -> Result<Option<EventRecord>, sqlx::Error>;
+    async fn update_event(self, id: Uuid, event: EventSave) -> Result<Option<Event>, sqlx::Error>;
 }
 
-impl<'executor, E> EventRepositoryExt<'executor> for E
+impl<'executor, E> EventRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
-    async fn list_event_current(self) -> Result<Vec<EventRecord>, sqlx::Error> {
-        sqlx::query_as::<_, EventRecord>(
+    async fn list_event_current(self) -> Result<Vec<Event>, sqlx::Error> {
+        sqlx::query_as::<_, Event>(
             r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
@@ -85,8 +43,8 @@ where
     async fn list_event_past(
         self,
         until: Option<DateTime<Utc>>,
-    ) -> Result<Vec<EventRecord>, sqlx::Error> {
-        sqlx::query_as::<_, EventRecord>(
+    ) -> Result<Vec<Event>, sqlx::Error> {
+        sqlx::query_as::<_, Event>(
             r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
@@ -102,8 +60,8 @@ where
         .fetch_all(self)
         .await
     }
-    async fn find_event_by_id(self, id: Uuid) -> Result<Option<EventRecord>, sqlx::Error> {
-        sqlx::query_as::<_, EventRecord>(
+    async fn find_event_by_id(self, id: Uuid) -> Result<Option<Event>, sqlx::Error> {
+        sqlx::query_as::<_, Event>(
             r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
@@ -130,14 +88,14 @@ where
         .fetch_one(self)
         .await
     }
-    async fn create_event(self, event: EventSave) -> Result<EventRecord, sqlx::Error> {
+    async fn create_event(self, event: EventSave) -> Result<Event, sqlx::Error> {
         tracing::info!(
             operation = "create",
-            repository = "src/repository/event/event.rs",
+            repository = "src/modules/event/repository/event.rs",
             "modifying data"
         );
 
-        sqlx::query_as::<_, EventRecord>(
+        sqlx::query_as::<_, Event>(
             r#"
         INSERT INTO public.event (
             id, title, title_en, start_at, end_at, start_booking_at, end_booking_at,
@@ -164,11 +122,8 @@ where
         .fetch_one(self)
         .await
     }
-    async fn find_event_by_id_for_update(
-        self,
-        id: Uuid,
-    ) -> Result<Option<EventRecord>, sqlx::Error> {
-        sqlx::query_as::<_, EventRecord>(
+    async fn find_event_by_id_for_update(self, id: Uuid) -> Result<Option<Event>, sqlx::Error> {
+        sqlx::query_as::<_, Event>(
             r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
@@ -182,18 +137,14 @@ where
         .fetch_optional(self)
         .await
     }
-    async fn update_event(
-        self,
-        id: Uuid,
-        event: EventSave,
-    ) -> Result<Option<EventRecord>, sqlx::Error> {
+    async fn update_event(self, id: Uuid, event: EventSave) -> Result<Option<Event>, sqlx::Error> {
         tracing::info!(
             operation = "update",
-            repository = "src/repository/event/event.rs",
+            repository = "src/modules/event/repository/event.rs",
             "modifying data"
         );
 
-        sqlx::query_as::<_, EventRecord>(
+        sqlx::query_as::<_, Event>(
             r#"
         UPDATE public.event
         SET title = $2,

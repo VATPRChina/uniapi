@@ -1,52 +1,9 @@
 use chrono::{DateTime, Utc};
-use serde::Serialize;
 use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, FromRow, Serialize)]
-pub struct EventAtcPositionRecord {
-    pub id: Uuid,
-    pub event_id: Uuid,
-    pub event_created_at: DateTime<Utc>,
-    pub event_updated_at: DateTime<Utc>,
-    pub event_title: String,
-    pub event_title_en: Option<String>,
-    pub event_start_at: DateTime<Utc>,
-    pub event_end_at: DateTime<Utc>,
-    pub event_start_booking_at: Option<DateTime<Utc>>,
-    pub event_end_booking_at: Option<DateTime<Utc>>,
-    pub event_start_atc_booking_at: Option<DateTime<Utc>>,
-    pub event_image_url: Option<String>,
-    pub event_community_link: Option<String>,
-    pub event_vatsim_link: Option<String>,
-    pub event_description: String,
-    pub event_is_in_atc_booking_period: bool,
-    pub callsign: String,
-    pub start_at: DateTime<Utc>,
-    pub end_at: DateTime<Utc>,
-    pub remarks: Option<String>,
-    pub position_kind_id: String,
-    pub minimum_controller_state: i32,
-    pub booking_user_id: Option<Uuid>,
-    pub booking_created_at: Option<DateTime<Utc>>,
-    pub booking_user_cid: Option<String>,
-    pub booking_user_full_name: Option<String>,
-    pub booking_user_created_at: Option<DateTime<Utc>>,
-    pub booking_user_updated_at: Option<DateTime<Utc>>,
-    pub booking_user_roles: Option<Vec<String>>,
-    pub atc_booking_id: Option<Uuid>,
-}
-
-#[derive(Debug, Clone)]
-pub struct EventAtcPositionSave {
-    pub callsign: String,
-    pub start_at: DateTime<Utc>,
-    pub end_at: DateTime<Utc>,
-    pub remarks: Option<String>,
-    pub position_kind_id: String,
-    pub minimum_controller_state: i32,
-}
+use crate::modules::event::models::{EventAtcBooking, EventAtcPosition, EventAtcPositionSave};
 
 #[derive(Debug, Clone, FromRow)]
 pub struct UserAtcPermissionRecord {
@@ -62,79 +19,47 @@ fn position_select_sql_from(source: &str, where_clause: &str) -> String {
     format!(
         r#"
         SELECT event_atc_position.id,
-               event.id AS event_id,
-               event.created_at AS event_created_at,
-               event.updated_at AS event_updated_at,
-               event.title AS event_title,
-               event.title_en AS event_title_en,
-               event.start_at AS event_start_at,
-               event.end_at AS event_end_at,
-               event.start_booking_at AS event_start_booking_at,
-               event.end_booking_at AS event_end_booking_at,
-               event.start_atc_booking_at AS event_start_atc_booking_at,
-               event.image_url AS event_image_url,
-               event.community_link AS event_community_link,
-               event.vatsim_link AS event_vatsim_link,
-               event.description AS event_description,
-               (
-                   event.start_atc_booking_at IS NULL
-                   OR now() > event.start_atc_booking_at
-               ) AS event_is_in_atc_booking_period,
+               event_atc_position.event_id,
                event_atc_position.callsign,
                event_atc_position.start_at,
                event_atc_position.end_at,
                event_atc_position.remarks,
                event_atc_position.position_kind_id,
                event_atc_position.minimum_controller_state,
-               event_atc_position_booking.user_id AS booking_user_id,
-               event_atc_position_booking.created_at AS booking_created_at,
-               "user".cid AS booking_user_cid,
-               "user".full_name AS booking_user_full_name,
-               "user".created_at AS booking_user_created_at,
-               "user".updated_at AS booking_user_updated_at,
-               "user".roles AS booking_user_roles,
-               event_atc_position_booking.atc_booking_id
+               event_atc_position_booking.atc_booking_id AS booking_id
         FROM {source}
-        JOIN public.event ON event.id = event_atc_position.event_id
         LEFT JOIN public.event_atc_position_booking
             ON event_atc_position_booking.event_atc_position_id = event_atc_position.id
-        LEFT JOIN public."user" ON "user".id = event_atc_position_booking.user_id
         {where_clause}
         "#
     )
 }
 
-pub trait EventAtcPositionRepositoryExt<'executor> {
+pub(crate) trait EventAtcPositionRepository<'executor> {
     async fn list_event_atc_position_by_event(
         self,
         event_id: Uuid,
-    ) -> Result<Vec<EventAtcPositionRecord>, sqlx::Error>;
-
-    async fn find_event_atc_position_by_event_and_id(
-        self,
-        event_id: Uuid,
-        position_id: Uuid,
-    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error>;
+    ) -> Result<Vec<EventAtcPosition>, sqlx::Error>;
 
     async fn find_event_atc_position_by_event_and_id_in_transaction(
         self,
         event_id: Uuid,
         position_id: Uuid,
         for_update: bool,
-    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error>;
+    ) -> Result<Option<EventAtcPosition>, sqlx::Error>;
 
     async fn create_event_atc_position(
         self,
         event_id: Uuid,
         position: EventAtcPositionSave,
-    ) -> Result<EventAtcPositionRecord, sqlx::Error>;
+    ) -> Result<EventAtcPosition, sqlx::Error>;
 
     async fn update_event_atc_position(
         self,
         event_id: Uuid,
         position_id: Uuid,
         position: EventAtcPositionSave,
-    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error>;
+    ) -> Result<Option<EventAtcPosition>, sqlx::Error>;
 
     async fn delete_event_atc_position(
         self,
@@ -147,17 +72,22 @@ pub trait EventAtcPositionRepositoryExt<'executor> {
         user_id: Uuid,
         position_kind_id: &str,
     ) -> Result<Option<UserAtcPermissionRecord>, sqlx::Error>;
+
+    async fn find_event_atc_booking(
+        self,
+        booking_id: Uuid,
+    ) -> Result<Option<EventAtcBooking>, sqlx::Error>;
 }
 
-impl<'executor, E> EventAtcPositionRepositoryExt<'executor> for E
+impl<'executor, E> EventAtcPositionRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
     async fn list_event_atc_position_by_event(
         self,
         event_id: Uuid,
-    ) -> Result<Vec<EventAtcPositionRecord>, sqlx::Error> {
-        sqlx::query_as::<_, EventAtcPositionRecord>(&position_select_sql(
+    ) -> Result<Vec<EventAtcPosition>, sqlx::Error> {
+        sqlx::query_as::<_, EventAtcPosition>(&position_select_sql(
             r#"
         WHERE event_atc_position.event_id = $1
         "#,
@@ -166,33 +96,18 @@ where
         .fetch_all(self)
         .await
     }
-    async fn find_event_atc_position_by_event_and_id(
-        self,
-        event_id: Uuid,
-        position_id: Uuid,
-    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
-        sqlx::query_as::<_, EventAtcPositionRecord>(&position_select_sql(
-            r#"
-        WHERE event_atc_position.event_id = $1 AND event_atc_position.id = $2
-        "#,
-        ))
-        .bind(event_id)
-        .bind(position_id)
-        .fetch_optional(self)
-        .await
-    }
     async fn find_event_atc_position_by_event_and_id_in_transaction(
         self,
         event_id: Uuid,
         position_id: Uuid,
         for_update: bool,
-    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
+    ) -> Result<Option<EventAtcPosition>, sqlx::Error> {
         let lock_clause = if for_update {
             "FOR UPDATE OF event_atc_position"
         } else {
             ""
         };
-        sqlx::query_as::<_, EventAtcPositionRecord>(&position_select_sql(&format!(
+        sqlx::query_as::<_, EventAtcPosition>(&position_select_sql(&format!(
             r#"
         WHERE event_atc_position.event_id = $1 AND event_atc_position.id = $2
         {lock_clause}
@@ -207,10 +122,10 @@ where
         self,
         event_id: Uuid,
         position: EventAtcPositionSave,
-    ) -> Result<EventAtcPositionRecord, sqlx::Error> {
+    ) -> Result<EventAtcPosition, sqlx::Error> {
         tracing::info!(
             operation = "create",
-            repository = "src/repository/event/event_atc_position.rs",
+            repository = "src/modules/event/repository/event_atc_position.rs",
             "modifying data"
         );
 
@@ -230,7 +145,7 @@ where
                 "inserted_position AS event_atc_position",
                 "WHERE event_atc_position.id = $1",
             );
-        sqlx::query_as::<_, EventAtcPositionRecord>(&query)
+        sqlx::query_as::<_, EventAtcPosition>(&query)
             .bind(id)
             .bind(event_id)
             .bind(position.callsign)
@@ -247,10 +162,10 @@ where
         event_id: Uuid,
         position_id: Uuid,
         position: EventAtcPositionSave,
-    ) -> Result<Option<EventAtcPositionRecord>, sqlx::Error> {
+    ) -> Result<Option<EventAtcPosition>, sqlx::Error> {
         tracing::info!(
             operation = "update",
-            repository = "src/repository/event/event_atc_position.rs",
+            repository = "src/modules/event/repository/event_atc_position.rs",
             "modifying data"
         );
 
@@ -272,7 +187,7 @@ where
                 "updated_position AS event_atc_position",
                 "WHERE event_atc_position.id = $2",
             );
-        sqlx::query_as::<_, EventAtcPositionRecord>(&query)
+        sqlx::query_as::<_, EventAtcPosition>(&query)
             .bind(event_id)
             .bind(position_id)
             .bind(position.callsign)
@@ -291,7 +206,7 @@ where
     ) -> Result<bool, sqlx::Error> {
         tracing::info!(
             operation = "delete",
-            repository = "src/repository/event/event_atc_position.rs",
+            repository = "src/modules/event/repository/event_atc_position.rs",
             "modifying data"
         );
 
@@ -325,12 +240,28 @@ where
         .fetch_optional(self)
         .await
     }
+
+    async fn find_event_atc_booking(
+        self,
+        booking_id: Uuid,
+    ) -> Result<Option<EventAtcBooking>, sqlx::Error> {
+        sqlx::query_as::<_, EventAtcBooking>(
+            r#"
+        SELECT id, user_id, booked_at
+        FROM public.atc_booking
+        WHERE id = $1
+        "#,
+        )
+        .bind(booking_id)
+        .fetch_optional(self)
+        .await
+    }
 }
 
-pub trait EventAtcPositionTransactionExt {
+pub(crate) trait EventAtcPositionTransactionRepository {
     async fn create_event_atc_position_booking(
         &mut self,
-        position: &EventAtcPositionRecord,
+        position: &EventAtcPosition,
         user_id: Uuid,
     ) -> Result<(), sqlx::Error>;
 
@@ -341,15 +272,15 @@ pub trait EventAtcPositionTransactionExt {
     ) -> Result<(), sqlx::Error>;
 }
 
-impl EventAtcPositionTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+impl EventAtcPositionTransactionRepository for sqlx::Transaction<'_, sqlx::Postgres> {
     async fn create_event_atc_position_booking(
         &mut self,
-        position: &EventAtcPositionRecord,
+        position: &EventAtcPosition,
         user_id: Uuid,
     ) -> Result<(), sqlx::Error> {
         tracing::info!(
             operation = "create_booking",
-            repository = "src/repository/event/event_atc_position.rs",
+            repository = "src/modules/event/repository/event_atc_position.rs",
             "modifying data"
         );
 
@@ -394,7 +325,7 @@ impl EventAtcPositionTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
     ) -> Result<(), sqlx::Error> {
         tracing::info!(
             operation = "delete_booking",
-            repository = "src/repository/event/event_atc_position.rs",
+            repository = "src/modules/event/repository/event_atc_position.rs",
             "modifying data"
         );
 

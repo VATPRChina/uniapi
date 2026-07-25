@@ -3,9 +3,9 @@ use axum::routing::put;
 use axum::{Json, Router};
 
 use crate::auth::CurrentUser;
-use crate::dto::*;
+use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
-use crate::repository::event::event_slot_booking::EventSlotBookingRepositoryExt;
+use crate::modules::event::dto::{EventBookingDto, EventSlotBookingRequest};
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -38,36 +38,14 @@ async fn put_booking(
         None => current_user.user_id.ok_or(ApiError::Unauthorized)?,
     };
 
-    let mut transaction = services.db().begin().await?;
-    let state = (&mut *transaction)
-        .load_event_slot_booking_state_for_update(event_id, slot_id)
-        .await?;
-    if !state.event_exists {
-        return Err(ApiError::not_found("event", "unknown"));
-    }
-    if !state.slot_exists {
-        return Err(ApiError::not_found("event slot", "unknown"));
-    }
-    if state.booking_id.is_some() {
-        return Err(ApiError::SlotBooked);
-    }
-    if !state.is_in_booking_period && !is_admin_booking {
-        return Err(ApiError::EventNotInBookingTime);
-    }
-
-    (&mut *transaction)
-        .create_event_slot_booking_booking(slot_id, user_id)
-        .await?;
-    transaction.commit().await?;
-
     let booking = services
-        .db()
-        .find_event_slot_booking_booking(event_id, slot_id)
-        .await?
-        .ok_or(ApiError::SlotNotBooked)?;
+        .event()
+        .create_slot_booking(event_id, slot_id, user_id, is_admin_booking)
+        .await?;
 
-    Ok(Json(EventBookingDto::from_booking_record(
-        booking,
+    Ok(Json(EventBookingDto::from_entity(
+        booking.booking,
+        booking.user,
         include_user(&current_user),
     )))
 }
@@ -80,37 +58,16 @@ async fn delete_booking(
 ) -> Result<Json<EventBookingDto>, ApiError> {
     let event_id = parse_ulid_uuid("event_id", &eid)?;
     let slot_id = parse_ulid_uuid("slot_id", &sid)?;
-    let mut transaction = services.db().begin().await?;
-    let state = (&mut *transaction)
-        .load_event_slot_booking_state_for_update(event_id, slot_id)
-        .await?;
-    if !state.slot_exists {
-        return Err(ApiError::not_found("event slot", "unknown"));
-    }
-    let Some(booking_id) = state.booking_id else {
-        return Err(ApiError::SlotNotBooked);
-    };
     let is_admin = current_user.has_role(UserRole::EventCoordinator);
-    if !state.is_in_booking_period && !is_admin {
-        return Err(ApiError::EventNotInBookingTime);
-    }
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    if state.booking_user_id != Some(current_user_id) && !is_admin {
-        return Err(ApiError::SlotBookedByAnotherUser);
-    }
-
     let booking = services
-        .db()
-        .find_event_slot_booking_booking(event_id, slot_id)
-        .await?
-        .ok_or(ApiError::SlotNotBooked)?;
-    (&mut *transaction)
-        .delete_event_slot_booking_booking(booking_id)
+        .event()
+        .delete_slot_booking(event_id, slot_id, current_user_id, is_admin)
         .await?;
-    transaction.commit().await?;
 
-    Ok(Json(EventBookingDto::from_booking_record(
-        booking,
+    Ok(Json(EventBookingDto::from_entity(
+        booking.booking,
+        booking.user,
         include_user(&current_user),
     )))
 }

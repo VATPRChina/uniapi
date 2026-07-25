@@ -9,6 +9,7 @@ use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::modules::atc_application::service::AtcApplicationService;
+use crate::modules::event::service::EventService;
 use crate::modules::training::service::{TrainingApplicationService, TrainingService};
 use crate::modules::user::service::access_token::AccessTokenService;
 use crate::modules::user::service::device_authorization::DeviceAuthorizationService;
@@ -37,6 +38,7 @@ pub struct Services {
     navdata: NavdataAdapter,
     audit_log: AuditLogService,
     atc_application: AtcApplicationService,
+    event: EventService,
     training: TrainingService,
     training_application: TrainingApplicationService,
     user: UserService,
@@ -59,6 +61,7 @@ impl Services {
         let user = UserService::new(db.clone(), moodle.clone(), audit_log.clone());
         let atc_application =
             AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone());
+        let event = EventService::new(db.clone(), audit_log.clone(), user.clone());
         let access_token = AccessTokenService::new(&settings.authentication.jwt);
         let refresh_token =
             RefreshTokenService::new(db.clone(), settings.authentication.jwt.refresh_expires_days);
@@ -76,6 +79,7 @@ impl Services {
             user,
             audit_log,
             atc_application,
+            event,
             training,
             training_application,
             db,
@@ -150,6 +154,10 @@ impl Services {
 
     pub fn atc_application(&self) -> &AtcApplicationService {
         &self.atc_application
+    }
+
+    pub fn event(&self) -> &EventService {
+        &self.event
     }
 
     pub fn training(&self) -> &TrainingService {

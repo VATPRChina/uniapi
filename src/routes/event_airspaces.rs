@@ -1,15 +1,12 @@
+use crate::auth::CurrentUser;
+use crate::dto::parse_ulid_uuid;
+use crate::model::user_role::UserRole;
+use crate::modules::event::dto::{EventAirspaceDto, EventAirspaceSaveRequest};
+use crate::routes::ApiError;
+use crate::services::Services;
 use axum::extract::{Path, State};
 use axum::routing::post;
 use axum::{Json, Router};
-use uuid::Uuid;
-
-use crate::auth::CurrentUser;
-use crate::dto::*;
-use crate::model::user_role::UserRole;
-use crate::repository::event::event::EventRepositoryExt;
-use crate::repository::event::event_airspace::EventAirspaceRepositoryExt;
-use crate::routes::ApiError;
-use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(create_airspace))]
@@ -28,19 +25,10 @@ async fn create_airspace(
 ) -> Result<Json<EventAirspaceDto>, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
     let event_id = parse_ulid_uuid("event_id", &eid)?;
-    ensure_event_exists(&services, event_id).await?;
     let airspace = services
-        .db()
-        .create_event_airspace(event_id, request.into())
+        .event()
+        .create_airspace(event_id, request.into())
         .await?;
 
     Ok(Json(EventAirspaceDto::from(airspace)))
-}
-
-async fn ensure_event_exists(services: &Services, event_id: Uuid) -> Result<(), ApiError> {
-    if services.db().exists_event(event_id).await? {
-        Ok(())
-    } else {
-        Err(ApiError::not_found("event", "unknown"))
-    }
 }

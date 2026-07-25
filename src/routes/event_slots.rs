@@ -1,19 +1,16 @@
+use crate::auth::CurrentUser;
+use crate::dto::parse_ulid_uuid;
+use crate::model::user_role::UserRole;
+use crate::modules::event::dto::{EventSlotDto, EventSlotSaveRequest};
+use crate::modules::event::service::EventSlotView;
+use crate::routes::ApiError;
+use crate::services::Services;
 use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use uuid::Uuid;
-
-use crate::auth::CurrentUser;
-use crate::dto::*;
-use crate::model::user_role::UserRole;
-use crate::modules::audit_log::models::AuditLogEntity;
-use crate::repository::event::event::EventRepositoryExt;
-use crate::repository::event::event_slot::EventSlotRepositoryExt;
-use crate::routes::ApiError;
-use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(list_slots, export_bookings, create_slot))]
@@ -32,15 +29,13 @@ async fn list_slots(
     Path(eid): Path<String>,
 ) -> Result<Json<Vec<EventSlotDto>>, ApiError> {
     let event_id = parse_ulid_uuid("event_id", &eid)?;
-    ensure_event_exists(&services, event_id).await?;
-
     Ok(Json(
         services
-            .db()
-            .list_event_slot_by_event(event_id)
+            .event()
+            .list_slots(event_id)
             .await?
             .into_iter()
-            .map(|slot| EventSlotDto::from_record(slot, false))
+            .map(|view| slot_to_dto(view, false))
             .collect(),
     ))
 }
@@ -53,11 +48,7 @@ async fn export_bookings(
 ) -> Result<Response, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
     let event_id = parse_ulid_uuid("event_id", &eid)?;
-    ensure_event_exists(&services, event_id).await?;
-    let rows = services
-        .db()
-        .booking_event_slot_export_rows(event_id)
-        .await?;
+    let rows = services.event().export_slot_bookings(event_id).await?;
 
     Ok((
         StatusCode::OK,
@@ -83,36 +74,21 @@ async fn create_slot(
     current_user.require_role(UserRole::EventCoordinator)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let event_id = parse_ulid_uuid("event_id", &eid)?;
-    let mut transaction = services.db().begin().await?;
-    let slot = (&mut *transaction)
-        .create_event_slot(request.try_into()?)
-        .await?;
-    if slot.event_id != event_id {
-        return Err(ApiError::not_found("event airspace", "unknown"));
-    }
-    transaction.commit().await?;
-    services
-        .audit_log()
-        .record(
-            AuditLogEntity::EventSlot(event_id, slot.id),
-            operated_by,
-            None,
-            Some(&slot),
-        )
+    let slot = services
+        .event()
+        .create_slot(event_id, request.try_into()?, operated_by)
         .await?;
 
-    Ok(Json(EventSlotDto::from_record(
-        slot,
-        include_booking_user(&current_user),
-    )))
+    Ok(Json(slot_to_dto(slot, include_booking_user(&current_user))))
 }
 
-async fn ensure_event_exists(services: &Services, event_id: Uuid) -> Result<(), ApiError> {
-    if services.db().exists_event(event_id).await? {
-        Ok(())
-    } else {
-        Err(ApiError::not_found("event", "unknown"))
-    }
+fn slot_to_dto(view: EventSlotView, include_booking_user: bool) -> EventSlotDto {
+    EventSlotDto::from_entity(
+        view.slot,
+        view.airspace,
+        view.booking.map(|booking| (booking.booking, booking.user)),
+        include_booking_user,
+    )
 }
 
 fn include_booking_user(current_user: &CurrentUser) -> bool {
