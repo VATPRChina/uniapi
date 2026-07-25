@@ -4,7 +4,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use super::models::{AuditLog, AuditLogEntity};
-use super::repository::AuditLogRepository;
+use super::repository::{AuditLogEntityKind, AuditLogRepository};
 
 #[derive(Debug, Clone)]
 pub struct AuditLogService {
@@ -37,6 +37,63 @@ impl AuditLogService {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn list_events(&self) -> Result<Vec<AuditLog>, AuditLogServiceError> {
+        Ok(self
+            .db
+            .list_audit_log_by_entity_kind(AuditLogEntityKind::Event)
+            .await?)
+    }
+
+    pub async fn list_events_by_id(&self, id: Uuid) -> Result<Vec<AuditLog>, AuditLogServiceError> {
+        Ok(self
+            .db
+            .list_audit_log_by_entity_kind_and_id(AuditLogEntityKind::Event, id)
+            .await?)
+    }
+
+    pub async fn list_atc_applications(&self) -> Result<Vec<AuditLog>, AuditLogServiceError> {
+        Ok(self
+            .db
+            .list_audit_log_by_entity_kind(AuditLogEntityKind::AtcApplication)
+            .await?)
+    }
+
+    pub async fn list_atc_applications_by_id(
+        &self,
+        id: Uuid,
+    ) -> Result<Vec<AuditLog>, AuditLogServiceError> {
+        Ok(self
+            .db
+            .list_audit_log_by_entity_kind_and_id(AuditLogEntityKind::AtcApplication, id)
+            .await?)
+    }
+
+    pub async fn list_users(&self) -> Result<Vec<AuditLog>, AuditLogServiceError> {
+        Ok(self
+            .db
+            .list_audit_log_by_entity_kind(AuditLogEntityKind::User)
+            .await?)
+    }
+
+    pub async fn list_users_by_id(&self, id: Uuid) -> Result<Vec<AuditLog>, AuditLogServiceError> {
+        Ok(self
+            .db
+            .list_audit_log_by_entity_kind_and_id(AuditLogEntityKind::User, id)
+            .await?)
+    }
+
+    pub async fn list_user_atc_status(
+        &self,
+        id: Uuid,
+    ) -> Result<Vec<AuditLog>, AuditLogServiceError> {
+        Ok(self
+            .list_users_by_id(id)
+            .await?
+            .into_iter()
+            .filter(|audit_log| matches!(audit_log.entity, AuditLogEntity::UserAtcPermission(_, _)))
+            .collect())
     }
 }
 
