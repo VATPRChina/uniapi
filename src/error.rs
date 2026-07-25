@@ -22,6 +22,7 @@ use crate::modules::flight::flight_plan::validator::ValidatorError;
 use crate::modules::flight::service::FlightServiceError;
 use crate::modules::sector::service::SectorServiceError;
 use crate::modules::sheet::service::SheetServiceError;
+use crate::modules::storage::service::StorageServiceError;
 use crate::modules::training::service::{TrainingApplicationServiceError, TrainingServiceError};
 use crate::modules::user::service::user::UserServiceError;
 
@@ -314,6 +315,14 @@ impl From<SectorServiceError> for ApiError {
             }
             SectorServiceError::Database(source) => ApiError::Database { source },
             SectorServiceError::User(source) => source.into(),
+        }
+    }
+}
+
+impl From<StorageServiceError> for ApiError {
+    fn from(error: StorageServiceError) -> Self {
+        match error {
+            StorageServiceError::Images(source) => ApiError::Smms { source },
         }
     }
 }

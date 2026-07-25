@@ -15,6 +15,7 @@ use crate::modules::flight::service::FlightService;
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::sector::service::SectorService;
 use crate::modules::sheet::service::SheetService;
+use crate::modules::storage::service::StorageService;
 use crate::modules::training::service::{TrainingApplicationService, TrainingService};
 use crate::modules::user::service::access_token::AccessTokenService;
 use crate::modules::user::service::device_authorization::DeviceAuthorizationService;
@@ -30,7 +31,7 @@ pub struct Services {
     access_token: AccessTokenService,
     refresh_token: RefreshTokenService,
     device_authorization: DeviceAuthorizationService,
-    smms: SmmsClient,
+    storage: StorageService,
     compat: CompatService,
     #[allow(dead_code)]
     discourse: DiscourseClient,
@@ -103,10 +104,10 @@ impl Services {
             access_token,
             refresh_token,
             device_authorization,
-            smms: SmmsClient::new(
+            storage: StorageService::new(SmmsClient::new(
                 settings.storage.image.smms.base_url.clone(),
                 settings.storage.image.smms.secret_token.clone(),
-            ),
+            )),
             compat,
             discourse: DiscourseClient::new(
                 settings.discourse.endpoint.clone(),
@@ -122,8 +123,8 @@ impl Services {
         &self.db
     }
 
-    pub fn smms(&self) -> &SmmsClient {
-        &self.smms
+    pub fn storage(&self) -> &StorageService {
+        &self.storage
     }
 
     pub fn access_token(&self) -> &AccessTokenService {

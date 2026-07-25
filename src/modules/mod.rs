@@ -7,5 +7,6 @@ pub mod flight;
 pub mod navdata;
 pub mod sector;
 pub mod sheet;
+pub mod storage;
 pub mod training;
 pub mod user;

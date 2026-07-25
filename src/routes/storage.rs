@@ -3,8 +3,8 @@ use axum::routing::post;
 use axum::{Json, Router};
 
 use crate::auth::CurrentUser;
-use crate::dto::*;
 use crate::model::user_role::UserRole;
+use crate::modules::storage::dto::UploadImageResponse;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -45,12 +45,12 @@ async fn upload_image(
             return Err(ApiError::bad_request("image", "file is empty"));
         }
 
-        let url = services
-            .smms()
+        let image = services
+            .storage()
             .upload_image(image, file_name, content_type)
             .await?;
 
-        return Ok(Json(UploadImageResponse { url }));
+        return Ok(Json(image.into()));
     }
 
     Err(ApiError::bad_request("image", "image not included"))
