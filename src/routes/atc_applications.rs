@@ -8,8 +8,9 @@ use uuid::Uuid;
 use crate::adapter::email::EmailContent;
 use crate::auth::CurrentUser;
 use crate::dto::*;
-use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
+use crate::modules::audit_log::models::AuditLogEntity;
+use crate::modules::audit_log::service::AuditLogService;
 use crate::repository::atc::atc_application::AtcApplicationRecord;
 use crate::repository::atc::atc_application::AtcApplicationRepositoryExt;
 use crate::repository::sheet::sheet::SheetRepositoryExt;
@@ -19,7 +20,6 @@ use crate::repository::sheet::sheet_filing_answer::SheetFilingAnswerRepositoryEx
 use crate::repository::sheet::sheet_filing_answer::{SheetAnswerRecord, SheetAnswerSave};
 use crate::routes::ApiError;
 use crate::services::Services;
-use crate::services::audit_log::AuditLogService;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(

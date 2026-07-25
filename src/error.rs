@@ -13,7 +13,7 @@ use crate::auth::AuthError;
 use crate::flight_plan::parser::ParserError;
 use crate::flight_plan::validator::ValidatorError;
 use crate::model::user_role::UserRole;
-use crate::services::audit_log::AuditLogServiceError;
+use crate::modules::audit_log::service::AuditLogServiceError;
 use crate::services::controller_info::ControllerInfoServiceError;
 use crate::services::user::UserServiceError;
 

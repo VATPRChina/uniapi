@@ -7,8 +7,8 @@ use uuid::Uuid;
 
 use crate::auth::CurrentUser;
 use crate::dto::*;
-use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
+use crate::modules::audit_log::models::AuditLogEntity;
 use crate::repository::atc::user_atc_permission::AtcPermissionRecord;
 use crate::repository::atc::user_atc_permission::UserAtcPermissionRepositoryExt;
 use crate::repository::atc::user_atc_status::UserAtcStatusRepositoryExt;

@@ -1,3 +1,5 @@
+#![allow(async_fn_in_trait)]
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize, de::IntoDeserializer};
 use serde_json::Value;
@@ -5,7 +7,7 @@ use sqlx::FromRow;
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::model::audit_log::{AuditLog, AuditLogEntity};
+use super::models::{AuditLog, AuditLogEntity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -33,7 +35,7 @@ impl std::str::FromStr for AuditLogEntityKind {
     }
 }
 
-pub trait AuditLogRepositoryExt<'executor> {
+pub trait AuditLogRepository<'executor> {
     async fn create_audit_log(self, audit_log: AuditLog) -> Result<AuditLogRecord, sqlx::Error>;
 
     async fn list_audit_log_by_entity_kind(
@@ -48,7 +50,7 @@ pub trait AuditLogRepositoryExt<'executor> {
     ) -> Result<Vec<AuditLog>, sqlx::Error>;
 }
 
-impl<'executor, E> AuditLogRepositoryExt<'executor> for E
+impl<'executor, E> AuditLogRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {

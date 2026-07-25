@@ -3,11 +3,11 @@ use axum::routing::get;
 use axum::{Json, Router};
 
 use crate::auth::CurrentUser;
-use crate::dto::{AuditLogDto, parse_ulid_uuid};
-use crate::model::audit_log::AuditLogEntity;
+use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
-use crate::repository::audit_log::AuditLogEntityKind;
-use crate::repository::audit_log::AuditLogRepositoryExt;
+use crate::modules::audit_log::dto::AuditLogDto;
+use crate::modules::audit_log::models::AuditLogEntity;
+use crate::modules::audit_log::repository::{AuditLogEntityKind, AuditLogRepository};
 use crate::routes::ApiError;
 use crate::services::Services;
 

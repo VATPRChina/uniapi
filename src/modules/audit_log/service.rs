@@ -3,8 +3,8 @@ use serde::Serialize;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::model::audit_log::{AuditLog, AuditLogEntity};
-use crate::repository::audit_log::AuditLogRepositoryExt;
+use super::models::{AuditLog, AuditLogEntity};
+use super::repository::AuditLogRepository;
 
 #[derive(Debug, Clone)]
 pub struct AuditLogService {

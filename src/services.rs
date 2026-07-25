@@ -11,11 +11,10 @@ use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::jwt::JwtService;
 use crate::settings::Settings;
 
-pub mod audit_log;
 pub mod controller_info;
 pub mod user;
 
-use audit_log::AuditLogService;
+use crate::modules::audit_log::service::AuditLogService;
 use controller_info::ControllerInfoService;
 use user::UserService;
 

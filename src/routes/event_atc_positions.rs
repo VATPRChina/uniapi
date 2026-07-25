@@ -7,15 +7,15 @@ use uuid::Uuid;
 
 use crate::auth::CurrentUser;
 use crate::dto::*;
-use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
+use crate::modules::audit_log::models::AuditLogEntity;
+use crate::modules::audit_log::service::AuditLogService;
 use crate::repository::event::event_atc_position::EventAtcPositionRecord;
 use crate::repository::event::event_atc_position::EventAtcPositionRepositoryExt;
 use crate::repository::event::event_atc_position::EventAtcPositionTransactionExt;
 use crate::repository::event::event_atc_position::UserAtcPermissionRecord;
 use crate::routes::ApiError;
 use crate::services::Services;
-use crate::services::audit_log::AuditLogService;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(

@@ -8,8 +8,8 @@ use uuid::Uuid;
 
 use crate::auth::CurrentUser;
 use crate::dto::*;
-use crate::model::audit_log::AuditLogEntity;
 use crate::model::user_role::UserRole;
+use crate::modules::audit_log::models::AuditLogEntity;
 use crate::repository::event::event::EventRepositoryExt;
 use crate::repository::event::event_slot::EventSlotRepositoryExt;
 use crate::routes::ApiError;
