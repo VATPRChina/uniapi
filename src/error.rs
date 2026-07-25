@@ -14,6 +14,7 @@ use crate::model::user_role::UserRole;
 use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
+use crate::modules::compat::service::CompatServiceError;
 use crate::modules::controller::service::ControllerServiceError;
 use crate::modules::event::service::EventServiceError;
 use crate::modules::flight::flight_plan::parser::ParserError;
@@ -351,6 +352,15 @@ impl From<ControllerServiceError> for ApiError {
             }
             ControllerServiceError::User(source) => source.into(),
             ControllerServiceError::AuditLog(source) => ApiError::AuditLog { source },
+        }
+    }
+}
+
+impl From<CompatServiceError> for ApiError {
+    fn from(error: CompatServiceError) -> Self {
+        match error {
+            CompatServiceError::Client(source) => ApiError::Compat { source },
+            CompatServiceError::Database(source) => ApiError::Database { source },
         }
     }
 }

@@ -3,13 +3,10 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
-use regex::Regex;
-use std::sync::LazyLock;
 
-use crate::adapter::compat::CompatClientError;
-use crate::dto::*;
 use crate::error::ApiError;
-use crate::repository::compat::CompatRepositoryExt;
+use crate::modules::compat::dto::{CompatVatprcStatusDto, MetarQuery};
+use crate::modules::compat::service::CompatServiceError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -21,14 +18,6 @@ use crate::services::Services;
     online_status
 ))]
 pub(crate) struct ApiDoc;
-
-static VATPRC_CONTROLLER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(Z[BSGUHWJPLYM][A-Z0-9]{2}(_[A-Z0-9]*)?_(DEL|GND|TWR|APP|DEP|CTR))|(PRC_FSS)$")
-        .expect("VATPRC controller regex should compile")
-});
-static VATPRC_AIRPORT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^Z[BMSPGJYWLH][A-Z]{2}").expect("VATPRC airport regex should compile")
-});
 
 pub fn build_compat_routes() -> Router<Services> {
     Router::new()
@@ -43,62 +32,7 @@ pub fn build_compat_routes() -> Router<Services> {
 async fn online_status(
     State(services): State<Services>,
 ) -> Result<Json<CompatVatprcStatusDto>, ApiError> {
-    let vatsim_data = services.compat().get_online_data().await?;
-    let future_controllers = services
-        .db()
-        .future_compat_controllers()
-        .await?
-        .into_iter()
-        .map(CompatFutureControllerDto::from)
-        .collect();
-
-    let pilots = vatsim_data
-        .pilots
-        .into_iter()
-        .filter_map(|pilot| {
-            let flight_plan = pilot.flight_plan?;
-            let departure_matches = flight_plan
-                .departure
-                .as_deref()
-                .is_some_and(|airport| VATPRC_AIRPORT_REGEX.is_match(airport));
-            let arrival_matches = flight_plan
-                .arrival
-                .as_deref()
-                .is_some_and(|airport| VATPRC_AIRPORT_REGEX.is_match(airport));
-            if !departure_matches && !arrival_matches {
-                return None;
-            }
-
-            Some(CompatPilotDto {
-                cid: pilot.cid as i32,
-                name: pilot.name,
-                callsign: pilot.callsign,
-                departure: flight_plan.departure,
-                arrival: flight_plan.arrival,
-                aircraft: flight_plan.aircraft_short,
-            })
-        })
-        .collect();
-
-    let controllers = vatsim_data
-        .controllers
-        .into_iter()
-        .filter(|controller| VATPRC_CONTROLLER_REGEX.is_match(&controller.callsign))
-        .filter(|controller| controller.facility > 0)
-        .map(|controller| CompatControllerDto {
-            cid: controller.cid as i32,
-            name: controller.name,
-            callsign: controller.callsign,
-            frequency: controller.frequency,
-        })
-        .collect();
-
-    Ok(Json(CompatVatprcStatusDto {
-        last_updated: vatsim_data.general.update_timestamp,
-        pilots,
-        controllers,
-        future_controllers,
-    }))
+    Ok(Json(services.compat().online_status().await?.into()))
 }
 
 #[utoipa::path(get, path = "api/compat/euroscope/metar/{icao}", tag = "Compat", params(("icao" = String, Path, description = "ICAO code")), responses((status = 200, description = "Successful response", body = String)))]
@@ -116,7 +50,7 @@ async fn get_metar_by_query(
 
 async fn metar_response(services: Services, icao: String) -> Response {
     let normalized_icao = icao.to_uppercase();
-    let metar = services.compat().get_metar(&normalized_icao).await;
+    let metar = services.compat().metar(&normalized_icao).await;
     if metar.is_empty() {
         return (
             StatusCode::NOT_FOUND,
@@ -136,15 +70,15 @@ async fn metar_response(services: Services, icao: String) -> Response {
 
 #[utoipa::path(get, path = "api/compat/trackaudio/mandatory_version", tag = "Compat", responses((status = 200, description = "Successful response", body = String)))]
 async fn trackaudio_version(State(services): State<Services>) -> Result<Response, ApiError> {
-    text_response(services.compat().get_track_audio_version().await)
+    text_response(services.compat().track_audio_version().await)
 }
 
 #[utoipa::path(get, path = "api/compat/vplaaf/areas.json", tag = "Compat", responses((status = 200, description = "Successful response", body = serde_json::Value)))]
 async fn vplaaf_areas(State(services): State<Services>) -> Result<Response, ApiError> {
-    json_text_response(services.compat().get_vplaaf_areas().await)
+    json_text_response(services.compat().vplaaf_areas().await)
 }
 
-fn text_response(content: Result<String, CompatClientError>) -> Result<Response, ApiError> {
+fn text_response(content: Result<String, CompatServiceError>) -> Result<Response, ApiError> {
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
@@ -153,7 +87,7 @@ fn text_response(content: Result<String, CompatClientError>) -> Result<Response,
         .into_response())
 }
 
-fn json_text_response(content: Result<String, CompatClientError>) -> Result<Response, ApiError> {
+fn json_text_response(content: Result<String, CompatServiceError>) -> Result<Response, ApiError> {
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "application/json; charset=utf-8")],

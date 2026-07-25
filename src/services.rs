@@ -9,6 +9,7 @@ use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::modules::atc_application::service::AtcApplicationService;
+use crate::modules::compat::service::CompatService;
 use crate::modules::controller::service::ControllerService;
 use crate::modules::event::service::EventService;
 use crate::modules::flight::service::FlightService;
@@ -29,7 +30,7 @@ pub struct Services {
     refresh_token: RefreshTokenService,
     device_authorization: DeviceAuthorizationService,
     smms: SmmsClient,
-    compat: CompatClient,
+    compat: CompatService,
     #[allow(dead_code)]
     discourse: DiscourseClient,
     email: EmailClient,
@@ -61,8 +62,9 @@ impl Services {
         let moodle = MoodleClient::new(settings.moodle.api_key.clone());
         let user = UserService::new(db.clone(), moodle.clone(), audit_log.clone());
         let controller = ControllerService::new(db.clone(), audit_log.clone(), user.clone());
-        let compat = CompatClient::new(settings.utils.metar.endpoint.clone());
-        let flight = FlightService::new(compat.clone(), navdata, user.clone());
+        let compat_client = CompatClient::new(settings.utils.metar.endpoint.clone());
+        let flight = FlightService::new(compat_client.clone(), navdata, user.clone());
+        let compat = CompatService::new(db.clone(), compat_client);
         let sheet = SheetService::new(db.clone());
         let atc_application =
             AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone(), sheet.clone());
@@ -132,7 +134,7 @@ impl Services {
         &self.device_authorization
     }
 
-    pub fn compat(&self) -> &CompatClient {
+    pub fn compat(&self) -> &CompatService {
         &self.compat
     }
 

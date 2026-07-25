@@ -9,11 +9,11 @@ pub struct FutureControllerRow {
     pub end_at: DateTime<Utc>,
 }
 
-pub trait CompatRepositoryExt<'executor> {
+pub(crate) trait CompatRepository<'executor> {
     async fn future_compat_controllers(self) -> Result<Vec<FutureControllerRow>, sqlx::Error>;
 }
 
-impl<'executor, E> CompatRepositoryExt<'executor> for E
+impl<'executor, E> CompatRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
