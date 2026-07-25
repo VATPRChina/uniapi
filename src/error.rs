@@ -13,6 +13,8 @@ use crate::auth::AuthError;
 use crate::flight_plan::parser::ParserError;
 use crate::flight_plan::validator::ValidatorError;
 use crate::model::user_role::UserRole;
+use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
+use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
 use crate::services::controller_info::ControllerInfoServiceError;
 use crate::services::user::UserServiceError;
@@ -179,6 +181,30 @@ impl From<UserServiceError> for ApiError {
             UserServiceError::Database(source) => ApiError::Database { source },
             UserServiceError::Moodle(source) => ApiError::Moodle { source },
             UserServiceError::AuditLog(source) => ApiError::AuditLog { source },
+        }
+    }
+}
+
+impl From<AtcApplicationServiceError> for ApiError {
+    fn from(error: AtcApplicationServiceError) -> Self {
+        match error {
+            AtcApplicationServiceError::AlreadyExists => ApiError::ApplicationAlreadyExists,
+            AtcApplicationServiceError::CannotUpdate => ApiError::ApplicationCannotUpdate,
+            AtcApplicationServiceError::NotFound(id) => {
+                ApiError::not_found("application", ulid::Ulid::from(id).to_string())
+            }
+            AtcApplicationServiceError::UserNotFound(_) => ApiError::Internal,
+            AtcApplicationServiceError::Database(source) => {
+                if let sqlx::Error::Decode(error) = &source
+                    && let Some(error) = error.downcast_ref::<InvalidAtcApplicationStatus>()
+                {
+                    return ApiError::invalid_database_value("atc_application.status", &error.0);
+                }
+
+                ApiError::Database { source }
+            }
+            AtcApplicationServiceError::AuditLog(source) => ApiError::AuditLog { source },
+            AtcApplicationServiceError::User(source) => source.into(),
         }
     }
 }

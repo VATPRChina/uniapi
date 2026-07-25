@@ -9,6 +9,7 @@ use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::jwt::JwtService;
+use crate::modules::atc_application::service::AtcApplicationService;
 use crate::settings::Settings;
 
 pub mod controller_info;
@@ -31,6 +32,7 @@ pub struct Services {
     vatsim_auth: VatsimAuthClient,
     navdata: NavdataAdapter,
     audit_log: AuditLogService,
+    atc_application: AtcApplicationService,
     user: UserService,
     controller_info: ControllerInfoService,
 }
@@ -48,11 +50,15 @@ impl Services {
         .await?;
         let audit_log = AuditLogService::new(db.clone());
         let moodle = MoodleClient::new(settings.moodle.api_key.clone());
+        let user = UserService::new(db.clone(), moodle.clone(), audit_log.clone());
+        let atc_application =
+            AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone());
 
         Ok(Self {
             controller_info: ControllerInfoService::new(db.clone()),
-            user: UserService::new(db.clone(), moodle.clone(), audit_log.clone()),
+            user,
             audit_log,
+            atc_application,
             db,
             jwt: JwtService::new(&settings.authentication.jwt),
             smms: SmmsClient::new(
@@ -111,6 +117,10 @@ impl Services {
 
     pub fn audit_log(&self) -> &AuditLogService {
         &self.audit_log
+    }
+
+    pub fn atc_application(&self) -> &AtcApplicationService {
+        &self.atc_application
     }
 
     pub fn user(&self) -> &UserService {

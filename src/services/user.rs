@@ -43,6 +43,13 @@ impl UserService {
         Ok(Some(user_model(user, moodle_user)))
     }
 
+    pub async fn find_summary_by_id(
+        &self,
+        id: Uuid,
+    ) -> Result<Option<UserSummary>, UserServiceError> {
+        Ok(self.db.find_user_detail_by_id(id).await?.map(user_summary))
+    }
+
     pub async fn set_roles(
         &self,
         id: Uuid,

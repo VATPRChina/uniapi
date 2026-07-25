@@ -12,7 +12,6 @@ use crate::model::navdata::{AnyFix, ResolvedLeg};
 use crate::model::user::{User, UserSummary};
 use crate::model::user_controller_state::UserControllerState;
 use crate::model::user_role::{UserRole, role_closure, role_closure_from_strings};
-use crate::repository::atc::atc_application::AtcApplicationRecord;
 use crate::repository::atc::user_atc_permission::{AtcPermissionRecord, AtcPermissionSave};
 use crate::repository::atc::user_atc_status::{AtcStatusRecord, AtcStatusSave};
 use crate::repository::atc_training::training::{TrainingRecord, TrainingSave};
@@ -133,27 +132,6 @@ impl UserDto {
         );
         dto.moodle_account = moodle_account;
         dto
-    }
-
-    pub fn from_application_user(
-        application: &AtcApplicationRecord,
-        show_full_name: bool,
-        moodle_account: Option<UserMoodleInfoDto>,
-    ) -> Self {
-        Self {
-            id: Ulid::from(application.user_id).to_string(),
-            cid: application.user_cid.clone(),
-            full_name: if show_full_name {
-                application.user_full_name.clone()
-            } else {
-                String::new()
-            },
-            created_at: application.user_created_at,
-            updated_at: application.user_updated_at,
-            roles: roles_to_dto(&application.user_roles),
-            direct_roles: direct_roles_to_dto(&application.user_roles),
-            moodle_account,
-        }
     }
 }
 
@@ -894,132 +872,6 @@ impl From<SheetFieldSaveRequest> for SheetFieldSave {
             description_en: field.description_en,
             is_deleted: false,
         }
-    }
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-pub struct AtcApplicationRequest {
-    pub request_answers: Vec<SheetRequestField>,
-}
-
-#[derive(Deserialize, utoipa::ToSchema)]
-pub struct AtcApplicationReviewRequest {
-    pub status: AtcApplicationStatus,
-    pub review_answers: Vec<SheetRequestField>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, utoipa::ToSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum AtcApplicationStatus {
-    Submitted,
-    InWaitlist,
-    Approved,
-    Rejected,
-    Aborted,
-}
-
-impl AtcApplicationStatus {
-    pub fn as_db_str(self) -> &'static str {
-        match self {
-            Self::Submitted => "Submitted",
-            Self::InWaitlist => "InWaitlist",
-            Self::Approved => "Approved",
-            Self::Rejected => "Rejected",
-            Self::Aborted => "Aborted",
-        }
-    }
-
-    pub fn from_db_str(status: &str) -> Result<Self, ApiError> {
-        match status {
-            "Submitted" => Ok(Self::Submitted),
-            "InWaitlist" => Ok(Self::InWaitlist),
-            "Approved" => Ok(Self::Approved),
-            "Rejected" => Ok(Self::Rejected),
-            "Aborted" => Ok(Self::Aborted),
-            _ => Err(ApiError::invalid_database_value(
-                "atc_application.status",
-                status,
-            )),
-        }
-    }
-}
-
-#[cfg(test)]
-mod atc_application_status_tests {
-    use super::*;
-
-    #[test]
-    fn invalid_database_status_returns_error() {
-        assert!(AtcApplicationStatus::from_db_str("submitted").is_err());
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct AtcApplicationSummaryDto {
-    pub id: String,
-    pub user_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_email: Option<String>,
-    pub user: UserDto,
-    pub applied_at: DateTime<Utc>,
-    pub status: AtcApplicationStatus,
-}
-
-impl AtcApplicationSummaryDto {
-    pub fn from_record(
-        application: AtcApplicationRecord,
-        is_admin: bool,
-        current_user_id: Uuid,
-    ) -> Result<Self, ApiError> {
-        let user_email = is_admin.then_some(application.user_email.clone()).flatten();
-        Ok(Self {
-            id: Ulid::from(application.id).to_string(),
-            user_id: Ulid::from(application.user_id).to_string(),
-            user_email,
-            user: UserDto::from_application_user(
-                &application,
-                is_admin || application.user_id == current_user_id,
-                None,
-            ),
-            applied_at: application.applied_at,
-            status: AtcApplicationStatus::from_db_str(&application.status)?,
-        })
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct AtcApplicationDto {
-    pub id: String,
-    pub user_id: String,
-    pub user: UserDto,
-    pub applied_at: DateTime<Utc>,
-    pub status: AtcApplicationStatus,
-    pub application_filing_answers: Vec<SheetFieldAnswerDto>,
-    pub review_filing_answers: Option<Vec<SheetFieldAnswerDto>>,
-}
-
-impl AtcApplicationDto {
-    pub fn from_record(
-        application: AtcApplicationRecord,
-        is_admin: bool,
-        current_user_id: Uuid,
-        application_filing_answers: Vec<SheetFieldAnswerDto>,
-        review_filing_answers: Option<Vec<SheetFieldAnswerDto>>,
-        moodle_account: Option<UserMoodleInfoDto>,
-    ) -> Result<Self, ApiError> {
-        Ok(Self {
-            id: Ulid::from(application.id).to_string(),
-            user_id: Ulid::from(application.user_id).to_string(),
-            user: UserDto::from_application_user(
-                &application,
-                is_admin || application.user_id == current_user_id,
-                moodle_account,
-            ),
-            applied_at: application.applied_at,
-            status: AtcApplicationStatus::from_db_str(&application.status)?,
-            application_filing_answers,
-            review_filing_answers,
-        })
     }
 }
 

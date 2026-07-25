@@ -5,8 +5,7 @@ use thiserror::Error;
 use tracing::instrument;
 use ulid::Ulid;
 
-use crate::dto::AtcApplicationStatus;
-use crate::repository::atc::atc_application::AtcApplicationRecord;
+use crate::modules::atc_application::models::{AtcApplication, AtcApplicationStatus};
 use crate::repository::atc_training::training_application::TrainingApplicationRecord;
 use crate::repository::atc_training::training_application_response::TrainingApplicationResponseRecord;
 use crate::settings::Email;
@@ -89,16 +88,14 @@ impl EmailClient {
 }
 
 impl EmailContent {
-    pub fn atc_application_status_change(application: &AtcApplicationRecord) -> Self {
-        let status = AtcApplicationStatus::from_db_str(&application.status)
-            .map(|status| match status {
-                AtcApplicationStatus::Submitted => "pending review",
-                AtcApplicationStatus::InWaitlist => "in the waitlist queue",
-                AtcApplicationStatus::Approved => "approved",
-                AtcApplicationStatus::Rejected => "rejected",
-                AtcApplicationStatus::Aborted => "training aborted",
-            })
-            .unwrap_or("changed status");
+    pub fn atc_application_status_change(application: &AtcApplication) -> Self {
+        let status = match application.status {
+            AtcApplicationStatus::Submitted => "pending review",
+            AtcApplicationStatus::InWaitlist => "in the waitlist queue",
+            AtcApplicationStatus::Approved => "approved",
+            AtcApplicationStatus::Rejected => "rejected",
+            AtcApplicationStatus::Aborted => "training aborted",
+        };
         let intro = format!(
             "Your ATC application is now {status}.\nYou can view the details in the ATC application list."
         );
