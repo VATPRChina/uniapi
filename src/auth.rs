@@ -12,9 +12,9 @@ use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::model::user_role::{UserRole, role_closure};
+use crate::modules::controller::service::ControllerServiceError;
 use crate::modules::user::service::access_token::AccessTokenServiceError;
 use crate::modules::user::service::user::UserServiceError;
-use crate::repository::atc::user_atc_permission::UserAtcPermissionRepositoryExt;
 use crate::services::Services;
 
 pub const ROLE_ASSUME_HEADER: &str = "x-role-assume";
@@ -74,6 +74,9 @@ pub enum AuthError {
 
     #[error(transparent)]
     User(#[from] UserServiceError),
+
+    #[error(transparent)]
+    Controller(#[from] ControllerServiceError),
 
     #[error("missing role {0}")]
     MissingRole(UserRole),
@@ -178,19 +181,11 @@ async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentU
         roles.insert(UserRole::User);
         roles.extend(role_closure(user.direct_roles.iter().copied()));
 
-        if services
-            .db()
-            .has_user_atc_permission_any_by_user_id(user.id)
-            .await?
-        {
+        if services.controller().has_any_permission(user.id).await? {
             roles.insert(UserRole::Controller);
         }
 
-        if services
-            .db()
-            .has_user_atc_permission_mentor_by_user_id(user.id)
-            .await?
-        {
+        if services.controller().has_mentor_permission(user.id).await? {
             roles.insert(UserRole::ControllerTrainingMentor);
             roles.insert(UserRole::Volunteer);
         }

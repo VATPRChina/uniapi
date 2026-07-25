@@ -16,11 +16,11 @@ use crate::model::user_role::UserRole;
 use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
+use crate::modules::controller::service::ControllerServiceError;
 use crate::modules::event::service::EventServiceError;
 use crate::modules::sheet::service::SheetServiceError;
 use crate::modules::training::service::{TrainingApplicationServiceError, TrainingServiceError};
 use crate::modules::user::service::user::UserServiceError;
-use crate::services::controller_info::ControllerInfoServiceError;
 
 macro_rules! api_errors {
     (
@@ -171,6 +171,7 @@ impl From<AuthError> for ApiError {
             AuthError::MissingAnyRole(roles) => ApiError::forbidden(roles),
             AuthError::Database(source) => ApiError::Database { source },
             AuthError::User(source) => source.into(),
+            AuthError::Controller(source) => source.into(),
             AuthError::MissingBearerToken
             | AuthError::InvalidBearerToken
             | AuthError::AccessToken(_) => ApiError::Unauthorized,
@@ -308,23 +309,29 @@ impl From<TrainingApplicationServiceError> for ApiError {
             TrainingApplicationServiceError::Database(source) => ApiError::Database { source },
             TrainingApplicationServiceError::Email(source) => ApiError::Email { source },
             TrainingApplicationServiceError::User(source) => source.into(),
+            TrainingApplicationServiceError::Controller(source) => source.into(),
         }
     }
 }
 
-impl From<ControllerInfoServiceError> for ApiError {
-    fn from(error: ControllerInfoServiceError) -> Self {
+impl From<ControllerServiceError> for ApiError {
+    fn from(error: ControllerServiceError) -> Self {
         match error {
-            ControllerInfoServiceError::Database(source) => ApiError::Database { source },
-            ControllerInfoServiceError::InvalidControllerState(value) => {
+            ControllerServiceError::UserNotFound(id) => {
+                ApiError::not_found("user", ulid::Ulid::from(id).to_string())
+            }
+            ControllerServiceError::Database(source) => ApiError::Database { source },
+            ControllerServiceError::InvalidControllerState(value) => {
                 ApiError::invalid_database_value("user_atc_permission.state", value)
             }
-            ControllerInfoServiceError::InvalidControllerRating(value) => {
+            ControllerServiceError::InvalidControllerRating(value) => {
                 ApiError::invalid_database_value("user_atc_status.rating", value)
             }
-            ControllerInfoServiceError::InvalidControllerPositionKind(value) => {
+            ControllerServiceError::InvalidControllerPositionKind(value) => {
                 ApiError::invalid_database_value("user_atc_permission.position_kind_id", value)
             }
+            ControllerServiceError::User(source) => source.into(),
+            ControllerServiceError::AuditLog(source) => ApiError::AuditLog { source },
         }
     }
 }

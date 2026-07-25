@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::dto::parse_ulid_uuid;
-use crate::model::controller_info::ControllerPositionKind;
-use crate::model::user_controller_state::UserControllerState;
+use crate::modules::controller::models::{ControllerPositionKind, UserControllerState};
 use crate::modules::user::dto::UserDto;
 use crate::modules::user::models::UserSummary;
 use crate::routes::ApiError;

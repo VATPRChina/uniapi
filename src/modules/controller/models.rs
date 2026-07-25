@@ -1,26 +1,41 @@
 use chrono::{DateTime, Utc};
 use std::str::FromStr;
 
-use crate::model::user_controller_state::UserControllerState;
-use crate::modules::user::models::UserSummary;
+use serde::Serialize;
+use uuid::Uuid;
 
-#[derive(Debug, Clone)]
-pub struct ControllerInfo {
-    pub user: UserSummary,
+#[derive(Debug, Clone, Serialize)]
+pub struct Controller {
+    pub user_id: Uuid,
     pub is_visiting: bool,
     pub is_absent: bool,
     pub rating: ControllerRating,
     pub permissions: Vec<ControllerPermission>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ControllerPermission {
     pub position_kind: ControllerPositionKind,
     pub state: UserControllerState,
     pub solo_expires_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone)]
+pub struct ControllerSave {
+    pub is_visiting: bool,
+    pub is_absent: bool,
+    pub rating: String,
+    pub permissions: Vec<ControllerPermissionSave>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ControllerPermissionSave {
+    pub position_kind_id: String,
+    pub state: String,
+    pub solo_expires_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum ControllerRating {
     Obs,
     S1,
@@ -71,7 +86,7 @@ impl FromStr for ControllerRating {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum ControllerPositionKind {
     Del,
     Gnd,
@@ -117,6 +132,69 @@ impl FromStr for ControllerPositionKind {
             "CTR" => Ok(Self::Ctr),
             "FSS" => Ok(Self::Fss),
             "FMP" => Ok(Self::Fmp),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum UserControllerState {
+    Student,
+    UnderMentor,
+    Solo,
+    Certified,
+    Mentor,
+}
+
+impl UserControllerState {
+    pub const fn as_db_str(self) -> &'static str {
+        match self {
+            Self::Student => "Student",
+            Self::UnderMentor => "UnderMentor",
+            Self::Solo => "Solo",
+            Self::Certified => "Certified",
+            Self::Mentor => "Mentor",
+        }
+    }
+
+    pub const fn to_db_value(self) -> i32 {
+        match self {
+            Self::Student => 0,
+            Self::UnderMentor => 1,
+            Self::Solo => 2,
+            Self::Certified => 3,
+            Self::Mentor => 4,
+        }
+    }
+
+    pub const fn from_db_value(value: i32) -> Self {
+        match value {
+            1 => Self::UnderMentor,
+            2 => Self::Solo,
+            3 => Self::Certified,
+            4 => Self::Mentor,
+            _ => Self::Student,
+        }
+    }
+}
+
+impl std::fmt::Display for UserControllerState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_db_str())
+    }
+}
+
+impl FromStr for UserControllerState {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "Student" => Ok(Self::Student),
+            "UnderMentor" => Ok(Self::UnderMentor),
+            "Solo" => Ok(Self::Solo),
+            "Certified" => Ok(Self::Certified),
+            "Mentor" => Ok(Self::Mentor),
             _ => Err(()),
         }
     }

@@ -4,12 +4,12 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::adapter::email::{EmailClient, EmailContent, EmailError};
+use crate::modules::controller::service::{ControllerService, ControllerServiceError};
 use crate::modules::sheet::models::SheetAnswerSave;
 use crate::modules::sheet::repository::sheet_filing::SheetFilingTransactionRepository;
 use crate::modules::sheet::service::{SheetAnswerView, SheetService, SheetServiceError};
 use crate::modules::user::models::UserSummary;
 use crate::modules::user::service::user::{UserService, UserServiceError};
-use crate::repository::atc::user_atc_permission::UserAtcPermissionRepositoryExt;
 
 use super::models::{
     Training, TrainingApplication, TrainingApplicationResponse, TrainingApplicationSlotSave,
@@ -243,11 +243,22 @@ pub struct TrainingApplicationService {
     db: PgPool,
     email: EmailClient,
     user: UserService,
+    controller: ControllerService,
 }
 
 impl TrainingApplicationService {
-    pub fn new(db: PgPool, email: EmailClient, user: UserService) -> Self {
-        Self { db, email, user }
+    pub fn new(
+        db: PgPool,
+        email: EmailClient,
+        user: UserService,
+        controller: ControllerService,
+    ) -> Self {
+        Self {
+            db,
+            email,
+            user,
+            controller,
+        }
     }
 
     pub async fn list(
@@ -282,11 +293,7 @@ impl TrainingApplicationService {
         name: &str,
         slots: &[TrainingApplicationSlotSave],
     ) -> Result<TrainingApplicationView, TrainingApplicationServiceError> {
-        if !self
-            .db
-            .has_user_atc_permission_any_by_user_id(trainee_id)
-            .await?
-        {
+        if !self.controller.has_any_permission(trainee_id).await? {
             return Err(TrainingApplicationServiceError::ControllerPermissionRequired);
         }
         let mut transaction = self.db.begin().await?;
@@ -536,4 +543,6 @@ pub enum TrainingApplicationServiceError {
     Email(#[from] EmailError),
     #[error("failed to access training application user: {0}")]
     User(#[from] UserServiceError),
+    #[error("failed to access controller information: {0}")]
+    Controller(#[from] ControllerServiceError),
 }

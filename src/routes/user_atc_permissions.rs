@@ -1,19 +1,13 @@
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use serde::Serialize;
-use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::auth::CurrentUser;
-use crate::dto::*;
+use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
-use crate::modules::audit_log::models::AuditLogEntity;
-use crate::repository::atc::user_atc_permission::AtcPermissionRecord;
-use crate::repository::atc::user_atc_permission::UserAtcPermissionRepositoryExt;
-use crate::repository::atc::user_atc_status::UserAtcStatusRepositoryExt;
-use crate::repository::atc::user_atc_status::UserAtcStatusTransactionExt;
-use crate::repository::atc::user_atc_status::{AtcStatusRecord, AtcStatusSave};
+use crate::modules::controller::dto::{AtcStatusDto, AtcStatusRequest};
+use crate::modules::controller::models::ControllerSave;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -57,68 +51,18 @@ async fn set_status(
     require_admin_role(&current_user)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let user_id = parse_ulid_uuid("user_id", &id)?;
-    let status = AtcStatusSave::try_from(request)?;
-
-    let mut transaction = services.db().begin().await?;
-    let before = atc_status_audit_snapshot(&mut transaction, user_id)
-        .await?
-        .ok_or(ApiError::not_found("user", "unknown"))?;
-    transaction.upsert_user_atc_status(user_id, &status).await?;
-    let after = atc_status_audit_snapshot(&mut transaction, user_id)
-        .await?
-        .ok_or(ApiError::not_found("user", "unknown"))?;
-    transaction.commit().await?;
-    services
-        .audit_log()
-        .record(
-            AuditLogEntity::UserAtcPermission(user_id, user_id),
-            operated_by,
-            Some(&before),
-            Some(&after),
-        )
-        .await?;
-
-    get_status_for_user(&services, user_id).await.map(Json)
-}
-
-#[derive(Serialize)]
-struct AtcStatusAuditSnapshot {
-    status: AtcStatusRecord,
-    permissions: Vec<AtcPermissionRecord>,
-}
-
-async fn atc_status_audit_snapshot(
-    transaction: &mut Transaction<'_, Postgres>,
-    user_id: Uuid,
-) -> Result<Option<AtcStatusAuditSnapshot>, ApiError> {
-    let Some(status) = (&mut **transaction)
-        .find_user_atc_status_by_user_id_for_update(user_id)
-        .await?
-    else {
-        return Ok(None);
-    };
-    let permissions = (&mut **transaction)
-        .list_user_atc_permission_by_user_id_in_transaction(user_id)
-        .await?;
-
-    Ok(Some(AtcStatusAuditSnapshot {
-        status,
-        permissions,
-    }))
+    let status = ControllerSave::try_from(request)?;
+    Ok(Json(
+        services
+            .controller()
+            .update(user_id, status, operated_by)
+            .await?
+            .into(),
+    ))
 }
 
 async fn get_status_for_user(services: &Services, user_id: Uuid) -> Result<AtcStatusDto, ApiError> {
-    let status = services
-        .db()
-        .find_user_atc_status_by_user_id(user_id)
-        .await?
-        .ok_or(ApiError::not_found("user", "unknown"))?;
-    let permissions = services
-        .db()
-        .list_user_atc_permission_by_user_id(user_id)
-        .await?;
-
-    AtcStatusDto::from_records(status, permissions)
+    Ok(services.controller().find(user_id).await?.into())
 }
 
 fn require_admin_role(current_user: &CurrentUser) -> Result<(), ApiError> {

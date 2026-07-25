@@ -3,9 +3,8 @@ use serde::Serialize;
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use crate::repository::atc::user_atc_permission::{
-    AtcPermissionSave, UserAtcPermissionTransactionExt,
-};
+use super::super::models::ControllerSave;
+use super::user_atc_permission::UserAtcPermissionTransactionRepository;
 
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct AtcStatusRecord {
@@ -20,15 +19,7 @@ pub struct AtcStatusRecord {
     pub rating: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct AtcStatusSave {
-    pub is_visiting: bool,
-    pub is_absent: bool,
-    pub rating: String,
-    pub permissions: Vec<AtcPermissionSave>,
-}
-
-pub trait UserAtcStatusRepositoryExt<'executor> {
+pub(crate) trait UserAtcStatusRepository<'executor> {
     async fn find_user_atc_status_by_user_id(
         self,
         user_id: Uuid,
@@ -40,7 +31,7 @@ pub trait UserAtcStatusRepositoryExt<'executor> {
     ) -> Result<Option<AtcStatusRecord>, sqlx::Error>;
 }
 
-impl<'executor, E> UserAtcStatusRepositoryExt<'executor> for E
+impl<'executor, E> UserAtcStatusRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
@@ -95,23 +86,23 @@ where
     }
 }
 
-pub trait UserAtcStatusTransactionExt {
+pub(crate) trait UserAtcStatusTransactionRepository {
     async fn upsert_user_atc_status(
         &mut self,
         user_id: Uuid,
-        status: &AtcStatusSave,
+        status: &ControllerSave,
     ) -> Result<(), sqlx::Error>;
 }
 
-impl UserAtcStatusTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+impl UserAtcStatusTransactionRepository for sqlx::Transaction<'_, sqlx::Postgres> {
     async fn upsert_user_atc_status(
         &mut self,
         user_id: Uuid,
-        status: &AtcStatusSave,
+        status: &ControllerSave,
     ) -> Result<(), sqlx::Error> {
         tracing::info!(
             operation = "upsert",
-            repository = "src/repository/atc/user_atc_status.rs",
+            repository = "src/modules/controller/repository/user_atc_status.rs",
             "modifying data"
         );
 

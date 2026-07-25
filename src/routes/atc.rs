@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum::routing::get;
 use axum::{Json, Router};
 
-use crate::dto::*;
+use crate::modules::controller::dto::AtcStatusDto;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -18,6 +18,6 @@ pub fn build_atc_routes() -> Router<Services> {
 async fn list_controllers(
     State(services): State<Services>,
 ) -> Result<Json<Vec<AtcStatusDto>>, ApiError> {
-    let controllers = services.controller_info().list().await?;
+    let controllers = services.controller().list().await?;
     Ok(Json(controllers.into_iter().map(Into::into).collect()))
 }

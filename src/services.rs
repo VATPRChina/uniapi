@@ -9,6 +9,7 @@ use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::modules::atc_application::service::AtcApplicationService;
+use crate::modules::controller::service::ControllerService;
 use crate::modules::event::service::EventService;
 use crate::modules::sheet::service::SheetService;
 use crate::modules::training::service::{TrainingApplicationService, TrainingService};
@@ -18,10 +19,7 @@ use crate::modules::user::service::refresh_token::RefreshTokenService;
 use crate::modules::user::service::user::UserService;
 use crate::settings::Settings;
 
-pub mod controller_info;
-
 use crate::modules::audit_log::service::AuditLogService;
-use controller_info::ControllerInfoService;
 
 #[derive(Clone)]
 pub struct Services {
@@ -44,7 +42,7 @@ pub struct Services {
     training: TrainingService,
     training_application: TrainingApplicationService,
     user: UserService,
-    controller_info: ControllerInfoService,
+    controller: ControllerService,
 }
 
 impl Services {
@@ -61,6 +59,7 @@ impl Services {
         let audit_log = AuditLogService::new(db.clone());
         let moodle = MoodleClient::new(settings.moodle.api_key.clone());
         let user = UserService::new(db.clone(), moodle.clone(), audit_log.clone());
+        let controller = ControllerService::new(db.clone(), audit_log.clone(), user.clone());
         let sheet = SheetService::new(db.clone());
         let atc_application =
             AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone(), sheet.clone());
@@ -74,11 +73,15 @@ impl Services {
         );
         let email = EmailClient::new(&settings.email)?;
         let training = TrainingService::new(db.clone(), user.clone(), sheet.clone());
-        let training_application =
-            TrainingApplicationService::new(db.clone(), email.clone(), user.clone());
+        let training_application = TrainingApplicationService::new(
+            db.clone(),
+            email.clone(),
+            user.clone(),
+            controller.clone(),
+        );
 
         Ok(Self {
-            controller_info: ControllerInfoService::new(db.clone()),
+            controller,
             user,
             audit_log,
             atc_application,
@@ -180,7 +183,7 @@ impl Services {
         &self.user
     }
 
-    pub fn controller_info(&self) -> &ControllerInfoService {
-        &self.controller_info
+    pub fn controller(&self) -> &ControllerService {
+        &self.controller
     }
 }

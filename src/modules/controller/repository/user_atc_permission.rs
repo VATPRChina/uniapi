@@ -3,6 +3,8 @@ use serde::Serialize;
 use sqlx::FromRow;
 use uuid::Uuid;
 
+use super::super::models::ControllerPermissionSave;
+
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct AtcPermissionRecord {
     pub position_kind_id: String,
@@ -10,14 +12,7 @@ pub struct AtcPermissionRecord {
     pub solo_expires_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone)]
-pub struct AtcPermissionSave {
-    pub position_kind_id: String,
-    pub state: String,
-    pub solo_expires_at: Option<DateTime<Utc>>,
-}
-
-pub trait UserAtcPermissionRepositoryExt<'executor> {
+pub(crate) trait UserAtcPermissionRepository<'executor> {
     async fn has_user_atc_permission_any_by_user_id(
         self,
         user_id: Uuid,
@@ -32,14 +27,9 @@ pub trait UserAtcPermissionRepositoryExt<'executor> {
         self,
         user_id: Uuid,
     ) -> Result<Vec<AtcPermissionRecord>, sqlx::Error>;
-
-    async fn list_user_atc_permission_by_user_id_in_transaction(
-        self,
-        user_id: Uuid,
-    ) -> Result<Vec<AtcPermissionRecord>, sqlx::Error>;
 }
 
-impl<'executor, E> UserAtcPermissionRepositoryExt<'executor> for E
+impl<'executor, E> UserAtcPermissionRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
@@ -93,37 +83,21 @@ where
         .fetch_all(self)
         .await
     }
-    async fn list_user_atc_permission_by_user_id_in_transaction(
-        self,
-        user_id: Uuid,
-    ) -> Result<Vec<AtcPermissionRecord>, sqlx::Error> {
-        sqlx::query_as::<_, AtcPermissionRecord>(
-            r#"
-        SELECT position_kind_id, state, solo_expires_at
-        FROM public.user_atc_permission
-        WHERE user_id = $1
-        ORDER BY position_kind_id
-        "#,
-        )
-        .bind(user_id)
-        .fetch_all(self)
-        .await
-    }
 }
 
-pub trait UserAtcPermissionTransactionExt {
+pub(crate) trait UserAtcPermissionTransactionRepository {
     async fn replace_user_atc_permission(
         &mut self,
         user_id: Uuid,
-        permissions: &[AtcPermissionSave],
+        permissions: &[ControllerPermissionSave],
     ) -> Result<(), sqlx::Error>;
 }
 
-impl UserAtcPermissionTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+impl UserAtcPermissionTransactionRepository for sqlx::Transaction<'_, sqlx::Postgres> {
     async fn replace_user_atc_permission(
         &mut self,
         user_id: Uuid,
-        permissions: &[AtcPermissionSave],
+        permissions: &[ControllerPermissionSave],
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
