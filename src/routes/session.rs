@@ -5,7 +5,7 @@ use axum::{Json, Router};
 use chrono::DateTime;
 use ulid::Ulid;
 
-use crate::auth::CurrentUser;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::user::dto::{TokenDto, UserDto};
 use crate::routes::ApiError;
 use crate::services::Services;

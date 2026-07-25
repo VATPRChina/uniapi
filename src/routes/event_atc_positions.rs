@@ -3,9 +3,9 @@ use axum::http::StatusCode;
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
 
-use crate::auth::CurrentUser;
 use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::event::dto::{
     EventAtcPositionBookRequest, EventAtcPositionBookingDto, EventAtcPositionDto,
     EventAtcPositionSaveRequest,

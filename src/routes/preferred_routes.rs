@@ -3,8 +3,8 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
 
-use crate::auth::CurrentUser;
 use crate::model::user_role::UserRole;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::navdata::dto::{PreferredRouteDto, PreferredRouteSaveRequest};
 use crate::routes::ApiError;
 use crate::services::Services;

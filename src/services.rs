@@ -6,8 +6,8 @@ use crate::adapter::discourse::DiscourseClient;
 use crate::adapter::email::EmailClient;
 use crate::adapter::moodle::MoodleClient;
 use crate::adapter::smms::SmmsClient;
-use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::modules::atc_application::service::AtcApplicationService;
+use crate::modules::authentication::service::AuthenticationService;
 use crate::modules::compat::service::CompatService;
 use crate::modules::controller::service::ControllerService;
 use crate::modules::event::service::EventService;
@@ -37,7 +37,7 @@ pub struct Services {
     discourse: DiscourseClient,
     email: EmailClient,
     moodle: MoodleClient,
-    vatsim_auth: VatsimAuthClient,
+    authentication: AuthenticationService,
     audit_log: AuditLogService,
     atc_application: AtcApplicationService,
     event: EventService,
@@ -115,7 +115,7 @@ impl Services {
             ),
             email,
             moodle,
-            vatsim_auth: VatsimAuthClient::new(settings.authentication.vatsim.clone()),
+            authentication: AuthenticationService::new(settings.authentication.vatsim.clone()),
         })
     }
 
@@ -157,8 +157,8 @@ impl Services {
         &self.email
     }
 
-    pub fn vatsim_auth(&self) -> &VatsimAuthClient {
-        &self.vatsim_auth
+    pub fn authentication(&self) -> &AuthenticationService {
+        &self.authentication
     }
 
     pub fn audit_log(&self) -> &AuditLogService {

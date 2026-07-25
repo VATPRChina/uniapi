@@ -10,8 +10,9 @@ use tracing::instrument;
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::adapter::vatsim_auth::{VatsimAuthError, generate_pkce};
-use crate::modules::user::dto::*;
+use crate::modules::authentication::dto::*;
+use crate::modules::authentication::models::{AuthenticationState, AuthenticationStateType};
+use crate::modules::authentication::repository::VatsimAuthError;
 use crate::modules::user::models::UserSummary;
 use crate::modules::user::service::access_token::AccessTokenServiceError;
 use crate::modules::user::service::device_authorization::normalize_user_code;
@@ -214,10 +215,7 @@ async fn login(
     State(services): State<Services>,
     Query(query): Query<LoginQuery>,
 ) -> Result<Response, AuthUserError> {
-    let (challenge, verifier) = generate_pkce();
-    let url = services
-        .vatsim_auth()
-        .authorization_url(&query.state, &challenge)?;
+    let (url, verifier) = services.authentication().begin_login(&query.state)?;
     let cookie_value = percent_encode_cookie_value(&verifier);
     let cookie = format!(
         "auth-{}-code_verifier={cookie_value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600",
@@ -270,8 +268,11 @@ async fn vatsim_callback(
         .find_map(|(name, value)| (name == &verifier_cookie_name).then(|| value.clone()))
         .unwrap_or_default();
 
-    let token = services.vatsim_auth().get_token(&code, &verifier).await?;
-    let vatsim_user = services.vatsim_auth().get_user(&token.access_token).await?;
+    let token = services
+        .authentication()
+        .exchange_code(&code, &verifier)
+        .await?;
+    let vatsim_user = services.authentication().user(&token.access_token).await?;
     let user = upsert_user(
         &services,
         &vatsim_user.data.cid,

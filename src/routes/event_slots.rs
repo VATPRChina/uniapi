@@ -1,6 +1,6 @@
-use crate::auth::CurrentUser;
 use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::event::dto::{EventSlotDto, EventSlotSaveRequest};
 use crate::modules::event::service::EventSlotView;
 use crate::routes::ApiError;

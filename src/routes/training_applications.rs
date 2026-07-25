@@ -2,9 +2,9 @@ use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
 
-use crate::auth::CurrentUser;
 use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::training::dto::{
     TrainingApplicationCreateRequest, TrainingApplicationDto, TrainingApplicationResponseDto,
     TrainingApplicationResponseRequest,

@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum::routing::get;
 use axum::{Json, Router};
 
-use crate::auth::CurrentUser;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::sector::dto::SectorPermissionResponse;
 use crate::routes::ApiError;
 use crate::services::Services;

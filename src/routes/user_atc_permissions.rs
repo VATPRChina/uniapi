@@ -3,9 +3,9 @@ use axum::routing::get;
 use axum::{Json, Router};
 use uuid::Uuid;
 
-use crate::auth::CurrentUser;
 use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::controller::dto::{AtcStatusDto, AtcStatusRequest};
 use crate::modules::controller::models::ControllerSave;
 use crate::routes::ApiError;

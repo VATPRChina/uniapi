@@ -4,7 +4,6 @@ use axum::{Json, Router};
 use uuid::Uuid;
 
 use crate::adapter::email::EmailContent;
-use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::user_role::UserRole;
 use crate::modules::atc_application::dto::{
@@ -12,6 +11,7 @@ use crate::modules::atc_application::dto::{
     AtcApplicationSummaryDto,
 };
 use crate::modules::atc_application::service::AtcApplicationView;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::sheet::dto::{SheetDto, SheetFieldAnswerDto};
 use crate::modules::sheet::models::SheetAnswerSave;
 use crate::modules::user::dto::UserMoodleInfoDto;

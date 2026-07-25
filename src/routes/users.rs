@@ -3,9 +3,9 @@ use axum::routing::{get, put};
 use axum::{Json, Router};
 use std::collections::BTreeSet;
 
-use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::model::user_role::UserRole;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::user::dto::UserDto;
 use crate::routes::ApiError;
 use crate::services::Services;

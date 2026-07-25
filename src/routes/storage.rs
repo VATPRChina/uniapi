@@ -2,8 +2,8 @@ use axum::extract::{DefaultBodyLimit, Multipart, State};
 use axum::routing::post;
 use axum::{Json, Router};
 
-use crate::auth::CurrentUser;
 use crate::model::user_role::UserRole;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::storage::dto::UploadImageResponse;
 use crate::routes::ApiError;
 use crate::services::Services;

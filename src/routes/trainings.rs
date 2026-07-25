@@ -3,9 +3,9 @@ use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
 
-use crate::auth::CurrentUser;
 use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::sheet::dto::{SheetDto, SheetFieldAnswerDto};
 use crate::modules::sheet::models::SheetAnswerSave;
 use crate::modules::training::dto::{TrainingDto, TrainingRecordRequest, TrainingSaveRequest};

@@ -8,8 +8,8 @@ use axum::routing::get;
 use axum::{Json, Router};
 use tokio::time;
 
-use crate::auth::CurrentUser;
 use crate::model::user_role::UserRole;
+use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::flight::dto::{FlightDto, FlightLeg, TemporaryFlightQuery};
 use crate::modules::flight::flight_plan::validator;
 use crate::modules::flight::models::Flight;
