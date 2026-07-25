@@ -26,3 +26,31 @@ test("PUT /api/users/{id}/roles updates user roles", async ({ staff, user }) => 
   expect(response.status).toBe(200);
   expect(data.direct_roles).toEqual(["event-coordinator"]);
 });
+
+test("Tech Director Assistant can assume roles for one request", async () => {
+  const client = await getClient(["tech-director-assistant"]);
+
+  const assumedSession = await client.GET("/api/session", {
+    headers: {
+      "X-Role-Assume": "event-director, operation-director-assistant",
+    },
+  });
+
+  expect(assumedSession.error).toBeFalsy();
+  expect(assumedSession.data.user.roles).toEqual(
+    expect.arrayContaining([
+      "software-engineer",
+      "event-director",
+      "event-coordinator",
+      "operation-director-assistant",
+    ]),
+  );
+
+  const nextSession = await client.GET("/api/session");
+
+  expect(nextSession.error).toBeFalsy();
+  expect(nextSession.data.user.roles).not.toContain("event-director");
+  expect(nextSession.data.user.roles).not.toContain(
+    "operation-director-assistant",
+  );
+});

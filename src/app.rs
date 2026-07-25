@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router, middleware};
@@ -121,7 +121,11 @@ fn cors_layer() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(allow_origin)
         .allow_methods(Any)
-        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE])
+        .allow_headers([
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+            HeaderName::from_static(auth::ROLE_ASSUME_HEADER),
+        ])
 }
 
 fn is_vatprc_origin(origin: &HeaderValue) -> bool {

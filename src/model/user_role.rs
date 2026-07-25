@@ -36,6 +36,7 @@ pub enum UserRole {
     EventGraphicsDesigner,
     TechDirector,
     TechDirectorAssistant,
+    SoftwareEngineer,
     TechAfvFacilityEngineer,
     Controller,
     ApiClient,
@@ -145,7 +146,7 @@ pub fn implied_roles(role: UserRole) -> &'static [UserRole] {
             UserRole::TechDirectorAssistant,
             UserRole::TechAfvFacilityEngineer,
         ],
-        UserRole::TechDirectorAssistant => &[UserRole::Volunteer],
+        UserRole::TechDirectorAssistant => &[UserRole::Volunteer, UserRole::SoftwareEngineer],
         UserRole::TechAfvFacilityEngineer => &[UserRole::Volunteer],
         _ => &[],
     }
