@@ -10,14 +10,15 @@ use crate::adapter::email::EmailError;
 use crate::adapter::moodle::MoodleError;
 use crate::adapter::smms::SmmsError;
 use crate::auth::AuthError;
-use crate::flight_plan::parser::ParserError;
-use crate::flight_plan::validator::ValidatorError;
 use crate::model::user_role::UserRole;
 use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
 use crate::modules::controller::service::ControllerServiceError;
 use crate::modules::event::service::EventServiceError;
+use crate::modules::flight::flight_plan::parser::ParserError;
+use crate::modules::flight::flight_plan::validator::ValidatorError;
+use crate::modules::flight::service::FlightServiceError;
 use crate::modules::sheet::service::SheetServiceError;
 use crate::modules::training::service::{TrainingApplicationServiceError, TrainingServiceError};
 use crate::modules::user::service::user::UserServiceError;
@@ -269,6 +270,24 @@ impl From<EventServiceError> for ApiError {
             EventServiceError::Database(source) => ApiError::Database { source },
             EventServiceError::AuditLog(source) => ApiError::AuditLog { source },
             EventServiceError::User(source) => source.into(),
+        }
+    }
+}
+
+impl From<FlightServiceError> for ApiError {
+    fn from(error: FlightServiceError) -> Self {
+        match error {
+            FlightServiceError::CallsignNotFound(callsign) => {
+                ApiError::not_found("callsign", callsign)
+            }
+            FlightServiceError::UserNotFound(id) => {
+                ApiError::not_found("user", ulid::Ulid::from(id).to_string())
+            }
+            FlightServiceError::FlightNotFoundForCid => ApiError::FlightNotFoundForCid,
+            FlightServiceError::Compat(source) => ApiError::Compat { source },
+            FlightServiceError::Parser(source) => ApiError::RouteParser { source },
+            FlightServiceError::Validator(source) => ApiError::RouteValidator { source },
+            FlightServiceError::User(source) => source.into(),
         }
     }
 }

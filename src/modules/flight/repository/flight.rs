@@ -1,26 +1,19 @@
-use chrono::{DateTime, Utc};
+use crate::adapter::compat::{CompatClient, CompatClientError};
+use crate::adapter::compat::{FlightPlan, Pilot, VatsimData};
+use crate::modules::flight::models::Flight;
 use ulid::Ulid;
 
-use crate::adapter::compat::{FlightPlan, Pilot, VatsimData};
-
-#[derive(Debug, Clone)]
-pub struct Flight {
-    pub id: Ulid,
-    pub cid: String,
-    pub callsign: String,
-    pub last_observed_at: DateTime<Utc>,
-    pub departure: String,
-    pub arrival: String,
-    pub equipment: String,
-    pub navigation_performance: String,
-    pub transponder: String,
-    pub raw_route: String,
-    pub aircraft: String,
-    pub altitude: i64,
-    pub cruising_level: i64,
+pub(crate) trait FlightRepository {
+    async fn list_flights(&self) -> Result<Vec<Flight>, CompatClientError>;
 }
 
-pub fn flights_from_vatsim(data: VatsimData) -> Vec<Flight> {
+impl FlightRepository for CompatClient {
+    async fn list_flights(&self) -> Result<Vec<Flight>, CompatClientError> {
+        Ok(flights_from_vatsim(self.get_online_data().await?))
+    }
+}
+
+fn flights_from_vatsim(data: VatsimData) -> Vec<Flight> {
     data.pilots
         .into_iter()
         .chain(data.prefiles)

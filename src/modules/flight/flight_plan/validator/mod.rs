@@ -1,19 +1,19 @@
 use itertools::Itertools;
 use serde::Serialize;
 
-use crate::adapter::flight::Flight;
 use crate::adapter::navdata::{InvalidNavdataError, NavdataAdapter};
-use crate::flight_plan::parser::{self, ParserError};
-use crate::flight_plan::validator::flight_validator::{
+use crate::model::navdata::{AnyFix, Fix, PreferredRoute, ResolvedLeg};
+use crate::modules::flight::flight_plan::parser::{self, ParserError};
+use crate::modules::flight::flight_plan::validator::flight_validator::{
     EquipmentRnav1Validator, NavigationPerformanceRnav1Validator, RnpArValidator,
     RnpArWithoutRfValidator, RvsmValidator,
 };
-use crate::flight_plan::validator::leg_validator::LegValidator;
-use crate::flight_plan::validator::matching_route_validator::{
+use crate::modules::flight::flight_plan::validator::leg_validator::LegValidator;
+use crate::modules::flight::flight_plan::validator::matching_route_validator::{
     AllowedAltitudesValidator, CruisingLevelRestrictionValidator, MinimalAltitudeValidator,
     NoMatchingRouteValidator, RouteMatchValidator,
 };
-use crate::model::navdata::{AnyFix, Fix, PreferredRoute, ResolvedLeg};
+use crate::modules::flight::models::Flight;
 
 mod flight_validator;
 mod leg_validator;

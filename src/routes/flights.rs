@@ -8,11 +8,12 @@ use axum::routing::get;
 use axum::{Json, Router};
 use tokio::time;
 
-use crate::adapter::flight::{Flight, flights_from_vatsim};
 use crate::auth::CurrentUser;
-use crate::dto::*;
-use crate::flight_plan::{parser, validator};
 use crate::model::user_role::UserRole;
+use crate::modules::flight::dto::{FlightDto, FlightLeg, TemporaryFlightQuery};
+use crate::modules::flight::flight_plan::validator;
+use crate::modules::flight::models::Flight;
+use crate::modules::flight::service::FlightService;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -48,7 +49,9 @@ async fn active_flights(
     State(services): State<Services>,
 ) -> Result<Json<Vec<FlightDto>>, ApiError> {
     Ok(Json(
-        list_flights(&services)
+        services
+            .flight()
+            .list()
             .await?
             .into_iter()
             .map(FlightDto::from)
@@ -61,10 +64,9 @@ async fn flight_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
 ) -> Result<Json<FlightDto>, ApiError> {
-    find_by_callsign(&services, &callsign)
-        .await
-        .map(FlightDto::from)
-        .map(Json)
+    Ok(Json(
+        services.flight().find_by_callsign(&callsign).await?.into(),
+    ))
 }
 
 #[utoipa::path(get, path = "api/flights/by-callsign/{callsign}/warnings", tag = "Flights", params(("callsign" = String, Path, description = "Callsign")), responses((status = 200, description = "Successful response", body = Vec<validator::WarningMessage>)))]
@@ -72,18 +74,22 @@ async fn warnings_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
 ) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
-    let flight = find_by_callsign(&services, &callsign).await?;
-    warnings_for_flight(&services, &flight).await.map(Json)
+    Ok(Json(
+        services.flight().warnings_by_callsign(&callsign).await?,
+    ))
 }
 
 async fn warnings_websocket(
     State(services): State<Services>,
     websocket: WebSocketUpgrade,
 ) -> Result<Response, ApiError> {
-    let initial_snapshot = warnings_for_all_flights(&services).await?;
+    let flight = services.flight().clone();
+    let initial_snapshot = flight.warnings_for_all().await?;
 
-    Ok(websocket
-        .on_upgrade(move |socket| stream_warning_changes(socket, services, initial_snapshot)))
+    Ok(
+        websocket
+            .on_upgrade(move |socket| stream_warning_changes(socket, flight, initial_snapshot)),
+    )
 }
 
 #[utoipa::path(get, path = "api/flights/by-callsign/{callsign}/route", tag = "Flights", params(("callsign" = String, Path, description = "Callsign")), responses((status = 200, description = "Successful response", body = Vec<FlightLeg>)))]
@@ -91,9 +97,7 @@ async fn route_by_callsign(
     State(services): State<Services>,
     Path(callsign): Path<String>,
 ) -> Result<Json<Vec<FlightLeg>>, ApiError> {
-    let flight = find_by_callsign(&services, &callsign).await?;
-    let route = route_string(&flight);
-    let legs = parser::parse_route(services.navdata(), &route).await?;
+    let legs = services.flight().route_by_callsign(&callsign).await?;
     Ok(Json(legs.into_iter().map(FlightLeg::from).collect()))
 }
 
@@ -104,9 +108,9 @@ async fn temporary_warnings(
     Query(query): Query<TemporaryFlightQuery>,
 ) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
     current_user.require_role(UserRole::ApiClient)?;
-    warnings_for_flight(&services, &Flight::from(query))
-        .await
-        .map(Json)
+    Ok(Json(
+        services.flight().warnings(&Flight::from(query)).await?,
+    ))
 }
 
 #[utoipa::path(get, path = "api/flights/mine", tag = "Flights", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = FlightDto)))]
@@ -115,70 +119,12 @@ async fn my_flight(
     current_user: CurrentUser,
 ) -> Result<Json<FlightDto>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let user = services
-        .user()
-        .find_summary_by_id(user_id)
-        .await?
-        .ok_or(ApiError::not_found("user", "unknown"))?;
-    list_flights(&services)
-        .await?
-        .into_iter()
-        .find(|flight| flight.cid == user.cid)
-        .ok_or(ApiError::FlightNotFoundForCid)
-        .map(FlightDto::from)
-        .map(Json)
-}
-
-async fn list_flights(services: &Services) -> Result<Vec<Flight>, ApiError> {
-    Ok(flights_from_vatsim(
-        services.compat().get_online_data().await?,
-    ))
-}
-
-async fn find_by_callsign(services: &Services, callsign: &str) -> Result<Flight, ApiError> {
-    list_flights(services)
-        .await?
-        .into_iter()
-        .find(|flight| flight.callsign.eq_ignore_ascii_case(callsign))
-        .ok_or_else(|| ApiError::not_found("callsign", callsign))
-}
-
-fn route_string(flight: &Flight) -> String {
-    format!(
-        "{} {} {}",
-        flight.departure, flight.raw_route, flight.arrival
-    )
-}
-
-async fn warnings_for_flight(
-    services: &Services,
-    flight: &Flight,
-) -> Result<Vec<validator::WarningMessage>, ApiError> {
-    let route = route_string(flight);
-    let legs = parser::parse_route(services.navdata(), &route).await?;
-    let messages = validator::validate_route(services.navdata(), flight, &legs).await?;
-    Ok(messages)
-}
-
-async fn warnings_for_all_flights(
-    services: &Services,
-) -> Result<BTreeMap<String, Vec<validator::WarningMessage>>, ApiError> {
-    let validations = futures::future::join_all(list_flights(services).await?.into_iter().map(
-        |flight| async move {
-            let callsign = flight.callsign.clone();
-            warnings_for_flight(services, &flight)
-                .await
-                .map(|warnings| (callsign, warnings))
-        },
-    ))
-    .await;
-
-    validations.into_iter().collect()
+    Ok(Json(services.flight().find_by_user(user_id).await?.into()))
 }
 
 async fn stream_warning_changes(
     mut socket: WebSocket,
-    services: Services,
+    flight: FlightService,
     mut snapshot: BTreeMap<String, Vec<validator::WarningMessage>>,
 ) {
     if send_validation_snapshot(&mut socket, &snapshot)
@@ -203,7 +149,7 @@ async fn stream_warning_changes(
                 Some(Ok(_)) => {}
             },
             _ = refresh.tick() => {
-                match warnings_for_all_flights(&services).await {
+                match flight.warnings_for_all().await {
                     Ok(updated) if updated != snapshot => {
                         if send_validation_snapshot(&mut socket, &updated).await.is_err() {
                             return;

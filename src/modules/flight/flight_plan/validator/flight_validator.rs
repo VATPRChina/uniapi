@@ -1,7 +1,7 @@
-use crate::adapter::flight::Flight;
-use crate::flight_plan::validator::{
+use crate::modules::flight::flight_plan::validator::{
     Validator, WarningMessage, WarningMessageCode, WarningMessageField,
 };
+use crate::modules::flight::models::Flight;
 
 pub struct RvsmValidator;
 

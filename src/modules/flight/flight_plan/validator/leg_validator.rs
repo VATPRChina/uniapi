@@ -1,7 +1,7 @@
-use crate::flight_plan::validator::{
+use crate::model::navdata::{AnyFix, DirectionRestriction, ResolvedLeg};
+use crate::modules::flight::flight_plan::validator::{
     MessageContainer, Validator, WarningMessage, WarningMessageCode,
 };
-use crate::model::navdata::{AnyFix, DirectionRestriction, ResolvedLeg};
 
 type LegContext<'a> = (usize, &'a ResolvedLeg);
 

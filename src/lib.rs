@@ -5,7 +5,6 @@ pub mod command;
 pub mod discord;
 pub mod dto;
 pub mod error;
-pub mod flight_plan;
 pub mod model;
 pub mod modules;
 pub mod openapi;

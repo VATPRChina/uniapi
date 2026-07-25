@@ -11,6 +11,7 @@ use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::modules::atc_application::service::AtcApplicationService;
 use crate::modules::controller::service::ControllerService;
 use crate::modules::event::service::EventService;
+use crate::modules::flight::service::FlightService;
 use crate::modules::sheet::service::SheetService;
 use crate::modules::training::service::{TrainingApplicationService, TrainingService};
 use crate::modules::user::service::access_token::AccessTokenService;
@@ -34,10 +35,10 @@ pub struct Services {
     email: EmailClient,
     moodle: MoodleClient,
     vatsim_auth: VatsimAuthClient,
-    navdata: NavdataAdapter,
     audit_log: AuditLogService,
     atc_application: AtcApplicationService,
     event: EventService,
+    flight: FlightService,
     sheet: SheetService,
     training: TrainingService,
     training_application: TrainingApplicationService,
@@ -60,6 +61,8 @@ impl Services {
         let moodle = MoodleClient::new(settings.moodle.api_key.clone());
         let user = UserService::new(db.clone(), moodle.clone(), audit_log.clone());
         let controller = ControllerService::new(db.clone(), audit_log.clone(), user.clone());
+        let compat = CompatClient::new(settings.utils.metar.endpoint.clone());
+        let flight = FlightService::new(compat.clone(), navdata, user.clone());
         let sheet = SheetService::new(db.clone());
         let atc_application =
             AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone(), sheet.clone());
@@ -86,6 +89,7 @@ impl Services {
             audit_log,
             atc_application,
             event,
+            flight,
             sheet,
             training,
             training_application,
@@ -97,7 +101,7 @@ impl Services {
                 settings.storage.image.smms.base_url.clone(),
                 settings.storage.image.smms.secret_token.clone(),
             ),
-            compat: CompatClient::new(settings.utils.metar.endpoint.clone()),
+            compat,
             discourse: DiscourseClient::new(
                 settings.discourse.endpoint.clone(),
                 settings.discourse.api_key.clone(),
@@ -105,7 +109,6 @@ impl Services {
             email,
             moodle,
             vatsim_auth: VatsimAuthClient::new(settings.authentication.vatsim.clone()),
-            navdata,
         })
     }
 
@@ -151,10 +154,6 @@ impl Services {
         &self.vatsim_auth
     }
 
-    pub fn navdata(&self) -> &NavdataAdapter {
-        &self.navdata
-    }
-
     pub fn audit_log(&self) -> &AuditLogService {
         &self.audit_log
     }
@@ -165,6 +164,10 @@ impl Services {
 
     pub fn event(&self) -> &EventService {
         &self.event
+    }
+
+    pub fn flight(&self) -> &FlightService {
+        &self.flight
     }
 
     pub fn sheet(&self) -> &SheetService {

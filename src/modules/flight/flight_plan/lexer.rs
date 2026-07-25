@@ -1,8 +1,8 @@
 use arrayvec::ArrayString;
 
 use crate::adapter::navdata::{InvalidNavdataError, NavdataAdapter};
-use crate::flight_plan::RouteToken;
 use crate::model::navdata::{Airport, AnyFix, Fix, GeoPoint};
+use crate::modules::flight::flight_plan::RouteToken;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LexerError {
