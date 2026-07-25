@@ -2,11 +2,11 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::adapter::moodle::{MoodleClient, MoodleError};
-use crate::model::user::{MoodleUser, User, UserSummary};
 use crate::model::user_role::UserRole;
 use crate::modules::audit_log::models::AuditLogEntity;
 use crate::modules::audit_log::service::{AuditLogService, AuditLogServiceError};
-use crate::repository::auth::user::{UserRecord, UserRepositoryExt};
+use crate::modules::user::models::{MoodleUser, User, UserSummary};
+use crate::modules::user::repository::user::{UserRecord, UserRepository};
 
 #[derive(Clone)]
 pub struct UserService {
@@ -48,6 +48,32 @@ impl UserService {
         id: Uuid,
     ) -> Result<Option<UserSummary>, UserServiceError> {
         Ok(self.db.find_user_detail_by_id(id).await?.map(user_summary))
+    }
+
+    pub async fn upsert_assumed(
+        &self,
+        id: Uuid,
+        cid: &str,
+        full_name: &str,
+        email: Option<&str>,
+        roles: Vec<String>,
+    ) -> Result<UserSummary, UserServiceError> {
+        Ok(user_summary(
+            self.db
+                .upsert_user_assumed_user(id, cid, full_name, email, roles)
+                .await?,
+        ))
+    }
+
+    pub async fn upsert_login(
+        &self,
+        cid: &str,
+        full_name: &str,
+        email: &str,
+    ) -> Result<UserSummary, UserServiceError> {
+        Ok(user_summary(
+            self.db.upsert_user_login(cid, full_name, email).await?,
+        ))
     }
 
     pub async fn set_roles(

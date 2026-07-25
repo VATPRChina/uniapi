@@ -8,16 +8,16 @@ use uuid::Uuid;
 
 use crate::settings::JwtAuthentication;
 
+use super::super::models::{IssuedAccessToken, ValidatedAccessToken, ValidatedAuthorizationCode};
+
 #[derive(Clone)]
-pub struct JwtService {
+pub struct AccessTokenService {
     decoding_key: DecodingKey,
     encoding_key: EncodingKey,
     audience: String,
     clients: Vec<crate::settings::JwtClient>,
-    device_authz_expires_seconds: i64,
     first_party_expires_seconds: i64,
     issuer: String,
-    refresh_expires_days: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,32 +58,13 @@ struct AuthCodeClaims {
     nbf: i64,
 }
 
-pub struct IssuedToken {
-    pub token: String,
-    pub expires_in: u32,
-    pub scope: String,
-}
-
-pub struct ValidatedAuthCode {
-    pub code: Ulid,
-    pub client_id: String,
-}
-
-pub struct ValidatedAccessToken {
-    pub subject: String,
-    pub issued_at: i64,
-    pub expires_at: i64,
-    pub session_id: Option<String>,
-    pub client_id: String,
-}
-
 #[derive(Debug, Error)]
-pub enum JwtError {
+pub enum AccessTokenServiceError {
     #[error("invalid token: {0}")]
     InvalidToken(#[from] JwtCrateError),
 }
 
-impl JwtService {
+impl AccessTokenService {
     pub fn new(settings: &JwtAuthentication) -> Self {
         Self {
             decoding_key: DecodingKey::from_ec_pem(settings.public_key.as_bytes())
@@ -92,21 +73,19 @@ impl JwtService {
                 .expect("invalid JWT private key"),
             audience: settings.audience_first_party.clone(),
             clients: settings.clients.clone(),
-            device_authz_expires_seconds: settings.device_authz_expires_seconds,
             first_party_expires_seconds: settings.first_party_expires_seconds,
             issuer: settings.issuer.clone(),
-            refresh_expires_days: settings.refresh_expires_days,
         }
     }
 
-    pub fn validate_access_token(&self, token: &str) -> Result<String, JwtError> {
+    pub fn validate_access_token(&self, token: &str) -> Result<String, AccessTokenServiceError> {
         Ok(self.validate_access_token_claims(token)?.subject)
     }
 
     pub fn validate_access_token_claims(
         &self,
         token: &str,
-    ) -> Result<ValidatedAccessToken, JwtError> {
+    ) -> Result<ValidatedAccessToken, AccessTokenServiceError> {
         let mut validation = Validation::new(Algorithm::ES256);
         validation.set_issuer(&[&self.issuer]);
         validation.validate_aud = false;
@@ -127,7 +106,7 @@ impl JwtService {
         user_updated_at: chrono::DateTime<Utc>,
         refresh_token: Ulid,
         client_id: &str,
-    ) -> Result<IssuedToken, JwtError> {
+    ) -> Result<IssuedAccessToken, AccessTokenServiceError> {
         self.issue_token(
             Ulid::from(user_id).to_string(),
             refresh_token.to_string(),
@@ -136,7 +115,10 @@ impl JwtService {
         )
     }
 
-    pub fn issue_client_access_token(&self, client_id: &str) -> Result<IssuedToken, JwtError> {
+    pub fn issue_client_access_token(
+        &self,
+        client_id: &str,
+    ) -> Result<IssuedAccessToken, AccessTokenServiceError> {
         self.issue_token(
             client_id.to_string(),
             Ulid::new().to_string(),
@@ -150,7 +132,7 @@ impl JwtService {
         code: Ulid,
         client_id: &str,
         redirect_uri: &str,
-    ) -> Result<String, JwtError> {
+    ) -> Result<String, AccessTokenServiceError> {
         let now = Utc::now();
         let expires = now + Duration::seconds(self.first_party_expires_seconds);
         Ok(encode(
@@ -174,7 +156,7 @@ impl JwtService {
         &self,
         code: &str,
         client_id: &str,
-    ) -> Result<Option<ValidatedAuthCode>, JwtError> {
+    ) -> Result<Option<ValidatedAuthorizationCode>, AccessTokenServiceError> {
         let mut validation = Validation::new(Algorithm::ES256);
         validation.set_issuer(&[&self.issuer]);
         validation.set_audience(&[&self.audience]);
@@ -188,7 +170,7 @@ impl JwtService {
             .jti
             .parse::<Ulid>()
             .ok()
-            .map(|code| ValidatedAuthCode {
+            .map(|code| ValidatedAuthorizationCode {
                 code,
                 client_id: claims.client_id,
             }))
@@ -223,21 +205,13 @@ impl JwtService {
             .any(|client| client.client_id == client_id && client.unsafe_assume_user)
     }
 
-    pub fn device_authz_expires_seconds(&self) -> i64 {
-        self.device_authz_expires_seconds
-    }
-
-    pub fn refresh_expires_days(&self) -> i64 {
-        self.refresh_expires_days
-    }
-
     fn issue_token(
         &self,
         subject: String,
         session_id: String,
         client_id: String,
         updated_at: Option<i64>,
-    ) -> Result<IssuedToken, JwtError> {
+    ) -> Result<IssuedAccessToken, AccessTokenServiceError> {
         let now = Utc::now();
         let expires = now + Duration::seconds(self.first_party_expires_seconds);
         let scope = String::new();
@@ -259,7 +233,7 @@ impl JwtService {
             &self.encoding_key,
         )?;
 
-        Ok(IssuedToken {
+        Ok(IssuedAccessToken {
             token,
             expires_in: (expires.timestamp() - now.timestamp()) as u32,
             scope,

@@ -16,8 +16,8 @@ use crate::model::user_role::UserRole;
 use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
+use crate::modules::user::service::user::UserServiceError;
 use crate::services::controller_info::ControllerInfoServiceError;
-use crate::services::user::UserServiceError;
 
 macro_rules! api_errors {
     (
@@ -167,9 +167,10 @@ impl From<AuthError> for ApiError {
             AuthError::MissingRole(role) => ApiError::forbidden([role]),
             AuthError::MissingAnyRole(roles) => ApiError::forbidden(roles),
             AuthError::Database(source) => ApiError::Database { source },
-            AuthError::MissingBearerToken | AuthError::InvalidBearerToken | AuthError::Jwt(_) => {
-                ApiError::Unauthorized
-            }
+            AuthError::User(source) => source.into(),
+            AuthError::MissingBearerToken
+            | AuthError::InvalidBearerToken
+            | AuthError::AccessToken(_) => ApiError::Unauthorized,
         }
     }
 }

@@ -2,14 +2,14 @@ use serde::Serialize;
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
-use crate::model::user::UserSummary;
 use crate::modules::audit_log::models::AuditLogEntity;
 use crate::modules::audit_log::service::{AuditLogService, AuditLogServiceError};
+use crate::modules::user::models::UserSummary;
+use crate::modules::user::service::user::{UserService, UserServiceError};
 use crate::repository::sheet::sheet_filing::SheetFilingTransactionExt;
 use crate::repository::sheet::sheet_filing_answer::{
     SheetAnswerRecord, SheetAnswerSave, SheetFilingAnswerRepositoryExt,
 };
-use crate::services::user::{UserService, UserServiceError};
 
 use super::models::{AtcApplication, AtcApplicationStatus};
 use super::repository::AtcApplicationRepository;

@@ -39,15 +39,8 @@ pub struct UserRecord {
     pub roles: Vec<String>,
 }
 
-pub trait UserRepositoryExt<'executor> {
-    async fn find_user_by_id(self, id: Uuid) -> Result<Option<UserRecord>, sqlx::Error>;
-
+pub(crate) trait UserRepository<'executor> {
     async fn find_user_detail_by_id(self, id: Uuid) -> Result<Option<UserRecord>, sqlx::Error>;
-
-    async fn find_user_moodle_provision_by_id(
-        self,
-        id: Uuid,
-    ) -> Result<Option<UserRecord>, sqlx::Error>;
 
     async fn find_user_detail_by_id_for_update(
         self,
@@ -79,40 +72,11 @@ pub trait UserRepositoryExt<'executor> {
     ) -> Result<UserRecord, sqlx::Error>;
 }
 
-impl<'executor, E> UserRepositoryExt<'executor> for E
+impl<'executor, E> UserRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
-    async fn find_user_by_id(self, id: Uuid) -> Result<Option<UserRecord>, sqlx::Error> {
-        let query = Query::select()
-            .columns(USER_COLUMNS)
-            .from(User::Table)
-            .and_where(Expr::col(User::Id).eq(id))
-            .to_owned();
-        let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
-
-        sqlx::query_as_with::<_, UserRecord, _>(&sql, values)
-            .fetch_optional(self)
-            .await
-    }
-
     async fn find_user_detail_by_id(self, id: Uuid) -> Result<Option<UserRecord>, sqlx::Error> {
-        let query = Query::select()
-            .columns(USER_COLUMNS)
-            .from(User::Table)
-            .and_where(Expr::col(User::Id).eq(id))
-            .to_owned();
-        let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
-
-        sqlx::query_as_with::<_, UserRecord, _>(&sql, values)
-            .fetch_optional(self)
-            .await
-    }
-
-    async fn find_user_moodle_provision_by_id(
-        self,
-        id: Uuid,
-    ) -> Result<Option<UserRecord>, sqlx::Error> {
         let query = Query::select()
             .columns(USER_COLUMNS)
             .from(User::Table)

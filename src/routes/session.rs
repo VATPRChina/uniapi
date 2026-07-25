@@ -6,10 +6,7 @@ use chrono::DateTime;
 use ulid::Ulid;
 
 use crate::auth::CurrentUser;
-use crate::dto::*;
-use crate::model::user_role::UserRole;
-use crate::repository::auth::session::SessionRepositoryExt;
-use crate::repository::auth::user::UserRepositoryExt;
+use crate::modules::user::dto::{TokenDto, UserDto};
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -30,39 +27,19 @@ async fn get_current(
         .user_id
         .ok_or(ApiError::not_found("user", "unknown"))?;
     let user = services
-        .db()
-        .find_user_detail_by_id(user_id)
+        .user()
+        .find_by_id(user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
-    let moodle_account = services
-        .moodle()
-        .get_user_by_cid(&user.cid)
-        .await?
-        .map(|user| UserMoodleInfoDto {
-            id: user.id.to_string(),
-        });
+    let mut user = UserDto::from_user(user, true);
+    user.roles = current_user
+        .roles()
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
 
     Ok(Json(TokenDto {
-        user: UserDto {
-            id: Ulid::from(user.id).to_string(),
-            cid: user.cid,
-            full_name: user.full_name,
-            created_at: user.created_at,
-            updated_at: user.updated_at,
-            roles: current_user
-                .roles()
-                .collect::<std::collections::BTreeSet<_>>()
-                .into_iter()
-                .collect(),
-            direct_roles: user
-                .roles
-                .into_iter()
-                .filter_map(|role: String| role.parse::<UserRole>().ok())
-                .collect::<std::collections::BTreeSet<_>>()
-                .into_iter()
-                .collect(),
-            moodle_account,
-        },
+        user,
         issued_at: DateTime::from_timestamp(current_user.issued_at, 0).ok_or(
             ApiError::InvalidTokenClaims {
                 field: "issued_at".to_string(),
@@ -89,7 +66,7 @@ async fn logout(
         .parse::<Ulid>()
         .map_err(|_| ApiError::bad_request("session_id", "invalid ULID"))?;
 
-    if !services.db().delete_session(session_id).await? {
+    if !services.refresh_token().delete(session_id).await? {
         return Err(ApiError::not_found("refresh token", session_id.to_string()));
     }
 

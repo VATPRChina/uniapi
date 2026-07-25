@@ -3,8 +3,9 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::dto::{SheetFieldAnswerDto, SheetRequestField, UserDto, UserMoodleInfoDto};
-use crate::model::user::UserSummary;
+use crate::dto::{SheetFieldAnswerDto, SheetRequestField};
+use crate::modules::user::dto::{UserDto, UserMoodleInfoDto};
+use crate::modules::user::models::UserSummary;
 
 use super::models::{AtcApplication, AtcApplicationStatus as ApplicationStatus};
 

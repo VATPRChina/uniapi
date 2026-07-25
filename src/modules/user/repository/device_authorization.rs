@@ -1,7 +1,8 @@
 use chrono::{DateTime, Utc};
-use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
+
+use super::super::models::{DeviceAuthorizationConfirmation, DeviceAuthorizationGrant};
 
 #[derive(Debug, Clone)]
 pub struct NewDeviceAuthorization<'a> {
@@ -11,28 +12,7 @@ pub struct NewDeviceAuthorization<'a> {
     pub client_id: &'a str,
 }
 
-#[derive(FromRow)]
-pub struct DeviceAuthorizationConfirmRow {
-    pub device_code: Uuid,
-    pub user_code: String,
-    pub expires_at: DateTime<Utc>,
-    pub user_id: Option<Uuid>,
-}
-
-#[derive(FromRow)]
-pub struct DeviceAuthorizationGrantRow {
-    #[allow(dead_code)]
-    #[sqlx(try_from = "Uuid")]
-    pub device_code: Ulid,
-    #[allow(dead_code)]
-    pub user_code: String,
-    pub expires_at: DateTime<Utc>,
-    pub client_id: String,
-    pub user_id: Option<Uuid>,
-    pub user_updated_at: Option<DateTime<Utc>>,
-}
-
-pub trait DeviceAuthorizationRepositoryExt<'executor> {
+pub(crate) trait DeviceAuthorizationRepository<'executor> {
     async fn create_device_authorization(
         self,
         device_authorization: NewDeviceAuthorization<'_>,
@@ -41,12 +21,12 @@ pub trait DeviceAuthorizationRepositoryExt<'executor> {
     async fn find_device_authorization_by_user_code(
         self,
         user_code: &str,
-    ) -> Result<Option<DeviceAuthorizationConfirmRow>, sqlx::Error>;
+    ) -> Result<Option<DeviceAuthorizationConfirmation>, sqlx::Error>;
 
     async fn find_device_authorization_for_grant(
         self,
         device_code: Ulid,
-    ) -> Result<Option<DeviceAuthorizationGrantRow>, sqlx::Error>;
+    ) -> Result<Option<DeviceAuthorizationGrant>, sqlx::Error>;
 
     async fn associate_device_authorization_user(
         self,
@@ -57,7 +37,7 @@ pub trait DeviceAuthorizationRepositoryExt<'executor> {
     async fn delete_device_authorization(self, device_code: Ulid) -> Result<(), sqlx::Error>;
 }
 
-impl<'executor, E> DeviceAuthorizationRepositoryExt<'executor> for E
+impl<'executor, E> DeviceAuthorizationRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
@@ -67,7 +47,7 @@ where
     ) -> Result<(), sqlx::Error> {
         tracing::info!(
             operation = "create",
-            repository = "src/repository/auth/device_authorization.rs",
+            repository = "src/modules/user/repository/device_authorization.rs",
             "modifying data"
         );
 
@@ -89,8 +69,8 @@ where
     async fn find_device_authorization_by_user_code(
         self,
         user_code: &str,
-    ) -> Result<Option<DeviceAuthorizationConfirmRow>, sqlx::Error> {
-        sqlx::query_as::<_, DeviceAuthorizationConfirmRow>(
+    ) -> Result<Option<DeviceAuthorizationConfirmation>, sqlx::Error> {
+        sqlx::query_as::<_, DeviceAuthorizationConfirmation>(
             r#"
         SELECT device_code, user_code, expires_at, user_id
         FROM device_authorization
@@ -104,8 +84,8 @@ where
     async fn find_device_authorization_for_grant(
         self,
         device_code: Ulid,
-    ) -> Result<Option<DeviceAuthorizationGrantRow>, sqlx::Error> {
-        sqlx::query_as::<_, DeviceAuthorizationGrantRow>(
+    ) -> Result<Option<DeviceAuthorizationGrant>, sqlx::Error> {
+        sqlx::query_as::<_, DeviceAuthorizationGrant>(
             r#"
         SELECT device_authorization.device_code, device_authorization.user_code,
                device_authorization.expires_at, device_authorization.client_id,
@@ -126,7 +106,7 @@ where
     ) -> Result<(), sqlx::Error> {
         tracing::info!(
             operation = "associate_user",
-            repository = "src/repository/auth/device_authorization.rs",
+            repository = "src/modules/user/repository/device_authorization.rs",
             "modifying data"
         );
 
@@ -141,7 +121,7 @@ where
     async fn delete_device_authorization(self, device_code: Ulid) -> Result<(), sqlx::Error> {
         tracing::info!(
             operation = "delete",
-            repository = "src/repository/auth/device_authorization.rs",
+            repository = "src/modules/user/repository/device_authorization.rs",
             "modifying data"
         );
 

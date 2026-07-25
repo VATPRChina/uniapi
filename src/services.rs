@@ -8,21 +8,24 @@ use crate::adapter::moodle::MoodleClient;
 use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
-use crate::jwt::JwtService;
 use crate::modules::atc_application::service::AtcApplicationService;
+use crate::modules::user::service::access_token::AccessTokenService;
+use crate::modules::user::service::device_authorization::DeviceAuthorizationService;
+use crate::modules::user::service::refresh_token::RefreshTokenService;
+use crate::modules::user::service::user::UserService;
 use crate::settings::Settings;
 
 pub mod controller_info;
-pub mod user;
 
 use crate::modules::audit_log::service::AuditLogService;
 use controller_info::ControllerInfoService;
-use user::UserService;
 
 #[derive(Clone)]
 pub struct Services {
     db: PgPool,
-    jwt: JwtService,
+    access_token: AccessTokenService,
+    refresh_token: RefreshTokenService,
+    device_authorization: DeviceAuthorizationService,
     smms: SmmsClient,
     compat: CompatClient,
     #[allow(dead_code)]
@@ -53,6 +56,13 @@ impl Services {
         let user = UserService::new(db.clone(), moodle.clone(), audit_log.clone());
         let atc_application =
             AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone());
+        let access_token = AccessTokenService::new(&settings.authentication.jwt);
+        let refresh_token =
+            RefreshTokenService::new(db.clone(), settings.authentication.jwt.refresh_expires_days);
+        let device_authorization = DeviceAuthorizationService::new(
+            db.clone(),
+            settings.authentication.jwt.device_authz_expires_seconds,
+        );
 
         Ok(Self {
             controller_info: ControllerInfoService::new(db.clone()),
@@ -60,7 +70,9 @@ impl Services {
             audit_log,
             atc_application,
             db,
-            jwt: JwtService::new(&settings.authentication.jwt),
+            access_token,
+            refresh_token,
+            device_authorization,
             smms: SmmsClient::new(
                 settings.storage.image.smms.base_url.clone(),
                 settings.storage.image.smms.secret_token.clone(),
@@ -85,8 +97,16 @@ impl Services {
         &self.smms
     }
 
-    pub fn jwt(&self) -> &JwtService {
-        &self.jwt
+    pub fn access_token(&self) -> &AccessTokenService {
+        &self.access_token
+    }
+
+    pub fn refresh_token(&self) -> &RefreshTokenService {
+        &self.refresh_token
+    }
+
+    pub fn device_authorization(&self) -> &DeviceAuthorizationService {
+        &self.device_authorization
     }
 
     pub fn compat(&self) -> &CompatClient {

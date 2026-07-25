@@ -4,8 +4,8 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::model::controller_info::{ControllerInfo, ControllerPermission};
-use crate::model::user::UserSummary;
 use crate::model::user_role::UserRole;
+use crate::modules::user::models::UserSummary;
 use crate::repository::atc::atc::{AtcControllerPermissionRecord, AtcRepositoryExt};
 
 #[derive(Clone)]

@@ -3,8 +3,7 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use chrono::{Duration, Utc};
-use rand::RngExt;
+use chrono::Utc;
 use serde::Serialize;
 use std::collections::BTreeSet;
 use tracing::instrument;
@@ -12,21 +11,16 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::adapter::vatsim_auth::{VatsimAuthError, generate_pkce};
-use crate::dto::*;
-use crate::jwt::JwtError;
-use crate::repository::auth::device_authorization::DeviceAuthorizationRepositoryExt;
-use crate::repository::auth::device_authorization::NewDeviceAuthorization;
-use crate::repository::auth::session::{RefreshSessionIssue, RefreshSessionRow};
-use crate::repository::auth::session::{SessionRepositoryExt, SessionTransactionExt};
-use crate::repository::auth::user::UserRecord;
-use crate::repository::auth::user::UserRepositoryExt;
+use crate::modules::user::dto::*;
+use crate::modules::user::models::UserSummary;
+use crate::modules::user::service::access_token::AccessTokenServiceError;
+use crate::modules::user::service::device_authorization::normalize_user_code;
+use crate::modules::user::service::user::UserServiceError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(authorize, device_authorization, token, unsafe_assume_user))]
 pub(crate) struct ApiDoc;
-
-const USER_CODE_ALPHABET: &[u8] = b"BCDFGHJKLMNPQRSTVWXZ";
 
 pub fn build_auth_routes() -> Router<Services> {
     Router::new()
@@ -65,7 +59,7 @@ async fn authorize(
         ));
     }
     if !services
-        .jwt()
+        .access_token()
         .check_client_redirect(&query.client_id, &query.redirect_uri)
     {
         return Err(AuthUserError::invalid_request(
@@ -118,24 +112,20 @@ async fn device_authorization(
     Form(request): Form<DeviceAuthorizationRequest>,
 ) -> Result<Json<DeviceAuthorizationResponse>, AuthApiError> {
     tracing::info!(client_id = %request.client_id, "creating device authorization");
-    if !services.jwt().check_client_exists(&request.client_id) {
+    if !services
+        .access_token()
+        .check_client_exists(&request.client_id)
+    {
         return Err(AuthApiError::invalid_client("client_id not found"));
     }
 
-    let device_code = Ulid::new();
-    let user_code = random_user_code();
-    let expires_at = Utc::now() + Duration::seconds(services.jwt().device_authz_expires_seconds());
-
-    services
-        .db()
-        .create_device_authorization(NewDeviceAuthorization {
-            device_code,
-            user_code: &user_code,
-            expires_at,
-            client_id: &request.client_id,
-        })
-        .await
-        .map_err(AuthApiError::from)?;
+    let authorization = services
+        .device_authorization()
+        .create(&request.client_id)
+        .await?;
+    let device_code = authorization.device_code;
+    let user_code = authorization.user_code;
+    let expires_at = authorization.expires_at;
 
     let verification_uri = format!("{}/auth/device", request_origin(&headers));
     let formatted_user_code = format!("{}-{}", &user_code[..4], &user_code[4..]);
@@ -163,8 +153,8 @@ async fn device_confirm(
 
     let code = normalize_user_code(query.user_code.as_deref());
     let Some(device_authz) = services
-        .db()
-        .find_device_authorization_by_user_code(&code)
+        .device_authorization()
+        .find_by_user_code(&code)
         .await
         .map_err(AuthUserError::from)?
     else {
@@ -177,7 +167,10 @@ async fn device_confirm(
     };
 
     if device_authz.user_id.is_some() {
-        delete_device_authorization(&services, Ulid::from(device_authz.device_code)).await?;
+        services
+            .device_authorization()
+            .delete(Ulid::from(device_authz.device_code))
+            .await?;
         return Ok(render_callback_ui(
             "Error",
             "Invalid code",
@@ -186,7 +179,10 @@ async fn device_confirm(
         ));
     }
     if device_authz.expires_at < Utc::now() {
-        delete_device_authorization(&services, Ulid::from(device_authz.device_code)).await?;
+        services
+            .device_authorization()
+            .delete(Ulid::from(device_authz.device_code))
+            .await?;
         return Ok(render_callback_ui(
             "Error",
             "Invalid code",
@@ -317,9 +313,10 @@ async fn vatsim_callback(
                     Some("/auth/login"),
                 ));
             };
-            let refresh =
-                issue_refresh_token(&services, user.id, user.updated_at, &client_id, None, true)
-                    .await?;
+            let refresh = services
+                .refresh_token()
+                .issue(user.id, user.updated_at, &client_id, None, true)
+                .await?;
             let Some(authz_code) = refresh.code else {
                 return Ok(render_callback_ui(
                     "Error",
@@ -330,7 +327,7 @@ async fn vatsim_callback(
             };
             let auth_code =
                 services
-                    .jwt()
+                    .access_token()
                     .issue_auth_code(authz_code, &client_id, &redirect_uri)?;
             let mut redirect = url::Url::parse(&redirect_uri).map_err(AuthUserError::internal)?;
             redirect.query_pairs_mut().append_pair("code", &auth_code);
@@ -350,8 +347,8 @@ async fn vatsim_callback(
             };
             tracing::info!(%user_code, user_id = %user.id, "associating device authorization with user");
             services
-                .db()
-                .associate_device_authorization_user(&user_code, user.id)
+                .device_authorization()
+                .associate_user(&user_code, user.id)
                 .await
                 .map_err(AuthUserError::from)?;
             render_callback_ui(
@@ -426,7 +423,7 @@ async fn unsafe_assume_user(
 ) -> Result<Json<TokenResponse>, AuthApiError> {
     let client_id = authenticated_api_client(&services, &headers)?;
     if !services
-        .jwt()
+        .access_token()
         .check_client_can_unsafe_assume_user(&client_id)
     {
         return Err(AuthApiError::unauthorized_client(
@@ -463,18 +460,22 @@ async fn unsafe_assume_user(
         .collect();
 
     let user = services
-        .db()
-        .upsert_user_assumed_user(id, cid, full_name, request.email.as_deref(), roles)
+        .user()
+        .upsert_assumed(id, cid, full_name, request.email.as_deref(), roles)
         .await
         .map_err(AuthApiError::from)?;
 
     tracing::info!(assumed_user_id = %user.id, client_id = %client_id, "issuing unsafe assumed user token");
-    let refresh =
-        issue_refresh_token(&services, user.id, user.updated_at, &client_id, None, false).await?;
-    let access_token =
-        services
-            .jwt()
-            .issue_access_token(user.id, user.updated_at, refresh.token, &client_id)?;
+    let refresh = services
+        .refresh_token()
+        .issue(user.id, user.updated_at, &client_id, None, false)
+        .await?;
+    let access_token = services.access_token().issue_access_token(
+        user.id,
+        user.updated_at,
+        refresh.token,
+        &client_id,
+    )?;
 
     Ok(Json(TokenResponse {
         access_token: access_token.token,
@@ -496,8 +497,8 @@ async fn device_code_grant(
     };
 
     let Some(device_authz) = services
-        .db()
-        .find_device_authorization_for_grant(device_code)
+        .device_authorization()
+        .find_for_grant(device_code)
         .await
         .map_err(AuthApiError::from)?
     else {
@@ -505,7 +506,7 @@ async fn device_code_grant(
     };
 
     if device_authz.expires_at < Utc::now() {
-        delete_device_authorization(&services, device_code).await?;
+        services.device_authorization().delete(device_code).await?;
         return Err(AuthApiError::expired_token("Device code expired"));
     }
     let Some(user_id) = device_authz.user_id else {
@@ -520,23 +521,18 @@ async fn device_code_grant(
         return Err(AuthApiError::invalid_grant("Device code not found"));
     };
 
-    let refresh = issue_refresh_token(
-        &services,
-        user_id,
-        user_updated_at,
-        &request.client_id,
-        None,
-        false,
-    )
-    .await?;
+    let refresh = services
+        .refresh_token()
+        .issue(user_id, user_updated_at, &request.client_id, None, false)
+        .await?;
     tracing::info!(%user_id, client_id = %request.client_id, "issuing tokens from device code grant");
-    let access_token = services.jwt().issue_access_token(
+    let access_token = services.access_token().issue_access_token(
         user_id,
         user_updated_at,
         refresh.token,
         &request.client_id,
     )?;
-    delete_device_authorization(&services, device_code).await?;
+    services.device_authorization().delete(device_code).await?;
 
     Ok(Json(TokenResponse {
         access_token: access_token.token,
@@ -557,7 +553,7 @@ async fn refresh_token_grant(
         return Err(AuthApiError::invalid_grant("Refresh token not found"));
     };
 
-    let Some(refresh) = find_session(&services, refresh_token).await? else {
+    let Some(refresh) = services.refresh_token().find(refresh_token).await? else {
         return Err(AuthApiError::invalid_grant("Refresh token not found"));
     };
     if refresh.user_updated_at != refresh.updated_at {
@@ -569,17 +565,18 @@ async fn refresh_token_grant(
         return Err(AuthApiError::invalid_grant("Refresh token expired"));
     }
 
-    let new_refresh = issue_refresh_token(
-        &services,
-        refresh.user_id,
-        refresh.updated_at,
-        &refresh.client_id,
-        Some(refresh_token),
-        false,
-    )
-    .await?;
+    let new_refresh = services
+        .refresh_token()
+        .issue(
+            refresh.user_id,
+            refresh.updated_at,
+            &refresh.client_id,
+            Some(refresh_token),
+            false,
+        )
+        .await?;
     tracing::info!(user_id = %refresh.user_id, client_id = %refresh.client_id, "issuing tokens from refresh token grant");
-    let access_token = services.jwt().issue_access_token(
+    let access_token = services.access_token().issue_access_token(
         refresh.user_id,
         refresh.updated_at,
         new_refresh.token,
@@ -605,19 +602,26 @@ async fn authorization_code_grant(
     }
 
     let Some(validated_code) = services
-        .jwt()
+        .access_token()
         .validate_auth_code(&request.code, &request.client_id)?
     else {
         return Err(AuthApiError::invalid_grant("Invalid authorization code"));
     };
 
-    let Some(session) = find_session_by_code(&services, validated_code.code).await? else {
+    let Some(session) = services
+        .refresh_token()
+        .find_by_code(validated_code.code)
+        .await?
+    else {
         return Err(AuthApiError::invalid_grant("Invalid authorization code"));
     };
-    clear_code(&services, validated_code.code).await?;
+    services
+        .refresh_token()
+        .clear_code(validated_code.code)
+        .await?;
 
     tracing::info!(user_id = %session.user_id, client_id = %validated_code.client_id, "issuing tokens from authorization code grant");
-    let access_token = services.jwt().issue_access_token(
+    let access_token = services.access_token().issue_access_token(
         session.user_id,
         session.updated_at,
         session.token,
@@ -644,7 +648,7 @@ fn client_credentials_grant(
         ));
     }
     if !services
-        .jwt()
+        .access_token()
         .check_client_secret(&request.client_id, &request.client_secret)
     {
         return Err(AuthApiError::invalid_client(
@@ -654,7 +658,7 @@ fn client_credentials_grant(
 
     tracing::info!(client_id = %request.client_id, "issuing client credentials access token");
     let access_token = services
-        .jwt()
+        .access_token()
         .issue_client_access_token(&request.client_id)?;
     Ok(Json(TokenResponse {
         access_token: access_token.token,
@@ -663,75 +667,6 @@ fn client_credentials_grant(
         refresh_token: None,
         scope: access_token.scope,
     }))
-}
-
-#[instrument(skip(services, user_updated_at), fields(user_id = %user_id, client_id = %client_id, create_code = create_code))]
-async fn issue_refresh_token(
-    services: &Services,
-    user_id: uuid::Uuid,
-    user_updated_at: chrono::DateTime<Utc>,
-    client_id: &str,
-    old_token: Option<Ulid>,
-    create_code: bool,
-) -> Result<RefreshSessionIssue, sqlx::Error> {
-    let expires_in = Utc::now() + Duration::days(services.jwt().refresh_expires_days());
-
-    tracing::info!(%user_id, %client_id, old_token = ?old_token, create_code, "issuing refresh token");
-    let mut transaction = services.db().begin().await?;
-    let issue = transaction
-        .issue_session_refresh_token(
-            user_id,
-            user_updated_at,
-            expires_in,
-            client_id,
-            old_token,
-            create_code,
-        )
-        .await?;
-    transaction.commit().await?;
-    Ok(issue)
-}
-
-#[instrument(skip(services), fields(token = %token))]
-async fn find_session(
-    services: &Services,
-    token: Ulid,
-) -> Result<Option<RefreshSessionRow>, AuthApiError> {
-    services
-        .db()
-        .find_session(token)
-        .await
-        .map_err(AuthApiError::from)
-}
-
-#[instrument(skip(services), fields(code = %code))]
-async fn find_session_by_code(
-    services: &Services,
-    code: Ulid,
-) -> Result<Option<RefreshSessionRow>, AuthApiError> {
-    services
-        .db()
-        .find_session_by_code(code)
-        .await
-        .map_err(AuthApiError::from)
-}
-
-#[instrument(skip(services), fields(code = %code))]
-async fn clear_code(services: &Services, code: Ulid) -> Result<(), AuthApiError> {
-    services
-        .db()
-        .clear_session_code(code)
-        .await
-        .map_err(AuthApiError::from)
-}
-
-#[instrument(skip(services), fields(device_code = %device_code))]
-async fn delete_device_authorization(
-    services: &Services,
-    device_code: Ulid,
-) -> Result<(), sqlx::Error> {
-    tracing::info!(%device_code, "deleting device authorization");
-    services.db().delete_device_authorization(device_code).await
 }
 
 fn parse_required_ulid(value: &str, missing: &'static str) -> Result<Option<Ulid>, AuthApiError> {
@@ -752,7 +687,9 @@ fn authenticated_api_client(
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.strip_prefix("Bearer "))
         .ok_or_else(|| AuthApiError::invalid_client("missing bearer token"))?;
-    let token = services.jwt().validate_access_token_claims(token)?;
+    let token = services
+        .access_token()
+        .validate_access_token_claims(token)?;
     if token.subject.parse::<Ulid>() != token.client_id.parse::<Ulid>() {
         return Err(AuthApiError::unauthorized_client(
             "user tokens are not allowed for this endpoint",
@@ -760,16 +697,6 @@ fn authenticated_api_client(
     }
 
     Ok(token.subject)
-}
-
-fn random_user_code() -> String {
-    let mut rng = rand::rng();
-    (0..8)
-        .map(|_| {
-            let index = rng.random_range(0..USER_CODE_ALPHABET.len());
-            USER_CODE_ALPHABET[index] as char
-        })
-        .collect()
 }
 
 fn request_origin(headers: &HeaderMap) -> String {
@@ -844,15 +771,6 @@ fn percent_decode_cookie_value(value: &str) -> String {
         index += 1;
     }
     String::from_utf8_lossy(&decoded).into_owned()
-}
-
-fn normalize_user_code(user_code: Option<&str>) -> String {
-    user_code
-        .unwrap_or_default()
-        .to_uppercase()
-        .chars()
-        .filter(|char| USER_CODE_ALPHABET.contains(&(*char as u8)))
-        .collect()
 }
 
 fn render_device_code_ui(user_code: Option<&str>) -> Response {
@@ -951,11 +869,11 @@ async fn upsert_user(
     cid: &str,
     full_name: &str,
     email: &str,
-) -> Result<UserRecord, AuthUserError> {
+) -> Result<UserSummary, AuthUserError> {
     tracing::info!(%cid, "upserting authenticated user login");
     services
-        .db()
-        .upsert_user_login(cid, full_name, email)
+        .user()
+        .upsert_login(cid, full_name, email)
         .await
         .map_err(AuthUserError::from)
 }
@@ -1027,8 +945,8 @@ impl AuthApiError {
     }
 }
 
-impl From<JwtError> for AuthApiError {
-    fn from(_: JwtError) -> Self {
+impl From<AccessTokenServiceError> for AuthApiError {
+    fn from(_: AccessTokenServiceError) -> Self {
         Self::invalid_grant("Invalid token")
     }
 }
@@ -1093,9 +1011,27 @@ impl AuthUserError {
     }
 }
 
-impl From<JwtError> for AuthUserError {
-    fn from(error: JwtError) -> Self {
+impl From<AccessTokenServiceError> for AuthUserError {
+    fn from(error: AccessTokenServiceError) -> Self {
         Self::internal(error)
+    }
+}
+
+impl From<UserServiceError> for AuthUserError {
+    fn from(error: UserServiceError) -> Self {
+        Self::internal(error)
+    }
+}
+
+impl From<UserServiceError> for AuthApiError {
+    fn from(error: UserServiceError) -> Self {
+        Self {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            body: AuthApiErrorBody {
+                error: OAuthErrorCode::InvalidRequest,
+                error_description: format!("The request could not be processed: {error}"),
+            },
+        }
     }
 }
 

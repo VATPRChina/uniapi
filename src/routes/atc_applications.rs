@@ -12,6 +12,7 @@ use crate::modules::atc_application::dto::{
     AtcApplicationSummaryDto,
 };
 use crate::modules::atc_application::service::AtcApplicationView;
+use crate::modules::user::dto::UserMoodleInfoDto;
 use crate::repository::sheet::sheet::SheetRepositoryExt;
 use crate::repository::sheet::sheet_field::SheetFieldRepositoryExt;
 use crate::repository::sheet::sheet_filing_answer::SheetAnswerSave;
@@ -227,7 +228,7 @@ async fn application_to_dto(
 
 async fn ensure_moodle_user(
     services: &Services,
-    user: &crate::model::user::UserSummary,
+    user: &crate::modules::user::models::UserSummary,
 ) -> Result<(), ApiError> {
     let moodle_user = services.moodle().get_user_by_cid(&user.cid).await?;
     if let Some(moodle_user) = moodle_user {

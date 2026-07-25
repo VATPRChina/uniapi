@@ -13,7 +13,6 @@ use crate::auth::CurrentUser;
 use crate::dto::*;
 use crate::flight_plan::{parser, validator};
 use crate::model::user_role::UserRole;
-use crate::repository::auth::user::UserRepositoryExt;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -117,8 +116,8 @@ async fn my_flight(
 ) -> Result<Json<FlightDto>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let user = services
-        .db()
-        .find_user_detail_by_id(user_id)
+        .user()
+        .find_summary_by_id(user_id)
         .await?
         .ok_or(ApiError::not_found("user", "unknown"))?;
     list_flights(&services)

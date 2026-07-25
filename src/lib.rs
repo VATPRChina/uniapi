@@ -6,7 +6,6 @@ pub mod discord;
 pub mod dto;
 pub mod error;
 pub mod flight_plan;
-pub mod jwt;
 pub mod model;
 pub mod modules;
 pub mod openapi;

@@ -1,27 +1,10 @@
 use chrono::{DateTime, Utc};
-use sqlx::FromRow;
 use ulid::Ulid;
 use uuid::Uuid;
 
-#[derive(FromRow)]
-pub struct RefreshSessionRow {
-    #[sqlx(try_from = "Uuid")]
-    pub token: Ulid,
-    pub user_id: Uuid,
-    pub user_updated_at: DateTime<Utc>,
-    pub expires_in: DateTime<Utc>,
-    #[allow(dead_code)]
-    pub code: Option<Uuid>,
-    pub client_id: String,
-    pub updated_at: DateTime<Utc>,
-}
+use super::super::models::{IssuedRefreshToken, RefreshToken};
 
-pub struct RefreshSessionIssue {
-    pub token: Ulid,
-    pub code: Option<Ulid>,
-}
-
-pub trait SessionTransactionExt {
+pub(crate) trait RefreshTokenTransaction {
     async fn issue_session_refresh_token(
         &mut self,
         user_id: Uuid,
@@ -30,10 +13,10 @@ pub trait SessionTransactionExt {
         client_id: &str,
         old_token: Option<Ulid>,
         create_code: bool,
-    ) -> Result<RefreshSessionIssue, sqlx::Error>;
+    ) -> Result<IssuedRefreshToken, sqlx::Error>;
 }
 
-impl SessionTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
+impl RefreshTokenTransaction for sqlx::Transaction<'_, sqlx::Postgres> {
     async fn issue_session_refresh_token(
         &mut self,
         user_id: Uuid,
@@ -42,10 +25,10 @@ impl SessionTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
         client_id: &str,
         old_token: Option<Ulid>,
         create_code: bool,
-    ) -> Result<RefreshSessionIssue, sqlx::Error> {
+    ) -> Result<IssuedRefreshToken, sqlx::Error> {
         tracing::info!(
             operation = "issue_refresh_token",
-            repository = "src/repository/auth/session.rs",
+            repository = "src/modules/user/repository/refresh_token.rs",
             "modifying data"
         );
 
@@ -89,29 +72,26 @@ impl SessionTransactionExt for sqlx::Transaction<'_, sqlx::Postgres> {
         .execute(&mut **self)
         .await?;
 
-        Ok(RefreshSessionIssue { token, code })
+        Ok(IssuedRefreshToken { token, code })
     }
 }
 
-pub trait SessionRepositoryExt<'executor> {
-    async fn find_session(self, token: Ulid) -> Result<Option<RefreshSessionRow>, sqlx::Error>;
+pub(crate) trait RefreshTokenRepository<'executor> {
+    async fn find_session(self, token: Ulid) -> Result<Option<RefreshToken>, sqlx::Error>;
 
-    async fn find_session_by_code(
-        self,
-        code: Ulid,
-    ) -> Result<Option<RefreshSessionRow>, sqlx::Error>;
+    async fn find_session_by_code(self, code: Ulid) -> Result<Option<RefreshToken>, sqlx::Error>;
 
     async fn clear_session_code(self, code: Ulid) -> Result<(), sqlx::Error>;
 
     async fn delete_session(self, token: Ulid) -> Result<bool, sqlx::Error>;
 }
 
-impl<'executor, E> SessionRepositoryExt<'executor> for E
+impl<'executor, E> RefreshTokenRepository<'executor> for E
 where
     E: sqlx::Executor<'executor, Database = sqlx::Postgres>,
 {
-    async fn find_session(self, token: Ulid) -> Result<Option<RefreshSessionRow>, sqlx::Error> {
-        sqlx::query_as::<_, RefreshSessionRow>(
+    async fn find_session(self, token: Ulid) -> Result<Option<RefreshToken>, sqlx::Error> {
+        sqlx::query_as::<_, RefreshToken>(
             r#"
         SELECT session.token, session.user_id, session.user_updated_at, session.expires_in,
                session.code, session.client_id, "user".updated_at
@@ -124,11 +104,8 @@ where
         .fetch_optional(self)
         .await
     }
-    async fn find_session_by_code(
-        self,
-        code: Ulid,
-    ) -> Result<Option<RefreshSessionRow>, sqlx::Error> {
-        sqlx::query_as::<_, RefreshSessionRow>(
+    async fn find_session_by_code(self, code: Ulid) -> Result<Option<RefreshToken>, sqlx::Error> {
+        sqlx::query_as::<_, RefreshToken>(
             r#"
         SELECT session.token, session.user_id, session.user_updated_at, session.expires_in,
                session.code, session.client_id, "user".updated_at
@@ -144,7 +121,7 @@ where
     async fn clear_session_code(self, code: Ulid) -> Result<(), sqlx::Error> {
         tracing::info!(
             operation = "clear_code",
-            repository = "src/repository/auth/session.rs",
+            repository = "src/modules/user/repository/refresh_token.rs",
             "modifying data"
         );
 
@@ -158,7 +135,7 @@ where
     async fn delete_session(self, token: Ulid) -> Result<bool, sqlx::Error> {
         tracing::info!(
             operation = "delete",
-            repository = "src/repository/auth/session.rs",
+            repository = "src/modules/user/repository/refresh_token.rs",
             "modifying data"
         );
 

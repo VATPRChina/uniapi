@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use std::str::FromStr;
 
-use crate::model::user::UserSummary;
 use crate::model::user_controller_state::UserControllerState;
+use crate::modules::user::models::UserSummary;
 
 #[derive(Debug, Clone)]
 pub struct ControllerInfo {

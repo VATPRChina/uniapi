@@ -11,10 +11,10 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::error::ApiError;
-use crate::jwt::JwtError;
-use crate::model::user_role::{UserRole, role_closure, role_closure_from_strings};
+use crate::model::user_role::{UserRole, role_closure};
+use crate::modules::user::service::access_token::AccessTokenServiceError;
+use crate::modules::user::service::user::UserServiceError;
 use crate::repository::atc::user_atc_permission::UserAtcPermissionRepositoryExt;
-use crate::repository::auth::user::UserRepositoryExt;
 use crate::services::Services;
 
 pub const ROLE_ASSUME_HEADER: &str = "x-role-assume";
@@ -67,10 +67,13 @@ pub enum AuthError {
     InvalidBearerToken,
 
     #[error(transparent)]
-    Jwt(#[from] JwtError),
+    AccessToken(#[from] AccessTokenServiceError),
 
     #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
+
+    #[error(transparent)]
+    User(#[from] UserServiceError),
 
     #[error("missing role {0}")]
     MissingRole(UserRole),
@@ -154,7 +157,9 @@ fn bearer_token(headers: &HeaderMap) -> Result<Option<&str>, AuthError> {
 
 #[instrument(skip(services, token))]
 async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentUser, AuthError> {
-    let token = services.jwt().validate_access_token_claims(token)?;
+    let token = services
+        .access_token()
+        .validate_access_token_claims(token)?;
     let mut roles = HashSet::new();
     let Ok(user_ulid) = token.subject.parse::<Ulid>() else {
         roles.insert(UserRole::ApiClient);
@@ -169,11 +174,9 @@ async fn authenticate_token(services: &Services, token: &str) -> Result<CurrentU
     };
     let user_id = Uuid::from(user_ulid);
 
-    if let Some(user) = services.db().find_user_by_id(user_id).await? {
+    if let Some(user) = services.user().find_summary_by_id(user_id).await? {
         roles.insert(UserRole::User);
-        roles.extend(role_closure_from_strings(
-            user.roles.iter().map(String::as_str),
-        ));
+        roles.extend(role_closure(user.direct_roles.iter().copied()));
 
         if services
             .db()
