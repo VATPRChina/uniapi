@@ -3,10 +3,10 @@ use std::{path::Path, sync::Arc};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
-use crate::model::navdata::{LevelRestrictionType, PreferredRoute};
+use crate::modules::navdata::models::{LevelRestrictionType, PreferredRoute};
 
 #[derive(Debug, thiserror::Error)]
-pub enum StaticPreferredRouteError {
+pub enum PreferredRouteRepositoryError {
     #[error("failed to read preferred route CSV: {0}")]
     Csv(#[from] csv::Error),
     #[error("invalid preferred route cruising level restriction: {0}")]
@@ -16,17 +16,17 @@ pub enum StaticPreferredRouteError {
 }
 
 #[derive(Debug, Clone)]
-pub struct StaticPreferredRouteAdapter {
+pub struct PreferredRouteRepository {
     preferred_routes: Arc<Vec<PreferredRoute>>,
 }
 
-impl StaticPreferredRouteAdapter {
-    pub fn from_csv_path(path: impl AsRef<Path>) -> Result<Self, StaticPreferredRouteError> {
+impl PreferredRouteRepository {
+    pub fn from_csv_path(path: impl AsRef<Path>) -> Result<Self, PreferredRouteRepositoryError> {
         let mut reader = csv::Reader::from_path(path)?;
         let preferred_routes = reader
             .deserialize::<PreferredRouteCsvRecord>()
             .map(|record| PreferredRoute::try_from(record?))
-            .collect::<Result<Vec<_>, StaticPreferredRouteError>>()?;
+            .collect::<Result<Vec<_>, PreferredRouteRepositoryError>>()?;
         let preferred_routes = Arc::new(preferred_routes);
 
         Ok(Self { preferred_routes })
@@ -57,12 +57,12 @@ struct PreferredRouteCsvRecord {
 }
 
 impl TryFrom<PreferredRouteCsvRecord> for PreferredRoute {
-    type Error = StaticPreferredRouteError;
+    type Error = PreferredRouteRepositoryError;
 
     fn try_from(record: PreferredRouteCsvRecord) -> Result<Self, Self::Error> {
         let cruising_level_restriction = LevelRestrictionType::from_csv_str(&record.even_odd)
             .map_err(|_| {
-                StaticPreferredRouteError::InvalidLevelRestriction(record.even_odd.clone())
+                PreferredRouteRepositoryError::InvalidLevelRestriction(record.even_odd.clone())
             })?;
 
         Ok(Self {
@@ -81,7 +81,7 @@ impl TryFrom<PreferredRouteCsvRecord> for PreferredRoute {
     }
 }
 
-fn parse_altitude_list(value: &str) -> Result<Vec<i32>, StaticPreferredRouteError> {
+fn parse_altitude_list(value: &str) -> Result<Vec<i32>, PreferredRouteRepositoryError> {
     value
         .split('/')
         .map(str::trim)
@@ -90,30 +90,30 @@ fn parse_altitude_list(value: &str) -> Result<Vec<i32>, StaticPreferredRouteErro
         .collect()
 }
 
-fn parse_altitude(value: &str) -> Result<i32, StaticPreferredRouteError> {
+fn parse_altitude(value: &str) -> Result<i32, PreferredRouteRepositoryError> {
     if let Some(level) = value.strip_prefix('F') {
         return level
             .parse::<i32>()
             .map(|level| level * 100)
-            .map_err(|_| StaticPreferredRouteError::InvalidAltitude(value.to_owned()));
+            .map_err(|_| PreferredRouteRepositoryError::InvalidAltitude(value.to_owned()));
     }
 
     if let Some(level) = value.strip_prefix('S') {
         let metric_altitude = level
             .parse::<i32>()
             .map(|level| level * 100)
-            .map_err(|_| StaticPreferredRouteError::InvalidAltitude(value.to_owned()))?;
+            .map_err(|_| PreferredRouteRepositoryError::InvalidAltitude(value.to_owned()))?;
 
         return standard_altitude_to_flight_level(metric_altitude)
-            .ok_or_else(|| StaticPreferredRouteError::InvalidAltitude(value.to_owned()));
+            .ok_or_else(|| PreferredRouteRepositoryError::InvalidAltitude(value.to_owned()));
     }
 
     value
         .parse::<i32>()
-        .map_err(|_| StaticPreferredRouteError::InvalidAltitude(value.to_owned()))
+        .map_err(|_| PreferredRouteRepositoryError::InvalidAltitude(value.to_owned()))
 }
 
-fn parse_optional_i32(value: &str) -> Result<i32, StaticPreferredRouteError> {
+fn parse_optional_i32(value: &str) -> Result<i32, PreferredRouteRepositoryError> {
     let value = value.trim();
     if value.is_empty() {
         return Ok(0);
@@ -121,7 +121,7 @@ fn parse_optional_i32(value: &str) -> Result<i32, StaticPreferredRouteError> {
 
     value
         .parse()
-        .map_err(|_| StaticPreferredRouteError::InvalidAltitude(value.to_owned()))
+        .map_err(|_| PreferredRouteRepositoryError::InvalidAltitude(value.to_owned()))
 }
 
 fn standard_altitude_to_flight_level(standard_altitude: i32) -> Option<i32> {
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn loads_and_filters_project_csv() {
-        let adapter = StaticPreferredRouteAdapter::from_csv_path("assets/test/routes.csv").unwrap();
+        let adapter = PreferredRouteRepository::from_csv_path("assets/test/routes.csv").unwrap();
         let routes = adapter.list_preferred_routes("zbaa", "zspd");
 
         assert!(!routes.is_empty());

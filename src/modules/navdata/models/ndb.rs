@@ -1,24 +1,24 @@
 use arrayvec::ArrayString;
 
-use crate::model::navdata::{Fix, Identifiable};
+use crate::modules::navdata::models::{Fix, Identifiable};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Waypoint {
+pub struct Ndb {
     pub icao_code: ArrayString<4>,
-    pub identifier: ArrayString<5>,
+    pub identifier: ArrayString<4>,
     pub latitude: f64,
     pub longitude: f64,
-    pub kind: WaypointKind,
+    pub kind: NdbKind,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WaypointKind {
+pub enum NdbKind {
     Enroute,
     #[allow(unused)]
     Terminal,
 }
 
-impl Identifiable for Waypoint {
+impl Identifiable for Ndb {
     fn icao_code(&self) -> &str {
         &self.icao_code
     }
@@ -28,7 +28,7 @@ impl Identifiable for Waypoint {
     }
 }
 
-impl Fix for Waypoint {
+impl Fix for Ndb {
     fn latitude(&self) -> f64 {
         self.latitude
     }

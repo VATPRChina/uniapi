@@ -4,6 +4,7 @@ pub mod compat;
 pub mod controller;
 pub mod event;
 pub mod flight;
+pub mod navdata;
 pub mod sector;
 pub mod sheet;
 pub mod training;

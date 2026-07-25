@@ -1,8 +1,8 @@
 use arrayvec::ArrayString;
 
-use crate::adapter::navdata::{InvalidNavdataError, NavdataAdapter};
-use crate::model::navdata::{Airport, AnyFix, Fix, GeoPoint};
 use crate::modules::flight::flight_plan::RouteToken;
+use crate::modules::navdata::models::{Airport, AnyFix, Fix, GeoPoint};
+use crate::modules::navdata::service::{InvalidNavdataError, NavdataService};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LexerError {
@@ -11,7 +11,7 @@ pub enum LexerError {
 }
 
 pub async fn lex_route(
-    navdata: &NavdataAdapter,
+    navdata: &NavdataService,
     route: &str,
 ) -> Result<Vec<RouteToken>, LexerError> {
     let mut lexer = RouteLexer::new(navdata, route);
@@ -23,14 +23,14 @@ pub async fn lex_route(
 }
 
 struct RouteLexer<'a> {
-    navdata: &'a NavdataAdapter,
+    navdata: &'a NavdataService,
     tokens: Vec<RouteToken>,
     current_lat: f64,
     current_lon: f64,
 }
 
 impl<'a> RouteLexer<'a> {
-    fn new(navdata: &'a NavdataAdapter, route: &str) -> Self {
+    fn new(navdata: &'a NavdataService, route: &str) -> Self {
         let tokens = route
             .split(' ')
             .map(|segment| {

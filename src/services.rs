@@ -5,7 +5,6 @@ use crate::adapter::compat::CompatClient;
 use crate::adapter::discourse::DiscourseClient;
 use crate::adapter::email::EmailClient;
 use crate::adapter::moodle::MoodleClient;
-use crate::adapter::navdata::NavdataAdapter;
 use crate::adapter::smms::SmmsClient;
 use crate::adapter::vatsim_auth::VatsimAuthClient;
 use crate::modules::atc_application::service::AtcApplicationService;
@@ -13,6 +12,7 @@ use crate::modules::compat::service::CompatService;
 use crate::modules::controller::service::ControllerService;
 use crate::modules::event::service::EventService;
 use crate::modules::flight::service::FlightService;
+use crate::modules::navdata::service::NavdataService;
 use crate::modules::sector::service::SectorService;
 use crate::modules::sheet::service::SheetService;
 use crate::modules::training::service::{TrainingApplicationService, TrainingService};
@@ -55,7 +55,7 @@ impl Services {
             .max_connections(10)
             .connect(&settings.database.url)
             .await?;
-        let navdata = NavdataAdapter::with_preferred_routes_path(
+        let navdata = NavdataService::with_preferred_routes_path(
             &settings.navdata.local_data_path,
             &settings.navdata.preferred_routes_path,
         )

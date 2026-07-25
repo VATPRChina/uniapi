@@ -5,12 +5,12 @@ use sqlx::{SqlitePool, prelude::FromRow};
 
 use tracing::instrument;
 
-use crate::adapter::static_preferred_route::{
-    StaticPreferredRouteAdapter, StaticPreferredRouteError,
-};
-use crate::model::navdata::{
+use crate::modules::navdata::models::{
     Airport, AnyFix, DirectionRestriction, Fix, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint,
     WaypointKind,
+};
+use crate::modules::navdata::repository::{
+    PreferredRouteRepository, PreferredRouteRepositoryError,
 };
 
 pub type NavdataResult<T> = Result<T, InvalidNavdataError>;
@@ -26,7 +26,7 @@ pub enum InvalidNavdataError {
     #[error("failed to compute distance ordering: {0}")]
     GeoDistanceOrderingError(#[from] ordered_float::FloatIsNan),
     #[error("preferred route data error: {0}")]
-    PreferredRoute(#[from] StaticPreferredRouteError),
+    PreferredRoute(#[from] PreferredRouteRepositoryError),
 }
 
 impl From<arrayvec::CapacityError<&str>> for InvalidNavdataError {
@@ -36,12 +36,12 @@ impl From<arrayvec::CapacityError<&str>> for InvalidNavdataError {
 }
 
 #[derive(Clone)]
-pub struct NavdataAdapter {
+pub struct NavdataService {
     pub db: SqlitePool,
-    preferred_routes: StaticPreferredRouteAdapter,
+    preferred_routes: PreferredRouteRepository,
 }
 
-impl NavdataAdapter {
+impl NavdataService {
     #[instrument(skip(local_data_path, preferred_routes_path))]
     pub async fn with_preferred_routes_path(
         local_data_path: impl AsRef<str>,
@@ -49,7 +49,7 @@ impl NavdataAdapter {
     ) -> NavdataResult<Self> {
         let local_data_path = local_data_path.as_ref();
         let db = SqlitePool::connect(&format!("sqlite:{local_data_path}")).await?;
-        let preferred_routes = StaticPreferredRouteAdapter::from_csv_path(preferred_routes_path)?;
+        let preferred_routes = PreferredRouteRepository::from_csv_path(preferred_routes_path)?;
         Ok(Self {
             db,
             preferred_routes,
@@ -352,7 +352,7 @@ impl NavdataAdapter {
         &self,
         departure: &str,
         arrival: &str,
-    ) -> NavdataResult<Vec<&crate::model::navdata::PreferredRoute>> {
+    ) -> NavdataResult<Vec<&crate::modules::navdata::models::PreferredRoute>> {
         Ok(self
             .preferred_routes
             .list_preferred_routes(departure, arrival))
@@ -539,8 +539,8 @@ mod test {
     const LOCAL_DATA_PATH: &str = "data/ng_jeppesen_fwdfd_2401.s3db";
     const PREFERRED_ROUTES_PATH: &str = "assets/test/routes.csv";
 
-    async fn get_navdata_adapter() -> NavdataAdapter {
-        NavdataAdapter::with_preferred_routes_path(LOCAL_DATA_PATH, PREFERRED_ROUTES_PATH)
+    async fn get_navdata_adapter() -> NavdataService {
+        NavdataService::with_preferred_routes_path(LOCAL_DATA_PATH, PREFERRED_ROUTES_PATH)
             .await
             .unwrap()
     }

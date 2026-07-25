@@ -1,4 +1,4 @@
-use crate::model::navdata::Fix;
+use crate::modules::navdata::models::Fix;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeoPoint {

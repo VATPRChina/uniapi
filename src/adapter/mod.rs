@@ -2,7 +2,5 @@ pub mod compat;
 pub mod discourse;
 pub mod email;
 pub mod moodle;
-pub mod navdata;
 pub mod smms;
-pub mod static_preferred_route;
 pub mod vatsim_auth;

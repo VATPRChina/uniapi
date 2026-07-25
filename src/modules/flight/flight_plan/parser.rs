@@ -1,7 +1,7 @@
-use crate::adapter::navdata::{InvalidNavdataError, NavdataAdapter};
-use crate::model::navdata::{AnyFix, DirectionRestriction, Fix, ResolvedLeg};
 use crate::modules::flight::flight_plan::RouteToken;
 use crate::modules::flight::flight_plan::lexer::{LexerError, lex_route};
+use crate::modules::navdata::models::{AnyFix, DirectionRestriction, Fix, ResolvedLeg};
+use crate::modules::navdata::service::{InvalidNavdataError, NavdataService};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParserError {
@@ -14,7 +14,7 @@ pub enum ParserError {
 }
 
 pub async fn parse_route(
-    navdata: &NavdataAdapter,
+    navdata: &NavdataService,
     route: &str,
 ) -> Result<Vec<ResolvedLeg>, ParserError> {
     tracing::info!("parsing route: {}", route);
@@ -23,14 +23,14 @@ pub async fn parse_route(
 }
 
 struct RouteParser<'a> {
-    navdata: &'a NavdataAdapter,
+    navdata: &'a NavdataService,
     tokens: Vec<RouteToken>,
     legs: Vec<ResolvedLeg>,
     last_fix_override: Option<AnyFix>,
 }
 
 impl<'a> RouteParser<'a> {
-    fn new(navdata: &'a NavdataAdapter, tokens: Vec<RouteToken>) -> Self {
+    fn new(navdata: &'a NavdataService, tokens: Vec<RouteToken>) -> Self {
         Self {
             navdata,
             tokens,

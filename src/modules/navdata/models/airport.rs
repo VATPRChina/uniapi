@@ -1,6 +1,6 @@
 use arrayvec::ArrayString;
 
-use crate::model::navdata::{Fix, Identifiable};
+use crate::modules::navdata::models::{Fix, Identifiable};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Airport {

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
-use crate::model::navdata::{AnyFix, ResolvedLeg};
+use crate::modules::navdata::models::{AnyFix, ResolvedLeg};
 
 use super::models::Flight;
 

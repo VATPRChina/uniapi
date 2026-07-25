@@ -1,10 +1,10 @@
 use itertools::Itertools;
 
-use crate::model::navdata::{LevelRestrictionType, PreferredRoute};
 use crate::modules::flight::flight_plan::validator::{
     Validator, WarningMessage, WarningMessageCode, WarningMessageField,
 };
 use crate::modules::flight::models::Flight;
+use crate::modules::navdata::models::{LevelRestrictionType, PreferredRoute};
 
 pub struct NoMatchingRouteValidator;
 

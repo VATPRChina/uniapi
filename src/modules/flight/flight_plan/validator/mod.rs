@@ -1,8 +1,6 @@
 use itertools::Itertools;
 use serde::Serialize;
 
-use crate::adapter::navdata::{InvalidNavdataError, NavdataAdapter};
-use crate::model::navdata::{AnyFix, Fix, PreferredRoute, ResolvedLeg};
 use crate::modules::flight::flight_plan::parser::{self, ParserError};
 use crate::modules::flight::flight_plan::validator::flight_validator::{
     EquipmentRnav1Validator, NavigationPerformanceRnav1Validator, RnpArValidator,
@@ -14,6 +12,8 @@ use crate::modules::flight::flight_plan::validator::matching_route_validator::{
     NoMatchingRouteValidator, RouteMatchValidator,
 };
 use crate::modules::flight::models::Flight;
+use crate::modules::navdata::models::{AnyFix, Fix, PreferredRoute, ResolvedLeg};
+use crate::modules::navdata::service::{InvalidNavdataError, NavdataService};
 
 mod flight_validator;
 mod leg_validator;
@@ -95,7 +95,7 @@ pub enum WarningMessageCode {
 }
 
 pub async fn validate_route(
-    navdata: &NavdataAdapter,
+    navdata: &NavdataService,
     flight: &Flight,
     legs: &[ResolvedLeg],
 ) -> Result<Vec<WarningMessage>, ValidatorError> {
@@ -171,7 +171,7 @@ impl<T: IntoIterator<Item = WarningMessage>> MessageContainer<T> {
 }
 
 async fn find_matching_route<'a>(
-    navdata: &NavdataAdapter,
+    navdata: &NavdataService,
     legs: &[ResolvedLeg],
     preferred_routes: &[&'a PreferredRoute],
 ) -> Result<Option<&'a PreferredRoute>, ValidatorError> {
@@ -228,7 +228,7 @@ mod tests {
     use arrayvec::ArrayString;
 
     use super::*;
-    use crate::model::navdata::{Airport, DirectionRestriction, Waypoint, WaypointKind};
+    use crate::modules::navdata::models::{Airport, DirectionRestriction, Waypoint, WaypointKind};
 
     #[test]
     fn route_matches_exact_leg_sequence() {

@@ -1,4 +1,4 @@
-use crate::model::navdata::AnyFix;
+use crate::modules::navdata::models::AnyFix;
 
 pub mod lexer;
 pub mod parser;

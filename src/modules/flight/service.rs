@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use crate::adapter::compat::{CompatClient, CompatClientError};
-use crate::adapter::navdata::NavdataAdapter;
-use crate::model::navdata::ResolvedLeg;
+use crate::modules::navdata::models::ResolvedLeg;
+use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 
 use super::flight_plan::parser::{self, ParserError};
@@ -13,12 +13,12 @@ use super::repository::flight::FlightRepository;
 #[derive(Clone)]
 pub struct FlightService {
     compat: CompatClient,
-    navdata: NavdataAdapter,
+    navdata: NavdataService,
     user: UserService,
 }
 
 impl FlightService {
-    pub fn new(compat: CompatClient, navdata: NavdataAdapter, user: UserService) -> Self {
+    pub fn new(compat: CompatClient, navdata: NavdataService, user: UserService) -> Self {
         Self {
             compat,
             navdata,
