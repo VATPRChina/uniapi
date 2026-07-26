@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use ulid::Ulid;
 
+use crate::modules::user::{dto::UserDto, models::UserSummary};
+
 use super::models::{AuditLog, AuditLogEntity};
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -28,7 +30,7 @@ pub struct AuditLogDto {
     pub child_entity: Option<AuditLogEntityDto>,
     pub before: serde_json::Value,
     pub after: serde_json::Value,
-    pub operated_by: String,
+    pub operated_by: UserDto,
     pub created_at: DateTime<Utc>,
 }
 
@@ -100,8 +102,8 @@ impl From<AuditLogEntity> for (AuditLogEntityDto, Option<AuditLogEntityDto>) {
     }
 }
 
-impl From<AuditLog> for AuditLogDto {
-    fn from(audit_log: AuditLog) -> Self {
+impl From<(AuditLog, UserSummary)> for AuditLogDto {
+    fn from((audit_log, user): (AuditLog, UserSummary)) -> Self {
         let (entity, child_entity) = audit_log.entity.into();
 
         Self {
@@ -109,7 +111,7 @@ impl From<AuditLog> for AuditLogDto {
             child_entity,
             before: audit_log.before,
             after: audit_log.after,
-            operated_by: Ulid::from(audit_log.operated_by).to_string(),
+            operated_by: UserDto::from_user_summary(user, true),
             created_at: audit_log.created_at,
         }
     }

@@ -4,9 +4,9 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::adapter::moodle::{MoodleClient, MoodleError};
-use crate::modules::user::models::UserRole;
 use crate::modules::audit_log::models::AuditLogEntity;
 use crate::modules::audit_log::service::{AuditLogService, AuditLogServiceError};
+use crate::modules::user::models::UserRole;
 use crate::modules::user::models::{MoodleUser, User, UserSummary};
 use crate::modules::user::repository::user::{UserRecord, UserRepository};
 
@@ -54,7 +54,7 @@ impl UserService {
 
     pub async fn get_users_bulk(
         &self,
-        ids: &[Uuid],
+        ids: impl Iterator<Item = Uuid>,
     ) -> Result<HashMap<Uuid, UserSummary>, UserServiceError> {
         Ok(self
             .db

@@ -73,7 +73,11 @@ test("event audit routes list logs and require volunteer permission", async ({
     entity: { kind: "event", id: event.id },
     child_entity: null,
     before: null,
-    operated_by: expect.any(String),
+    operated_by: expect.objectContaining({
+      id: expect.any(String),
+      cid: expect.any(String),
+      full_name: expect.any(String),
+    }),
     created_at: expect.any(String),
   });
   expect(allResponse.data).toEqual(expect.arrayContaining([expected]));

@@ -24,7 +24,10 @@ async fn list_controllers(
         .iter()
         .map(|controller| controller.user_id)
         .collect::<Vec<_>>();
-    let mut users = services.user().get_users_bulk(&user_ids).await?;
+    let mut users = services
+        .user()
+        .get_users_bulk(user_ids.iter().copied())
+        .await?;
     let controllers = controllers
         .into_iter()
         .map(|controller| {
