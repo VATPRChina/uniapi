@@ -78,10 +78,29 @@ test("GET /api/events/past lists past events", async ({ coordinator }) => {
   const createdPastEvent = await coordinator.POST("/api/events", {
     body: event,
   });
+  const createdEventBeforeCutoff = await coordinator.POST("/api/events", {
+    body: {
+      ...event,
+      title: `E2E Past Event Before Cutoff ${suffix}`,
+      title_en: `E2E Past Event Before Cutoff EN ${suffix}`,
+      start_at: "2019-12-20T10:00:00Z",
+      end_at: "2019-12-20T12:00:00Z",
+    },
+  });
+  const createdEventAfterCutoff = await coordinator.POST("/api/events", {
+    body: {
+      ...event,
+      title: `E2E Past Event After Cutoff ${suffix}`,
+      title_en: `E2E Past Event After Cutoff EN ${suffix}`,
+      start_at: "2020-04-20T10:00:00Z",
+      end_at: "2020-04-20T12:00:00Z",
+    },
+  });
 
   const { data, error, response } = await coordinator.GET("/api/events/past", {
     params: {
       query: {
+        since: "2020-01-01T00:00:00Z",
         until: "2020-03-31T00:00:00Z",
       },
     },
@@ -94,6 +113,20 @@ test("GET /api/events/past lists past events", async ({ coordinator }) => {
       expect.objectContaining({
         id: createdPastEvent.data.id,
         ...createdPastEvent.data,
+      }),
+    ]),
+  );
+  expect(data).not.toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: createdEventBeforeCutoff.data.id,
+      }),
+    ]),
+  );
+  expect(data).not.toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: createdEventAfterCutoff.data.id,
       }),
     ]),
   );

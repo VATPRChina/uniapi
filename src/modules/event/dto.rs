@@ -14,6 +14,7 @@ use super::models::{
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct ListPastQuery {
+    pub since: Option<DateTime<Utc>>,
     pub until: Option<DateTime<Utc>>,
 }
 

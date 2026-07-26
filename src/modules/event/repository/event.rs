@@ -7,8 +7,11 @@ use crate::modules::event::models::{Event, EventSave};
 pub(crate) trait EventRepository<'executor> {
     async fn list_event_current(self) -> Result<Vec<Event>, sqlx::Error>;
 
-    async fn list_event_past(self, until: Option<DateTime<Utc>>)
-    -> Result<Vec<Event>, sqlx::Error>;
+    async fn list_event_past(
+        self,
+        since: Option<DateTime<Utc>>,
+        until: Option<DateTime<Utc>>,
+    ) -> Result<Vec<Event>, sqlx::Error>;
 
     async fn find_event_by_id(self, id: Uuid) -> Result<Option<Event>, sqlx::Error>;
 
@@ -42,6 +45,7 @@ where
     }
     async fn list_event_past(
         self,
+        since: Option<DateTime<Utc>>,
         until: Option<DateTime<Utc>>,
     ) -> Result<Vec<Event>, sqlx::Error> {
         sqlx::query_as::<_, Event>(
@@ -52,10 +56,12 @@ where
         FROM public.event
         WHERE (is_approved = TRUE OR is_approved IS NULL)
           AND start_at < now()
-          AND ($1::timestamptz IS NULL OR start_at <= $1)
+          AND ($1::timestamptz IS NULL OR start_at >= $1)
+          AND ($2::timestamptz IS NULL OR start_at <= $2)
         ORDER BY start_at DESC
         "#,
         )
+        .bind(since)
         .bind(until)
         .fetch_all(self)
         .await

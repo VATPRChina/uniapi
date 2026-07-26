@@ -4,9 +4,9 @@ use axum::{Json, Router};
 use ulid::Ulid;
 
 use crate::error::ApiError;
-use crate::modules::user::models::UserRole;
 use crate::modules::event::dto::{EventDto, EventSaveRequest, ListPastQuery};
 use crate::modules::user::middleware::CurrentUser;
+use crate::modules::user::models::UserRole;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -39,7 +39,10 @@ async fn list_events(State(services): State<Services>) -> Result<Json<Vec<EventD
     get,
     path = "api/events/past",
     tag = "Events",
-    params(("until" = Option<DateTime<Utc>>, Query, description = "Latest event start time to include")),
+    params(
+        ("since" = Option<DateTime<Utc>>, Query, description = "Earliest event start time to include"),
+        ("until" = Option<DateTime<Utc>>, Query, description = "Latest event start time to include")
+    ),
     responses((status = 200, description = "Successful response", body = Vec<EventDto>))
 )]
 async fn list_past_events(
@@ -49,7 +52,7 @@ async fn list_past_events(
     Ok(Json(
         services
             .event()
-            .list_past(query.until)
+            .list_past(query.since, query.until)
             .await?
             .into_iter()
             .map(EventDto::from)

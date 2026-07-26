@@ -2347,6 +2347,8 @@ export interface operations {
     list_past_events: {
         parameters: {
             query?: {
+                /** @description Earliest event start time to include */
+                since?: string;
                 /** @description Latest event start time to include */
                 until?: string;
             };

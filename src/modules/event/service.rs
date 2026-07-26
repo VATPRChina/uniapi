@@ -42,9 +42,10 @@ impl EventService {
 
     pub async fn list_past(
         &self,
+        since: Option<DateTime<Utc>>,
         until: Option<DateTime<Utc>>,
     ) -> Result<Vec<Event>, EventServiceError> {
-        Ok(self.db.list_event_past(until).await?)
+        Ok(self.db.list_event_past(since, until).await?)
     }
 
     pub async fn find(&self, id: Uuid) -> Result<Event, EventServiceError> {
