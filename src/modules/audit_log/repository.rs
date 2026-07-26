@@ -91,6 +91,7 @@ where
             FROM public.audit_log
             WHERE entity_kind = $1
             ORDER BY created_at DESC
+            LIMIT 100
             "#,
             )
             .bind(entity_kind.to_string())
@@ -111,6 +112,7 @@ where
             FROM public.audit_log
             WHERE entity_kind = $1 AND entity_id = $2
             ORDER BY created_at DESC
+            LIMIT 100
             "#,
             )
             .bind(entity_kind.to_string())
