@@ -1,4 +1,3 @@
-use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
 use crate::modules::event::dto::{EventAirspaceDto, EventAirspaceSaveRequest};
 use crate::modules::user::middleware::CurrentUser;
@@ -7,6 +6,7 @@ use crate::services::Services;
 use axum::extract::{Path, State};
 use axum::routing::post;
 use axum::{Json, Router};
+use ulid::Ulid;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(create_airspace))]
@@ -24,7 +24,7 @@ async fn create_airspace(
     Json(request): Json<EventAirspaceSaveRequest>,
 ) -> Result<Json<EventAirspaceDto>, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
-    let event_id = parse_ulid_uuid("event_id", &eid)?;
+    let event_id = eid.parse::<Ulid>()?.into();
     let airspace = services
         .event()
         .create_airspace(event_id, request.into())

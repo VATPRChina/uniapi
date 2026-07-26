@@ -1,10 +1,10 @@
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
+use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::adapter::email::EmailContent;
-use crate::dto::*;
 use crate::model::user_role::UserRole;
 use crate::modules::atc_application::dto::{
     AtcApplicationDto, AtcApplicationRequest, AtcApplicationReviewRequest, AtcApplicationStatus,
@@ -102,7 +102,7 @@ async fn get_application(
     let is_admin = current_user.has_role(UserRole::ControllerTrainingDirectorAssistant);
     let view = services
         .atc_application()
-        .find_visible(parse_ulid_uuid("id", &id)?, current_user_id, is_admin)
+        .find_visible(id.parse::<Ulid>()?.into(), current_user_id, is_admin)
         .await?;
     application_to_dto(&services, view, is_admin, current_user_id)
         .await
@@ -118,7 +118,7 @@ async fn update_application(
 ) -> Result<Json<AtcApplicationDto>, ApiError> {
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin = current_user.has_role(UserRole::ControllerTrainingDirectorAssistant);
-    let application_id = parse_ulid_uuid("id", &id)?;
+    let application_id = id.parse::<Ulid>()?.into();
     let answers = request
         .request_answers
         .into_iter()
@@ -159,7 +159,7 @@ async fn review_application(
 ) -> Result<Json<AtcApplicationDto>, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingDirectorAssistant)?;
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let application_id = parse_ulid_uuid("id", &id)?;
+    let application_id = id.parse::<Ulid>()?.into();
     let approved = request.status == AtcApplicationStatus::Approved;
     let answers = request
         .review_answers

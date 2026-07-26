@@ -2,8 +2,8 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
+use ulid::Ulid;
 
-use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
 use crate::modules::event::dto::{
     EventAtcPositionBookRequest, EventAtcPositionBookingDto, EventAtcPositionDto,
@@ -44,7 +44,7 @@ async fn list_positions(
     State(services): State<Services>,
     Path(event_id): Path<String>,
 ) -> Result<Json<Vec<EventAtcPositionDto>>, ApiError> {
-    let event_id = parse_ulid_uuid("event_id", &event_id)?;
+    let event_id = event_id.parse::<Ulid>()?.into();
     Ok(Json(
         services
             .event()
@@ -65,7 +65,7 @@ async fn create_position(
 ) -> Result<Json<EventAtcPositionDto>, ApiError> {
     require_edit_role(&current_user)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let event_id = parse_ulid_uuid("event_id", &event_id)?;
+    let event_id = event_id.parse::<Ulid>()?.into();
     let position = services
         .event()
         .create_atc_position(event_id, request.try_into()?, operated_by)
@@ -83,8 +83,8 @@ async fn update_position(
 ) -> Result<Json<EventAtcPositionDto>, ApiError> {
     require_edit_role(&current_user)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let event_id = parse_ulid_uuid("event_id", &event_id)?;
-    let position_id = parse_ulid_uuid("position_id", &position_id)?;
+    let event_id = event_id.parse::<Ulid>()?.into();
+    let position_id = position_id.parse::<Ulid>()?.into();
     let position = services
         .event()
         .update_atc_position(event_id, position_id, request.try_into()?, operated_by)
@@ -101,8 +101,8 @@ async fn delete_position(
 ) -> Result<StatusCode, ApiError> {
     require_edit_role(&current_user)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let event_id = parse_ulid_uuid("event_id", &event_id)?;
-    let position_id = parse_ulid_uuid("position_id", &position_id)?;
+    let event_id = event_id.parse::<Ulid>()?.into();
+    let position_id = position_id.parse::<Ulid>()?.into();
     services
         .event()
         .delete_atc_position(event_id, position_id, operated_by)
@@ -119,8 +119,8 @@ async fn book_position(
     Json(request): Json<EventAtcPositionBookRequest>,
 ) -> Result<Json<EventAtcPositionBookingDto>, ApiError> {
     current_user.require_role(UserRole::Controller)?;
-    let event_id = parse_ulid_uuid("event_id", &event_id)?;
-    let position_id = parse_ulid_uuid("position_id", &position_id)?;
+    let event_id = event_id.parse::<Ulid>()?.into();
+    let position_id = position_id.parse::<Ulid>()?.into();
     if request.user_id.is_some() && !has_booking_admin_role(&current_user) {
         return Err(ApiError::forbidden([
             UserRole::EventCoordinator,
@@ -129,7 +129,7 @@ async fn book_position(
         ]));
     }
     let user_id = match request.user_id.as_deref() {
-        Some(user_id) => parse_ulid_uuid("user_id", user_id)?,
+        Some(user_id) => (user_id).parse::<Ulid>()?.into(),
         None => current_user.user_id.ok_or(ApiError::Unauthorized)?,
     };
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
@@ -154,8 +154,8 @@ async fn cancel_position_booking(
     Path((event_id, position_id)): Path<(String, String)>,
 ) -> Result<Json<EventAtcPositionBookingDto>, ApiError> {
     current_user.require_role(UserRole::Controller)?;
-    let event_id = parse_ulid_uuid("event_id", &event_id)?;
-    let position_id = parse_ulid_uuid("position_id", &position_id)?;
+    let event_id = event_id.parse::<Ulid>()?.into();
+    let position_id = position_id.parse::<Ulid>()?.into();
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let position = services
         .event()

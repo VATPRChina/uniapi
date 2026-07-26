@@ -42,6 +42,8 @@ pub struct UserRecord {
 pub(crate) trait UserRepository<'executor> {
     async fn find_user_detail_by_id(self, id: Uuid) -> Result<Option<UserRecord>, sqlx::Error>;
 
+    async fn get_user_details_bulk(self, ids: &[Uuid]) -> Result<Vec<UserRecord>, sqlx::Error>;
+
     async fn find_user_detail_by_id_for_update(
         self,
         id: Uuid,
@@ -86,6 +88,23 @@ where
 
         sqlx::query_as_with::<_, UserRecord, _>(&sql, values)
             .fetch_optional(self)
+            .await
+    }
+
+    async fn get_user_details_bulk(self, ids: &[Uuid]) -> Result<Vec<UserRecord>, sqlx::Error> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let query = Query::select()
+            .columns(USER_COLUMNS)
+            .from(User::Table)
+            .and_where(Expr::col(User::Id).is_in(ids.iter().copied()))
+            .to_owned();
+        let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+        sqlx::query_as_with::<_, UserRecord, _>(&sql, values)
+            .fetch_all(self)
             .await
     }
 

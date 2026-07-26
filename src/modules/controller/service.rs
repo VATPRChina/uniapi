@@ -1,17 +1,15 @@
 use std::collections::BTreeMap;
 
-use futures::future::try_join_all;
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::modules::audit_log::models::AuditLogEntity;
 use crate::modules::audit_log::service::{AuditLogService, AuditLogServiceError};
-use crate::modules::user::models::UserSummary;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 
 use super::models::{
     CompatFutureController, Controller, ControllerPermission, ControllerPositionKind,
-    ControllerRating, ControllerSave, SectorPermission, UserControllerState,
+    ControllerRating, ControllerSave, UserControllerState,
 };
 use super::repository::compat::CompatRepository;
 use super::repository::controller::{AtcControllerPermissionRecord, ControllerRepository};
@@ -37,7 +35,7 @@ impl ControllerService {
         }
     }
 
-    pub async fn list(&self) -> Result<Vec<ControllerView>, ControllerServiceError> {
+    pub async fn list(&self) -> Result<Vec<Controller>, ControllerServiceError> {
         let rows = self.db.list_atc_controllers().await?;
         let mut controllers = BTreeMap::<Uuid, Controller>::new();
 
@@ -51,25 +49,17 @@ impl ControllerService {
                 .push(permission);
         }
 
-        let mut views = try_join_all(
-            controllers
-                .into_values()
-                .map(|controller| self.with_user(controller)),
-        )
-        .await?;
-        views.sort_by(|left, right| left.user.cid.cmp(&right.user.cid));
-        Ok(views)
+        Ok(controllers.into_values().collect())
     }
 
-    pub async fn find(&self, user_id: Uuid) -> Result<ControllerView, ControllerServiceError> {
+    pub async fn find(&self, user_id: Uuid) -> Result<Controller, ControllerServiceError> {
         let status = self
             .db
             .find_user_atc_status_by_user_id(user_id)
             .await?
             .ok_or(ControllerServiceError::UserNotFound(user_id))?;
         let permissions = self.db.list_user_atc_permission_by_user_id(user_id).await?;
-        self.with_user(controller_from_records(status, permissions)?)
-            .await
+        controller_from_records(status, permissions)
     }
 
     pub async fn update(
@@ -77,7 +67,7 @@ impl ControllerService {
         user_id: Uuid,
         status: ControllerSave,
         operated_by: Uuid,
-    ) -> Result<ControllerView, ControllerServiceError> {
+    ) -> Result<Controller, ControllerServiceError> {
         let mut transaction = self.db.begin().await?;
         let before = controller_audit_snapshot(&mut transaction, user_id)
             .await?
@@ -117,18 +107,16 @@ impl ControllerService {
             .await?)
     }
 
-    pub async fn current_sector_permission(
+    pub async fn has_sector_permission(
         &self,
         user_id: Uuid,
-    ) -> Result<SectorPermission, ControllerServiceError> {
+    ) -> Result<bool, ControllerServiceError> {
         let user = self
             .user
             .find_summary_by_id(user_id)
             .await?
             .ok_or(ControllerServiceError::UserNotFound(user_id))?;
-        Ok(SectorPermission {
-            has_permission: self.db.user_sector_can_online(user.id, &user.cid).await?,
-        })
+        Ok(self.db.user_sector_can_online(user.id, &user.cid).await?)
     }
 
     pub async fn future_compat_controllers(
@@ -147,24 +135,6 @@ impl ControllerService {
             })
             .collect())
     }
-
-    async fn with_user(
-        &self,
-        controller: Controller,
-    ) -> Result<ControllerView, ControllerServiceError> {
-        let user = self
-            .user
-            .find_summary_by_id(controller.user_id)
-            .await?
-            .ok_or(ControllerServiceError::UserNotFound(controller.user_id))?;
-        Ok(ControllerView { controller, user })
-    }
-}
-
-#[derive(Debug)]
-pub struct ControllerView {
-    pub controller: Controller,
-    pub user: UserSummary,
 }
 
 fn controller(row: &AtcControllerPermissionRecord) -> Result<Controller, ControllerServiceError> {

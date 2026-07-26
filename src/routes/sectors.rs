@@ -21,11 +21,7 @@ async fn current_permission(
     current_user: CurrentUser,
 ) -> Result<Json<SectorPermissionResponse>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    Ok(Json(
-        services
-            .controller()
-            .current_sector_permission(user_id)
-            .await?
-            .into(),
-    ))
+    Ok(Json(SectorPermissionResponse::new(
+        services.controller().has_sector_permission(user_id).await?,
+    )))
 }

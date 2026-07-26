@@ -134,6 +134,8 @@ api_errors!(
     Internal => StatusCode::INTERNAL_SERVER_ERROR => "internal error",
     InvalidDatabaseValue { field: String, value: String } => StatusCode::INTERNAL_SERVER_ERROR
         => "invalid database value for {field}: {value}",
+    Ulid { #[from] source: ulid::DecodeError} => StatusCode::BAD_REQUEST
+        => "invalid ulid",
 );
 
 impl ApiError {

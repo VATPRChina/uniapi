@@ -1,8 +1,8 @@
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
+use ulid::Ulid;
 
-use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
 use crate::modules::audit_log::dto::AuditLogDto;
 use crate::modules::user::middleware::CurrentUser;
@@ -76,7 +76,7 @@ async fn list_event_audit_logs_by_event(
     Path(id): Path<String>,
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
-    let id = parse_ulid_uuid("id", &id)?;
+    let id = id.parse::<Ulid>()?.into();
     let audit_logs = services.audit_log().list_events_by_id(id).await?;
 
     Ok(Json(audit_logs.into_iter().map(Into::into).collect()))
@@ -117,7 +117,7 @@ async fn list_atc_application_audit_logs_by_application(
     Path(id): Path<String>,
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
-    let id = parse_ulid_uuid("id", &id)?;
+    let id = id.parse::<Ulid>()?.into();
     let audit_logs = services.audit_log().list_atc_applications_by_id(id).await?;
 
     Ok(Json(audit_logs.into_iter().map(Into::into).collect()))
@@ -158,7 +158,7 @@ async fn list_user_audit_logs_by_user(
     Path(id): Path<String>,
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
-    let id = parse_ulid_uuid("id", &id)?;
+    let id = id.parse::<Ulid>()?.into();
     let audit_logs = services.audit_log().list_users_by_id(id).await?;
 
     Ok(Json(audit_logs.into_iter().map(Into::into).collect()))
@@ -180,7 +180,7 @@ async fn list_user_atc_status_audit_logs(
     Path(id): Path<String>,
 ) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
     current_user.require_role(UserRole::Volunteer)?;
-    let id = parse_ulid_uuid("id", &id)?;
+    let id = id.parse::<Ulid>()?.into();
     let audit_logs = services.audit_log().list_user_atc_status(id).await?;
 
     Ok(Json(audit_logs.into_iter().map(Into::into).collect()))

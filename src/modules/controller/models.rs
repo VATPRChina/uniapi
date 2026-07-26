@@ -4,10 +4,6 @@ use std::str::FromStr;
 use serde::Serialize;
 use uuid::Uuid;
 
-pub struct SectorPermission {
-    pub has_permission: bool,
-}
-
 pub struct CompatFutureController {
     pub callsign: String,
     pub name: String,

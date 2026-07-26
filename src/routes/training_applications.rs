@@ -1,8 +1,9 @@
 use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
+use ulid::Ulid;
+use uuid::Uuid;
 
-use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
 use crate::modules::training::dto::{
     TrainingApplicationCreateRequest, TrainingApplicationDto, TrainingApplicationResponseDto,
@@ -66,7 +67,7 @@ async fn get_application(
     let application = services
         .training_application()
         .find_visible(
-            parse_ulid_uuid("id", &id)?,
+            id.parse::<Ulid>()?.into(),
             current_user.user_id.ok_or(ApiError::Unauthorized)?,
             is_admin,
         )
@@ -83,7 +84,7 @@ async fn delete_application(
     let application = services
         .training_application()
         .delete(
-            parse_ulid_uuid("id", &id)?,
+            id.parse::<Ulid>()?.into(),
             current_user.user_id.ok_or(ApiError::Unauthorized)?,
             is_admin(&current_user),
         )
@@ -125,7 +126,7 @@ async fn update_application(
     let application = services
         .training_application()
         .update(
-            parse_ulid_uuid("id", &id)?,
+            id.parse::<Ulid>()?.into(),
             current_user.user_id.ok_or(ApiError::Unauthorized)?,
             is_admin(&current_user),
             &request.name,
@@ -144,7 +145,7 @@ async fn list_responses(
     let responses = services
         .training_application()
         .list_responses(
-            parse_ulid_uuid("id", &id)?,
+            id.parse::<Ulid>()?.into(),
             current_user.user_id.ok_or(ApiError::Unauthorized)?,
             is_admin(&current_user),
         )
@@ -166,12 +167,12 @@ async fn respond_to_application(
     let response = services
         .training_application()
         .respond(
-            parse_ulid_uuid("id", &id)?,
+            id.parse::<Ulid>()?.into(),
             current_user.user_id.ok_or(ApiError::Unauthorized)?,
             request
                 .slot_id
                 .as_deref()
-                .map(|id| parse_ulid_uuid("id", id))
+                .map(|id| id.parse::<Ulid>().map(Uuid::from))
                 .transpose()?,
             &request.comment,
         )

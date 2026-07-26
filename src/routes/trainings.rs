@@ -2,8 +2,8 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
+use ulid::Ulid;
 
-use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
 use crate::modules::sheet::dto::{SheetDto, SheetFieldAnswerDto};
 use crate::modules::sheet::models::SheetAnswerSave;
@@ -68,7 +68,7 @@ async fn list_by_user(
     current_user: CurrentUser,
     Path(user_id): Path<String>,
 ) -> Result<Json<Vec<TrainingDto>>, ApiError> {
-    let user_id = parse_ulid_uuid("user_id", &user_id)?;
+    let user_id = user_id.parse::<Ulid>()?.into();
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     Ok(Json(
         services
@@ -112,7 +112,7 @@ async fn get_training(
     let training = services
         .training()
         .find_visible(
-            parse_ulid_uuid("id", &id)?,
+            id.parse::<Ulid>()?.into(),
             current_user_id,
             is_training_history_admin(&current_user),
         )
@@ -147,7 +147,7 @@ async fn update_training(
     Json(request): Json<TrainingSaveRequest>,
 ) -> Result<Json<TrainingDto>, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
-    let id = parse_ulid_uuid("id", &id)?;
+    let id = id.parse::<Ulid>()?.into();
     let training = services
         .training()
         .update(
@@ -183,7 +183,7 @@ async fn set_record_sheet(
     Json(request): Json<TrainingRecordRequest>,
 ) -> Result<Json<TrainingDto>, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
-    let id = parse_ulid_uuid("id", &id)?;
+    let id = id.parse::<Ulid>()?.into();
     let answers = request
         .request_answers
         .into_iter()
@@ -208,7 +208,7 @@ async fn delete_training(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     current_user.require_role(UserRole::ControllerTrainingMentor)?;
-    let id = parse_ulid_uuid("id", &id)?;
+    let id = id.parse::<Ulid>()?.into();
     services
         .training()
         .delete(

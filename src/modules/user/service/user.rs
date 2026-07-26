@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -48,6 +50,20 @@ impl UserService {
         id: Uuid,
     ) -> Result<Option<UserSummary>, UserServiceError> {
         Ok(self.db.find_user_detail_by_id(id).await?.map(user_summary))
+    }
+
+    pub async fn get_users_bulk(
+        &self,
+        ids: &[Uuid],
+    ) -> Result<HashMap<Uuid, UserSummary>, UserServiceError> {
+        Ok(self
+            .db
+            .get_user_details_bulk(ids)
+            .await?
+            .into_iter()
+            .map(user_summary)
+            .map(|user| (user.id, user))
+            .collect())
     }
 
     pub async fn upsert_assumed(

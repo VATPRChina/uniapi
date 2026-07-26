@@ -2,7 +2,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
-use crate::dto::parse_ulid_uuid;
 use crate::modules::sheet::dto::{SheetFieldAnswerDto, SheetRequestField};
 use crate::modules::user::dto::UserDto;
 use crate::modules::user::models::UserSummary;
@@ -28,8 +27,8 @@ impl TryFrom<TrainingSaveRequest> for TrainingSave {
     fn try_from(request: TrainingSaveRequest) -> Result<Self, Self::Error> {
         Ok(Self {
             name: request.name,
-            trainer_id: parse_ulid_uuid("id", &request.trainer_id)?,
-            trainee_id: parse_ulid_uuid("id", &request.trainee_id)?,
+            trainer_id: request.trainer_id.parse::<Ulid>()?.into(),
+            trainee_id: request.trainee_id.parse::<Ulid>()?.into(),
             start_at: request.start_at,
             end_at: request.end_at,
         })

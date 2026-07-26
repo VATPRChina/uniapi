@@ -2,14 +2,15 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
+use crate::modules::controller::models::Controller;
 use crate::modules::user::dto::UserDto;
+use crate::modules::user::models::UserSummary;
 use crate::routes::ApiError;
 
 use super::models::{
     ControllerPermission, ControllerPermissionSave, ControllerRating, ControllerSave,
-    SectorPermission, UserControllerState,
+    UserControllerState,
 };
-use super::service::ControllerView;
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct SectorPermissionResponse {
@@ -17,10 +18,10 @@ pub struct SectorPermissionResponse {
     pub sector_type: &'static str,
 }
 
-impl From<SectorPermission> for SectorPermissionResponse {
-    fn from(permission: SectorPermission) -> Self {
+impl SectorPermissionResponse {
+    pub fn new(has_permission: bool) -> Self {
         Self {
-            has_permission: permission.has_permission,
+            has_permission,
             sector_type: "controller",
         }
     }
@@ -97,20 +98,15 @@ pub struct AtcStatusDto {
     pub permissions: Vec<AtcPermissionDto>,
 }
 
-impl From<ControllerView> for AtcStatusDto {
-    fn from(view: ControllerView) -> Self {
+impl From<(Controller, UserSummary)> for AtcStatusDto {
+    fn from((controller, user): (Controller, UserSummary)) -> Self {
         Self {
-            user_id: Ulid::from(view.controller.user_id).to_string(),
-            user: UserDto::from_user_summary(view.user, true),
-            is_visiting: view.controller.is_visiting,
-            is_absent: view.controller.is_absent,
-            rating: view.controller.rating.to_string(),
-            permissions: view
-                .controller
-                .permissions
-                .into_iter()
-                .map(Into::into)
-                .collect(),
+            user_id: Ulid::from(controller.user_id).to_string(),
+            user: UserDto::from_user_summary(user, true),
+            is_visiting: controller.is_visiting,
+            is_absent: controller.is_absent,
+            rating: controller.rating.to_string(),
+            permissions: controller.permissions.into_iter().map(Into::into).collect(),
         }
     }
 }

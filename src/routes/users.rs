@@ -2,8 +2,8 @@ use axum::extract::{Path, State};
 use axum::routing::{get, put};
 use axum::{Json, Router};
 use std::collections::BTreeSet;
+use ulid::Ulid;
 
-use crate::dto::*;
 use crate::model::user_role::UserRole;
 use crate::modules::user::dto::UserDto;
 use crate::modules::user::middleware::CurrentUser;
@@ -49,7 +49,7 @@ async fn set_roles(
 ) -> Result<Json<UserDto>, ApiError> {
     current_user.require_role(UserRole::Staff)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let id = parse_ulid_uuid("user_id", &id)?;
+    let id = id.parse::<Ulid>()?.into();
     let roles = roles
         .into_iter()
         .map(|role| {
@@ -78,7 +78,7 @@ async fn ensure_moodle_account(
     Path(id): Path<String>,
 ) -> Result<Json<UserDto>, ApiError> {
     current_user.require_role(UserRole::TechDirector)?;
-    let id = parse_ulid_uuid("user_id", &id)?;
+    let id = id.parse::<Ulid>()?.into();
     let user = services
         .user()
         .ensure_moodle_account(id)

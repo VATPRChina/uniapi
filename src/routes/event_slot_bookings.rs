@@ -1,8 +1,8 @@
 use axum::extract::{Path, State};
 use axum::routing::put;
 use axum::{Json, Router};
+use ulid::Ulid;
 
-use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
 use crate::modules::event::dto::{EventBookingDto, EventSlotBookingRequest};
 use crate::modules::user::middleware::CurrentUser;
@@ -27,14 +27,14 @@ async fn put_booking(
     Path((eid, sid)): Path<(String, String)>,
     Json(request): Json<EventSlotBookingRequest>,
 ) -> Result<Json<EventBookingDto>, ApiError> {
-    let event_id = parse_ulid_uuid("event_id", &eid)?;
-    let slot_id = parse_ulid_uuid("slot_id", &sid)?;
+    let event_id = eid.parse::<Ulid>()?.into();
+    let slot_id = sid.parse::<Ulid>()?.into();
     if request.user_id.is_some() && !current_user.has_role(UserRole::EventCoordinator) {
         return Err(ApiError::forbidden([UserRole::EventCoordinator]));
     }
     let is_admin_booking = request.user_id.is_some();
     let user_id = match request.user_id.as_deref() {
-        Some(user_id) => parse_ulid_uuid("user_id", user_id)?,
+        Some(user_id) => (user_id).parse::<Ulid>()?.into(),
         None => current_user.user_id.ok_or(ApiError::Unauthorized)?,
     };
 
@@ -56,8 +56,8 @@ async fn delete_booking(
     current_user: CurrentUser,
     Path((eid, sid)): Path<(String, String)>,
 ) -> Result<Json<EventBookingDto>, ApiError> {
-    let event_id = parse_ulid_uuid("event_id", &eid)?;
-    let slot_id = parse_ulid_uuid("slot_id", &sid)?;
+    let event_id = eid.parse::<Ulid>()?.into();
+    let slot_id = sid.parse::<Ulid>()?.into();
     let is_admin = current_user.has_role(UserRole::EventCoordinator);
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let booking = services

@@ -114,7 +114,7 @@ impl<'a> RouteParser<'a> {
             return Ok(());
         };
 
-        self.legs.extend(airway_legs.into_iter());
+        self.legs.extend(airway_legs);
         Ok(())
     }
 

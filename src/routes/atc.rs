@@ -1,6 +1,7 @@
 use axum::extract::State;
 use axum::routing::get;
 use axum::{Json, Router};
+use ulid::Ulid;
 
 use crate::modules::controller::dto::AtcStatusDto;
 use crate::routes::ApiError;
@@ -19,5 +20,20 @@ async fn list_controllers(
     State(services): State<Services>,
 ) -> Result<Json<Vec<AtcStatusDto>>, ApiError> {
     let controllers = services.controller().list().await?;
-    Ok(Json(controllers.into_iter().map(Into::into).collect()))
+    let user_ids = controllers
+        .iter()
+        .map(|controller| controller.user_id)
+        .collect::<Vec<_>>();
+    let mut users = services.user().get_users_bulk(&user_ids).await?;
+    let controllers = controllers
+        .into_iter()
+        .map(|controller| {
+            let user = users.remove(&controller.user_id).ok_or_else(|| {
+                ApiError::not_found("user", Ulid::from(controller.user_id).to_string())
+            })?;
+            Ok((controller, user).into())
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+
+    Ok(Json(controllers))
 }

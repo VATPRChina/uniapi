@@ -1,4 +1,3 @@
-use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
 use crate::modules::event::dto::{EventSlotDto, EventSlotSaveRequest};
 use crate::modules::event::service::EventSlotView;
@@ -11,6 +10,7 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use ulid::Ulid;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(list_slots, export_bookings, create_slot))]
@@ -28,7 +28,7 @@ async fn list_slots(
     State(services): State<Services>,
     Path(eid): Path<String>,
 ) -> Result<Json<Vec<EventSlotDto>>, ApiError> {
-    let event_id = parse_ulid_uuid("event_id", &eid)?;
+    let event_id = eid.parse::<Ulid>()?.into();
     Ok(Json(
         services
             .event()
@@ -47,7 +47,7 @@ async fn export_bookings(
     Path(eid): Path<String>,
 ) -> Result<Response, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
-    let event_id = parse_ulid_uuid("event_id", &eid)?;
+    let event_id = eid.parse::<Ulid>()?.into();
     let rows = services.event().export_slot_bookings(event_id).await?;
 
     Ok((
@@ -73,7 +73,7 @@ async fn create_slot(
 ) -> Result<Json<EventSlotDto>, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let event_id = parse_ulid_uuid("event_id", &eid)?;
+    let event_id = eid.parse::<Ulid>()?.into();
     let slot = services
         .event()
         .create_slot(event_id, request.try_into()?, operated_by)

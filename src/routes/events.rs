@@ -1,8 +1,8 @@
 use axum::extract::{Path, Query, State};
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
+use ulid::Ulid;
 
-use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
 use crate::modules::event::dto::{EventDto, EventSaveRequest, ListPastQuery};
 use crate::modules::user::middleware::CurrentUser;
@@ -62,7 +62,7 @@ async fn get_event(
     State(services): State<Services>,
     Path(eid): Path<String>,
 ) -> Result<Json<EventDto>, ApiError> {
-    let id = parse_ulid_uuid("event_id", &eid)?;
+    let id = eid.parse::<Ulid>()?.into();
     let event = services.event().find(id).await?;
 
     Ok(Json(EventDto::from(event)))
@@ -93,7 +93,7 @@ async fn update_event(
 ) -> Result<Json<EventDto>, ApiError> {
     current_user.require_role(UserRole::EventCoordinator)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let id = parse_ulid_uuid("event_id", &eid)?;
+    let id = eid.parse::<Ulid>()?.into();
     let event = services
         .event()
         .update(id, request.try_into()?, operated_by)

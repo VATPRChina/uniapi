@@ -2,7 +2,6 @@ pub mod adapter;
 pub mod app;
 pub mod command;
 pub mod discord;
-pub mod dto;
 pub mod error;
 pub mod model;
 pub mod modules;

@@ -2,7 +2,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
-use crate::dto::parse_ulid_uuid;
 use crate::modules::controller::models::{ControllerPositionKind, UserControllerState};
 use crate::modules::user::dto::UserDto;
 use crate::modules::user::models::UserSummary;
@@ -154,7 +153,7 @@ impl TryFrom<EventSlotSaveRequest> for EventSlotSave {
 
     fn try_from(request: EventSlotSaveRequest) -> Result<Self, Self::Error> {
         Ok(Self {
-            airspace_id: parse_ulid_uuid("airspace_id", &request.airspace_id)?,
+            airspace_id: request.airspace_id.parse::<Ulid>()?.into(),
             enter_at: request.enter_at,
             leave_at: request.leave_at,
             callsign: request.callsign,
