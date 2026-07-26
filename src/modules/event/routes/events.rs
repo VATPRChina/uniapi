@@ -4,7 +4,7 @@ use axum::{Json, Router};
 use ulid::Ulid;
 
 use crate::error::ApiError;
-use crate::model::user_role::UserRole;
+use crate::modules::user::models::UserRole;
 use crate::modules::event::dto::{EventDto, EventSaveRequest, ListPastQuery};
 use crate::modules::user::middleware::CurrentUser;
 use crate::services::Services;

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::model::user_role::{UserRole, role_closure, role_closure_from_strings};
+use crate::modules::user::models::{UserRole, role_closure, role_closure_from_strings};
 
 use super::models::{User, UserSummary};
 

@@ -4,7 +4,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::adapter::moodle::{MoodleClient, MoodleError};
-use crate::model::user_role::UserRole;
+use crate::modules::user::models::UserRole;
 use crate::modules::audit_log::models::AuditLogEntity;
 use crate::modules::audit_log::service::{AuditLogService, AuditLogServiceError};
 use crate::modules::user::models::{MoodleUser, User, UserSummary};

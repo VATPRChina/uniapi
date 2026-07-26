@@ -4,7 +4,7 @@ use axum::routing::get;
 use axum::{Json, Router};
 
 use crate::error::ApiError;
-use crate::model::user_role::UserRole;
+use crate::modules::user::models::UserRole;
 use crate::modules::navdata::dto::{PreferredRouteDto, PreferredRouteSaveRequest};
 use crate::modules::user::middleware::CurrentUser;
 use crate::services::Services;

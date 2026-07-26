@@ -9,7 +9,6 @@ use crate::adapter::compat::CompatClientError;
 use crate::adapter::email::EmailError;
 use crate::adapter::moodle::MoodleError;
 use crate::adapter::smms::SmmsError;
-use crate::model::user_role::UserRole;
 use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
@@ -21,6 +20,7 @@ use crate::modules::flight::service::FlightServiceError;
 use crate::modules::sheet::service::SheetServiceError;
 use crate::modules::training::service::{TrainingApplicationServiceError, TrainingServiceError};
 use crate::modules::user::middleware::AuthError;
+use crate::modules::user::models::UserRole;
 use crate::modules::user::service::user::UserServiceError;
 
 macro_rules! api_errors {

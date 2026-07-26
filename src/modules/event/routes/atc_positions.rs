@@ -5,7 +5,7 @@ use axum::{Json, Router};
 use ulid::Ulid;
 
 use crate::error::ApiError;
-use crate::model::user_role::UserRole;
+use crate::modules::user::models::UserRole;
 use crate::modules::event::dto::{
     EventAtcPositionBookRequest, EventAtcPositionBookingDto, EventAtcPositionDto,
     EventAtcPositionSaveRequest,

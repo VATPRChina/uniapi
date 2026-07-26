@@ -5,7 +5,7 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::error::ApiError;
-use crate::model::user_role::UserRole;
+use crate::modules::user::models::UserRole;
 use crate::modules::training::dto::{
     TrainingApplicationCreateRequest, TrainingApplicationDto, TrainingApplicationResponseDto,
     TrainingApplicationResponseRequest,

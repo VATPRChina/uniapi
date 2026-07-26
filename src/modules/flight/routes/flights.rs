@@ -9,7 +9,7 @@ use axum::{Json, Router};
 use tokio::time;
 
 use crate::error::ApiError;
-use crate::model::user_role::UserRole;
+use crate::modules::user::models::UserRole;
 use crate::modules::flight::dto::{FlightDto, FlightLeg, TemporaryFlightQuery};
 use crate::modules::flight::flight_plan::validator;
 use crate::modules::flight::models::Flight;

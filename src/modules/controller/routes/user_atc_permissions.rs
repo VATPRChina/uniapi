@@ -5,7 +5,7 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::error::ApiError;
-use crate::model::user_role::UserRole;
+use crate::modules::user::models::UserRole;
 use crate::modules::controller::dto::{AtcStatusDto, AtcStatusRequest};
 use crate::modules::controller::models::ControllerSave;
 use crate::modules::user::middleware::CurrentUser;

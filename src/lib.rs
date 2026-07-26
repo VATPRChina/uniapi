@@ -3,7 +3,6 @@ pub mod app;
 pub mod command;
 pub mod discord;
 pub mod error;
-pub mod model;
 pub mod modules;
 pub mod openapi;
 pub mod repository;

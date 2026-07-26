@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::adapter::email::EmailContent;
 use crate::error::ApiError;
-use crate::model::user_role::UserRole;
+use crate::modules::user::models::UserRole;
 use crate::modules::atc_application::dto::{
     AtcApplicationDto, AtcApplicationRequest, AtcApplicationReviewRequest, AtcApplicationStatus,
     AtcApplicationSummaryDto,

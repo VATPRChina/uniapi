@@ -4,7 +4,7 @@ use axum::{Json, Router};
 use serde::Serialize;
 
 use crate::error::ApiError;
-use crate::model::user_role::UserRole;
+use crate::modules::user::models::UserRole;
 use crate::modules::user::middleware::CurrentUser;
 use crate::services::Services;
 
