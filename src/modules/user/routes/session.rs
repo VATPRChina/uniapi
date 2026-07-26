@@ -5,9 +5,9 @@ use axum::{Json, Router};
 use chrono::DateTime;
 use ulid::Ulid;
 
+use crate::error::ApiError;
 use crate::modules::user::dto::{TokenDto, UserDto};
 use crate::modules::user::middleware::CurrentUser;
-use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]

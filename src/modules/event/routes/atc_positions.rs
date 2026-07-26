@@ -4,6 +4,7 @@ use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use ulid::Ulid;
 
+use crate::error::ApiError;
 use crate::model::user_role::UserRole;
 use crate::modules::event::dto::{
     EventAtcPositionBookRequest, EventAtcPositionBookingDto, EventAtcPositionDto,
@@ -11,7 +12,6 @@ use crate::modules::event::dto::{
 };
 use crate::modules::event::service::EventAtcPositionView;
 use crate::modules::user::middleware::CurrentUser;
-use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]

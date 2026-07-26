@@ -8,13 +8,13 @@ use axum::routing::get;
 use axum::{Json, Router};
 use tokio::time;
 
+use crate::error::ApiError;
 use crate::model::user_role::UserRole;
 use crate::modules::flight::dto::{FlightDto, FlightLeg, TemporaryFlightQuery};
 use crate::modules::flight::flight_plan::validator;
 use crate::modules::flight::models::Flight;
 use crate::modules::flight::service::FlightService;
 use crate::modules::user::middleware::CurrentUser;
-use crate::routes::ApiError;
 use crate::services::Services;
 
 const VALIDATION_REFRESH_INTERVAL: Duration = Duration::from_secs(30);

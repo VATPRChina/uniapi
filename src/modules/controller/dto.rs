@@ -2,10 +2,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
+use crate::error::ApiError;
 use crate::modules::controller::models::Controller;
 use crate::modules::user::dto::UserDto;
 use crate::modules::user::models::UserSummary;
-use crate::routes::ApiError;
 
 use super::models::{
     ControllerPermission, ControllerPermissionSave, ControllerRating, ControllerSave,

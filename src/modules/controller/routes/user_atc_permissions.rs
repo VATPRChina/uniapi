@@ -4,11 +4,11 @@ use axum::{Json, Router};
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::error::ApiError;
 use crate::model::user_role::UserRole;
 use crate::modules::controller::dto::{AtcStatusDto, AtcStatusRequest};
 use crate::modules::controller::models::ControllerSave;
 use crate::modules::user::middleware::CurrentUser;
-use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]

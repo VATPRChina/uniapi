@@ -5,6 +5,7 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::adapter::email::EmailContent;
+use crate::error::ApiError;
 use crate::model::user_role::UserRole;
 use crate::modules::atc_application::dto::{
     AtcApplicationDto, AtcApplicationRequest, AtcApplicationReviewRequest, AtcApplicationStatus,
@@ -15,7 +16,6 @@ use crate::modules::sheet::dto::{SheetDto, SheetFieldAnswerDto};
 use crate::modules::sheet::models::SheetAnswerSave;
 use crate::modules::user::dto::UserMoodleInfoDto;
 use crate::modules::user::middleware::CurrentUser;
-use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]

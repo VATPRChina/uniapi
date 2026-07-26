@@ -4,6 +4,7 @@ use axum::{Json, Router};
 use ulid::Ulid;
 use uuid::Uuid;
 
+use crate::error::ApiError;
 use crate::model::user_role::UserRole;
 use crate::modules::training::dto::{
     TrainingApplicationCreateRequest, TrainingApplicationDto, TrainingApplicationResponseDto,
@@ -11,7 +12,6 @@ use crate::modules::training::dto::{
 };
 use crate::modules::training::service::TrainingApplicationView;
 use crate::modules::user::middleware::CurrentUser;
-use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]

@@ -3,9 +3,9 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde::Serialize;
 
+use crate::error::ApiError;
 use crate::model::user_role::UserRole;
 use crate::modules::user::middleware::CurrentUser;
-use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(Serialize, utoipa::ToSchema)]

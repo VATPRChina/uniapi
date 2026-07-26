@@ -3,10 +3,10 @@ use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use ulid::Ulid;
 
+use crate::error::ApiError;
 use crate::model::user_role::UserRole;
 use crate::modules::event::dto::{EventDto, EventSaveRequest, ListPastQuery};
 use crate::modules::user::middleware::CurrentUser;
-use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]

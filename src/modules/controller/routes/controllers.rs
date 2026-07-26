@@ -3,8 +3,8 @@ use axum::routing::get;
 use axum::{Json, Router};
 use ulid::Ulid;
 
+use crate::error::ApiError;
 use crate::modules::controller::dto::AtcStatusDto;
-use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]

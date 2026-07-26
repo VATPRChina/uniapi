@@ -2,9 +2,9 @@ use axum::extract::State;
 use axum::routing::get;
 use axum::{Json, Router};
 
+use crate::error::ApiError;
 use crate::modules::controller::dto::SectorPermissionResponse;
 use crate::modules::user::middleware::CurrentUser;
-use crate::routes::ApiError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
