@@ -5,8 +5,8 @@ use std::collections::BTreeSet;
 
 use crate::dto::*;
 use crate::model::user_role::UserRole;
-use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::user::dto::UserDto;
+use crate::modules::user::middleware::CurrentUser;
 use crate::routes::ApiError;
 use crate::services::Services;
 

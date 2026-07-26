@@ -2,8 +2,8 @@ use axum::extract::State;
 use axum::routing::get;
 use axum::{Json, Router};
 
-use crate::modules::authentication::middleware::CurrentUser;
-use crate::modules::sector::dto::SectorPermissionResponse;
+use crate::modules::controller::dto::SectorPermissionResponse;
+use crate::modules::user::middleware::CurrentUser;
 use crate::routes::ApiError;
 use crate::services::Services;
 
@@ -22,6 +22,10 @@ async fn current_permission(
 ) -> Result<Json<SectorPermissionResponse>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     Ok(Json(
-        services.sector().current_permission(user_id).await?.into(),
+        services
+            .controller()
+            .current_sector_permission(user_id)
+            .await?
+            .into(),
     ))
 }

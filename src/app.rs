@@ -13,7 +13,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
 use crate::error::ApiError;
-use crate::modules::authentication::middleware as auth;
+use crate::modules::user::middleware as auth;
 use crate::openapi::{openapi, openapi_json};
 use crate::routes::atc::build_atc_routes;
 use crate::routes::atc_applications::build_atc_application_routes;

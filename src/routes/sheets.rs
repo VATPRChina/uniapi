@@ -3,9 +3,9 @@ use axum::routing::{get, put};
 use axum::{Json, Router};
 
 use crate::model::user_role::UserRole;
-use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::sheet::dto::{SheetDto, SheetSaveRequest, validate_sheet_request};
 use crate::modules::sheet::service::SheetView;
+use crate::modules::user::middleware::CurrentUser;
 use crate::routes::ApiError;
 use crate::services::Services;
 

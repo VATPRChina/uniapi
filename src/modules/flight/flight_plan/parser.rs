@@ -105,7 +105,13 @@ impl<'a> RouteParser<'a> {
                 .rev()
                 .collect()
         } else {
-            panic!("invalid result from navdata")
+            tracing::warn!(
+                airway = ident,
+                from = from_value,
+                to = to_value,
+                "airway lookup returned inconsistent endpoints; treating leg as direct"
+            );
+            return Ok(());
         };
 
         self.legs.extend(airway_legs.into_iter());

@@ -1,13 +1,9 @@
 pub mod atc_application;
 pub mod audit_log;
-pub mod authentication;
-pub mod compat;
 pub mod controller;
 pub mod event;
 pub mod flight;
 pub mod navdata;
-pub mod sector;
 pub mod sheet;
-pub mod storage;
 pub mod training;
 pub mod user;

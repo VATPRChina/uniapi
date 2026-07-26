@@ -1,12 +1,17 @@
 use axum::extract::{DefaultBodyLimit, Multipart, State};
 use axum::routing::post;
 use axum::{Json, Router};
+use serde::Serialize;
 
 use crate::model::user_role::UserRole;
-use crate::modules::authentication::middleware::CurrentUser;
-use crate::modules::storage::dto::UploadImageResponse;
+use crate::modules::user::middleware::CurrentUser;
 use crate::routes::ApiError;
 use crate::services::Services;
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct UploadImageResponse {
+    pub url: String,
+}
 
 #[derive(utoipa::OpenApi)]
 #[openapi(paths(upload_image))]
@@ -45,12 +50,12 @@ async fn upload_image(
             return Err(ApiError::bad_request("image", "file is empty"));
         }
 
-        let image = services
-            .storage()
+        let url = services
+            .image_storage()
             .upload_image(image, file_name, content_type)
             .await?;
 
-        return Ok(Json(image.into()));
+        return Ok(Json(UploadImageResponse { url }));
     }
 
     Err(ApiError::bad_request("image", "image not included"))

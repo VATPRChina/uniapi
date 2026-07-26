@@ -10,10 +10,10 @@ use tracing::instrument;
 use ulid::Ulid;
 use uuid::Uuid;
 
-use crate::modules::authentication::dto::*;
-use crate::modules::authentication::models::{AuthenticationState, AuthenticationStateType};
-use crate::modules::authentication::repository::VatsimAuthError;
+use crate::modules::user::dto::*;
 use crate::modules::user::models::UserSummary;
+use crate::modules::user::models::{AuthenticationState, AuthenticationStateType};
+use crate::modules::user::repository::vatsim_auth::VatsimAuthError;
 use crate::modules::user::service::access_token::AccessTokenServiceError;
 use crate::modules::user::service::device_authorization::normalize_user_code;
 use crate::modules::user::service::user::UserServiceError;

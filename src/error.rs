@@ -13,17 +13,14 @@ use crate::model::user_role::UserRole;
 use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
-use crate::modules::authentication::middleware::AuthError;
-use crate::modules::compat::service::CompatServiceError;
 use crate::modules::controller::service::ControllerServiceError;
 use crate::modules::event::service::EventServiceError;
 use crate::modules::flight::flight_plan::parser::ParserError;
 use crate::modules::flight::flight_plan::validator::ValidatorError;
 use crate::modules::flight::service::FlightServiceError;
-use crate::modules::sector::service::SectorServiceError;
 use crate::modules::sheet::service::SheetServiceError;
-use crate::modules::storage::service::StorageServiceError;
 use crate::modules::training::service::{TrainingApplicationServiceError, TrainingServiceError};
+use crate::modules::user::middleware::AuthError;
 use crate::modules::user::service::user::UserServiceError;
 
 macro_rules! api_errors {
@@ -307,26 +304,6 @@ impl From<SheetServiceError> for ApiError {
     }
 }
 
-impl From<SectorServiceError> for ApiError {
-    fn from(error: SectorServiceError) -> Self {
-        match error {
-            SectorServiceError::UserNotFound(id) => {
-                ApiError::not_found("user", ulid::Ulid::from(id).to_string())
-            }
-            SectorServiceError::Database(source) => ApiError::Database { source },
-            SectorServiceError::User(source) => source.into(),
-        }
-    }
-}
-
-impl From<StorageServiceError> for ApiError {
-    fn from(error: StorageServiceError) -> Self {
-        match error {
-            StorageServiceError::Images(source) => ApiError::Smms { source },
-        }
-    }
-}
-
 impl From<TrainingApplicationServiceError> for ApiError {
     fn from(error: TrainingApplicationServiceError) -> Self {
         match error {
@@ -374,15 +351,6 @@ impl From<ControllerServiceError> for ApiError {
             }
             ControllerServiceError::User(source) => source.into(),
             ControllerServiceError::AuditLog(source) => ApiError::AuditLog { source },
-        }
-    }
-}
-
-impl From<CompatServiceError> for ApiError {
-    fn from(error: CompatServiceError) -> Self {
-        match error {
-            CompatServiceError::Client(source) => ApiError::Compat { source },
-            CompatServiceError::Database(source) => ApiError::Database { source },
         }
     }
 }

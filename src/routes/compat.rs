@@ -5,8 +5,8 @@ use axum::routing::get;
 use axum::{Json, Router};
 
 use crate::error::ApiError;
-use crate::modules::compat::dto::{CompatVatprcStatusDto, MetarQuery};
-use crate::modules::compat::service::CompatServiceError;
+use crate::modules::flight::dto::{CompatVatprcStatusDto, MetarQuery};
+use crate::modules::flight::service::FlightServiceError;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -32,7 +32,14 @@ pub fn build_compat_routes() -> Router<Services> {
 async fn online_status(
     State(services): State<Services>,
 ) -> Result<Json<CompatVatprcStatusDto>, ApiError> {
-    Ok(Json(services.compat().online_status().await?.into()))
+    let future_controllers = services.controller().future_compat_controllers().await?;
+    Ok(Json(
+        services
+            .flight()
+            .compat_online_status(future_controllers)
+            .await?
+            .into(),
+    ))
 }
 
 #[utoipa::path(get, path = "api/compat/euroscope/metar/{icao}", tag = "Compat", params(("icao" = String, Path, description = "ICAO code")), responses((status = 200, description = "Successful response", body = String)))]
@@ -50,7 +57,7 @@ async fn get_metar_by_query(
 
 async fn metar_response(services: Services, icao: String) -> Response {
     let normalized_icao = icao.to_uppercase();
-    let metar = services.compat().metar(&normalized_icao).await;
+    let metar = services.flight().metar(&normalized_icao).await;
     if metar.is_empty() {
         return (
             StatusCode::NOT_FOUND,
@@ -70,15 +77,15 @@ async fn metar_response(services: Services, icao: String) -> Response {
 
 #[utoipa::path(get, path = "api/compat/trackaudio/mandatory_version", tag = "Compat", responses((status = 200, description = "Successful response", body = String)))]
 async fn trackaudio_version(State(services): State<Services>) -> Result<Response, ApiError> {
-    text_response(services.compat().track_audio_version().await)
+    text_response(services.flight().track_audio_version().await)
 }
 
 #[utoipa::path(get, path = "api/compat/vplaaf/areas.json", tag = "Compat", responses((status = 200, description = "Successful response", body = serde_json::Value)))]
 async fn vplaaf_areas(State(services): State<Services>) -> Result<Response, ApiError> {
-    json_text_response(services.compat().vplaaf_areas().await)
+    json_text_response(services.flight().vplaaf_areas().await)
 }
 
-fn text_response(content: Result<String, CompatServiceError>) -> Result<Response, ApiError> {
+fn text_response(content: Result<String, FlightServiceError>) -> Result<Response, ApiError> {
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
@@ -87,7 +94,7 @@ fn text_response(content: Result<String, CompatServiceError>) -> Result<Response
         .into_response())
 }
 
-fn json_text_response(content: Result<String, CompatServiceError>) -> Result<Response, ApiError> {
+fn json_text_response(content: Result<String, FlightServiceError>) -> Result<Response, ApiError> {
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "application/json; charset=utf-8")],

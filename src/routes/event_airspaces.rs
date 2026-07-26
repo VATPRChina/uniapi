@@ -1,7 +1,7 @@
 use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
-use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::event::dto::{EventAirspaceDto, EventAirspaceSaveRequest};
+use crate::modules::user::middleware::CurrentUser;
 use crate::routes::ApiError;
 use crate::services::Services;
 use axum::extract::{Path, State};

@@ -11,10 +11,10 @@ use crate::modules::atc_application::dto::{
     AtcApplicationSummaryDto,
 };
 use crate::modules::atc_application::service::AtcApplicationView;
-use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::sheet::dto::{SheetDto, SheetFieldAnswerDto};
 use crate::modules::sheet::models::SheetAnswerSave;
 use crate::modules::user::dto::UserMoodleInfoDto;
+use crate::modules::user::middleware::CurrentUser;
 use crate::routes::ApiError;
 use crate::services::Services;
 

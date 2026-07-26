@@ -4,6 +4,17 @@ use std::str::FromStr;
 use serde::Serialize;
 use uuid::Uuid;
 
+pub struct SectorPermission {
+    pub has_permission: bool,
+}
+
+pub struct CompatFutureController {
+    pub callsign: String,
+    pub name: String,
+    pub start_at: DateTime<Utc>,
+    pub end_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Controller {
     pub user_id: Uuid,

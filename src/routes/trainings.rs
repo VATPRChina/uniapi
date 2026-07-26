@@ -5,11 +5,11 @@ use axum::{Json, Router};
 
 use crate::dto::parse_ulid_uuid;
 use crate::model::user_role::UserRole;
-use crate::modules::authentication::middleware::CurrentUser;
 use crate::modules::sheet::dto::{SheetDto, SheetFieldAnswerDto};
 use crate::modules::sheet::models::SheetAnswerSave;
 use crate::modules::training::dto::{TrainingDto, TrainingRecordRequest, TrainingSaveRequest};
 use crate::modules::training::service::TrainingView;
+use crate::modules::user::middleware::CurrentUser;
 use crate::routes::ApiError;
 use crate::services::Services;
 

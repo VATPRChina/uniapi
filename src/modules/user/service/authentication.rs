@@ -1,8 +1,7 @@
-use crate::settings::VatsimAuthentication;
-
-use super::repository::{
+use crate::modules::user::repository::vatsim_auth::{
     VatsimAuthClient, VatsimAuthError, VatsimTokenResponse, VatsimUserResponse, generate_pkce,
 };
+use crate::settings::VatsimAuthentication;
 
 #[derive(Clone)]
 pub struct AuthenticationService {

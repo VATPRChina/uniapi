@@ -1,14 +1,25 @@
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
 
 use crate::adapter::compat::{CompatClient, CompatClientError};
+use crate::modules::controller::models::CompatFutureController;
 use crate::modules::navdata::models::ResolvedLeg;
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
+use regex::Regex;
 
 use super::flight_plan::parser::{self, ParserError};
 use super::flight_plan::validator::{self, ValidatorError, WarningMessage};
-use super::models::Flight;
+use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
 use super::repository::flight::FlightRepository;
+
+static VATPRC_CONTROLLER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(Z[BSGUHWJPLYM][A-Z0-9]{2}(_[A-Z0-9]*)?_(DEL|GND|TWR|APP|DEP|CTR))|(PRC_FSS)$")
+        .expect("VATPRC controller regex should compile")
+});
+static VATPRC_AIRPORT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^Z[BMSPGJYWLH][A-Z]{2}").expect("VATPRC airport regex should compile")
+});
 
 #[derive(Clone)]
 pub struct FlightService {
@@ -28,6 +39,67 @@ impl FlightService {
 
     pub async fn list(&self) -> Result<Vec<Flight>, FlightServiceError> {
         Ok(self.compat.list_flights().await?)
+    }
+
+    pub async fn compat_online_status(
+        &self,
+        future_controllers: Vec<CompatFutureController>,
+    ) -> Result<CompatStatus, FlightServiceError> {
+        let vatsim_data = self.compat.get_online_data().await?;
+        let pilots = vatsim_data
+            .pilots
+            .into_iter()
+            .filter_map(|pilot| {
+                let flight_plan = pilot.flight_plan?;
+                let departure_matches = flight_plan
+                    .departure
+                    .as_deref()
+                    .is_some_and(|airport| VATPRC_AIRPORT_REGEX.is_match(airport));
+                let arrival_matches = flight_plan
+                    .arrival
+                    .as_deref()
+                    .is_some_and(|airport| VATPRC_AIRPORT_REGEX.is_match(airport));
+                (departure_matches || arrival_matches).then_some(CompatPilot {
+                    cid: pilot.cid as i32,
+                    name: pilot.name,
+                    callsign: pilot.callsign,
+                    departure: flight_plan.departure,
+                    arrival: flight_plan.arrival,
+                    aircraft: flight_plan.aircraft_short,
+                })
+            })
+            .collect();
+        let controllers = vatsim_data
+            .controllers
+            .into_iter()
+            .filter(|controller| VATPRC_CONTROLLER_REGEX.is_match(&controller.callsign))
+            .filter(|controller| controller.facility > 0)
+            .map(|controller| CompatController {
+                cid: controller.cid as i32,
+                name: controller.name,
+                callsign: controller.callsign,
+                frequency: controller.frequency,
+            })
+            .collect();
+
+        Ok(CompatStatus {
+            last_updated: vatsim_data.general.update_timestamp,
+            pilots,
+            controllers,
+            future_controllers,
+        })
+    }
+
+    pub async fn metar(&self, icao: &str) -> String {
+        self.compat.get_metar(icao).await
+    }
+
+    pub async fn track_audio_version(&self) -> Result<String, FlightServiceError> {
+        Ok(self.compat.get_track_audio_version().await?)
+    }
+
+    pub async fn vplaaf_areas(&self) -> Result<String, FlightServiceError> {
+        Ok(self.compat.get_vplaaf_areas().await?)
     }
 
     pub async fn find_by_callsign(&self, callsign: &str) -> Result<Flight, FlightServiceError> {

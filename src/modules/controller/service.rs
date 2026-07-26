@@ -10,10 +10,12 @@ use crate::modules::user::models::UserSummary;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 
 use super::models::{
-    Controller, ControllerPermission, ControllerPositionKind, ControllerRating, ControllerSave,
-    UserControllerState,
+    CompatFutureController, Controller, ControllerPermission, ControllerPositionKind,
+    ControllerRating, ControllerSave, SectorPermission, UserControllerState,
 };
+use super::repository::compat::CompatRepository;
 use super::repository::controller::{AtcControllerPermissionRecord, ControllerRepository};
+use super::repository::sector::SectorRepository;
 use super::repository::user_atc_permission::{AtcPermissionRecord, UserAtcPermissionRepository};
 use super::repository::user_atc_status::{
     AtcStatusRecord, UserAtcStatusRepository, UserAtcStatusTransactionRepository,
@@ -113,6 +115,37 @@ impl ControllerService {
             .db
             .has_user_atc_permission_mentor_by_user_id(user_id)
             .await?)
+    }
+
+    pub async fn current_sector_permission(
+        &self,
+        user_id: Uuid,
+    ) -> Result<SectorPermission, ControllerServiceError> {
+        let user = self
+            .user
+            .find_summary_by_id(user_id)
+            .await?
+            .ok_or(ControllerServiceError::UserNotFound(user_id))?;
+        Ok(SectorPermission {
+            has_permission: self.db.user_sector_can_online(user.id, &user.cid).await?,
+        })
+    }
+
+    pub async fn future_compat_controllers(
+        &self,
+    ) -> Result<Vec<CompatFutureController>, ControllerServiceError> {
+        Ok(self
+            .db
+            .future_compat_controllers()
+            .await?
+            .into_iter()
+            .map(|controller| CompatFutureController {
+                callsign: controller.callsign,
+                name: controller.name,
+                start_at: controller.start_at,
+                end_at: controller.end_at,
+            })
+            .collect())
     }
 
     async fn with_user(

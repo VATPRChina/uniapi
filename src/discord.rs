@@ -102,7 +102,7 @@ impl DiscordEventHandler {
             return;
         }
 
-        let metar = self.services.compat().metar(&normalized_icao).await;
+        let metar = self.services.flight().metar(&normalized_icao).await;
         let content = if metar.is_empty() {
             format!("{normalized_icao} NO METAR")
         } else {
