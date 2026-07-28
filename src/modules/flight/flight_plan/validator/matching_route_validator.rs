@@ -125,7 +125,17 @@ impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for MinimalAltitudeValidato
 
 fn level_restriction_type(cruising_level: i32) -> LevelRestrictionType {
     if let Some(metric_level) = standard_altitude_from_flight_level(cruising_level) {
-        if metric_level % 200 == 0 {
+        let is_even = match metric_level {
+            // Below RVSM, levels are 300 m apart and alternate every level.
+            ..=8400 => (metric_level / 300) % 2 == 0,
+            // In RVSM airspace, 8,900 m is the first odd level and levels
+            // alternate every 300 m through 12,500 m.
+            8900..=12500 => ((metric_level - 8900) / 300) % 2 != 0,
+            // Above RVSM, levels are 600 m apart and alternate every level.
+            _ => ((metric_level - 12500) / 600) % 2 != 0,
+        };
+
+        if is_even {
             LevelRestrictionType::StandardEven
         } else {
             LevelRestrictionType::StandardOdd
@@ -220,3 +230,81 @@ const STANDARD_ALTITUDE_TO_FLIGHT_LEVEL: &[(i32, i32)] = &[
     (13100, 43000),
     (14300, 46900),
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_metric_levels_below_rvsm() {
+        for flight_level in [
+            1000, 3000, 4900, 6900, 8900, 10800, 12800, 14800, 16700, 18700, 20700, 22600, 24600,
+            26600,
+        ] {
+            assert_eq!(
+                level_restriction_type(flight_level),
+                LevelRestrictionType::StandardOdd
+            );
+        }
+
+        for flight_level in [
+            2000, 3900, 5900, 7900, 9800, 11800, 13800, 15700, 17700, 19700, 21700, 23600, 25600,
+            27600,
+        ] {
+            assert_eq!(
+                level_restriction_type(flight_level),
+                LevelRestrictionType::StandardEven
+            );
+        }
+    }
+
+    #[test]
+    fn classifies_metric_levels_in_rvsm_airspace() {
+        for flight_level in [29100, 31100, 33100, 35100, 37100, 39100, 41100] {
+            assert_eq!(
+                level_restriction_type(flight_level),
+                LevelRestrictionType::StandardOdd
+            );
+        }
+
+        for flight_level in [30100, 32100, 34100, 36100, 38100, 40100] {
+            assert_eq!(
+                level_restriction_type(flight_level),
+                LevelRestrictionType::StandardEven
+            );
+        }
+    }
+
+    #[test]
+    fn classifies_metric_levels_above_rvsm() {
+        for flight_level in [44900, 48900] {
+            assert_eq!(
+                level_restriction_type(flight_level),
+                LevelRestrictionType::StandardOdd
+            );
+        }
+
+        for flight_level in [43000, 46900] {
+            assert_eq!(
+                level_restriction_type(flight_level),
+                LevelRestrictionType::StandardEven
+            );
+        }
+    }
+
+    #[test]
+    fn classifies_unmapped_flight_levels_and_non_standard_altitudes() {
+        assert_eq!(
+            level_restriction_type(30000),
+            LevelRestrictionType::FlightLevelEven
+        );
+        assert_eq!(
+            level_restriction_type(31000),
+            LevelRestrictionType::FlightLevelOdd
+        );
+        assert_eq!(
+            level_restriction_type(30500),
+            LevelRestrictionType::Standard
+        );
+    }
+}
