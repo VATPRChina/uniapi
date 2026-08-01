@@ -35,11 +35,11 @@ impl<'a> Validator<LegContext<'a>> for AirwayRequireApprovalValidator {
             .filter(|ident| {
                 let from_zh = leg
                     .from
-                    .identifier()
+                    .icao_code()
                     .is_some_and(|identifier| identifier.starts_with('Z'));
                 let to_zh = leg
                     .to
-                    .identifier()
+                    .icao_code()
                     .is_some_and(|identifier| identifier.starts_with('Z'));
 
                 from_zh && to_zh && (ident.starts_with('V') || ident.starts_with('X'))
@@ -56,11 +56,11 @@ impl<'a> Validator<LegContext<'a>> for RouteDirectSegmentValidator {
     fn validate((index, leg): LegContext<'a>) -> impl IntoIterator<Item = WarningMessage> {
         let is_from_zh = leg
             .from
-            .identifier()
+            .icao_code()
             .is_none_or(|identifier| identifier.starts_with('Z'));
         let is_to_zh = leg
             .to
-            .identifier()
+            .icao_code()
             .is_none_or(|identifier| identifier.starts_with('Z'));
 
         (leg.identifier.is_none()
