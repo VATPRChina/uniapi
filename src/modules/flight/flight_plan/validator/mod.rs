@@ -122,7 +122,9 @@ pub async fn validate_route(
         .validate::<AllowedAltitudesValidator, _>(context_matching_route)
         .validate::<MinimalAltitudeValidator, _>(context_matching_route);
 
-    let messages = messages.validate_over::<LegValidator, _>(legs.iter().enumerate());
+    let messages = messages.validate_over::<LegValidator, _>(
+        legs.iter().enumerate().filter(|_| matching_route.is_none()),
+    );
 
     Ok(messages.build().into_iter().collect())
 }
@@ -277,6 +279,58 @@ mod tests {
             &[direct_leg(fix("A"), fix("B"))],
             &[]
         ));
+    }
+
+    #[tokio::test]
+    async fn matching_preferred_route_skips_leg_validation() {
+        let navdata = NavdataService::with_preferred_routes_path(
+            "data/ng_jeppesen_fwdfd_2401.s3db",
+            "assets/test/matching_route.csv",
+        )
+        .await
+        .unwrap();
+        let flight = Flight {
+            id: ulid::Ulid::new(),
+            cid: "10000001".to_owned(),
+            callsign: "TEST001".to_owned(),
+            last_observed_at: chrono::Utc::now(),
+            departure: "TEST1".to_owned(),
+            arrival: "TEST2".to_owned(),
+            equipment: "W".to_owned(),
+            navigation_performance: "D1".to_owned(),
+            transponder: "S".to_owned(),
+            raw_route: "DOM DCT MACKI".to_owned(),
+            aircraft: "B738".to_owned(),
+            altitude: 29100,
+            cruising_level: 29100,
+        };
+        let mut legs = parser::parse_route(&navdata, &flight.raw_route)
+            .await
+            .unwrap();
+        legs.push(direct_leg(fix("EXT1"), fix("EXT2")));
+
+        assert!(
+            legs.iter()
+                .enumerate()
+                .flat_map(LegValidator::validate)
+                .next()
+                .is_some()
+        );
+
+        let messages = validate_route(&navdata, &flight, &legs).await.unwrap();
+        assert!(
+            messages
+                .iter()
+                .any(|message| { message.message_code == WarningMessageCode::RouteMatchPreferred })
+        );
+        assert!(messages.iter().all(|message| {
+            !matches!(
+                message.message_code,
+                WarningMessageCode::RouteDirectSegment
+                    | WarningMessageCode::RouteLegDirection
+                    | WarningMessageCode::AirwayRequireApproval
+            )
+        }));
     }
 
     fn airway_leg(from: &str, to: &str, airway: &str) -> ResolvedLeg {
