@@ -8,6 +8,9 @@ const test = baseTest
   .extend("controller", async ({}) => {
     return await getClient([]);
   })
+  .extend("trainee", async ({}) => {
+    return await getClient([]);
+  })
   .extend("listedController", async ({ admin, controller }) => {
     const session = await controller.GET("/api/session");
     expect(session.response.status).toBe(200);
@@ -39,10 +42,32 @@ const test = baseTest
 
     expect(status.response.status).toBe(200);
     return status.data;
+  })
+  .extend("listedTrainee", async ({ admin, trainee }) => {
+    const session = await trainee.GET("/api/session");
+    expect(session.response.status).toBe(200);
+
+    const status = await admin.PUT("/api/users/{id}/atc/status", {
+      params: {
+        path: {
+          id: session.data.user.id,
+        },
+      },
+      body: {
+        is_absent: false,
+        is_visiting: false,
+        rating: "S1",
+        permissions: [],
+      },
+    });
+
+    expect(status.response.status).toBe(200);
+    return status.data;
   });
 
 test("GET /api/atc/controllers lists ATC controllers", async ({
   listedController,
+  listedTrainee,
 }) => {
   const client = await getClient();
 
@@ -73,6 +98,13 @@ test("GET /api/atc/controllers lists ATC controllers", async ({
             solo_expires_at: "2031-01-01T00:00:00Z",
           },
         ],
+      }),
+      expect.objectContaining({
+        user_id: listedTrainee.user_id,
+        is_absent: false,
+        is_visiting: false,
+        rating: "S1",
+        permissions: [],
       }),
     ]),
   );

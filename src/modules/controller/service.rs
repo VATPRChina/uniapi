@@ -40,13 +40,11 @@ impl ControllerService {
         let mut controllers = BTreeMap::<Uuid, Controller>::new();
 
         for row in rows {
-            let permission = controller_permission(&row)?;
             let controller = controller(&row)?;
-            controllers
-                .entry(row.user_id)
-                .or_insert(controller)
-                .permissions
-                .push(permission);
+            let controller = controllers.entry(row.user_id).or_insert(controller);
+            if let Some(permission) = controller_permission(&row)? {
+                controller.permissions.push(permission);
+            }
         }
 
         Ok(controllers.into_values().collect())
@@ -140,21 +138,25 @@ impl ControllerService {
 fn controller(row: &AtcControllerPermissionRecord) -> Result<Controller, ControllerServiceError> {
     Ok(Controller {
         user_id: row.user_id,
-        is_visiting: row.is_visiting.unwrap_or(false),
-        is_absent: row.is_absent.unwrap_or(false),
-        rating: parse_rating(row.rating.as_deref())?,
+        is_visiting: row.is_visiting,
+        is_absent: row.is_absent,
+        rating: parse_rating(Some(&row.rating))?,
         permissions: Vec::new(),
     })
 }
 
 fn controller_permission(
     row: &AtcControllerPermissionRecord,
-) -> Result<ControllerPermission, ControllerServiceError> {
-    Ok(ControllerPermission {
-        position_kind: parse_position_kind(&row.position_kind_id)?,
-        state: parse_controller_state(&row.state)?,
+) -> Result<Option<ControllerPermission>, ControllerServiceError> {
+    let (Some(position_kind_id), Some(state)) = (&row.position_kind_id, &row.state) else {
+        return Ok(None);
+    };
+
+    Ok(Some(ControllerPermission {
+        position_kind: parse_position_kind(position_kind_id)?,
+        state: parse_controller_state(state)?,
         solo_expires_at: row.solo_expires_at,
-    })
+    }))
 }
 
 fn controller_from_records(
