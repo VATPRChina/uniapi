@@ -200,7 +200,38 @@ pub struct FlightFix {
 impl From<&AnyFix> for FlightFix {
     fn from(fix: &AnyFix) -> Self {
         Self {
-            identifier: fix.identifier().unwrap_or_default().to_owned(),
+            identifier: match fix {
+                AnyFix::GeoPoint(geo_point) => {
+                    let latitude_minutes = (geo_point.latitude.abs() * 60.0).round() as u16;
+                    let longitude_minutes = (geo_point.longitude.abs() * 60.0).round() as u16;
+                    format!(
+                        "{:02}{:02}{}{:03}{:02}{}",
+                        latitude_minutes / 60,
+                        latitude_minutes % 60,
+                        if geo_point.latitude < 0.0 { "S" } else { "N" },
+                        longitude_minutes / 60,
+                        longitude_minutes % 60,
+                        if geo_point.longitude < 0.0 { "W" } else { "E" },
+                    )
+                }
+                _ => fix.identifier().unwrap_or_default().to_owned(),
+            },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::modules::navdata::models::GeoPoint;
+
+    #[test]
+    fn generates_geo_point_identifier_for_flight_fix() {
+        let fix = AnyFix::GeoPoint(GeoPoint {
+            latitude: -7.5,
+            longitude: 8.25,
+        });
+
+        assert_eq!(FlightFix::from(&fix).identifier, "0730S00815E");
     }
 }
