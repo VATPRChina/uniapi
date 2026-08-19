@@ -3,6 +3,8 @@ use crate::modules::flight::flight_plan::lexer::{LexerError, lex_route};
 use crate::modules::navdata::models::{AnyFix, DirectionRestriction, Fix, ResolvedLeg};
 use crate::modules::navdata::service::{InvalidNavdataError, NavdataService};
 
+const FIX_POSITION_TOLERANCE: f64 = 1.0 / 3600.0;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ParserError {
     #[error("navdata error: {0}")]
@@ -120,7 +122,14 @@ impl<'a> RouteParser<'a> {
 
     fn handle_waypoint(&mut self, _value: &str, fix: AnyFix) -> Result<(), ParserError> {
         let last_fix = self.last_fix()?;
-        if last_fix.latitude() == fix.latitude() && last_fix.longitude() == fix.longitude() {
+        let positions_match = (last_fix.latitude() - fix.latitude()).abs()
+            <= FIX_POSITION_TOLERANCE
+            && (last_fix.longitude() - fix.longitude()).abs() <= FIX_POSITION_TOLERANCE;
+        let identifiers_match = last_fix
+            .identifier()
+            .zip(fix.identifier())
+            .is_some_and(|(left, right)| left == right);
+        if positions_match || identifiers_match {
             return Ok(());
         }
         self.legs.push(ResolvedLeg {
