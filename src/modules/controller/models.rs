@@ -11,6 +11,13 @@ pub struct CompatFutureController {
     pub end_at: DateTime<Utc>,
 }
 
+pub struct ControllerOnlineTime {
+    pub period: String,
+    pub period_start: DateTime<Utc>,
+    pub as_of: DateTime<Utc>,
+    pub total_seconds: u64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Controller {
     pub user_id: Uuid,

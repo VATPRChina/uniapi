@@ -59,8 +59,13 @@ impl Services {
         let audit_log = AuditLogService::new(db.clone());
         let moodle = MoodleClient::new(settings.moodle.api_key.clone());
         let user = UserService::new(db.clone(), moodle.clone(), audit_log.clone());
-        let controller = ControllerService::new(db.clone(), audit_log.clone(), user.clone());
         let compat_client = CompatClient::new(settings.utils.metar.endpoint.clone());
+        let controller = ControllerService::new(
+            db.clone(),
+            audit_log.clone(),
+            user.clone(),
+            compat_client.clone(),
+        );
         let flight = FlightService::new(compat_client.clone(), navdata, user.clone());
         let sheet = SheetService::new(db.clone());
         let atc_application =

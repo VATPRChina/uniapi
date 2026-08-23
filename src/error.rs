@@ -353,6 +353,7 @@ impl From<ControllerServiceError> for ApiError {
             }
             ControllerServiceError::User(source) => source.into(),
             ControllerServiceError::AuditLog(source) => ApiError::AuditLog { source },
+            ControllerServiceError::Compat(source) => ApiError::Compat { source },
         }
     }
 }

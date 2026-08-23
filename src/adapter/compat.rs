@@ -7,6 +7,7 @@ use thiserror::Error;
 
 use tracing::instrument;
 const VATSIM_DATA_URL: &str = "https://data.vatsim.net/v3/vatsim-data.json";
+const VATSIM_CORE_BASE_URL: &str = "https://api.vatsim.net/v2";
 const VATSIM_METAR_BASE_URL: &str = "https://metar.vatsim.net";
 const TRACK_AUDIO_VERSION_URL: &str =
     "https://raw.githubusercontent.com/pierr3/TrackAudio/main/MANDATORY_VERSION";
@@ -57,6 +58,17 @@ impl CompatClient {
         Ok(serde_json::from_str(
             &self.cached_get(VATSIM_DATA_URL).await?,
         )?)
+    }
+
+    #[instrument(skip(self), fields(cid = %cid, limit, offset))]
+    pub async fn get_member_atc_sessions(
+        &self,
+        cid: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<AtcSessionPage, CompatClientError> {
+        let url = format!("{VATSIM_CORE_BASE_URL}/members/{cid}/atc?limit={limit}&offset={offset}");
+        Ok(serde_json::from_str(&self.cached_get(&url).await?)?)
     }
 
     #[instrument(skip(self))]
@@ -198,4 +210,24 @@ pub struct Controller {
     pub callsign: String,
     pub frequency: String,
     pub facility: i64,
+    #[serde(default)]
+    pub logon_time: Option<chrono::DateTime<Utc>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AtcSessionPage {
+    pub items: Vec<AtcSession>,
+    pub count: usize,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AtcSession {
+    pub connection_id: AtcConnection,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AtcConnection {
+    pub callsign: String,
+    pub start: Option<chrono::DateTime<Utc>>,
+    pub end: Option<chrono::DateTime<Utc>>,
 }

@@ -836,6 +836,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/users/me/atc/online-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_my_online_time"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/me/atc/status": {
         parameters: {
             query?: never;
@@ -1086,7 +1102,7 @@ export type components = {
             /** Format: date-time */
             created_at: string;
             entity: components["schemas"]["AuditLogEntityDto"];
-            operated_by: string;
+            operated_by: components["schemas"]["UserDto"];
         };
         AuditLogEntityDto: {
             id: string;
@@ -1130,6 +1146,15 @@ export type components = {
             /** Format: date-time */
             last_updated: string;
             pilots: components["schemas"]["CompatPilotDto"][];
+        };
+        ControllerOnlineTimeDto: {
+            /** Format: date-time */
+            as_of: string;
+            period: string;
+            /** Format: date-time */
+            period_start: string;
+            /** Format: int64 */
+            total_seconds: number;
         };
         DeviceAuthorizationRequest: {
             client_id: string;
@@ -1514,7 +1539,7 @@ export type components = {
             id: string;
         };
         /** @enum {string} */
-        UserRole: "staff" | "volunteer" | "division-director" | "controller-training-director" | "controller-training-director-assistant" | "controller-training-instructor" | "controller-training-mentor" | "controller-training-sop-editor" | "community-director" | "operation-director" | "operation-director-assistant" | "operation-sector-editor" | "operation-loa-editor" | "event-director" | "lead-event-coordinator" | "event-coordinator" | "event-graphics-designer" | "tech-director" | "tech-director-assistant" | "tech-afv-facility-engineer" | "controller" | "api-client" | "user";
+        UserRole: "staff" | "volunteer" | "division-director" | "controller-training-director" | "controller-training-director-assistant" | "controller-training-instructor" | "controller-training-mentor" | "controller-training-sop-editor" | "community-director" | "operation-director" | "operation-director-assistant" | "operation-sector-editor" | "operation-loa-editor" | "event-director" | "lead-event-coordinator" | "event-coordinator" | "event-graphics-designer" | "tech-director" | "tech-director-assistant" | "software-engineer" | "tech-afv-facility-engineer" | "controller" | "api-client" | "user";
         WarningMessage: {
             field: components["schemas"]["WarningMessageField"];
             field_index?: number | null;
@@ -3218,6 +3243,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    get_my_online_time: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current calendar-quarter VATPRC controlling time */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControllerOnlineTimeDto"];
                 };
             };
             500: components["responses"]["InternalServerError"];

@@ -5,19 +5,20 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::error::ApiError;
-use crate::modules::user::models::UserRole;
-use crate::modules::controller::dto::{AtcStatusDto, AtcStatusRequest};
+use crate::modules::controller::dto::{AtcStatusDto, AtcStatusRequest, ControllerOnlineTimeDto};
 use crate::modules::controller::models::ControllerSave;
 use crate::modules::user::middleware::CurrentUser;
+use crate::modules::user::models::UserRole;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(get_my_status, get_status, set_status))]
+#[openapi(paths(get_my_status, get_my_online_time, get_status, set_status))]
 pub(crate) struct ApiDoc;
 
 pub fn build_user_atc_permission_routes() -> Router<Services> {
     Router::new()
         .route("/me/atc/status", get(get_my_status))
+        .route("/me/atc/online-time", get(get_my_online_time))
         .route("/{id}/atc/status", get(get_status).put(set_status))
 }
 
@@ -28,6 +29,22 @@ async fn get_my_status(
 ) -> Result<Json<AtcStatusDto>, ApiError> {
     let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     get_status_for_user(&services, user_id).await.map(Json)
+}
+
+#[utoipa::path(get, path = "api/users/me/atc/online-time", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Current calendar-quarter VATPRC controlling time", body = ControllerOnlineTimeDto)))]
+async fn get_my_online_time(
+    State(services): State<Services>,
+    current_user: CurrentUser,
+) -> Result<Json<ControllerOnlineTimeDto>, ApiError> {
+    current_user.require_role(UserRole::Controller)?;
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    Ok(Json(
+        services
+            .controller()
+            .current_quarter_online_time(user_id)
+            .await?
+            .into(),
+    ))
 }
 
 #[utoipa::path(get, path = "api/users/{id}/atc/status", tag = "ATC", security(("oauth2" = [])), params(("id" = String, Path, description = "User ULID")), responses((status = 200, description = "Successful response", body = AtcStatusDto)))]

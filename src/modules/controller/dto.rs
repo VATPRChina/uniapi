@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::error::ApiError;
-use crate::modules::controller::models::Controller;
+use crate::modules::controller::models::{Controller, ControllerOnlineTime};
 use crate::modules::user::dto::UserDto;
 use crate::modules::user::models::UserSummary;
 
@@ -11,6 +11,25 @@ use super::models::{
     ControllerPermission, ControllerPermissionSave, ControllerRating, ControllerSave,
     UserControllerState,
 };
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct ControllerOnlineTimeDto {
+    pub period: String,
+    pub period_start: DateTime<Utc>,
+    pub as_of: DateTime<Utc>,
+    pub total_seconds: u64,
+}
+
+impl From<ControllerOnlineTime> for ControllerOnlineTimeDto {
+    fn from(online_time: ControllerOnlineTime) -> Self {
+        Self {
+            period: online_time.period,
+            period_start: online_time.period_start,
+            as_of: online_time.as_of,
+            total_seconds: online_time.total_seconds,
+        }
+    }
+}
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct SectorPermissionResponse {
