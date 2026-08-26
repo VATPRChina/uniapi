@@ -1,4 +1,4 @@
-use axum::extract::State;
+use axum::extract::{OriginalUri, State};
 use axum::http::{HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -88,6 +88,7 @@ pub fn router(services: Services) -> Router {
     router
         .route("/openapi.json", get(openapi_json))
         .merge(Scalar::with_url("/docs", openapi))
+        .fallback(endpoint_not_found)
         .layer(middleware::from_fn_with_state(
             auth_services,
             auth::authenticate,
@@ -115,6 +116,10 @@ pub fn router(services: Services) -> Router {
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
+}
+
+async fn endpoint_not_found(OriginalUri(uri): OriginalUri) -> ApiError {
+    ApiError::not_found("endpoint", uri.path())
 }
 
 fn cors_layer() -> CorsLayer {
