@@ -7,6 +7,7 @@ use crate::adapter::email::EmailClient;
 use crate::adapter::moodle::MoodleClient;
 use crate::adapter::smms::SmmsClient;
 use crate::modules::atc_application::service::AtcApplicationService;
+use crate::modules::atc_booking::service::AtcBookingService;
 use crate::modules::controller::service::ControllerService;
 use crate::modules::event::service::EventService;
 use crate::modules::flight::service::FlightService;
@@ -36,6 +37,7 @@ pub struct Services {
     authentication: AuthenticationService,
     audit_log: AuditLogService,
     atc_application: AtcApplicationService,
+    atc_booking: AtcBookingService,
     event: EventService,
     flight: FlightService,
     sheet: SheetService,
@@ -70,6 +72,7 @@ impl Services {
         let sheet = SheetService::new(db.clone());
         let atc_application =
             AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone(), sheet.clone());
+        let atc_booking = AtcBookingService::new(db.clone(), user.clone());
         let event = EventService::new(db.clone(), audit_log.clone(), user.clone());
         let access_token = AccessTokenService::new(&settings.authentication.jwt);
         let refresh_token =
@@ -92,6 +95,7 @@ impl Services {
             user,
             audit_log,
             atc_application,
+            atc_booking,
             event,
             flight,
             sheet,
@@ -159,6 +163,10 @@ impl Services {
 
     pub fn atc_application(&self) -> &AtcApplicationService {
         &self.atc_application
+    }
+
+    pub fn atc_booking(&self) -> &AtcBookingService {
+        &self.atc_booking
     }
 
     pub fn event(&self) -> &EventService {

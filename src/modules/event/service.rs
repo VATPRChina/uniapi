@@ -268,6 +268,9 @@ impl EventService {
             .update_event_atc_position(event_id, position_id, position)
             .await?
             .ok_or(EventServiceError::AtcPositionNotFound(position_id))?;
+        transaction
+            .sync_event_atc_position_booking(&position)
+            .await?;
         transaction.commit().await?;
         self.record_position_audit(&position, Some(&before), Some(&position), operated_by)
             .await?;
@@ -290,6 +293,9 @@ impl EventService {
             .await?
         {
             return Err(EventServiceError::AtcPositionNotFound(position_id));
+        }
+        if let Some(booking_id) = position.booking_id {
+            transaction.delete_event_atc_booking(booking_id).await?;
         }
         transaction.commit().await?;
         self.record_position_audit(&position, Some(&position), None, operated_by)

@@ -41,6 +41,11 @@ pub(crate) trait EventAtcPositionRepository<'executor> {
         event_id: Uuid,
     ) -> Result<Vec<EventAtcPosition>, sqlx::Error>;
 
+    async fn find_event_atc_position_by_id(
+        self,
+        position_id: Uuid,
+    ) -> Result<Option<EventAtcPosition>, sqlx::Error>;
+
     async fn find_event_atc_position_by_event_and_id_in_transaction(
         self,
         event_id: Uuid,
@@ -94,6 +99,18 @@ where
         ))
         .bind(event_id)
         .fetch_all(self)
+        .await
+    }
+
+    async fn find_event_atc_position_by_id(
+        self,
+        position_id: Uuid,
+    ) -> Result<Option<EventAtcPosition>, sqlx::Error> {
+        sqlx::query_as::<_, EventAtcPosition>(&position_select_sql(
+            "WHERE event_atc_position.id = $1",
+        ))
+        .bind(position_id)
+        .fetch_optional(self)
         .await
     }
     async fn find_event_atc_position_by_event_and_id_in_transaction(
@@ -270,6 +287,13 @@ pub(crate) trait EventAtcPositionTransactionRepository {
         position_id: Uuid,
         atc_booking_id: Option<Uuid>,
     ) -> Result<(), sqlx::Error>;
+
+    async fn sync_event_atc_position_booking(
+        &mut self,
+        position: &EventAtcPosition,
+    ) -> Result<(), sqlx::Error>;
+
+    async fn delete_event_atc_booking(&mut self, booking_id: Uuid) -> Result<(), sqlx::Error>;
 }
 
 impl EventAtcPositionTransactionRepository for sqlx::Transaction<'_, sqlx::Postgres> {
@@ -288,8 +312,10 @@ impl EventAtcPositionTransactionRepository for sqlx::Transaction<'_, sqlx::Postg
         let now = Utc::now();
         sqlx::query(
             r#"
-        INSERT INTO public.atc_booking (id, user_id, callsign, booked_at, start_at, end_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO public.atc_booking (
+            id, user_id, callsign, booked_at, start_at, end_at, remarks
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         "#,
         )
         .bind(atc_booking_id)
@@ -298,6 +324,7 @@ impl EventAtcPositionTransactionRepository for sqlx::Transaction<'_, sqlx::Postg
         .bind(now)
         .bind(position.start_at)
         .bind(position.end_at)
+        .bind(&position.remarks)
         .execute(&mut **self)
         .await?;
         sqlx::query(
@@ -343,6 +370,42 @@ impl EventAtcPositionTransactionRepository for sqlx::Transaction<'_, sqlx::Postg
                 .await?;
         }
 
+        Ok(())
+    }
+
+    async fn sync_event_atc_position_booking(
+        &mut self,
+        position: &EventAtcPosition,
+    ) -> Result<(), sqlx::Error> {
+        let Some(booking_id) = position.booking_id else {
+            return Ok(());
+        };
+        sqlx::query(
+            r#"
+            UPDATE public.atc_booking
+            SET callsign = $2,
+                start_at = $3,
+                end_at = $4,
+                remarks = $5,
+                updated_at = now()
+            WHERE id = $1
+            "#,
+        )
+        .bind(booking_id)
+        .bind(&position.callsign)
+        .bind(position.start_at)
+        .bind(position.end_at)
+        .bind(&position.remarks)
+        .execute(&mut **self)
+        .await?;
+        Ok(())
+    }
+
+    async fn delete_event_atc_booking(&mut self, booking_id: Uuid) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM public.atc_booking WHERE id = $1")
+            .bind(booking_id)
+            .execute(&mut **self)
+            .await?;
         Ok(())
     }
 }

@@ -23,7 +23,9 @@ where
         SELECT atc_booking.callsign, "user".full_name AS name, atc_booking.start_at, atc_booking.end_at
         FROM atc_booking
         JOIN "user" ON "user".id = atc_booking.user_id
-        WHERE atc_booking.start_at >= now()
+        WHERE atc_booking.end_at > now()
+          AND atc_booking.deleted_at IS NULL
+        ORDER BY atc_booking.start_at, atc_booking.callsign
         "#,
     )
     .fetch_all(self)

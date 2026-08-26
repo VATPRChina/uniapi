@@ -11,6 +11,7 @@ use crate::adapter::moodle::MoodleError;
 use crate::adapter::smms::SmmsError;
 use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
+use crate::modules::atc_booking::service::AtcBookingServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
 use crate::modules::controller::service::ControllerServiceError;
 use crate::modules::event::service::EventServiceError;
@@ -81,6 +82,8 @@ api_errors!(
         => "ATC application already exists",
     ApplicationCannotUpdate => StatusCode::CONFLICT
         => "ATC application cannot be updated at current status",
+    EventLinkedAtcBooking => StatusCode::CONFLICT
+        => "event-linked ATC bookings can only be changed through the event API",
     CannotCreateForOtherTrainer => StatusCode::FORBIDDEN
         => "cannot create training for other trainers",
     CannotDeleteStartedTraining => StatusCode::FORBIDDEN
@@ -214,6 +217,24 @@ impl From<AtcApplicationServiceError> for ApiError {
             AtcApplicationServiceError::AuditLog(source) => ApiError::AuditLog { source },
             AtcApplicationServiceError::User(source) => source.into(),
             AtcApplicationServiceError::Sheet(source) => source.into(),
+        }
+    }
+}
+
+impl From<AtcBookingServiceError> for ApiError {
+    fn from(error: AtcBookingServiceError) -> Self {
+        match error {
+            AtcBookingServiceError::NotFound(id) => {
+                ApiError::not_found("ATC booking", ulid::Ulid::from(id).to_string())
+            }
+            AtcBookingServiceError::NotOwned(id) => ApiError::NotOwned {
+                entity: "ATC booking".to_string(),
+                id: ulid::Ulid::from(id).to_string(),
+            },
+            AtcBookingServiceError::EventLinked => ApiError::EventLinkedAtcBooking,
+            AtcBookingServiceError::UserNotFound(_) => ApiError::Internal,
+            AtcBookingServiceError::Database(source) => ApiError::Database { source },
+            AtcBookingServiceError::User(source) => source.into(),
         }
     }
 }

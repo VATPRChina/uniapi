@@ -14,6 +14,7 @@ use utoipa_scalar::{Scalar, Servable};
 
 use crate::error::ApiError;
 use crate::modules::atc_application::routes::build_atc_application_routes;
+use crate::modules::atc_booking::routes::build_atc_booking_routes;
 use crate::modules::audit_log::routes::build_audit_log_routes;
 use crate::modules::controller::routes::controllers::build_atc_routes;
 use crate::modules::controller::routes::sectors::build_sector_routes;
@@ -56,6 +57,7 @@ pub fn router(services: Services) -> Router {
         .nest("/api", build_audit_log_routes())
         .nest("/api/atc/controllers", build_atc_routes())
         .nest("/api/atc/applications", build_atc_application_routes())
+        .nest("/api/atc/bookings", build_atc_booking_routes())
         .nest("/api/compat", build_compat_routes())
         .nest(
             "/api/navdata/preferred-routes",
