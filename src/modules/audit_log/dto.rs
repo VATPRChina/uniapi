@@ -11,6 +11,7 @@ use super::models::{AuditLog, AuditLogEntity};
 pub enum AuditLogEntityKindDto {
     Event,
     AtcApplication,
+    AtcPosition,
     User,
     UserRole,
     UserAtcPermission,
@@ -41,6 +42,13 @@ impl From<AuditLogEntity> for (AuditLogEntityDto, Option<AuditLogEntityDto>) {
                 AuditLogEntityDto {
                     kind: AuditLogEntityKindDto::AtcApplication,
                     id: Ulid::from(id).to_string(),
+                },
+                None,
+            ),
+            AuditLogEntity::AtcPosition(id) => (
+                AuditLogEntityDto {
+                    kind: AuditLogEntityKindDto::AtcPosition,
+                    id,
                 },
                 None,
             ),
