@@ -15,6 +15,7 @@ use utoipa::{OpenApi, PartialSchema, ToSchema};
         (path = "/", api = crate::modules::controller::routes::user_atc_permissions::ApiDoc),
         (path = "/", api = crate::modules::atc_application::routes::ApiDoc),
         (path = "/", api = crate::modules::atc_booking::routes::ApiDoc),
+        (path = "/", api = crate::modules::atc_position::routes::ApiDoc),
         (path = "/", api = crate::modules::training::routes::trainings::ApiDoc),
         (path = "/", api = crate::modules::training::routes::applications::ApiDoc),
         (path = "/", api = crate::modules::event::routes::events::ApiDoc),
@@ -34,6 +35,7 @@ use utoipa::{OpenApi, PartialSchema, ToSchema};
         (name = "Auth", description = "OAuth and session endpoints"),
         (name = "Audit Logs", description = "Audit log history"),
         (name = "ATC", description = "ATC status and controllers"),
+        (name = "ATC Positions", description = "Published ATC positions and frequencies"),
         (name = "ATC Application", description = "ATC applications"),
         (name = "Compat", description = "Compatibility endpoints"),
         (name = "Events", description = "Events, slots, airspaces, and event ATC positions"),
@@ -242,6 +244,47 @@ mod tests {
         assert_eq!(
             openapi.pointer("/components/schemas/SheetFieldDto/properties/sequence/format"),
             Some(&serde_json::Value::String("uint32".to_owned()))
+        );
+    }
+
+    #[test]
+    fn atc_position_operations_are_documented() {
+        let openapi = serde_json::to_value(openapi()).expect("OpenAPI should serialize");
+
+        assert!(
+            openapi
+                .pointer("/paths/~1api~1atc~1positions/get")
+                .is_some()
+        );
+        assert!(
+            openapi
+                .pointer("/paths/~1api~1atc~1positions/post")
+                .is_some()
+        );
+        assert!(
+            openapi
+                .pointer("/paths/~1api~1atc~1positions~1{callsign}/get")
+                .is_some()
+        );
+        assert!(
+            openapi
+                .pointer("/paths/~1api~1atc~1positions~1{callsign}/put")
+                .is_some()
+        );
+        assert!(
+            openapi
+                .pointer("/paths/~1api~1atc~1positions~1{callsign}/delete")
+                .is_some()
+        );
+        assert!(
+            openapi
+                .pointer("/paths/~1api~1atc~1positions~1audit/get")
+                .is_some()
+        );
+        assert!(
+            openapi
+                .pointer("/paths/~1api~1atc~1positions~1{callsign}~1audit/get")
+                .is_some()
         );
     }
 

@@ -1,5 +1,6 @@
 pub mod atc_application;
 pub mod atc_booking;
+pub mod atc_position;
 pub mod audit_log;
 pub mod controller;
 pub mod event;

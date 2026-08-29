@@ -2,9 +2,10 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AuditLogEntity {
     AtcApplication(Uuid),
+    AtcPosition(String),
     Event(Uuid),
     EventAtcPosition(Uuid, Uuid),
     EventSlot(Uuid, Uuid),

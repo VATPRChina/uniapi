@@ -60,6 +60,23 @@ impl AuditLogService {
             .await?)
     }
 
+    pub async fn list_atc_positions(&self) -> Result<Vec<AuditLog>, AuditLogServiceError> {
+        Ok(self
+            .db
+            .list_audit_log_by_entity_kind(AuditLogEntityKind::AtcPosition)
+            .await?)
+    }
+
+    pub async fn list_atc_positions_by_callsign(
+        &self,
+        callsign: &str,
+    ) -> Result<Vec<AuditLog>, AuditLogServiceError> {
+        Ok(self
+            .db
+            .list_audit_log_by_entity_kind_and_key(AuditLogEntityKind::AtcPosition, callsign)
+            .await?)
+    }
+
     pub async fn list_atc_applications_by_id(
         &self,
         id: Uuid,

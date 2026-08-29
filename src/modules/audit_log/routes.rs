@@ -7,6 +7,7 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::error::ApiError;
+use crate::modules::atc_position::dto::normalize_callsign;
 use crate::modules::audit_log::dto::AuditLogDto;
 use crate::modules::audit_log::models::AuditLog;
 use crate::modules::user::middleware::CurrentUser;
@@ -19,6 +20,8 @@ use crate::services::Services;
     list_event_audit_logs_by_event,
     list_atc_application_audit_logs,
     list_atc_application_audit_logs_by_application,
+    list_atc_position_audit_logs,
+    list_atc_position_audit_logs_by_position,
     list_user_audit_logs,
     list_user_audit_logs_by_user,
     list_user_atc_status_audit_logs
@@ -36,6 +39,11 @@ pub fn build_audit_log_routes() -> Router<Services> {
         .route(
             "/atc/applications/{id}/audit",
             get(list_atc_application_audit_logs_by_application),
+        )
+        .route("/atc/positions/audit", get(list_atc_position_audit_logs))
+        .route(
+            "/atc/positions/{callsign}/audit",
+            get(list_atc_position_audit_logs_by_position),
         )
         .route("/users/audit", get(list_user_audit_logs))
         .route("/users/{id}/audit", get(list_user_audit_logs_by_user))
@@ -141,6 +149,62 @@ async fn list_atc_application_audit_logs_by_application(
     current_user.require_role(UserRole::Volunteer)?;
     let id = id.parse::<Ulid>()?.into();
     let audit_logs = services.audit_log().list_atc_applications_by_id(id).await?;
+
+    Ok(Json(
+        join_audit_log_with_user(&services, audit_logs)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+    ))
+}
+
+#[utoipa::path(
+    get,
+    path = "api/atc/positions/audit",
+    tag = "Audit Logs",
+    security(("oauth2" = [])),
+    responses(
+        (status = 200, description = "ATC-position audit logs", body = Vec<AuditLogDto>)
+    )
+)]
+async fn list_atc_position_audit_logs(
+    State(services): State<Services>,
+    current_user: CurrentUser,
+) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
+    current_user.require_role(UserRole::TechAfvFacilityEngineer)?;
+    let audit_logs = services.audit_log().list_atc_positions().await?;
+
+    Ok(Json(
+        join_audit_log_with_user(&services, audit_logs)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+    ))
+}
+
+#[utoipa::path(
+    get,
+    path = "api/atc/positions/{callsign}/audit",
+    tag = "Audit Logs",
+    security(("oauth2" = [])),
+    params(("callsign" = String, Path, description = "ATC callsign")),
+    responses(
+        (status = 200, description = "Audit logs for an ATC position", body = Vec<AuditLogDto>)
+    )
+)]
+async fn list_atc_position_audit_logs_by_position(
+    State(services): State<Services>,
+    current_user: CurrentUser,
+    Path(callsign): Path<String>,
+) -> Result<Json<Vec<AuditLogDto>>, ApiError> {
+    current_user.require_role(UserRole::TechAfvFacilityEngineer)?;
+    let callsign = normalize_callsign(callsign)?;
+    let audit_logs = services
+        .audit_log()
+        .list_atc_positions_by_callsign(&callsign)
+        .await?;
 
     Ok(Json(
         join_audit_log_with_user(&services, audit_logs)

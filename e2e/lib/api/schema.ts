@@ -3,7 +3,7 @@
  * Do not make direct changes to the file.
  */
 
-export interface paths {
+export type paths = {
     "/api/atc/applications": {
         parameters: {
             query?: never;
@@ -188,6 +188,70 @@ export interface paths {
             cookie?: never;
         };
         get: operations["list_controllers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/atc/positions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_atc_positions"];
+        put?: never;
+        post: operations["create_atc_position"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/atc/positions/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_atc_position_audit_logs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/atc/positions/{callsign}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_atc_position"];
+        put: operations["update_atc_position"];
+        post?: never;
+        delete: operations["delete_atc_position"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/atc/positions/{callsign}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_atc_position_audit_logs_by_position"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1092,9 +1156,9 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-}
+};
 export type webhooks = Record<string, never>;
-export interface components {
+export type components = {
     schemas: {
         AccessTokenRequest: {
             client_id?: string;
@@ -1170,6 +1234,45 @@ export interface components {
             solo_expires_at?: string | null;
             state: components["schemas"]["UserControllerState"];
         };
+        /** @enum {string} */
+        AtcPositionCategory: "standard" | "chengdu-low-area" | "military" | "atis";
+        AtcPositionDto: {
+            callsign: string;
+            callsign_en?: string | null;
+            callsign_zh?: string | null;
+            category: components["schemas"]["AtcPositionCategory"];
+            cpdlc_code?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: double
+             * @description Radio frequency in MHz.
+             */
+            frequency: number;
+            /**
+             * Format: int32
+             * @description Exact radio frequency in kHz for machine consumers.
+             */
+            frequency_khz: number;
+            is_tier_2: boolean;
+            remarks?: string | null;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AtcPositionSaveRequest: {
+            callsign: string;
+            callsign_en?: string | null;
+            callsign_zh?: string | null;
+            category: components["schemas"]["AtcPositionCategory"];
+            cpdlc_code?: string | null;
+            /**
+             * Format: double
+             * @description Radio frequency in MHz, for example `118.500`.
+             */
+            frequency: number;
+            is_tier_2: boolean;
+            remarks?: string | null;
+        };
         AtcStatusDto: {
             is_absent: boolean;
             is_visiting: boolean;
@@ -1198,7 +1301,7 @@ export interface components {
             kind: components["schemas"]["AuditLogEntityKindDto"];
         };
         /** @enum {string} */
-        AuditLogEntityKindDto: "event" | "atc-application" | "user" | "user-role" | "user-atc-permission" | "event-atc-position" | "event-slot";
+        AuditLogEntityKindDto: "event" | "atc-application" | "atc-position" | "user" | "user-role" | "user-atc-permission" | "event-atc-position" | "event-slot";
         AuthApiErrorBody: {
             error: components["schemas"]["OAuthErrorCode"];
             error_description: string;
@@ -1655,7 +1758,7 @@ export interface components {
     requestBodies: never;
     headers: never;
     pathItems: never;
-}
+};
 export type $defs = Record<string, never>;
 export interface operations {
     list_applications: {
@@ -2006,6 +2109,171 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AtcStatusDto"][];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    list_atc_positions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All published ATC positions and frequencies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtcPositionDto"][];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    create_atc_position: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtcPositionSaveRequest"];
+            };
+        };
+        responses: {
+            /** @description ATC position created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtcPositionDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    list_atc_position_audit_logs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ATC-position audit logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogDto"][];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    get_atc_position: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ATC callsign */
+                callsign: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ATC position */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtcPositionDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    update_atc_position: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ATC callsign */
+                callsign: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtcPositionSaveRequest"];
+            };
+        };
+        responses: {
+            /** @description ATC position updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtcPositionDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    delete_atc_position: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ATC callsign */
+                callsign: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ATC position deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    list_atc_position_audit_logs_by_position: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ATC callsign */
+                callsign: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit logs for an ATC position */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogDto"][];
                 };
             };
             500: components["responses"]["InternalServerError"];

@@ -14,6 +14,7 @@ use super::models::{AuditLog, AuditLogEntity};
 pub enum AuditLogEntityKind {
     Event,
     AtcApplication,
+    AtcPosition,
     User,
     UserRole,
     UserAtcPermission,
@@ -48,6 +49,12 @@ pub trait AuditLogRepository<'executor> {
         entity_kind: AuditLogEntityKind,
         entity_id: Uuid,
     ) -> Result<Vec<AuditLog>, sqlx::Error>;
+
+    async fn list_audit_log_by_entity_kind_and_key(
+        self,
+        entity_kind: AuditLogEntityKind,
+        entity_key: &str,
+    ) -> Result<Vec<AuditLog>, sqlx::Error>;
 }
 
 impl<'executor, E> AuditLogRepository<'executor> for E
@@ -60,16 +67,17 @@ where
         sqlx::query_as::<_, AuditLogRecord>(
             r#"
         INSERT INTO public.audit_log (
-            entity_kind, entity_id, child_entity_kind, child_entity_id,
+            entity_kind, entity_id, entity_key, child_entity_kind, child_entity_id,
             before, after, operated_by, created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING entity_kind, entity_id, child_entity_kind, child_entity_id,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING entity_kind, entity_id, entity_key, child_entity_kind, child_entity_id,
                   before, after, operated_by, created_at
         "#,
         )
         .bind(record.entity_kind)
         .bind(record.entity_id)
+        .bind(record.entity_key)
         .bind(record.child_entity_kind)
         .bind(record.child_entity_id)
         .bind(record.before)
@@ -86,7 +94,7 @@ where
         list_records(
             sqlx::query_as::<_, AuditLogRecord>(
                 r#"
-            SELECT entity_kind, entity_id, child_entity_kind, child_entity_id,
+            SELECT entity_kind, entity_id, entity_key, child_entity_kind, child_entity_id,
                    before, after, operated_by, created_at
             FROM public.audit_log
             WHERE entity_kind = $1
@@ -107,7 +115,7 @@ where
         list_records(
             sqlx::query_as::<_, AuditLogRecord>(
                 r#"
-            SELECT entity_kind, entity_id, child_entity_kind, child_entity_id,
+            SELECT entity_kind, entity_id, entity_key, child_entity_kind, child_entity_id,
                    before, after, operated_by, created_at
             FROM public.audit_log
             WHERE entity_kind = $1 AND entity_id = $2
@@ -121,12 +129,36 @@ where
             .await?,
         )
     }
+
+    async fn list_audit_log_by_entity_kind_and_key(
+        self,
+        entity_kind: AuditLogEntityKind,
+        entity_key: &str,
+    ) -> Result<Vec<AuditLog>, sqlx::Error> {
+        list_records(
+            sqlx::query_as::<_, AuditLogRecord>(
+                r#"
+            SELECT entity_kind, entity_id, entity_key, child_entity_kind, child_entity_id,
+                   before, after, operated_by, created_at
+            FROM public.audit_log
+            WHERE entity_kind = $1 AND entity_key = $2
+            ORDER BY created_at DESC
+            LIMIT 100
+            "#,
+            )
+            .bind(entity_kind.to_string())
+            .bind(entity_key)
+            .fetch_all(self)
+            .await?,
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct AuditLogRecord {
     pub entity_kind: String,
-    pub entity_id: Uuid,
+    pub entity_id: Option<Uuid>,
+    pub entity_key: Option<String>,
     pub child_entity_kind: Option<String>,
     pub child_entity_id: Option<Uuid>,
     pub before: Value,
@@ -141,41 +173,56 @@ pub struct InvalidAuditLogEntityKind(pub String);
 
 impl From<AuditLog> for AuditLogRecord {
     fn from(audit_log: AuditLog) -> Self {
-        let (entity_kind, entity_id, child_entity_kind, child_entity_id) = match audit_log.entity {
-            AuditLogEntity::AtcApplication(id) => {
-                (AuditLogEntityKind::AtcApplication, id, None, None)
-            }
-            AuditLogEntity::Event(id) => (AuditLogEntityKind::Event, id, None, None),
-            AuditLogEntity::EventAtcPosition(pid, id) => (
-                AuditLogEntityKind::Event,
-                pid,
-                Some(AuditLogEntityKind::EventAtcPosition),
-                Some(id),
-            ),
-            AuditLogEntity::EventSlot(pid, id) => (
-                AuditLogEntityKind::Event,
-                pid,
-                Some(AuditLogEntityKind::EventSlot),
-                Some(id),
-            ),
-            AuditLogEntity::User(id) => (AuditLogEntityKind::User, id, None, None),
-            AuditLogEntity::UserAtcPermission(pid, id) => (
-                AuditLogEntityKind::User,
-                pid,
-                Some(AuditLogEntityKind::UserAtcPermission),
-                Some(id),
-            ),
-            AuditLogEntity::UserRole(pid, id) => (
-                AuditLogEntityKind::User,
-                pid,
-                Some(AuditLogEntityKind::UserRole),
-                Some(id),
-            ),
-        };
+        let (entity_kind, entity_id, entity_key, child_entity_kind, child_entity_id) =
+            match audit_log.entity {
+                AuditLogEntity::AtcApplication(id) => (
+                    AuditLogEntityKind::AtcApplication,
+                    Some(id),
+                    None,
+                    None,
+                    None,
+                ),
+                AuditLogEntity::AtcPosition(key) => {
+                    (AuditLogEntityKind::AtcPosition, None, Some(key), None, None)
+                }
+                AuditLogEntity::Event(id) => {
+                    (AuditLogEntityKind::Event, Some(id), None, None, None)
+                }
+                AuditLogEntity::EventAtcPosition(pid, id) => (
+                    AuditLogEntityKind::Event,
+                    Some(pid),
+                    None,
+                    Some(AuditLogEntityKind::EventAtcPosition),
+                    Some(id),
+                ),
+                AuditLogEntity::EventSlot(pid, id) => (
+                    AuditLogEntityKind::Event,
+                    Some(pid),
+                    None,
+                    Some(AuditLogEntityKind::EventSlot),
+                    Some(id),
+                ),
+                AuditLogEntity::User(id) => (AuditLogEntityKind::User, Some(id), None, None, None),
+                AuditLogEntity::UserAtcPermission(pid, id) => (
+                    AuditLogEntityKind::User,
+                    Some(pid),
+                    None,
+                    Some(AuditLogEntityKind::UserAtcPermission),
+                    Some(id),
+                ),
+                AuditLogEntity::UserRole(pid, id) => (
+                    AuditLogEntityKind::User,
+                    Some(pid),
+                    None,
+                    Some(AuditLogEntityKind::UserRole),
+                    Some(id),
+                ),
+            };
 
         Self {
             entity_kind: entity_kind.to_string(),
             entity_id,
+            entity_key,
             child_entity_kind: child_entity_kind.as_ref().map(ToString::to_string),
             child_entity_id,
             before: audit_log.before,
@@ -199,24 +246,30 @@ impl TryFrom<AuditLogRecord> for AuditLog {
 
         let incomplete_error = || InvalidAuditLogEntityKind(format!("incomplete {entity_kind}"));
 
+        let entity_id = |id: Option<Uuid>| id.ok_or_else(|| incomplete_error());
         let entity = match entity_kind {
-            AuditLogEntityKind::Event => AuditLogEntity::Event(record.entity_id),
-            AuditLogEntityKind::AtcApplication => AuditLogEntity::AtcApplication(record.entity_id),
-            AuditLogEntityKind::User => AuditLogEntity::User(record.entity_id),
+            AuditLogEntityKind::Event => AuditLogEntity::Event(entity_id(record.entity_id)?),
+            AuditLogEntityKind::AtcApplication => {
+                AuditLogEntity::AtcApplication(entity_id(record.entity_id)?)
+            }
+            AuditLogEntityKind::AtcPosition => {
+                AuditLogEntity::AtcPosition(record.entity_key.clone().ok_or_else(incomplete_error)?)
+            }
+            AuditLogEntityKind::User => AuditLogEntity::User(entity_id(record.entity_id)?),
             AuditLogEntityKind::UserRole => AuditLogEntity::UserRole(
-                record.entity_id,
+                entity_id(record.entity_id)?,
                 record.child_entity_id.ok_or_else(incomplete_error)?,
             ),
             AuditLogEntityKind::UserAtcPermission => AuditLogEntity::UserAtcPermission(
-                record.entity_id,
+                entity_id(record.entity_id)?,
                 record.child_entity_id.ok_or_else(incomplete_error)?,
             ),
             AuditLogEntityKind::EventAtcPosition => AuditLogEntity::EventAtcPosition(
-                record.entity_id,
+                entity_id(record.entity_id)?,
                 record.child_entity_id.ok_or_else(incomplete_error)?,
             ),
             AuditLogEntityKind::EventSlot => AuditLogEntity::EventSlot(
-                record.entity_id,
+                entity_id(record.entity_id)?,
                 record.child_entity_id.ok_or_else(incomplete_error)?,
             ),
         };
@@ -249,7 +302,8 @@ mod tests {
     fn record(entity_kind: &str, entity_id: Uuid) -> AuditLogRecord {
         AuditLogRecord {
             entity_kind: entity_kind.to_owned(),
-            entity_id,
+            entity_id: Some(entity_id),
+            entity_key: None,
             child_entity_kind: None,
             child_entity_id: None,
             before: Value::Null,
@@ -274,7 +328,7 @@ mod tests {
         let record = AuditLogRecord::from(audit_log);
 
         assert_eq!(record.entity_kind, "event");
-        assert_eq!(record.entity_id, event_id);
+        assert_eq!(record.entity_id, Some(event_id));
         assert_eq!(
             record.child_entity_kind.as_deref(),
             Some("event-atc-position")
@@ -299,6 +353,23 @@ mod tests {
                 created_at: Utc.with_ymd_and_hms(2026, 6, 13, 4, 0, 0).unwrap(),
             }
         );
+    }
+
+    #[test]
+    fn converts_atc_position_entity_in_both_directions() {
+        let audit_log = AuditLog {
+            entity: AuditLogEntity::AtcPosition("ZBAA_TWR".to_owned()),
+            before: Value::Null,
+            after: Value::Null,
+            operated_by: Uuid::nil(),
+            created_at: Utc.with_ymd_and_hms(2026, 8, 29, 0, 0, 0).unwrap(),
+        };
+
+        let record = AuditLogRecord::from(audit_log.clone());
+        assert_eq!(record.entity_kind, "atc-position");
+        assert_eq!(record.entity_id, None);
+        assert_eq!(record.entity_key.as_deref(), Some("ZBAA_TWR"));
+        assert_eq!(AuditLog::try_from(record).unwrap(), audit_log);
     }
 
     #[test]

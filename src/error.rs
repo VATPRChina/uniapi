@@ -12,6 +12,7 @@ use crate::adapter::smms::SmmsError;
 use crate::modules::atc_application::models::InvalidAtcApplicationStatus;
 use crate::modules::atc_application::service::AtcApplicationServiceError;
 use crate::modules::atc_booking::service::AtcBookingServiceError;
+use crate::modules::atc_position::service::AtcPositionServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
 use crate::modules::controller::service::ControllerServiceError;
 use crate::modules::event::service::EventServiceError;
@@ -235,6 +236,18 @@ impl From<AtcBookingServiceError> for ApiError {
             AtcBookingServiceError::UserNotFound(_) => ApiError::Internal,
             AtcBookingServiceError::Database(source) => ApiError::Database { source },
             AtcBookingServiceError::User(source) => source.into(),
+        }
+    }
+}
+
+impl From<AtcPositionServiceError> for ApiError {
+    fn from(error: AtcPositionServiceError) -> Self {
+        match error {
+            AtcPositionServiceError::NotFound(callsign) => {
+                ApiError::not_found("ATC position", callsign)
+            }
+            AtcPositionServiceError::Database(source) => ApiError::Database { source },
+            AtcPositionServiceError::AuditLog(source) => ApiError::AuditLog { source },
         }
     }
 }
