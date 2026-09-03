@@ -9,12 +9,12 @@ use axum::{Json, Router};
 use tokio::time;
 
 use crate::error::ApiError;
-use crate::modules::user::models::UserRole;
-use crate::modules::flight::dto::{FlightDto, FlightLeg, TemporaryFlightQuery};
+use crate::modules::flight::dto::{FlightDto, TemporaryFlightQuery};
 use crate::modules::flight::flight_plan::validator;
 use crate::modules::flight::models::Flight;
 use crate::modules::flight::service::FlightService;
 use crate::modules::user::middleware::CurrentUser;
+use crate::modules::user::models::UserRole;
 use crate::services::Services;
 
 const VALIDATION_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
@@ -24,7 +24,6 @@ const VALIDATION_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
     active_flights,
     flight_by_callsign,
     warnings_by_callsign,
-    route_by_callsign,
     my_flight,
     temporary_warnings
 ))]
@@ -39,7 +38,6 @@ pub fn build_flight_routes() -> Router<Services> {
             "/by-callsign/{callsign}/warnings",
             get(warnings_by_callsign),
         )
-        .route("/by-callsign/{callsign}/route", get(route_by_callsign))
         .route("/mine", get(my_flight))
         .route("/temporary/by-plan/warnings", get(temporary_warnings))
 }
@@ -90,15 +88,6 @@ async fn warnings_websocket(
         websocket
             .on_upgrade(move |socket| stream_warning_changes(socket, flight, initial_snapshot)),
     )
-}
-
-#[utoipa::path(get, path = "api/flights/by-callsign/{callsign}/route", tag = "Flights", params(("callsign" = String, Path, description = "Callsign")), responses((status = 200, description = "Successful response", body = Vec<FlightLeg>)))]
-async fn route_by_callsign(
-    State(services): State<Services>,
-    Path(callsign): Path<String>,
-) -> Result<Json<Vec<FlightLeg>>, ApiError> {
-    let legs = services.flight().route_by_callsign(&callsign).await?;
-    Ok(Json(legs.into_iter().map(FlightLeg::from).collect()))
 }
 
 #[utoipa::path(get, path = "api/flights/temporary/by-plan/warnings", tag = "Flights", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<validator::WarningMessage>)))]

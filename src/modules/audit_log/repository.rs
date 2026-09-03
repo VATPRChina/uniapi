@@ -246,7 +246,7 @@ impl TryFrom<AuditLogRecord> for AuditLog {
 
         let incomplete_error = || InvalidAuditLogEntityKind(format!("incomplete {entity_kind}"));
 
-        let entity_id = |id: Option<Uuid>| id.ok_or_else(|| incomplete_error());
+        let entity_id = |id: Option<Uuid>| id.ok_or_else(&incomplete_error);
         let entity = match entity_kind {
             AuditLogEntityKind::Event => AuditLogEntity::Event(entity_id(record.entity_id)?),
             AuditLogEntityKind::AtcApplication => {
