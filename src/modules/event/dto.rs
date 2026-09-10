@@ -61,6 +61,7 @@ impl TryFrom<EventSaveRequest> for EventSave {
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct EventDto {
+    pub discord_message: Option<crate::discord::models::DiscordMessage>,
     pub id: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -80,6 +81,7 @@ pub struct EventDto {
 impl From<Event> for EventDto {
     fn from(event: Event) -> Self {
         Self {
+            discord_message: event.discord_message,
             id: Ulid::from(event.id).to_string(),
             created_at: event.created_at,
             updated_at: event.updated_at,

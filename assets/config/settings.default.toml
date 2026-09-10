@@ -52,6 +52,9 @@ endpoint = "http://localhost:4318/v1/traces"
 headers = {}
 
 [discord]
+# Target Discord forum channel for website event posts (optional).
+# event_forum_channel_id = 123456789012345678
+# event_forum_tag_ids = [123456789012345678]
 enabled = false
 token = ""
 

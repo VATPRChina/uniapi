@@ -10,7 +10,14 @@ use crate::modules::user::models::UserRole;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(list_events, list_past_events, create_event, get_event, update_event))]
+#[openapi(paths(
+    list_events,
+    list_past_events,
+    create_event,
+    get_event,
+    update_event,
+    publish_discord
+))]
 pub(crate) struct ApiDoc;
 
 pub fn build_event_routes() -> Router<Services> {
@@ -20,6 +27,7 @@ pub fn build_event_routes() -> Router<Services> {
         .route("/{eid}", get(get_event))
         .route("/", post(create_event))
         .route("/{eid}", put(update_event))
+        .route("/{eid}/discord", put(publish_discord))
 }
 
 #[utoipa::path(get, path = "api/events", tag = "Events", responses((status = 200, description = "Successful response", body = Vec<EventDto>)))]
@@ -103,4 +111,19 @@ async fn update_event(
         .await?;
 
     Ok(Json(EventDto::from(event)))
+}
+
+#[utoipa::path(put, path = "api/events/{id}/discord", tag = "Events", security(("oauth2" = [])), params(("id" = String, Path, description = "Event ULID")), responses((status = 200, description = "Published or synchronized Discord post", body = EventDto)))]
+async fn publish_discord(
+    State(services): State<Services>,
+    current_user: CurrentUser,
+    Path(eid): Path<String>,
+) -> Result<Json<EventDto>, ApiError> {
+    current_user.require_role(UserRole::EventCoordinator)?;
+    let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    let event = services
+        .discord()
+        .publish_event(eid.parse::<Ulid>()?.into(), operated_by)
+        .await?;
+    Ok(Json(event.into()))
 }

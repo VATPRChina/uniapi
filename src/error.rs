@@ -280,6 +280,7 @@ impl From<TrainingServiceError> for ApiError {
 impl From<EventServiceError> for ApiError {
     fn from(error: EventServiceError) -> Self {
         match error {
+            EventServiceError::Discord(error) => error.into(),
             EventServiceError::EventNotFound(id) => {
                 ApiError::not_found("event", ulid::Ulid::from(id).to_string())
             }
@@ -426,5 +427,21 @@ impl IntoResponse for ApiError {
             }),
         )
             .into_response()
+    }
+}
+
+impl From<crate::discord::service::DiscordServiceError> for ApiError {
+    fn from(error: crate::discord::service::DiscordServiceError) -> Self {
+        use crate::discord::service::DiscordServiceError;
+        match error {
+            DiscordServiceError::EventNotFound(id) => {
+                Self::not_found("event", ulid::Ulid::from(id).to_string())
+            }
+            DiscordServiceError::Publish(source) => {
+                Self::bad_request("discord", source.to_string())
+            }
+            DiscordServiceError::Database(source) => Self::Database { source },
+            DiscordServiceError::AuditLog(source) => Self::AuditLog { source },
+        }
     }
 }
