@@ -53,6 +53,7 @@ pub fn router(services: Services) -> Router {
     let auth_services = services.clone();
     let app = Router::new()
         .route("/", get(root))
+        .route("/style.css", get(stylesheet))
         .route("/health", get(health))
         .nest("/auth", build_auth_routes())
         .nest("/api", build_audit_log_routes())
@@ -122,6 +123,13 @@ pub fn router(services: Services) -> Router {
 
 async fn endpoint_not_found(OriginalUri(uri): OriginalUri) -> ApiError {
     ApiError::not_found("endpoint", uri.path())
+}
+
+async fn stylesheet() -> impl IntoResponse {
+    (
+        [(header::CONTENT_TYPE, "text/css; charset=utf-8")],
+        include_str!("../assets/web/style.css"),
+    )
 }
 
 fn cors_layer() -> CorsLayer {
