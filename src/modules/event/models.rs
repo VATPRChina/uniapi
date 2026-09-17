@@ -99,7 +99,7 @@ pub struct EventSlotSave {
     pub aircraft_type_icao: Option<String>,
 }
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct EventBooking {
     pub id: Uuid,
     pub user_id: Uuid,

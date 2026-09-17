@@ -502,3 +502,96 @@ test("slot can be assigned and unassigned by event coordinator outside booking t
     }),
   );
 });
+
+function ulidToUuid(id: string): string {
+  const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  const value = [...id].reduce(
+    (value, digit) => value * 32n + BigInt(alphabet.indexOf(digit)), 0n,
+  ).toString(16).padStart(32, "0");
+  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
+}
+
+for (const outsidePeriod of [false, true]) {
+  test(`privileged slot changes are audited (outside period: ${outsidePeriod})`, async ({
+    coordinator, assignee, event, slot, closedEvent, closedSlot,
+  }) => {
+    const selectedEvent = outsidePeriod ? closedEvent : event;
+    const selectedSlot = outsidePeriod ? closedSlot : slot;
+    const session = await coordinator.GET("/api/session");
+    expect(session.error).toBeFalsy();
+    // Own booking outside the window isolates the time override from ownership.
+    const targetId = outsidePeriod ? session.data.user.id : assignee.id;
+    const params = {
+      path: { event_id: selectedEvent.id, slot_id: selectedSlot.id },
+    };
+    const created = await coordinator.PUT(
+      "/api/events/{event_id}/slots/{slot_id}/booking",
+      { params, body: { user_id: targetId } },
+    );
+    expect(created.error).toBeFalsy();
+    const duplicate = await coordinator.PUT(
+      "/api/events/{event_id}/slots/{slot_id}/booking",
+      { params, body: { user_id: targetId } },
+    );
+    expect(duplicate.response.status).toBe(409);
+    const deleted = await coordinator.DELETE(
+      "/api/events/{event_id}/slots/{slot_id}/booking", { params },
+    );
+    expect(deleted.error).toBeFalsy();
+    const logs = await coordinator.GET("/api/events/{id}/audit", {
+      params: { path: { id: selectedEvent.id } },
+    });
+    expect(logs.error).toBeFalsy();
+    const bookingLogs = logs.data.filter(
+      (log) => log.child_entity?.id === selectedSlot.id &&
+        log.before !== null && "booking" in (log.before as object),
+    );
+    expect(bookingLogs).toHaveLength(2);
+    const creation = bookingLogs.find(
+      (log) => (log.before as { booking: unknown }).booking === null,
+    );
+    const cancellation = bookingLogs.find(
+      (log) => (log.after as { booking: unknown }).booking === null,
+    );
+    expect(creation).toEqual(expect.objectContaining({
+      entity: { kind: "event", id: selectedEvent.id },
+      child_entity: { kind: "event-slot", id: selectedSlot.id },
+      operated_by: expect.objectContaining({ id: session.data.user.id }),
+      before: { booking: null },
+      after: { booking: expect.objectContaining({
+        id: ulidToUuid(created.data.id), user_id: ulidToUuid(targetId),
+        created_at: created.data.created_at,
+        updated_at: created.data.updated_at,
+      }) },
+    }));
+    expect(cancellation).toEqual(expect.objectContaining({
+      operated_by: expect.objectContaining({ id: session.data.user.id }),
+      before: creation.after,
+      after: { booking: null },
+    }));
+  });
+}
+
+for (const asCoordinator of [false, true]) {
+  test(`self-service booking in the window adds no admin audit (coordinator: ${asCoordinator})`, async ({
+    coordinator, user, event, slot,
+  }) => {
+    const client = asCoordinator ? coordinator : user;
+    const auditParams = { params: { path: { id: event.id } } };
+    const before = await coordinator.GET("/api/events/{id}/audit", auditParams);
+    expect(before.error).toBeFalsy();
+    const params = { path: { event_id: event.id, slot_id: slot.id } };
+    const created = await client.PUT(
+      "/api/events/{event_id}/slots/{slot_id}/booking",
+      { params, body: {} },
+    );
+    expect(created.error).toBeFalsy();
+    const deleted = await client.DELETE(
+      "/api/events/{event_id}/slots/{slot_id}/booking", { params },
+    );
+    expect(deleted.error).toBeFalsy();
+    const after = await coordinator.GET("/api/events/{id}/audit", auditParams);
+    expect(after.error).toBeFalsy();
+    expect(after.data).toEqual(before.data);
+  });
+}

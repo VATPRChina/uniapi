@@ -23,10 +23,22 @@ impl AuditLogService {
         before: Option<&T>,
         after: Option<&T>,
     ) -> Result<(), AuditLogServiceError> {
+        self.record_with_executor(&self.db, entity, operated_by, before, after)
+            .await
+    }
+
+    pub async fn record_with_executor<'e, T: Serialize>(
+        &self,
+        executor: impl sqlx::Executor<'e, Database = sqlx::Postgres>,
+        entity: AuditLogEntity,
+        operated_by: Uuid,
+        before: Option<&T>,
+        after: Option<&T>,
+    ) -> Result<(), AuditLogServiceError> {
         let before = serialize_snapshot(before)?;
         let after = serialize_snapshot(after)?;
 
-        self.db
+        executor
             .create_audit_log(AuditLog {
                 entity,
                 before,

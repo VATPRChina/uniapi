@@ -4,9 +4,9 @@ use axum::{Json, Router};
 use ulid::Ulid;
 
 use crate::error::ApiError;
-use crate::modules::user::models::UserRole;
 use crate::modules::event::dto::{EventBookingDto, EventSlotBookingRequest};
 use crate::modules::user::middleware::CurrentUser;
+use crate::modules::user::models::UserRole;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -32,6 +32,7 @@ async fn put_booking(
     if request.user_id.is_some() && !current_user.has_role(UserRole::EventCoordinator) {
         return Err(ApiError::forbidden([UserRole::EventCoordinator]));
     }
+    let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let is_admin_booking = request.user_id.is_some();
     let user_id = match request.user_id.as_deref() {
         Some(user_id) => (user_id).parse::<Ulid>()?.into(),
@@ -40,7 +41,7 @@ async fn put_booking(
 
     let booking = services
         .event()
-        .create_slot_booking(event_id, slot_id, user_id, is_admin_booking)
+        .create_slot_booking(event_id, slot_id, user_id, operated_by, is_admin_booking)
         .await?;
 
     Ok(Json(EventBookingDto::from_entity(

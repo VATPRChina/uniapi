@@ -161,6 +161,7 @@ impl EventService {
         event_id: Uuid,
         slot_id: Uuid,
         user_id: Uuid,
+        operated_by: Uuid,
         is_admin_booking: bool,
     ) -> Result<EventBookingView, EventServiceError> {
         let mut transaction = self.db.begin().await?;
@@ -182,12 +183,22 @@ impl EventService {
         (&mut *transaction)
             .create_event_slot_booking_booking(slot_id, user_id)
             .await?;
-        transaction.commit().await?;
-        let booking = self
-            .db
+        let booking = (&mut *transaction)
             .find_event_slot_booking_booking(event_id, slot_id)
             .await?
             .ok_or(EventServiceError::SlotNotBooked)?;
+        if is_admin_booking {
+            self.audit_log
+                .record_with_executor(
+                    &mut *transaction,
+                    AuditLogEntity::EventSlot(event_id, slot_id),
+                    operated_by,
+                    Some(&serde_json::json!({ "booking": null })),
+                    Some(&serde_json::json!({ "booking": booking })),
+                )
+                .await?;
+        }
+        transaction.commit().await?;
         self.with_booking_user(booking).await
     }
 
@@ -219,6 +230,17 @@ impl EventService {
         (&mut *transaction)
             .delete_event_slot_booking_booking(booking_id)
             .await?;
+        if state.booking_user_id != Some(current_user_id) || !state.is_in_booking_period {
+            self.audit_log
+                .record_with_executor(
+                    &mut *transaction,
+                    AuditLogEntity::EventSlot(event_id, slot_id),
+                    current_user_id,
+                    Some(&serde_json::json!({ "booking": booking })),
+                    Some(&serde_json::json!({ "booking": null })),
+                )
+                .await?;
+        }
         transaction.commit().await?;
         self.with_booking_user(booking).await
     }
