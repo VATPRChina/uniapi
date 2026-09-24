@@ -404,22 +404,6 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/atc/trainings/self-reflection-sheet": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get_self_reflection_sheet"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/atc/trainings/{id}": {
         parameters: {
             query?: never;
@@ -461,6 +445,22 @@ export type paths = {
         };
         get?: never;
         put: operations["set_self_reflection"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/atc/trainings/{id}/self-reflection-sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_self_reflection_sheet"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2603,7 +2603,10 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description Training ULID */
+                id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;

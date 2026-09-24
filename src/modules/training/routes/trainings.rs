@@ -1,6 +1,6 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::routing::get;
+use axum::routing::{get, put};
 use axum::{Json, Router};
 use ulid::Ulid;
 
@@ -38,18 +38,18 @@ pub fn build_training_routes() -> Router<Services> {
         .route("/by-user/{user_id}", get(list_by_user))
         .route("/finished", get(list_finished))
         .route("/record-sheet", get(get_record_sheet))
-        .route("/self-reflection-sheet", get(get_self_reflection_sheet))
         .route(
-            "/{id}/self-reflection",
-            axum::routing::put(set_self_reflection),
+            "/{id}/self-reflection-sheet",
+            get(get_self_reflection_sheet),
         )
+        .route("/{id}/self-reflection", put(set_self_reflection))
         .route(
             "/{id}",
             get(get_training)
                 .put(update_training)
                 .delete(delete_training),
         )
-        .route("/{id}/record", axum::routing::put(set_record_sheet))
+        .route("/{id}/record", put(set_record_sheet))
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/active", tag = "Training", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
@@ -64,7 +64,7 @@ async fn list_active(
             .list_active(user_id, is_training_history_admin(&current_user))
             .await?
             .into_iter()
-            .map(training_to_dto)
+            .map(|training| training_to_dto(training, &current_user))
             .collect(),
     ))
 }
@@ -87,7 +87,7 @@ async fn list_by_user(
             )
             .await?
             .into_iter()
-            .map(training_to_dto)
+            .map(|training| training_to_dto(training, &current_user))
             .collect(),
     ))
 }
@@ -104,7 +104,7 @@ async fn list_finished(
             .list_finished(user_id, is_training_history_admin(&current_user))
             .await?
             .into_iter()
-            .map(training_to_dto)
+            .map(|training| training_to_dto(training, &current_user))
             .collect(),
     ))
 }
@@ -124,7 +124,7 @@ async fn get_training(
             is_training_history_admin(&current_user),
         )
         .await?;
-    Ok(Json(training_to_dto(training)))
+    Ok(Json(training_to_dto(training, &current_user)))
 }
 
 #[utoipa::path(post, path = "api/atc/trainings", tag = "Training", security(("oauth2" = [])), request_body = TrainingSaveRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
@@ -143,7 +143,7 @@ async fn create_training(
             current_user.has_role(UserRole::ControllerTrainingDirectorAssistant),
         )
         .await?;
-    Ok(Json(training_to_dto(training)))
+    Ok(Json(training_to_dto(training, &current_user)))
 }
 
 #[utoipa::path(put, path = "api/atc/trainings/{id}", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), request_body = TrainingSaveRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
@@ -164,7 +164,7 @@ async fn update_training(
             current_user.has_role(UserRole::ControllerTrainingMentor),
         )
         .await?;
-    Ok(Json(training_to_dto(training)))
+    Ok(Json(training_to_dto(training, &current_user)))
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/record-sheet", tag = "Training", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
@@ -205,13 +205,24 @@ async fn set_record_sheet(
             current_user.has_role(UserRole::ControllerTrainingMentor),
         )
         .await?;
-    Ok(Json(training_to_dto(training)))
+    Ok(Json(training_to_dto(training, &current_user)))
 }
 
-#[utoipa::path(get, path = "api/atc/trainings/self-reflection-sheet", tag = "Training", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = SheetDto)))]
+#[utoipa::path(get, path = "api/atc/trainings/{id}/self-reflection-sheet", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = SheetDto)))]
 async fn get_self_reflection_sheet(
     State(services): State<Services>,
+    current_user: CurrentUser,
+    Path(id): Path<String>,
 ) -> Result<Json<SheetDto>, ApiError> {
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    services
+        .training()
+        .find_visible(
+            id.parse::<Ulid>()?.into(),
+            user_id,
+            current_user.has_role(UserRole::ControllerTrainingDirectorAssistant),
+        )
+        .await?;
     let view = services.sheet().find(SELF_REFLECTION_SHEET_ID).await?;
     Ok(Json(SheetDto::from_entities(
         view.sheet,
@@ -237,9 +248,14 @@ async fn set_self_reflection(
         .collect::<Vec<_>>();
     let training = services
         .training()
-        .set_self_reflection(id.parse::<Ulid>()?.into(), &answers, user_id)
+        .set_self_reflection(
+            id.parse::<Ulid>()?.into(),
+            &answers,
+            user_id,
+            current_user.has_role(UserRole::ControllerTrainingDirectorAssistant),
+        )
         .await?;
-    Ok(Json(training_to_dto(training)))
+    Ok(Json(training_to_dto(training, &current_user)))
 }
 
 #[utoipa::path(delete, path = "api/atc/trainings/{id}", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 204, description = "No content")))]
@@ -261,7 +277,15 @@ async fn delete_training(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn training_to_dto(view: TrainingView) -> TrainingDto {
+fn training_to_dto(mut view: TrainingView, current_user: &CurrentUser) -> TrainingDto {
+    // Training history is visible to other mentors, but self reflection is not.
+    if current_user.user_id != Some(view.training.trainee_id)
+        && current_user.user_id != Some(view.training.trainer_id)
+        && !current_user.has_role(UserRole::ControllerTrainingDirectorAssistant)
+    {
+        view.self_reflection_sheet_filing = None;
+        view.training.self_reflection_sheet_filing_id = None;
+    }
     TrainingDto::from_entity(
         view.training,
         view.trainer,

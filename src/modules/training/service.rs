@@ -166,6 +166,7 @@ impl TrainingService {
         id: Uuid,
         answers: &[SheetAnswerSave],
         current_user_id: Uuid,
+        is_admin: bool,
     ) -> Result<TrainingView, TrainingServiceError> {
         let mut transaction = self.db.begin().await?;
         // Serialize edits, including the first filing, for this training.
@@ -173,7 +174,7 @@ impl TrainingService {
             .lock_training_by_id(id)
             .await?
             .ok_or(TrainingServiceError::NotFound(id))?;
-        if training.trainee_id != current_user_id {
+        if training.trainee_id != current_user_id && !is_admin {
             return Err(TrainingServiceError::NotOwned {
                 entity: "training",
                 id,
@@ -183,7 +184,7 @@ impl TrainingService {
             .set_sheet_filing(
                 SELF_REFLECTION_SHEET_ID,
                 training.self_reflection_sheet_filing_id,
-                current_user_id,
+                training.trainee_id,
                 answers,
             )
             .await?;

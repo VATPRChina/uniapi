@@ -29,7 +29,10 @@ test("trainee saves before training and edits after training without changing me
   training,
 }) => {
   const params = { path: { id: training.id } };
-  const sheet = await trainee.GET("/api/atc/trainings/self-reflection-sheet");
+  const sheet = await trainee.GET(
+    "/api/atc/trainings/{id}/self-reflection-sheet",
+    { params: { path: { id: training.id } } },
+  );
   expect(sheet.data?.fields).toEqual([
     expect.objectContaining({ id: "reflection", kind: "long-text" }),
   ]);
@@ -66,52 +69,103 @@ test("trainee saves before training and edits after training without changing me
   expect(loaded.data?.record_sheet_filing).toBeNull();
 });
 
-test("training viewers can read but only the trainee can edit", async ({
+test("reflection access is limited to the trainee, assigned trainer and training director assistant", async ({
   trainee,
   mentor,
   training,
 }) => {
   const params = { path: { id: training.id } };
-  expect(
-    (
-      await trainee.PUT("/api/atc/trainings/{id}/self-reflection", {
-        params,
-        body: body("Private reflection"),
-      })
-    ).response.status,
-  ).toBe(200);
-  for (const viewer of [
-    mentor,
-    await getClient(["controller-training-mentor"]),
-    await getClient(["controller-training-director-assistant"]),
-  ]) {
+  const admin = await getClient(["controller-training-director-assistant"]);
+  const first = await admin.PUT("/api/atc/trainings/{id}/self-reflection", {
+    params,
+    body: body("Admin draft"),
+  });
+  expect(first.response.status).toBe(200);
+  const saved = await trainee.PUT("/api/atc/trainings/{id}/self-reflection", {
+    params,
+    body: body("Private reflection"),
+  });
+  expect(saved.response.status).toBe(200);
+  expect(saved.data?.self_reflection_sheet_filing_id).toBe(
+    first.data?.self_reflection_sheet_filing_id,
+  );
+  for (const viewer of [trainee, mentor, admin]) {
+    expect(
+      (
+        await viewer.GET("/api/atc/trainings/{id}/self-reflection-sheet", {
+          params,
+        })
+      ).response.status,
+    ).toBe(200);
     const read = await viewer.GET("/api/atc/trainings/{id}", { params });
-    expect(read.response.status).toBe(200);
     expect(read.data?.self_reflection_sheet_filing?.[0].answer).toBe(
       "Private reflection",
     );
+  }
+  const otherMentor = await getClient(["controller-training-mentor"]);
+  const stranger = await getClient([]);
+  const staff = await getClient(["staff"]);
+  for (const denied of [otherMentor, stranger, staff]) {
     expect(
       (
-        await viewer.PUT("/api/atc/trainings/{id}/self-reflection", {
+        await denied.GET("/api/atc/trainings/{id}/self-reflection-sheet", {
+          params,
+        })
+      ).response.status,
+    ).toBe(403);
+  }
+  for (const denied of [mentor, otherMentor, stranger, staff]) {
+    expect(
+      (
+        await denied.PUT("/api/atc/trainings/{id}/self-reflection", {
           params,
           body: body("Denied"),
         })
       ).response.status,
     ).toBe(403);
   }
-  const stranger = await getClient([]);
+  const hidden = await otherMentor.GET("/api/atc/trainings/{id}", { params });
+  expect(hidden.response.status).toBe(200);
+  expect(hidden.data?.self_reflection_sheet_filing).toBeNull();
+  expect(hidden.data?.self_reflection_sheet_filing_id).toBeNull();
+  const active = await otherMentor.GET("/api/atc/trainings/active");
   expect(
-    (await stranger.GET("/api/atc/trainings/{id}", { params })).response.status,
-  ).toBe(403);
+    active.data?.find((row) => row.id === training.id)
+      ?.self_reflection_sheet_filing,
+  ).toBeNull();
+  const history = await otherMentor.GET("/api/atc/trainings/by-user/{userId}", {
+    params: { path: { userId: training.trainee_id } },
+  });
+  expect(
+    history.data?.find((row) => row.id === training.id)
+      ?.self_reflection_sheet_filing,
+  ).toBeNull();
+  const updated = await otherMentor.PUT("/api/atc/trainings/{id}", {
+    params,
+    body: training,
+  });
+  expect(updated.response.status).toBe(200);
+  expect(updated.data?.self_reflection_sheet_filing).toBeNull();
+  await mentor.GET("/api/atc/trainings/record-sheet");
+  const recorded = await otherMentor.PUT("/api/atc/trainings/{id}/record", {
+    params,
+    body: { request_answers: [] },
+  });
+  expect(recorded.response.status).toBe(200);
+  expect(recorded.data?.self_reflection_sheet_filing).toBeNull();
+  const finished = await otherMentor.GET("/api/atc/trainings/finished");
+  expect(
+    finished.data?.find((row) => row.id === training.id)
+      ?.self_reflection_sheet_filing,
+  ).toBeNull();
+  const anonymous = await getClient();
   expect(
     (
-      await stranger.PUT("/api/atc/trainings/{id}/self-reflection", {
+      await anonymous.GET("/api/atc/trainings/{id}/self-reflection-sheet", {
         params,
-        body: body("Denied"),
       })
     ).response.status,
-  ).toBe(403);
-  const anonymous = await getClient();
+  ).toBe(401);
   expect(
     (
       await anonymous.PUT("/api/atc/trainings/{id}/self-reflection", {
@@ -120,10 +174,18 @@ test("training viewers can read but only the trainee can edit", async ({
       })
     ).response.status,
   ).toBe(401);
+  const edited = await admin.PUT("/api/atc/trainings/{id}/self-reflection", {
+    params,
+    body: body("Admin edit"),
+  });
+  expect(edited.response.status).toBe(200);
+  expect(edited.data?.self_reflection_sheet_filing_id).toBe(
+    first.data?.self_reflection_sheet_filing_id,
+  );
   expect(
     (await trainee.GET("/api/atc/trainings/{id}", { params })).data
       ?.self_reflection_sheet_filing?.[0].answer,
-  ).toBe("Private reflection");
+  ).toBe("Admin edit");
 });
 
 test("concurrent initial saves share a filing; invalid fields do not overwrite answers", async ({
@@ -175,7 +237,10 @@ test("uses configured fields and excludes deleted fields", async ({
       body: { name: original.data!.name, fields: [custom] },
     });
     expect(configured.response.status).toBe(200);
-    const sheet = await trainee.GET("/api/atc/trainings/self-reflection-sheet");
+    const sheet = await trainee.GET(
+      "/api/atc/trainings/{id}/self-reflection-sheet",
+      { params: { path: { id: training.id } } },
+    );
     expect(sheet.data?.fields.map((field) => field.id)).toEqual(["next-steps"]);
     const saved = await trainee.PUT("/api/atc/trainings/{id}/self-reflection", {
       params: { path: { id: training.id } },
