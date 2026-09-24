@@ -55,6 +55,8 @@ pub struct TrainingDto {
     pub deleted_at: Option<DateTime<Utc>>,
     pub record_sheet_filing_id: Option<String>,
     pub record_sheet_filing: Option<Vec<SheetFieldAnswerDto>>,
+    pub self_reflection_sheet_filing_id: Option<String>,
+    pub self_reflection_sheet_filing: Option<Vec<SheetFieldAnswerDto>>,
 }
 
 impl TrainingDto {
@@ -63,6 +65,7 @@ impl TrainingDto {
         trainer: UserSummary,
         trainee: UserSummary,
         record_sheet_filing: Option<Vec<SheetFieldAnswerDto>>,
+        self_reflection_sheet_filing: Option<Vec<SheetFieldAnswerDto>>,
     ) -> Self {
         Self {
             id: Ulid::from(training.id).to_string(),
@@ -80,6 +83,10 @@ impl TrainingDto {
                 .record_sheet_filing_id
                 .map(|id| Ulid::from(id).to_string()),
             record_sheet_filing,
+            self_reflection_sheet_filing_id: training
+                .self_reflection_sheet_filing_id
+                .map(|id| Ulid::from(id).to_string()),
+            self_reflection_sheet_filing,
         }
     }
 }

@@ -1,16 +1,16 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::routing::get;
+use axum::routing::{get, put};
 use axum::{Json, Router};
 use ulid::Ulid;
 
 use crate::error::ApiError;
-use crate::modules::user::models::UserRole;
 use crate::modules::sheet::dto::{SheetDto, SheetFieldAnswerDto};
 use crate::modules::sheet::models::SheetAnswerSave;
 use crate::modules::training::dto::{TrainingDto, TrainingRecordRequest, TrainingSaveRequest};
-use crate::modules::training::service::TrainingView;
+use crate::modules::training::service::{SELF_REFLECTION_SHEET_ID, TrainingView};
 use crate::modules::user::middleware::CurrentUser;
+use crate::modules::user::models::UserRole;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -23,7 +23,9 @@ use crate::services::Services;
     get_training,
     update_training,
     delete_training,
-    set_record_sheet
+    set_record_sheet,
+    get_self_reflection_sheet,
+    set_self_reflection
 ))]
 pub(crate) struct ApiDoc;
 
@@ -37,12 +39,17 @@ pub fn build_training_routes() -> Router<Services> {
         .route("/finished", get(list_finished))
         .route("/record-sheet", get(get_record_sheet))
         .route(
+            "/{id}/self-reflection-sheet",
+            get(get_self_reflection_sheet),
+        )
+        .route("/{id}/self-reflection", put(set_self_reflection))
+        .route(
             "/{id}",
             get(get_training)
                 .put(update_training)
                 .delete(delete_training),
         )
-        .route("/{id}/record", axum::routing::put(set_record_sheet))
+        .route("/{id}/record", put(set_record_sheet))
 }
 
 #[utoipa::path(get, path = "api/atc/trainings/active", tag = "Training", security(("oauth2" = [])), responses((status = 200, description = "Successful response", body = Vec<TrainingDto>)))]
@@ -201,6 +208,56 @@ async fn set_record_sheet(
     Ok(Json(training_to_dto(training)))
 }
 
+#[utoipa::path(get, path = "api/atc/trainings/{id}/self-reflection-sheet", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 200, description = "Successful response", body = SheetDto)))]
+async fn get_self_reflection_sheet(
+    State(services): State<Services>,
+    current_user: CurrentUser,
+    Path(id): Path<String>,
+) -> Result<Json<SheetDto>, ApiError> {
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    services
+        .training()
+        .find_visible(
+            id.parse::<Ulid>()?.into(),
+            user_id,
+            is_training_history_admin(&current_user),
+        )
+        .await?;
+    let view = services.sheet().find(SELF_REFLECTION_SHEET_ID).await?;
+    Ok(Json(SheetDto::from_entities(
+        view.sheet,
+        view.fields
+            .into_iter()
+            .filter(|field| !field.is_deleted)
+            .collect(),
+    )))
+}
+
+#[utoipa::path(put, path = "api/atc/trainings/{id}/self-reflection", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), request_body = TrainingRecordRequest, responses((status = 200, description = "Successful response", body = TrainingDto)))]
+async fn set_self_reflection(
+    State(services): State<Services>,
+    current_user: CurrentUser,
+    Path(id): Path<String>,
+    Json(request): Json<TrainingRecordRequest>,
+) -> Result<Json<TrainingDto>, ApiError> {
+    let user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
+    let answers = request
+        .request_answers
+        .into_iter()
+        .map(SheetAnswerSave::from)
+        .collect::<Vec<_>>();
+    let training = services
+        .training()
+        .set_self_reflection(
+            id.parse::<Ulid>()?.into(),
+            &answers,
+            user_id,
+            current_user.has_role(UserRole::ControllerTrainingDirectorAssistant),
+        )
+        .await?;
+    Ok(Json(training_to_dto(training)))
+}
+
 #[utoipa::path(delete, path = "api/atc/trainings/{id}", tag = "Training", security(("oauth2" = [])), params(("id" = String, Path, description = "Training ULID")), responses((status = 204, description = "No content")))]
 async fn delete_training(
     State(services): State<Services>,
@@ -226,6 +283,12 @@ fn training_to_dto(view: TrainingView) -> TrainingDto {
         view.trainer,
         view.trainee,
         view.record_sheet_filing.map(|answers| {
+            answers
+                .into_iter()
+                .map(|view| SheetFieldAnswerDto::from_entities(view.answer, view.field))
+                .collect()
+        }),
+        view.self_reflection_sheet_filing.map(|answers| {
             answers
                 .into_iter()
                 .map(|view| SheetFieldAnswerDto::from_entities(view.answer, view.field))

@@ -14,6 +14,7 @@ pub struct Training {
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
     pub record_sheet_filing_id: Option<Uuid>,
+    pub self_reflection_sheet_filing_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone)]
