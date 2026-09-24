@@ -69,7 +69,7 @@ test("trainee saves before training and edits after training without changing me
   expect(loaded.data?.record_sheet_filing).toBeNull();
 });
 
-test("reflection access is limited to the trainee, assigned trainer and training director assistant", async ({
+test("mentors can read reflection through training endpoints but only the trainee and training director assistant can write", async ({
   trainee,
   mentor,
   training,
@@ -89,7 +89,8 @@ test("reflection access is limited to the trainee, assigned trainer and training
   expect(saved.data?.self_reflection_sheet_filing_id).toBe(
     first.data?.self_reflection_sheet_filing_id,
   );
-  for (const viewer of [trainee, mentor, admin]) {
+  const otherMentor = await getClient(["controller-training-mentor"]);
+  for (const viewer of [trainee, mentor, otherMentor, admin]) {
     expect(
       (
         await viewer.GET("/api/atc/trainings/{id}/self-reflection-sheet", {
@@ -102,10 +103,9 @@ test("reflection access is limited to the trainee, assigned trainer and training
       "Private reflection",
     );
   }
-  const otherMentor = await getClient(["controller-training-mentor"]);
   const stranger = await getClient([]);
   const staff = await getClient(["staff"]);
-  for (const denied of [otherMentor, stranger, staff]) {
+  for (const denied of [stranger, staff]) {
     expect(
       (
         await denied.GET("/api/atc/trainings/{id}/self-reflection-sheet", {
@@ -124,40 +124,48 @@ test("reflection access is limited to the trainee, assigned trainer and training
       ).response.status,
     ).toBe(403);
   }
-  const hidden = await otherMentor.GET("/api/atc/trainings/{id}", { params });
-  expect(hidden.response.status).toBe(200);
-  expect(hidden.data?.self_reflection_sheet_filing).toBeNull();
-  expect(hidden.data?.self_reflection_sheet_filing_id).toBeNull();
+  const visible = await otherMentor.GET("/api/atc/trainings/{id}", { params });
+  expect(visible.response.status).toBe(200);
+  expect(visible.data?.self_reflection_sheet_filing).toEqual(
+    saved.data?.self_reflection_sheet_filing,
+  );
+  expect(visible.data?.self_reflection_sheet_filing_id).toBe(
+    saved.data?.self_reflection_sheet_filing_id,
+  );
   const active = await otherMentor.GET("/api/atc/trainings/active");
   expect(
     active.data?.find((row) => row.id === training.id)
       ?.self_reflection_sheet_filing,
-  ).toBeNull();
+  ).toEqual(saved.data?.self_reflection_sheet_filing);
   const history = await otherMentor.GET("/api/atc/trainings/by-user/{userId}", {
     params: { path: { userId: training.trainee_id } },
   });
   expect(
     history.data?.find((row) => row.id === training.id)
       ?.self_reflection_sheet_filing,
-  ).toBeNull();
+  ).toEqual(saved.data?.self_reflection_sheet_filing);
   const updated = await otherMentor.PUT("/api/atc/trainings/{id}", {
     params,
     body: training,
   });
   expect(updated.response.status).toBe(200);
-  expect(updated.data?.self_reflection_sheet_filing).toBeNull();
+  expect(updated.data?.self_reflection_sheet_filing).toEqual(
+    saved.data?.self_reflection_sheet_filing,
+  );
   await mentor.GET("/api/atc/trainings/record-sheet");
   const recorded = await otherMentor.PUT("/api/atc/trainings/{id}/record", {
     params,
     body: { request_answers: [] },
   });
   expect(recorded.response.status).toBe(200);
-  expect(recorded.data?.self_reflection_sheet_filing).toBeNull();
+  expect(recorded.data?.self_reflection_sheet_filing).toEqual(
+    saved.data?.self_reflection_sheet_filing,
+  );
   const finished = await otherMentor.GET("/api/atc/trainings/finished");
   expect(
     finished.data?.find((row) => row.id === training.id)
       ?.self_reflection_sheet_filing,
-  ).toBeNull();
+  ).toEqual(saved.data?.self_reflection_sheet_filing);
   const anonymous = await getClient();
   expect(
     (
