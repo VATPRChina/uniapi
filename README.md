@@ -120,3 +120,33 @@ If some common data setup is required for the API endpoint (e.g. `/api/events` r
     to the repository, the contributors are additionally granting VATPRC staffs an
     unrevokeable right to use the code freely for any purposes related to VATSIM or
     VATPRC.
+
+### Discord event posts
+
+Set `discord.event_forum_channel_id` to a Discord forum channel ID, in addition
+to enabling the bot and configuring its token. If the forum requires tags, set
+`discord.event_forum_tag_ids` to the permitted tag IDs. The bot needs View Channel,
+Send Messages, Embed Links, Read Message History, and Send Messages in Threads
+permissions there. Locked posts additionally require Manage Threads to reopen.
+
+Event coordinators can publish a saved website event from its edit dialog. The
+service stores the forum thread and guild IDs and returns `discord_message` in the
+event API. `PUT /api/events/{id}/discord` creates the post once, or synchronizes
+its existing title and starter message. Event updates automatically synchronize
+linked posts. A failed sync preserves the website changes and exposes
+`discord_message.status = OutOfSync`; the editor offers a retry. Unpublished events are never
+automatically published. Long descriptions are shortened to Discord's embed
+limit, with a link to the full website event. Mentions are disabled.
+
+Run database migrations before deploying this version. Discord associations live
+in `event_discord_message`, keyed by `event_id`. Its `status` column is a text enum
+restricted to `Sync` and `OutOfSync`; `synced_at` records the last successful sync.
+Failed updates retain that timestamp. First publication failures create no
+association and return an API error.
+
+Discord requests run after website changes are committed, without holding a
+transaction or row lock. Concurrent first publications can create duplicate posts;
+there is no cross-system atomicity. Local tests use a mock Discord HTTP server.
+
+The API exposes `discord_message` with string `guild_id` and `message_id`
+snowflakes, `status`, and `synced_at`.
