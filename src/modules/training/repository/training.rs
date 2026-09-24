@@ -20,7 +20,8 @@ fn training_select_sql_from(source: &str, where_clause: &str) -> String {
                training.created_at,
                training.updated_at,
                training.deleted_at,
-               training.record_sheet_filing_id
+               training.record_sheet_filing_id,
+               training.self_reflection_sheet_filing_id
         FROM {source}
         {where_clause}
         "#
@@ -44,6 +45,8 @@ pub(crate) trait TrainingRepository<'executor> {
 
     async fn find_training_by_id(self, id: Uuid) -> Result<Option<Training>, sqlx::Error>;
 
+    async fn lock_training_by_id(self, id: Uuid) -> Result<Option<Training>, sqlx::Error>;
+
     async fn create_training(self, training: TrainingSave) -> Result<Training, sqlx::Error>;
 
     async fn update_training(
@@ -53,6 +56,12 @@ pub(crate) trait TrainingRepository<'executor> {
     ) -> Result<Option<Training>, sqlx::Error>;
 
     async fn set_training_record_filing(
+        self,
+        id: Uuid,
+        filing_id: Uuid,
+    ) -> Result<Option<Training>, sqlx::Error>;
+
+    async fn set_training_self_reflection_filing(
         self,
         id: Uuid,
         filing_id: Uuid,
@@ -120,6 +129,12 @@ where
         .bind(id)
         .fetch_optional(self)
         .await
+    }
+    async fn lock_training_by_id(self, id: Uuid) -> Result<Option<Training>, sqlx::Error> {
+        sqlx::query_as::<_, Training>(&training_select_sql("WHERE training.id = $1 FOR UPDATE"))
+            .bind(id)
+            .fetch_optional(self)
+            .await
     }
     async fn create_training(self, training: TrainingSave) -> Result<Training, sqlx::Error> {
         tracing::info!(
@@ -202,6 +217,36 @@ where
         WITH updated AS (
           UPDATE public.training
           SET record_sheet_filing_id = $2, updated_at = $3
+          WHERE id = $1
+          RETURNING *
+        )
+        {}
+        "#,
+            training_select_sql_from("updated AS training", "WHERE training.id = $1"),
+        );
+        sqlx::query_as::<_, Training>(&query)
+            .bind(id)
+            .bind(filing_id)
+            .bind(Utc::now())
+            .fetch_optional(self)
+            .await
+    }
+    async fn set_training_self_reflection_filing(
+        self,
+        id: Uuid,
+        filing_id: Uuid,
+    ) -> Result<Option<Training>, sqlx::Error> {
+        tracing::info!(
+            operation = "set_self_reflection_filing",
+            repository = "src/modules/training/repository/training.rs",
+            "modifying data"
+        );
+
+        let query = format!(
+            r#"
+        WITH updated AS (
+          UPDATE public.training
+          SET self_reflection_sheet_filing_id = $2, updated_at = $3
           WHERE id = $1
           RETURNING *
         )

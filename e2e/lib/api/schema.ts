@@ -404,6 +404,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/atc/trainings/self-reflection-sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_self_reflection_sheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/atc/trainings/{id}": {
         parameters: {
             query?: never;
@@ -429,6 +445,22 @@ export type paths = {
         };
         get?: never;
         put: operations["set_record_sheet"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/atc/trainings/{id}/self-reflection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_self_reflection"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1682,6 +1714,8 @@ export type components = {
             name: string;
             record_sheet_filing?: components["schemas"]["SheetFieldAnswerDto"][] | null;
             record_sheet_filing_id?: string | null;
+            self_reflection_sheet_filing?: components["schemas"]["SheetFieldAnswerDto"][] | null;
+            self_reflection_sheet_filing_id?: string | null;
             /** Format: date-time */
             start_at: string;
             trainee: components["schemas"]["UserDto"];
@@ -2565,6 +2599,27 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
+    get_self_reflection_sheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     get_training: {
         parameters: {
             query?: never;
@@ -2640,6 +2695,34 @@ export interface operations {
         };
     };
     set_record_sheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Training ULID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrainingRecordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    set_self_reflection: {
         parameters: {
             query?: never;
             header?: never;

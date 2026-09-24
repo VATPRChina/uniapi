@@ -24,6 +24,8 @@ use super::repository::training_application_response::{
 };
 use super::repository::training_application_slot::TrainingApplicationSlotRepository;
 
+pub const SELF_REFLECTION_SHEET_ID: &str = "training-self-reflection";
+
 const RECORD_SHEET_ID: &str = "training-record";
 
 #[derive(Clone)]
@@ -159,6 +161,40 @@ impl TrainingService {
         self.with_filing(training).await
     }
 
+    pub async fn set_self_reflection(
+        &self,
+        id: Uuid,
+        answers: &[SheetAnswerSave],
+        current_user_id: Uuid,
+    ) -> Result<TrainingView, TrainingServiceError> {
+        let mut transaction = self.db.begin().await?;
+        // Serialize edits, including the first filing, for this training.
+        let training = (&mut *transaction)
+            .lock_training_by_id(id)
+            .await?
+            .ok_or(TrainingServiceError::NotFound(id))?;
+        if training.trainee_id != current_user_id {
+            return Err(TrainingServiceError::NotOwned {
+                entity: "training",
+                id,
+            });
+        }
+        let filing_id = transaction
+            .set_sheet_filing(
+                SELF_REFLECTION_SHEET_ID,
+                training.self_reflection_sheet_filing_id,
+                current_user_id,
+                answers,
+            )
+            .await?;
+        let training = (&mut *transaction)
+            .set_training_self_reflection_filing(id, filing_id)
+            .await?
+            .ok_or(TrainingServiceError::NotFound(id))?;
+        transaction.commit().await?;
+        self.with_filing(training).await
+    }
+
     pub async fn delete(
         &self,
         id: Uuid,
@@ -197,6 +233,10 @@ impl TrainingService {
             Some(filing_id) => Some(self.sheet.filing_answers(filing_id).await?),
             None => None,
         };
+        let self_reflection_sheet_filing = match training.self_reflection_sheet_filing_id {
+            Some(filing_id) => Some(self.sheet.filing_answers(filing_id).await?),
+            None => None,
+        };
         let trainer = self
             .user
             .find_summary_by_id(training.trainer_id)
@@ -212,6 +252,7 @@ impl TrainingService {
             trainer,
             trainee,
             record_sheet_filing,
+            self_reflection_sheet_filing,
         })
     }
 }
@@ -222,6 +263,7 @@ pub struct TrainingView {
     pub trainer: UserSummary,
     pub trainee: UserSummary,
     pub record_sheet_filing: Option<Vec<SheetAnswerView>>,
+    pub self_reflection_sheet_filing: Option<Vec<SheetAnswerView>>,
 }
 
 fn ensure_trainer_access(
