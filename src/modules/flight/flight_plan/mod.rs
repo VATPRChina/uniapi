@@ -1,8 +1,8 @@
 use crate::modules::navdata::models::AnyFix;
 
 pub mod lexer;
-pub mod lexer_v2;
 pub mod parser;
+pub mod v2;
 pub mod validator;
 
 #[derive(Debug, Clone, PartialEq)]
