@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use std::str::FromStr;
 
 pub struct Lexer<'r> {
@@ -29,8 +27,8 @@ impl<'r> Lexer<'r> {
 
 #[derive(Debug, PartialEq)]
 pub struct LexerToken<'r> {
-    str: &'r str,
-    value: LexerTokenValue<'r>,
+    pub(super) str: &'r str,
+    pub(super) value: LexerTokenValue<'r>,
     amend: Option<LexerTokenAmend>,
 }
 

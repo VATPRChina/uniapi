@@ -27,6 +27,8 @@ pub enum InvalidNavdataError {
     GeoDistanceOrderingError(#[from] ordered_float::FloatIsNan),
     #[error("preferred route data error: {0}")]
     PreferredRoute(#[from] PreferredRouteRepositoryError),
+    #[error("internal error: {0}")]
+    InternalError(&'static str),
 }
 
 impl From<arrayvec::CapacityError<&str>> for InvalidNavdataError {
@@ -42,7 +44,6 @@ pub struct NavdataService {
 }
 
 impl NavdataService {
-    #[instrument(skip(local_data_path, preferred_routes_path))]
     pub async fn with_preferred_routes_path(
         local_data_path: impl AsRef<str>,
         preferred_routes_path: impl AsRef<std::path::Path>,
@@ -54,6 +55,132 @@ impl NavdataService {
             db,
             preferred_routes,
         })
+    }
+
+    pub async fn resolve_identifier(&self, ident: &str) -> NavdataResult<Vec<ResolvedIdent>> {
+        let airways = self.find_airways(ident).await?;
+        let fixes = self.find_fixes(ident).await?;
+        Ok(airways
+            .into_iter()
+            .chain(fixes.into_iter().map(ResolvedIdent::Fix))
+            .collect())
+    }
+
+    pub async fn find_fixes(&self, ident: &str) -> NavdataResult<Vec<AnyFix>> {
+        let fixes: Vec<FindFixRecord> = sqlx::query_as(
+            r#"
+            SELECT
+                'tbl_pa_airports' AS kind,
+                icao_code AS icao_code,
+                airport_identifier AS identifier,
+                airport_ref_latitude AS latitude,
+                airport_ref_longitude AS longitude
+            FROM tbl_pa_airports
+            WHERE airport_identifier = $1
+            UNION SELECT
+                'tbl_d_vhfnavaids' AS kind,
+                icao_code AS icao_code,
+                coalesce(navaid_identifier, dme_ident) AS identifier,
+                coalesce(navaid_latitude, dme_latitude) AS latitude,
+                coalesce(navaid_longitude, dme_longitude) AS longitude
+            FROM tbl_d_vhfnavaids
+            WHERE navaid_identifier = $1 OR dme_ident = $1
+            UNION SELECT
+                'tbl_db_enroute_ndbnavaids' AS kind,
+                icao_code AS icao_code,
+                navaid_identifier AS identifier,
+                navaid_latitude AS latitude,
+                navaid_longitude AS longitude
+            FROM tbl_db_enroute_ndbnavaids
+            WHERE navaid_identifier = $1
+            UNION SELECT
+                'tbl_pn_terminal_ndbnavaids' AS kind,
+                airport_identifier AS icao_code,
+                navaid_identifier AS identifier,
+                navaid_latitude AS latitude,
+                navaid_longitude AS longitude
+            FROM tbl_pn_terminal_ndbnavaids
+            WHERE navaid_identifier = $1
+            UNION SELECT
+                'tbl_ea_enroute_waypoints' AS kind,
+                icao_code AS icao_code,
+                waypoint_identifier AS identifier,
+                waypoint_latitude AS latitude,
+                waypoint_longitude AS longitude
+            FROM tbl_ea_enroute_waypoints
+            WHERE waypoint_identifier = $1
+            UNION SELECT
+                'tbl_pc_terminal_waypoints' AS kind,
+                region_code AS icao_code,
+                waypoint_identifier AS identifier,
+                waypoint_latitude AS latitude,
+                waypoint_longitude AS longitude
+            FROM tbl_pc_terminal_waypoints
+            WHERE waypoint_identifier = $1;
+                    "#,
+        )
+        .bind(ident)
+        .fetch_all(&self.db)
+        .await?;
+        Ok(fixes.into_iter().map(Into::into).collect())
+    }
+
+    pub async fn find_airways(&self, ident: &str) -> NavdataResult<Vec<ResolvedIdent>> {
+        let airways: Vec<FindAirwayRecord> = sqlx::query_as(
+            r#"
+            SELECT DISTINCT
+                'tbl_er_enroute_airways' AS kind,
+                NULL AS airport_identifier,
+                route_identifier AS identifier
+            FROM
+                tbl_er_enroute_airways
+            WHERE
+                route_identifier = $1
+            UNION
+            SELECT DISTINCT
+                'tbl_pd_sids' AS kind,
+                airport_identifier AS airport_identifier,
+                procedure_identifier AS identifier
+            FROM
+                tbl_pd_sids
+            WHERE
+                procedure_identifier = $1
+            UNION
+            SELECT DISTINCT
+                'tbl_pe_stars' AS kind,
+                airport_identifier AS airport_identifier,
+                procedure_identifier AS identifier
+            FROM
+                tbl_pe_stars
+            WHERE
+                procedure_identifier = $1;
+            "#,
+        )
+        .bind(ident)
+        .fetch_all(&self.db)
+        .await?;
+        Ok(airways.into_iter().map(Into::into).collect())
+    }
+
+    pub async fn exists_airway(&self, ident: &str) -> NavdataResult<bool> {
+        Ok(sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM tbl_er_enroute_airways WHERE route_identifier = $1)",
+        )
+        .bind(ident)
+        .fetch_one(&self.db)
+        .await?)
+    }
+
+    /// List every airport with a SID of this name, once per airport.
+    pub async fn list_sid_airports(&self, ident: &str) -> NavdataResult<Vec<String>> {
+        Ok(sqlx::query_scalar("SELECT DISTINCT airport_identifier FROM tbl_pd_sids WHERE procedure_identifier = $1 ORDER BY airport_identifier")
+            .bind(ident).fetch_all(&self.db).await?)
+    }
+
+    /// List every airport with a STAR of this name, once per airport.
+    pub async fn list_star_airports(&self, ident: &str) -> NavdataResult<Vec<String>> {
+        Ok(sqlx::query_scalar("SELECT DISTINCT airport_identifier FROM tbl_pe_stars WHERE procedure_identifier = $1 ORDER BY airport_identifier")
+            .bind(ident).fetch_all(&self.db).await?)
     }
 
     #[instrument(skip(self), fields(ident = %ident))]
@@ -392,6 +519,104 @@ where
         .map(|(_, fix)| fix)
 }
 
+#[derive(Debug, PartialEq)]
+pub enum ResolvedIdent {
+    Fix(AnyFix),
+    Airway(ArrayString<7>),
+    Sid(ArrayString<4>, ArrayString<8>),
+    Star(ArrayString<4>, ArrayString<8>),
+}
+
+#[derive(FromRow)]
+struct FindFixRecord {
+    kind: String,
+    icao_code: String,
+    identifier: String,
+    latitude: f64,
+    longitude: f64,
+}
+
+impl From<FindFixRecord> for AnyFix {
+    fn from(val: FindFixRecord) -> Self {
+        match val.kind.as_str() {
+            "tbl_pa_airports" => AnyFix::Airport(Airport {
+                identifier: val.identifier.as_str().try_into().unwrap(),
+                latitude: val.latitude,
+                longitude: val.longitude,
+            }),
+            "tbl_d_vhfnavaids" => AnyFix::Vhf(Vhf {
+                icao_code: val.icao_code.as_str().try_into().unwrap(),
+                identifier: val.identifier.as_str().try_into().unwrap(),
+                latitude: val.latitude,
+                longitude: val.longitude,
+            }),
+            "tbl_db_enroute_ndbnavaids" => AnyFix::Ndb(Ndb {
+                icao_code: val.icao_code.as_str().try_into().unwrap(),
+                identifier: val.identifier.as_str().try_into().unwrap(),
+                latitude: val.latitude,
+                longitude: val.longitude,
+                kind: NdbKind::Enroute,
+            }),
+            "tbl_pn_terminal_ndbnavaids" => AnyFix::Ndb(Ndb {
+                icao_code: val.icao_code.as_str().try_into().unwrap(),
+                identifier: val.identifier.as_str().try_into().unwrap(),
+                latitude: val.latitude,
+                longitude: val.longitude,
+                kind: NdbKind::Terminal,
+            }),
+            "tbl_ea_enroute_waypoints" => AnyFix::Waypoint(Waypoint {
+                icao_code: val.icao_code.as_str().try_into().unwrap(),
+                identifier: val.identifier.as_str().try_into().unwrap(),
+                latitude: val.latitude,
+                longitude: val.longitude,
+                kind: WaypointKind::Enroute,
+            }),
+            "tbl_pc_terminal_waypoints" => AnyFix::Waypoint(Waypoint {
+                icao_code: val.icao_code.as_str().try_into().unwrap(),
+                identifier: val.identifier.as_str().try_into().unwrap(),
+                latitude: val.latitude,
+                longitude: val.longitude,
+                kind: WaypointKind::Terminal,
+            }),
+            k => unreachable!("unexpected kind: {}", k),
+        }
+    }
+}
+
+#[derive(FromRow)]
+struct FindAirwayRecord {
+    kind: String,
+    airport_identifier: Option<String>,
+    identifier: String,
+}
+
+impl From<FindAirwayRecord> for ResolvedIdent {
+    fn from(val: FindAirwayRecord) -> Self {
+        match val.kind.as_str() {
+            "tbl_er_enroute_airways" => {
+                ResolvedIdent::Airway(val.identifier.as_str().try_into().unwrap())
+            }
+            "tbl_pd_sids" => ResolvedIdent::Sid(
+                val.airport_identifier
+                    .as_deref()
+                    .expect("SID must have an airport identifier")
+                    .try_into()
+                    .unwrap(),
+                val.identifier.as_str().try_into().unwrap(),
+            ),
+            "tbl_pe_stars" => ResolvedIdent::Star(
+                val.airport_identifier
+                    .as_deref()
+                    .expect("STAR must have an airport identifier")
+                    .try_into()
+                    .unwrap(),
+                val.identifier.as_str().try_into().unwrap(),
+            ),
+            k => unreachable!("unexpected kind: {}", k),
+        }
+    }
+}
+
 #[derive(Debug, Clone, FromRow)]
 struct AirportRecord {
     airport_identifier: String,
@@ -543,6 +768,145 @@ mod test {
         NavdataService::with_preferred_routes_path(LOCAL_DATA_PATH, PREFERRED_ROUTES_PATH)
             .await
             .unwrap()
+    }
+
+    async fn get_readonly_navdata_adapter() -> NavdataService {
+        NavdataService::with_preferred_routes_path(
+            format!("{LOCAL_DATA_PATH}?mode=ro"),
+            PREFERRED_ROUTES_PATH,
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_resolve_identifier() {
+        let adapter = get_readonly_navdata_adapter().await;
+        let resolved = adapter.resolve_identifier("DOM").await.unwrap();
+        assert_eq!(resolved.len(), 2);
+        assert!(resolved.iter().any(|item| matches!(item,
+            ResolvedIdent::Fix(AnyFix::Vhf(vhf)) if vhf.identifier.as_str() == "DOM" && vhf.icao_code.as_str() == "TD"
+        )));
+        assert!(resolved.iter().any(|item| matches!(item,
+            ResolvedIdent::Fix(AnyFix::Ndb(ndb)) if ndb.identifier.as_str() == "DOM" && ndb.kind == NdbKind::Enroute
+        )));
+        let airway = adapter.resolve_identifier("L453").await.unwrap();
+        assert!(matches!(airway.as_slice(), [ResolvedIdent::Airway(ident)] if ident == "L453"));
+        let sid = adapter.resolve_identifier("GTK2A").await.unwrap();
+        assert!(
+            matches!(sid.as_slice(), [ResolvedIdent::Sid(airport, ident)] if airport == "MBAC" && ident == "GTK2A")
+        );
+        let star = adapter.resolve_identifier("ANTE2D").await.unwrap();
+        assert_eq!(star.len(), 2);
+        assert!(star.iter().any(|item| matches!(item, ResolvedIdent::Star(airport, ident) if airport == "MDLR" && ident == "ANTE2D")));
+        assert!(star.iter().any(|item| matches!(item, ResolvedIdent::Sid(airport, ident) if airport == "MMUN" && ident == "ANTE2D")));
+        assert!(
+            adapter
+                .resolve_identifier("UNKNOWN")
+                .await
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_find_fixes() {
+        let adapter = get_readonly_navdata_adapter().await;
+        let airports = adapter.find_fixes("MBAC").await.unwrap();
+        let [AnyFix::Airport(airport)] = airports.as_slice() else {
+            panic!("expected MBAC airport");
+        };
+        assert_eq!(airport.identifier.as_str(), "MBAC");
+        approx::assert_abs_diff_eq!(airport.latitude, 21.3006333333333, epsilon = 1e-9);
+        approx::assert_abs_diff_eq!(airport.longitude, -71.64115, epsilon = 1e-9);
+
+        // DOM has both an enroute NDB and a VHF record using DME coordinates.
+        let fixes = adapter.find_fixes("DOM").await.unwrap();
+        assert_eq!(fixes.len(), 2);
+        for fix in &fixes {
+            assert_eq!(fix.identifier(), Some("DOM"));
+            assert_eq!(fix.icao_code(), Some("TD"));
+            match fix {
+                AnyFix::Vhf(vhf) => {
+                    approx::assert_abs_diff_eq!(vhf.latitude, 15.5505555555556, epsilon = 1e-9);
+                    approx::assert_abs_diff_eq!(vhf.longitude, -61.2955555555556, epsilon = 1e-9);
+                }
+                AnyFix::Ndb(ndb) => {
+                    assert_eq!(ndb.kind, NdbKind::Enroute);
+                    approx::assert_abs_diff_eq!(ndb.latitude, 15.5509333333333, epsilon = 1e-9);
+                    approx::assert_abs_diff_eq!(ndb.longitude, -61.295625, epsilon = 1e-9);
+                }
+                _ => panic!("unexpected DOM fix"),
+            }
+        }
+        let ndbs = adapter.find_fixes("GD").await.unwrap();
+        let [AnyFix::Ndb(ndb)] = ndbs.as_slice() else {
+            panic!("expected GD terminal NDB");
+        };
+        assert_eq!(ndb.kind, NdbKind::Terminal);
+        assert_eq!(ndb.icao_code.as_str(), "MMGL");
+        approx::assert_abs_diff_eq!(ndb.latitude, 20.4685916666667, epsilon = 1e-9);
+        approx::assert_abs_diff_eq!(ndb.longitude, -103.174683333333, epsilon = 1e-9);
+
+        let waypoints = adapter.find_fixes("AC07F").await.unwrap();
+        let [AnyFix::Waypoint(waypoint)] = waypoints.as_slice() else {
+            panic!("expected AC07F terminal waypoint");
+        };
+        assert_eq!(waypoint.kind, WaypointKind::Terminal);
+        assert_eq!(waypoint.icao_code.as_str(), "MBAC");
+        approx::assert_abs_diff_eq!(waypoint.latitude, 21.260175, epsilon = 1e-9);
+        approx::assert_abs_diff_eq!(waypoint.longitude, -71.7191222222222, epsilon = 1e-9);
+
+        // This identifier is reused in eight regions; retain every candidate.
+        let waypoints = adapter.find_fixes("VP001").await.unwrap();
+        let mut regions: Vec<_> = waypoints
+            .iter()
+            .map(|fix| {
+                let AnyFix::Waypoint(waypoint) = fix else {
+                    panic!("expected enroute waypoint");
+                };
+                assert_eq!(waypoint.identifier.as_str(), "VP001");
+                assert_eq!(waypoint.kind, WaypointKind::Enroute);
+                waypoint.icao_code.as_str()
+            })
+            .collect();
+        regions.sort_unstable();
+        assert_eq!(regions, ["MB", "MD", "MM", "MU", "TI", "TJ", "TL", "TT"]);
+        assert!(adapter.find_fixes("UNKNOWN").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_find_airways() {
+        let adapter = get_readonly_navdata_adapter().await;
+        // L453 has multiple rows, but resolves to one airway.
+        let airways = adapter.find_airways("L453").await.unwrap();
+        assert!(matches!(airways.as_slice(), [ResolvedIdent::Airway(ident)] if ident == "L453"));
+        for (identifier, expected) in [
+            ("GTK2A", vec![("sid", "MBAC")]),
+            ("ANTE2D", vec![("sid", "MMUN"), ("star", "MDLR")]),
+            ("ANEG1A", vec![("sid", "MMCU"), ("sid", "MMSD")]),
+            ("BERO1B", vec![("star", "MMIO"), ("star", "TNCC")]),
+        ] {
+            let procedures = adapter.find_airways(identifier).await.unwrap();
+            let mut actual: Vec<_> = procedures
+                .iter()
+                .map(|item| match item {
+                    ResolvedIdent::Sid(airport, ident) => {
+                        assert_eq!(ident.as_str(), identifier);
+                        ("sid", airport.as_str())
+                    }
+                    ResolvedIdent::Star(airport, ident) => {
+                        assert_eq!(ident.as_str(), identifier);
+                        ("star", airport.as_str())
+                    }
+                    _ => panic!("unexpected procedure kind for {identifier}"),
+                })
+                .collect();
+            actual.sort_unstable();
+            assert_eq!(actual, expected);
+        }
+        assert!(adapter.find_airways("DOM").await.unwrap().is_empty());
+        assert!(adapter.find_airways("UNKNOWN").await.unwrap().is_empty());
     }
 
     #[tokio::test]
