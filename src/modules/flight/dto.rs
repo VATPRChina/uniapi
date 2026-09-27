@@ -227,10 +227,7 @@ mod tests {
 
     #[test]
     fn generates_geo_point_identifier_for_flight_fix() {
-        let fix = AnyFix::GeoPoint(GeoPoint {
-            latitude: -7.5,
-            longitude: 8.25,
-        });
+        let fix = GeoPoint::new(-7.5, 8.25).into();
 
         assert_eq!(FlightFix::from(&fix).identifier, "0730S00815E");
     }

@@ -298,10 +298,7 @@ impl<'a> RouteLexer<'a> {
         self.current_lon = lon;
         self.tokens[index] = RouteToken::Fix {
             value: self.value(index).to_owned(),
-            fix: AnyFix::GeoPoint(GeoPoint {
-                latitude: lat,
-                longitude: lon,
-            }),
+            fix: GeoPoint::new(lat, lon).into(),
         };
     }
 

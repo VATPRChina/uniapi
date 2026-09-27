@@ -1,4 +1,7 @@
+mod airway;
+pub use airway::Airway;
 mod airport;
+mod fix_reference;
 mod geo_point;
 mod leg;
 mod ndb;
@@ -7,6 +10,7 @@ mod vhf;
 mod waypoint;
 
 pub use airport::Airport;
+pub use fix_reference::FixReference;
 pub use geo_point::GeoPoint;
 pub use leg::{DirectionRestriction, ResolvedLeg};
 pub use ndb::{Ndb, NdbKind};
@@ -32,6 +36,7 @@ pub enum AnyFix {
     Ndb(Ndb),
     Vhf(Vhf),
     Waypoint(Waypoint),
+    FixReference(FixReference),
     Unknown(String),
 }
 
@@ -43,6 +48,7 @@ impl Fix for AnyFix {
             AnyFix::Ndb(ndb) => ndb.latitude(),
             AnyFix::Vhf(vhf) => vhf.latitude(),
             AnyFix::Waypoint(waypoint) => waypoint.latitude(),
+            AnyFix::FixReference(fix_ref) => fix_ref.latitude(),
             AnyFix::Unknown(_) => 0.,
         }
     }
@@ -54,6 +60,7 @@ impl Fix for AnyFix {
             AnyFix::Ndb(ndb) => ndb.longitude(),
             AnyFix::Vhf(vhf) => vhf.longitude(),
             AnyFix::Waypoint(waypoint) => waypoint.longitude(),
+            AnyFix::FixReference(fix_ref) => fix_ref.longitude(),
             AnyFix::Unknown(_) => 0.,
         }
     }
@@ -68,6 +75,7 @@ impl AnyFix {
             AnyFix::Ndb(ndb) => Some(ndb.icao_code()),
             AnyFix::Vhf(vhf) => Some(vhf.icao_code()),
             AnyFix::Waypoint(waypoint) => Some(waypoint.icao_code()),
+            AnyFix::FixReference(_) => None,
             AnyFix::Unknown(_) => None,
         }
     }
@@ -79,6 +87,7 @@ impl AnyFix {
             AnyFix::Ndb(ndb) => Some(ndb.identifier()),
             AnyFix::Vhf(vhf) => Some(vhf.identifier()),
             AnyFix::Waypoint(waypoint) => Some(waypoint.identifier()),
+            AnyFix::FixReference(_) => None,
             AnyFix::Unknown(str) => Some(str.as_str()),
         }
     }

@@ -6,7 +6,7 @@ use sqlx::{SqlitePool, prelude::FromRow};
 use tracing::instrument;
 
 use crate::modules::navdata::models::{
-    Airport, AnyFix, DirectionRestriction, Fix, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint,
+    Airport, Airway, AnyFix, DirectionRestriction, Fix, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint,
     WaypointKind,
 };
 use crate::modules::navdata::repository::{
@@ -128,19 +128,22 @@ impl NavdataService {
     pub async fn find_airways(&self, ident: &str) -> NavdataResult<Vec<ResolvedIdent>> {
         let airways: Vec<FindAirwayRecord> = sqlx::query_as(
             r#"
-            SELECT DISTINCT
+            SELECT
                 'tbl_er_enroute_airways' AS kind,
                 NULL AS airport_identifier,
-                route_identifier AS identifier
+                route_identifier AS identifier,
+                json_group_array(DISTINCT waypoint_identifier) AS fix_identifiers
             FROM
                 tbl_er_enroute_airways
             WHERE
                 route_identifier = $1
+            GROUP BY route_identifier
             UNION
             SELECT DISTINCT
                 'tbl_pd_sids' AS kind,
                 airport_identifier AS airport_identifier,
-                procedure_identifier AS identifier
+                procedure_identifier AS identifier,
+                '[]' AS fix_identifiers
             FROM
                 tbl_pd_sids
             WHERE
@@ -149,7 +152,8 @@ impl NavdataService {
             SELECT DISTINCT
                 'tbl_pe_stars' AS kind,
                 airport_identifier AS airport_identifier,
-                procedure_identifier AS identifier
+                procedure_identifier AS identifier,
+                '[]' AS fix_identifiers
             FROM
                 tbl_pe_stars
             WHERE
@@ -522,9 +526,25 @@ where
 #[derive(Debug, PartialEq)]
 pub enum ResolvedIdent {
     Fix(AnyFix),
-    Airway(ArrayString<7>),
+    Airway(Airway),
     Sid(ArrayString<4>, ArrayString<8>),
     Star(ArrayString<4>, ArrayString<8>),
+}
+
+impl ResolvedIdent {
+    pub fn as_fix(&self) -> Option<&AnyFix> {
+        match self {
+            ResolvedIdent::Fix(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    pub fn into_fix(self) -> Option<AnyFix> {
+        match self {
+            ResolvedIdent::Fix(f) => Some(f),
+            _ => None,
+        }
+    }
 }
 
 #[derive(FromRow)]
@@ -588,14 +608,16 @@ struct FindAirwayRecord {
     kind: String,
     airport_identifier: Option<String>,
     identifier: String,
+    fix_identifiers: sqlx::types::Json<Vec<ArrayString<7>>>,
 }
 
 impl From<FindAirwayRecord> for ResolvedIdent {
     fn from(val: FindAirwayRecord) -> Self {
         match val.kind.as_str() {
-            "tbl_er_enroute_airways" => {
-                ResolvedIdent::Airway(val.identifier.as_str().try_into().unwrap())
-            }
+            "tbl_er_enroute_airways" => ResolvedIdent::Airway(Airway {
+                identifier: val.identifier.as_str().try_into().unwrap(),
+                fix_identifiers: val.fix_identifiers.0.into_iter().collect(),
+            }),
             "tbl_pd_sids" => ResolvedIdent::Sid(
                 val.airport_identifier
                     .as_deref()
@@ -791,7 +813,9 @@ mod test {
             ResolvedIdent::Fix(AnyFix::Ndb(ndb)) if ndb.identifier.as_str() == "DOM" && ndb.kind == NdbKind::Enroute
         )));
         let airway = adapter.resolve_identifier("L453").await.unwrap();
-        assert!(matches!(airway.as_slice(), [ResolvedIdent::Airway(ident)] if ident == "L453"));
+        assert!(
+            matches!(airway.as_slice(), [ResolvedIdent::Airway(airway)] if airway.identifier.as_str() == "L453")
+        );
         let sid = adapter.resolve_identifier("GTK2A").await.unwrap();
         assert!(
             matches!(sid.as_slice(), [ResolvedIdent::Sid(airport, ident)] if airport == "MBAC" && ident == "GTK2A")
@@ -880,7 +904,23 @@ mod test {
         let adapter = get_readonly_navdata_adapter().await;
         // L453 has multiple rows, but resolves to one airway.
         let airways = adapter.find_airways("L453").await.unwrap();
-        assert!(matches!(airways.as_slice(), [ResolvedIdent::Airway(ident)] if ident == "L453"));
+        assert!(
+            matches!(airways.as_slice(), [ResolvedIdent::Airway(airway)] if airway.identifier.as_str() == "L453")
+        );
+        let ResolvedIdent::Airway(airway) = &airways[0] else {
+            panic!("expected L453 airway");
+        };
+        let mut identifiers: Vec<_> = airway
+            .fix_identifiers
+            .iter()
+            .map(ArrayString::as_str)
+            .collect();
+        identifiers.sort_unstable();
+        assert_eq!(identifiers, ["ASIVO", "MACKI"]);
+        let asivo = adapter.find_fixes("ASIVO").await.unwrap().remove(0);
+        assert!(airway.contains_fix(&asivo));
+        let airport = adapter.find_fixes("MBAC").await.unwrap().remove(0);
+        assert!(!airway.contains_fix(&airport));
         for (identifier, expected) in [
             ("GTK2A", vec![("sid", "MBAC")]),
             ("ANTE2D", vec![("sid", "MMUN"), ("star", "MDLR")]),
