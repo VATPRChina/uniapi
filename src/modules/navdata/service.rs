@@ -1,3 +1,5 @@
+mod expansion;
+
 use arrayvec::{ArrayString, CapacityError};
 use itertools::Itertools;
 use ordered_float::NotNan;

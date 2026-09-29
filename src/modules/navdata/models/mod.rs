@@ -1,3 +1,5 @@
+mod procedure;
+pub use procedure::{ProcedureKind, ProcedureSegment};
 mod airway;
 pub use airway::Airway;
 mod airport;

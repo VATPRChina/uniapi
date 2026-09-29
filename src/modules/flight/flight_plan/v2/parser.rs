@@ -15,14 +15,21 @@ pub struct RouteParser<'r> {
 
 enum ParserState {
     Fix(AnyFix),
-    Leg(AnyFix, ParserStateLeg),
+    Leg(AnyFix, ParsedRoute),
 }
 
-enum ParserStateLeg {
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParsedRoute {
     Airway(ArrayString<7>),
     Sid(ArrayString<4>, ArrayString<8>),
     Star(ArrayString<4>, ArrayString<8>),
     Direct,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParsedLeg {
+    pub leg: ResolvedLeg,
+    pub route: ParsedRoute,
 }
 
 pub type RouteParserResult<T> = Result<T, RouteParserError>;
@@ -38,7 +45,7 @@ impl<'r> RouteParser<'r> {
         Self { tokens }
     }
 
-    pub fn parse(self) -> RouteParserResult<Vec<ResolvedLeg>> {
+    pub fn parse(self) -> RouteParserResult<Vec<ParsedLeg>> {
         let mut tokens = self.tokens.into_iter();
         let Some(first) = tokens.next() else {
             return Ok(Vec::new());
@@ -56,7 +63,7 @@ impl<'r> RouteParser<'r> {
 
 // FIXME: add a resolution decider to pick resolved identifier
 impl ParserState {
-    fn advance(self, token: ResolvedToken<'_>) -> (Self, Option<ResolvedLeg>) {
+    fn advance(self, token: ResolvedToken<'_>) -> (Self, Option<ParsedLeg>) {
         match &token.token.value {
             LexerTokenValue::SpeedAndAltitude { .. } => (self, None),
             LexerTokenValue::Direct => {
@@ -66,17 +73,13 @@ impl ParserState {
             LexerTokenValue::Identifier => self.advance_identifier(token),
             LexerTokenValue::Geo { lat, lon } => {
                 let (fix, _) = self.into_leg();
-                finish_leg(
-                    fix,
-                    GeoPoint::new(*lat, *lon).into(),
-                    ParserStateLeg::Direct,
-                )
+                finish_leg(fix, GeoPoint::new(*lat, *lon).into(), ParsedRoute::Direct)
             }
             LexerTokenValue::IdentifierReference { .. } => self.finish_at_token(token),
         }
     }
 
-    fn advance_identifier(self, token: ResolvedToken<'_>) -> (Self, Option<ResolvedLeg>) {
+    fn advance_identifier(self, token: ResolvedToken<'_>) -> (Self, Option<ParsedLeg>) {
         if let Self::Fix(ref fix) = self
             && let Some(leg) = select_leg(&token.resolved_identifiers, fix)
         {
@@ -86,7 +89,7 @@ impl ParserState {
         self.finish_at_token(token)
     }
 
-    fn finish_at_token(self, token: ResolvedToken<'_>) -> (Self, Option<ResolvedLeg>) {
+    fn finish_at_token(self, token: ResolvedToken<'_>) -> (Self, Option<ParsedLeg>) {
         let (fix, leg) = self.into_leg();
         let identifier = token.token.str;
         let to = token_fix(token, &fix).unwrap_or_else(|| AnyFix::Unknown(identifier.to_owned()));
@@ -94,15 +97,15 @@ impl ParserState {
     }
 
     /// A fix without a pending leg connects directly to the next point.
-    fn into_leg(self) -> (AnyFix, ParserStateLeg) {
+    fn into_leg(self) -> (AnyFix, ParsedRoute) {
         match self {
-            Self::Fix(fix) => (fix, ParserStateLeg::Direct),
+            Self::Fix(fix) => (fix, ParsedRoute::Direct),
             Self::Leg(fix, leg) => (fix, leg),
         }
     }
 }
 
-impl ParserStateLeg {
+impl ParsedRoute {
     fn from_candidate(candidate: &ResolvedIdent, fix: &AnyFix) -> Option<Self> {
         match candidate {
             ResolvedIdent::Airway(airway) => airway
@@ -124,11 +127,11 @@ impl ParserStateLeg {
     }
 }
 
-fn select_leg(candidates: &[ResolvedIdent], fix: &AnyFix) -> Option<ParserStateLeg> {
+fn select_leg(candidates: &[ResolvedIdent], fix: &AnyFix) -> Option<ParsedRoute> {
     candidates
         .iter()
-        .filter_map(|candidate| ParserStateLeg::from_candidate(candidate, fix))
-        .min_by_key(ParserStateLeg::priority)
+        .filter_map(|candidate| ParsedRoute::from_candidate(candidate, fix))
+        .min_by_key(ParsedRoute::priority)
 }
 
 fn initial_fix(token: ResolvedToken<'_>) -> RouteParserResult<AnyFix> {
@@ -171,19 +174,22 @@ fn reference_fix(base: AnyFix, heading: u16, distance: u16) -> AnyFix {
     }
 }
 
-fn finish_leg(from: AnyFix, to: AnyFix, leg: ParserStateLeg) -> (ParserState, Option<ResolvedLeg>) {
-    let identifier = match leg {
-        ParserStateLeg::Airway(ident) => Some(ident.to_string()),
-        ParserStateLeg::Sid(_, ident) | ParserStateLeg::Star(_, ident) => Some(ident.to_string()),
-        ParserStateLeg::Direct => None,
+fn finish_leg(from: AnyFix, to: AnyFix, leg: ParsedRoute) -> (ParserState, Option<ParsedLeg>) {
+    let identifier = match &leg {
+        ParsedRoute::Airway(ident) => Some(ident.to_string()),
+        ParsedRoute::Sid(_, ident) | ParsedRoute::Star(_, ident) => Some(ident.to_string()),
+        ParsedRoute::Direct => None,
     };
     (
         ParserState::Fix(to.clone()),
-        Some(ResolvedLeg {
-            from,
-            to,
-            identifier,
-            direction_restriction: DirectionRestriction::None,
+        Some(ParsedLeg {
+            route: leg,
+            leg: ResolvedLeg {
+                from,
+                to,
+                identifier,
+                direction_restriction: DirectionRestriction::None,
+            },
         }),
     )
 }
@@ -221,7 +227,12 @@ mod tests {
             .resolve_tokens()
             .await
             .unwrap();
-        RouteParser::new(tokens).parse().unwrap()
+        RouteParser::new(tokens)
+            .parse()
+            .unwrap()
+            .into_iter()
+            .map(|parsed| parsed.leg)
+            .collect::<Vec<_>>()
     }
 
     #[tokio::test]
@@ -233,7 +244,12 @@ mod tests {
             .unwrap();
         navdata.db.close().await;
         drop(navdata);
-        let legs = RouteParser::new(tokens).parse().unwrap();
+        let legs = RouteParser::new(tokens)
+            .parse()
+            .unwrap()
+            .into_iter()
+            .map(|parsed| parsed.leg)
+            .collect::<Vec<_>>();
         assert_eq!(legs.len(), 1);
         assert_eq!(legs[0].identifier.as_deref(), Some("L453"));
     }
@@ -274,7 +290,12 @@ mod tests {
                     .resolved_identifiers
                     .extend(navdata.find_airways("L453").await.unwrap());
             }
-            let legs = RouteParser::new(tokens).parse().unwrap();
+            let legs = RouteParser::new(tokens)
+                .parse()
+                .unwrap()
+                .into_iter()
+                .map(|parsed| parsed.leg)
+                .collect::<Vec<_>>();
             assert_eq!(legs[0].identifier.as_deref(), expected, "start: {start}");
             assert_eq!(legs[0].to.identifier(), Some("ASIVO"));
         }
