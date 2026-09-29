@@ -1,5 +1,11 @@
-use arrayvec::ArrayString;
-use ordered_float::OrderedFloat;
+//! Flight route parser
+//!
+//! ```text
+//! route = dep seg* arr
+//! dep = IDENTIFIER SPEED_AND_ALTITUDE?
+//! arr = IDENTIFIER
+//! seg = (IDENTIFIER | IDENTIFIER_REFERENCE | GEO) (VFR | IFR)? | DIRECT
+//! ```
 
 use crate::modules::flight::flight_plan::v2::resolver::ResolvedToken;
 use crate::modules::navdata::models::{

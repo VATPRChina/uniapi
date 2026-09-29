@@ -17,6 +17,8 @@ impl<'r> Lexer<'r> {
                 let seg = seg.split('/').next().unwrap_or_default();
                 SpeedAndAltitudeTokenHandler::handle_segment(seg)
                     .or_else(|| DctTokenHandler::handle_segment(seg))
+                    .or_else(|| VfrTokenHandler::handle_segment(seg))
+                    .or_else(|| IfrTokenHandler::handle_segment(seg))
                     .or_else(|| Geo11TokenHandler::handle_segment(seg))
                     .or_else(|| Geo7TokenHandler::handle_segment(seg))
                     .or_else(|| IdentifierReferenceTokenHandler::handle_segment(seg))
@@ -57,6 +59,8 @@ pub enum LexerTokenValue<'s> {
         altitude: CruisingLevel,
     },
     Direct,
+    Vfr,
+    Ifr,
     Identifier,
     Geo {
         lat: f64,
@@ -139,6 +143,56 @@ fn test_dct_token_handler() {
         Some(LexerToken {
             str: "DCT",
             value: LexerTokenValue::Direct,
+            amend: None,
+        })
+    );
+    assert_eq!(DctTokenHandler::handle_segment("K0830M0840"), None);
+}
+
+pub struct VfrTokenHandler;
+
+impl TokenHandler for VfrTokenHandler {
+    fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>> {
+        if token != "VFR" {
+            return None;
+        }
+        Some(LexerToken::new(token, LexerTokenValue::Vfr))
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn test_vfr_token_handler() {
+    assert_eq!(
+        VfrTokenHandler::handle_segment("VFR"),
+        Some(LexerToken {
+            str: "VFR",
+            value: LexerTokenValue::Vfr,
+            amend: None,
+        })
+    );
+    assert_eq!(VfrTokenHandler::handle_segment("K0830M0840"), None);
+}
+
+pub struct IfrTokenHandler;
+
+impl TokenHandler for IfrTokenHandler {
+    fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>> {
+        if token != "IFR" {
+            return None;
+        }
+        Some(LexerToken::new(token, LexerTokenValue::Ifr))
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn test_ifr_token_handler() {
+    assert_eq!(
+        IfrTokenHandler::handle_segment("IFR"),
+        Some(LexerToken {
+            str: "IFR",
+            value: LexerTokenValue::Ifr,
             amend: None,
         })
     );
@@ -270,7 +324,7 @@ fn test_ident_ref_token_handler() {
     assert_eq!(IdentifierReferenceTokenHandler::handle_segment("VYK"), None);
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Speed {
     KmH(u16),
     NMileH(u16),
@@ -335,7 +389,7 @@ fn test_speed_from_str() {
     assert_eq!(Speed::from_str(""), Err(()));
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CruisingLevel {
     MeterAltitude(u16),
     MeterLevel(u16),
