@@ -80,7 +80,7 @@ trait TokenHandler {
     fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>>;
 }
 
-pub struct SpeedAndAltitudeTokenHandler;
+struct SpeedAndAltitudeTokenHandler;
 
 impl TokenHandler for SpeedAndAltitudeTokenHandler {
     fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>> {
@@ -124,7 +124,7 @@ fn test_speed_and_altitude_token_handler() {
     assert_eq!(SpeedAndAltitudeTokenHandler::handle_segment("P123"), None);
 }
 
-pub struct DctTokenHandler;
+struct DctTokenHandler;
 
 impl TokenHandler for DctTokenHandler {
     fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>> {
@@ -149,7 +149,7 @@ fn test_dct_token_handler() {
     assert_eq!(DctTokenHandler::handle_segment("K0830M0840"), None);
 }
 
-pub struct VfrTokenHandler;
+struct VfrTokenHandler;
 
 impl TokenHandler for VfrTokenHandler {
     fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>> {
@@ -174,7 +174,7 @@ fn test_vfr_token_handler() {
     assert_eq!(VfrTokenHandler::handle_segment("K0830M0840"), None);
 }
 
-pub struct IfrTokenHandler;
+struct IfrTokenHandler;
 
 impl TokenHandler for IfrTokenHandler {
     fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>> {
@@ -199,7 +199,7 @@ fn test_ifr_token_handler() {
     assert_eq!(DctTokenHandler::handle_segment("K0830M0840"), None);
 }
 
-pub struct Geo7TokenHandler;
+struct Geo7TokenHandler;
 
 impl TokenHandler for Geo7TokenHandler {
     fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>> {
@@ -236,7 +236,7 @@ fn test_geo7_token_handler() {
     assert_eq!(Geo7TokenHandler::handle_segment("K0830M0840"), None);
 }
 
-pub struct Geo11TokenHandler;
+struct Geo11TokenHandler;
 
 impl TokenHandler for Geo11TokenHandler {
     fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>> {
@@ -282,7 +282,7 @@ fn test_geo11_token_handler() {
     assert_eq!(Geo11TokenHandler::handle_segment("K0830M0840"), None);
 }
 
-pub struct IdentifierReferenceTokenHandler;
+struct IdentifierReferenceTokenHandler;
 
 impl TokenHandler for IdentifierReferenceTokenHandler {
     fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>> {

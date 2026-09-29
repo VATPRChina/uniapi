@@ -7,382 +7,380 @@
 //! seg = (IDENTIFIER | IDENTIFIER_REFERENCE | GEO) (VFR | IFR)? | DIRECT
 //! ```
 
-use crate::modules::flight::flight_plan::v2::resolver::ResolvedToken;
-use crate::modules::navdata::models::{
-    AnyFix, DirectionRestriction, Fix, FixReference, GeoPoint, ResolvedLeg,
-};
-use crate::modules::navdata::service::ResolvedIdent;
+use crate::modules::flight::flight_plan::v2::{CruisingLevel, LexerToken, LexerTokenValue, Speed};
 
-use super::lexer::LexerTokenValue;
-
-pub struct RouteParser<'r> {
-    tokens: Vec<ResolvedToken<'r>>,
+pub struct Parser<'s> {
+    tokens: Vec<LexerToken<'s>>,
 }
 
-enum ParserState {
-    Fix(AnyFix),
-    Leg(AnyFix, ParsedRoute),
+#[derive(Debug, PartialEq)]
+pub struct Ident<'s> {
+    ident: &'s str,
+    amendments: Vec<IdentAmend>,
+    errors: Vec<ParserIdentError>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ParsedRoute {
-    Airway(ArrayString<7>),
-    Sid(ArrayString<4>, ArrayString<8>),
-    Star(ArrayString<4>, ArrayString<8>),
-    Direct,
+#[derive(Debug, PartialEq)]
+pub enum IdentAmend {
+    SpeedAndAltitude {
+        speed: Speed,
+        altitude: CruisingLevel,
+    },
+    FlightRuleVfr,
+    FlightRuleIfr,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct ParsedLeg {
-    pub leg: ResolvedLeg,
-    pub route: ParsedRoute,
+#[derive(Debug, PartialEq)]
+pub enum ParserIdentError {
+    ExpectedDepartureIdentifier,
+    ExpectedArrivalIdentifier,
+    UnexpectedSpeedAndAltitude,
+    UnexpectedFlightRule,
+    MissingArrival,
 }
 
-pub type RouteParserResult<T> = Result<T, RouteParserError>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum RouteParserError {
-    #[error("First token in route is not a fix.")]
-    FirstTokenIsNotFix,
-}
-
-impl<'r> RouteParser<'r> {
-    pub fn new(tokens: Vec<ResolvedToken<'r>>) -> Self {
+impl<'s> Parser<'s> {
+    pub fn new(tokens: Vec<LexerToken<'s>>) -> Self {
         Self { tokens }
     }
 
-    pub fn parse(self) -> RouteParserResult<Vec<ParsedLeg>> {
-        let mut tokens = self.tokens.into_iter();
-        let Some(first) = tokens.next() else {
-            return Ok(Vec::new());
-        };
-        let mut state = ParserState::Fix(initial_fix(first)?);
-        let mut result = Vec::new();
-        for token in tokens {
-            let (next_state, leg) = state.advance(token);
-            state = next_state;
-            result.extend(leg);
+    /// Parse `dep ident* arr`, retaining invalid tokens with diagnostics.
+    /// Empty input yields no idents.
+    pub fn parse(self) -> impl Iterator<Item = Ident<'s>> {
+        Input {
+            tokens: &self.tokens,
         }
-        Ok(result)
-    }
-}
-
-// FIXME: add a resolution decider to pick resolved identifier
-impl ParserState {
-    fn advance(self, token: ResolvedToken<'_>) -> (Self, Option<ParsedLeg>) {
-        match &token.token.value {
-            LexerTokenValue::SpeedAndAltitude { .. } => (self, None),
-            LexerTokenValue::Direct => {
-                let (fix, leg) = self.into_leg();
-                (Self::Leg(fix, leg), None)
-            }
-            LexerTokenValue::Identifier => self.advance_identifier(token),
-            LexerTokenValue::Geo { lat, lon } => {
-                let (fix, _) = self.into_leg();
-                finish_leg(fix, GeoPoint::new(*lat, *lon).into(), ParsedRoute::Direct)
-            }
-            LexerTokenValue::IdentifierReference { .. } => self.finish_at_token(token),
-        }
-    }
-
-    fn advance_identifier(self, token: ResolvedToken<'_>) -> (Self, Option<ParsedLeg>) {
-        if let Self::Fix(ref fix) = self
-            && let Some(leg) = select_leg(&token.resolved_identifiers, fix)
-        {
-            let (fix, _) = self.into_leg();
-            return (Self::Leg(fix, leg), None);
-        }
-        self.finish_at_token(token)
-    }
-
-    fn finish_at_token(self, token: ResolvedToken<'_>) -> (Self, Option<ParsedLeg>) {
-        let (fix, leg) = self.into_leg();
-        let identifier = token.token.str;
-        let to = token_fix(token, &fix).unwrap_or_else(|| AnyFix::Unknown(identifier.to_owned()));
-        finish_leg(fix, to, leg)
-    }
-
-    /// A fix without a pending leg connects directly to the next point.
-    fn into_leg(self) -> (AnyFix, ParsedRoute) {
-        match self {
-            Self::Fix(fix) => (fix, ParsedRoute::Direct),
-            Self::Leg(fix, leg) => (fix, leg),
-        }
-    }
-}
-
-impl ParsedRoute {
-    fn from_candidate(candidate: &ResolvedIdent, fix: &AnyFix) -> Option<Self> {
-        match candidate {
-            ResolvedIdent::Airway(airway) => airway
-                .contains_fix(fix)
-                .then_some(Self::Airway(airway.identifier)),
-            ResolvedIdent::Sid(airport, ident) => Some(Self::Sid(*airport, *ident)),
-            ResolvedIdent::Star(airport, ident) => Some(Self::Star(*airport, *ident)),
-            ResolvedIdent::Fix(_) => None,
-        }
-    }
-
-    fn priority(&self) -> u8 {
-        match self {
-            Self::Airway(_) => 0,
-            Self::Sid(_, _) => 1,
-            Self::Star(_, _) => 2,
-            Self::Direct => 3,
-        }
-    }
-}
-
-fn select_leg(candidates: &[ResolvedIdent], fix: &AnyFix) -> Option<ParsedRoute> {
-    candidates
-        .iter()
-        .filter_map(|candidate| ParsedRoute::from_candidate(candidate, fix))
-        .min_by_key(ParsedRoute::priority)
-}
-
-fn initial_fix(token: ResolvedToken<'_>) -> RouteParserResult<AnyFix> {
-    let origin = GeoPoint::new(0., 0.).into();
-    token_fix(token, &origin).ok_or(RouteParserError::FirstTokenIsNotFix)
-}
-
-fn token_fix(token: ResolvedToken<'_>, current: &AnyFix) -> Option<AnyFix> {
-    match token.token.value {
-        LexerTokenValue::Geo { lat, lon } => Some(GeoPoint::new(lat, lon).into()),
-        LexerTokenValue::IdentifierReference {
-            heading, distance, ..
-        } => nearest_fix(token.resolved_identifiers, current)
-            .map(|base| reference_fix(base, heading, distance)),
-        _ => nearest_fix(token.resolved_identifiers, current),
-    }
-}
-
-fn nearest_fix(candidates: Vec<ResolvedIdent>, current: &AnyFix) -> Option<AnyFix> {
-    candidates
+        .parse_route()
         .into_iter()
-        .filter_map(ResolvedIdent::into_fix)
-        .min_by_key(|fix| {
-            geo_distance_ordering(
-                current.latitude(),
-                current.longitude(),
-                fix.latitude(),
-                fix.longitude(),
-            )
-        })
-}
-
-fn reference_fix(base: AnyFix, heading: u16, distance: u16) -> AnyFix {
-    match base {
-        AnyFix::Airport(fix) => FixReference::new(fix, heading, distance).into(),
-        AnyFix::Vhf(fix) => FixReference::new(fix, heading, distance).into(),
-        AnyFix::Ndb(fix) => FixReference::new(fix, heading, distance).into(),
-        AnyFix::Waypoint(fix) => FixReference::new(fix, heading, distance).into(),
-        _ => unreachable!("navdata reference candidates are named fixes"),
     }
 }
 
-fn finish_leg(from: AnyFix, to: AnyFix, leg: ParsedRoute) -> (ParserState, Option<ParsedLeg>) {
-    let identifier = match &leg {
-        ParsedRoute::Airway(ident) => Some(ident.to_string()),
-        ParsedRoute::Sid(_, ident) | ParsedRoute::Star(_, ident) => Some(ident.to_string()),
-        ParsedRoute::Direct => None,
-    };
-    (
-        ParserState::Fix(to.clone()),
-        Some(ParsedLeg {
-            route: leg,
-            leg: ResolvedLeg {
-                from,
-                to,
-                identifier,
-                direction_restriction: DirectionRestriction::None,
-            },
-        }),
-    )
+/// Immutable input cursor for the recursive-descent parser.
+///
+/// Two-token lookahead distinguishes the final arrival token from an enroute
+/// entry. Each production returns its value and the remaining input.
+#[derive(Clone, Copy)]
+struct Input<'t, 's> {
+    tokens: &'t [LexerToken<'s>],
 }
 
-fn geo_distance_ordering(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> OrderedFloat<f64> {
-    let dlat = lat2 - lat1;
+impl<'t, 's> Input<'t, 's> {
+    fn peek(self, offset: usize) -> Option<&'t LexerTokenValue<'s>> {
+        self.tokens.get(offset).map(|token| &token.value)
+    }
 
-    let mut dlon = lon2 - lon1;
-    dlon = (dlon + 180.0).rem_euclid(360.0) - 180.0;
+    fn advance(self) -> Option<(&'t LexerToken<'s>, Self)> {
+        let (token, tokens) = self.tokens.split_first()?;
+        Some((token, Self { tokens }))
+    }
 
-    let mean_lat = ((lat1 + lat2) / 2.0).to_radians();
-    let x = dlon * mean_lat.cos();
-    let y = dlat;
+    // route = dep ident* arr
+    fn parse_route(self) -> Vec<Ident<'s>> {
+        let Some((departure, input)) = self.parse_departure() else {
+            return Vec::new();
+        };
+        if input.peek(0).is_none() {
+            return vec![Ident {
+                errors: departure
+                    .errors
+                    .into_iter()
+                    .chain([ParserIdentError::MissingArrival])
+                    .collect(),
+                ..departure
+            }];
+        }
+        std::iter::once(departure)
+            .chain(input.parse_tail())
+            .collect()
+    }
 
-    OrderedFloat(x * x + y * y)
+    // dep = IDENTIFIER SPEED_AND_ALTITUDE?
+    fn parse_departure(self) -> Option<(Ident<'s>, Self)> {
+        let (token, input) = self.advance()?;
+        let valid = matches!(token.value, LexerTokenValue::Identifier);
+        let (amendment, input) = if valid {
+            input.parse_speed_and_altitude()
+        } else {
+            (None, input)
+        };
+        Some((
+            Ident {
+                ident: token.str,
+                amendments: amendment.into_iter().collect(),
+                errors: (!valid)
+                    .then_some(ParserIdentError::ExpectedDepartureIdentifier)
+                    .into_iter()
+                    .collect(),
+            },
+            input,
+        ))
+    }
+
+    // tail = arr | ident tail
+    fn parse_tail(self) -> Vec<Ident<'s>> {
+        if self.peek(1).is_none() {
+            return self.parse_arrival().into_iter().collect();
+        }
+        let (ident, input) = self.parse_ident().expect("lookahead is not EOF");
+        if input.peek(0).is_none() {
+            return vec![Ident {
+                errors: ident
+                    .errors
+                    .into_iter()
+                    .chain([ParserIdentError::MissingArrival])
+                    .collect(),
+                ..ident
+            }];
+        }
+        std::iter::once(ident).chain(input.parse_tail()).collect()
+    }
+
+    // arr = IDENTIFIER
+    fn parse_arrival(self) -> Option<Ident<'s>> {
+        let (token, _) = self.advance()?;
+        Some(Ident {
+            ident: token.str,
+            amendments: Vec::new(),
+            errors: (!matches!(token.value, LexerTokenValue::Identifier))
+                .then_some(ParserIdentError::ExpectedArrivalIdentifier)
+                .into_iter()
+                .collect(),
+        })
+    }
+
+    // ident = (IDENTIFIER | IDENTIFIER_REFERENCE | GEO) (VFR | IFR)? | DIRECT
+    // Recovery consumes any other token as an entry so parsing always advances.
+    fn parse_ident(self) -> Option<(Ident<'s>, Self)> {
+        let (token, input) = self.advance()?;
+        let (amendment, input) = match token.value {
+            LexerTokenValue::Identifier
+            | LexerTokenValue::IdentifierReference { .. }
+            | LexerTokenValue::Geo { .. } => input.parse_flight_rule(),
+            _ => (None, input),
+        };
+        let error = match token.value {
+            LexerTokenValue::SpeedAndAltitude { .. } => {
+                Some(ParserIdentError::UnexpectedSpeedAndAltitude)
+            }
+            LexerTokenValue::Vfr | LexerTokenValue::Ifr => {
+                Some(ParserIdentError::UnexpectedFlightRule)
+            }
+            _ => None,
+        };
+        Some((
+            Ident {
+                ident: token.str,
+                amendments: amendment.into_iter().collect(),
+                errors: error.into_iter().collect(),
+            },
+            input,
+        ))
+    }
+
+    fn parse_speed_and_altitude(self) -> (Option<IdentAmend>, Self) {
+        let Some(LexerTokenValue::SpeedAndAltitude { speed, altitude }) = self.peek(0) else {
+            return (None, self);
+        };
+        let (_, input) = self.advance().expect("lookahead is not EOF");
+        (
+            Some(IdentAmend::SpeedAndAltitude {
+                speed: speed.clone(),
+                altitude: altitude.clone(),
+            }),
+            input,
+        )
+    }
+
+    fn parse_flight_rule(self) -> (Option<IdentAmend>, Self) {
+        let amendment = match self.peek(0) {
+            Some(LexerTokenValue::Vfr) => IdentAmend::FlightRuleVfr,
+            Some(LexerTokenValue::Ifr) => IdentAmend::FlightRuleIfr,
+            _ => return (None, self),
+        };
+        let (_, input) = self.advance().expect("lookahead is not EOF");
+        (Some(amendment), input)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::{lexer::Lexer, resolver::Resolver};
     use super::*;
-    use crate::modules::navdata::service::NavdataService;
+    use crate::modules::flight::flight_plan::v2::lexer::Lexer;
 
-    async fn navdata() -> NavdataService {
-        NavdataService::with_preferred_routes_path(
-            "data/ng_jeppesen_fwdfd_2401.s3db?mode=ro",
-            "assets/test/routes.csv",
-        )
-        .await
-        .unwrap()
-    }
-
-    async fn parse(navdata: &NavdataService, route: &str) -> Vec<ResolvedLeg> {
-        let tokens = Resolver::new(navdata, Lexer::new(route).parse_all())
-            .resolve_tokens()
-            .await
-            .unwrap();
-        RouteParser::new(tokens)
+    fn parse(route: &str) -> Vec<Ident<'_>> {
+        Parser::new(Lexer::new(route).parse_all().collect())
             .parse()
-            .unwrap()
-            .into_iter()
-            .map(|parsed| parsed.leg)
-            .collect::<Vec<_>>()
+            .collect()
     }
 
-    #[tokio::test]
-    async fn parses_preloaded_airways_after_database_is_closed() {
-        let navdata = navdata().await;
-        let tokens = Resolver::new(&navdata, Lexer::new("ASIVO L453 ASIVO").parse_all())
-            .resolve_tokens()
-            .await
-            .unwrap();
-        navdata.db.close().await;
-        drop(navdata);
-        let legs = RouteParser::new(tokens)
-            .parse()
-            .unwrap()
-            .into_iter()
-            .map(|parsed| parsed.leg)
-            .collect::<Vec<_>>();
-        assert_eq!(legs.len(), 1);
-        assert_eq!(legs[0].identifier.as_deref(), Some("L453"));
+    #[test]
+    fn parses_all_enroute_token_types_in_order() {
+        let route = parse("ZBAA VYK VYK180040 38N054E 3806N16730W DCT ZSPD");
+        assert_eq!(
+            route.iter().map(|ident| ident.ident).collect::<Vec<_>>(),
+            [
+                "ZBAA",
+                "VYK",
+                "VYK180040",
+                "38N054E",
+                "3806N16730W",
+                "DCT",
+                "ZSPD"
+            ]
+        );
+        assert!(route.iter().all(|ident| ident.errors.is_empty()));
+        assert!(route.iter().all(|ident| ident.amendments.is_empty()));
     }
 
-    #[tokio::test]
-    async fn selects_priority_and_requires_airway_connection() {
-        let navdata = navdata().await;
-        for (start, airway, sid, star, expected) in [
-            ("ASIVO", true, true, true, Some("L453")),
-            ("MBAC", true, true, true, Some("GTK2A")),
-            ("MBAC", false, true, true, Some("GTK2A")),
-            ("MBAC", false, false, true, Some("ANTE2D")),
-            ("MBAC", true, false, false, None),
+    #[test]
+    fn attaches_speed_and_altitude_only_to_departure() {
+        let route = parse("ZBAA K0830M0840 DCT ZSPD");
+        assert_eq!(route.len(), 3);
+        assert_eq!(route[0].ident, "ZBAA");
+        assert_eq!(
+            route[0].amendments,
+            [IdentAmend::SpeedAndAltitude {
+                speed: Speed::KmH(830),
+                altitude: CruisingLevel::MeterAltitude(840),
+            }]
+        );
+        assert!(route.iter().all(|ident| ident.errors.is_empty()));
+        assert!(route[1..].iter().all(|ident| ident.amendments.is_empty()));
+    }
+
+    #[test]
+    fn requires_identifier_endpoints() {
+        for token in ["DCT", "38N054E", "VYK180040", "K0830M0840", "VFR", "IFR"] {
+            let input = format!("{token} DCT ZSPD");
+            let route = parse(&input);
+            assert_eq!(
+                route[0].errors,
+                [ParserIdentError::ExpectedDepartureIdentifier]
+            );
+            let input = format!("ZBAA DCT {token}");
+            let route = parse(&input);
+            assert_eq!(
+                route[2].errors,
+                [ParserIdentError::ExpectedArrivalIdentifier]
+            );
+        }
+    }
+
+    #[test]
+    fn retains_misplaced_and_repeated_speed_and_altitude_with_errors() {
+        for input in [
+            "ZBAA DCT K0830M0840 ZSPD",
+            "ZBAA K0830M0840 DCT K0830M0840 ZSPD",
+            "ZBAA K0830M0840 K0830M0840 DCT ZSPD",
         ] {
-            let route = format!("{start} ASIVO ASIVO");
-            let mut tokens = Resolver::new(&navdata, Lexer::new(&route).parse_all())
-                .resolve_tokens()
-                .await
+            let route = parse(input);
+            let invalid = route
+                .iter()
+                .find(|ident| ident.ident == "K0830M0840")
                 .unwrap();
-            // Assemble competing candidates from existing navdata, least preferred first.
-            if star {
-                tokens[1].resolved_identifiers.extend(
-                    navdata
-                        .find_airways("ANTE2D")
-                        .await
-                        .unwrap()
-                        .into_iter()
-                        .filter(|item| matches!(item, ResolvedIdent::Star(_, _))),
+            assert_eq!(
+                invalid.errors,
+                [ParserIdentError::UnexpectedSpeedAndAltitude]
+            );
+            assert!(invalid.amendments.is_empty());
+            assert_eq!(route.last().unwrap().ident, "ZSPD");
+        }
+    }
+
+    #[test]
+    fn attaches_flight_rules_to_points() {
+        let route = parse("ZBAA VYK VFR VYK180040 IFR 38N054E VFR ZSPD");
+        assert_eq!(
+            route.iter().map(|ident| ident.ident).collect::<Vec<_>>(),
+            ["ZBAA", "VYK", "VYK180040", "38N054E", "ZSPD"]
+        );
+        assert_eq!(route[1].amendments, [IdentAmend::FlightRuleVfr]);
+        assert_eq!(route[2].amendments, [IdentAmend::FlightRuleIfr]);
+        assert_eq!(route[3].amendments, [IdentAmend::FlightRuleVfr]);
+        assert!(route.iter().all(|ident| ident.errors.is_empty()));
+    }
+
+    #[test]
+    fn departure_does_not_accept_flight_rules() {
+        for rule in ["VFR", "IFR"] {
+            for prefix in ["ZBAA", "ZBAA K0830M0840"] {
+                let input = format!("{prefix} {rule} ZSPD");
+                let route = parse(&input);
+                assert_eq!(route.len(), 3);
+                assert_eq!(route[1].ident, rule);
+                assert_eq!(route[1].errors, [ParserIdentError::UnexpectedFlightRule]);
+                assert!(
+                    route[0]
+                        .amendments
+                        .iter()
+                        .all(|amendment| matches!(amendment, IdentAmend::SpeedAndAltitude { .. }))
                 );
             }
-            if sid {
-                tokens[1]
-                    .resolved_identifiers
-                    .extend(navdata.find_airways("GTK2A").await.unwrap());
-            }
-            if airway {
-                tokens[1]
-                    .resolved_identifiers
-                    .extend(navdata.find_airways("L453").await.unwrap());
-            }
-            let legs = RouteParser::new(tokens)
-                .parse()
-                .unwrap()
-                .into_iter()
-                .map(|parsed| parsed.leg)
-                .collect::<Vec<_>>();
-            assert_eq!(legs[0].identifier.as_deref(), expected, "start: {start}");
-            assert_eq!(legs[0].to.identifier(), Some("ASIVO"));
         }
-        let asivo = navdata.find_fixes("ASIVO").await.unwrap().remove(0);
-        let airways = navdata.find_airways("L453").await.unwrap();
-        let ResolvedIdent::Airway(airway) = &airways[0] else {
-            panic!("expected airway");
-        };
-        assert!(airway.contains_fix(&asivo));
-        let airport = navdata.find_fixes("MBAC").await.unwrap().remove(0);
-        assert!(!airway.contains_fix(&airport));
     }
 
-    #[tokio::test]
-    async fn nearest_fix_uses_current_position_in_both_states() {
-        let navdata = navdata().await;
-        let legs = parse(&navdata, "18N066W VP001 20N156W DCT DCT VP001").await;
-        assert_eq!(legs.len(), 3);
-        assert_eq!(legs[0].to.icao_code(), Some("TJ"));
-        assert_eq!(legs[2].to.icao_code(), Some("MU"));
-        assert!(legs.iter().all(|leg| leg.identifier.is_none()));
-        let legs = parse(&navdata, "ASIVO L453 DCT ASIVO").await;
-        assert_eq!(legs.len(), 1);
-        assert_eq!(legs[0].identifier.as_deref(), Some("L453"));
-        let legs = parse(&navdata, "ASIVO L453 18N066W VP001").await;
-        assert_eq!(legs.len(), 2);
-        assert!(legs.iter().all(|leg| leg.identifier.is_none()));
-        assert_eq!(legs[1].to.icao_code(), Some("TJ"));
-    }
-
-    #[tokio::test]
-    async fn reference_tokens_choose_nearest_base_and_keep_leg() {
-        let navdata = navdata().await;
-        let base = navdata
-            .find_fixes("VP001")
-            .await
-            .unwrap()
-            .into_iter()
-            .find(|fix| fix.icao_code() == Some("TJ"))
-            .unwrap();
-        let expected = reference_fix(base, 90, 40);
-        for route in ["18N066W VP001090040", "18N066W DCT VP001090040"] {
-            let legs = parse(&navdata, route).await;
-            assert_eq!(legs.len(), 1);
-            assert_eq!(legs[0].to, expected);
-            assert!(legs[0].to.latitude().is_finite());
-            assert!(legs[0].to.longitude() > -66.2452083333333);
+    #[test]
+    fn accepts_at_most_one_flight_rule_per_point() {
+        for rules in ["VFR IFR", "IFR VFR", "VFR VFR", "IFR IFR"] {
+            let input = format!("ZBAA VYK {rules} ZSPD");
+            let route = parse(&input);
+            assert_eq!(route.len(), 4);
+            assert_eq!(route[1].amendments.len(), 1);
+            assert_eq!(route[2].errors, [ParserIdentError::UnexpectedFlightRule]);
+            assert!(route[2].amendments.is_empty());
         }
-        let legs = parse(&navdata, "ASIVO L453 ASIVO090000 18N066W").await;
-        assert_eq!(legs[0].identifier.as_deref(), Some("L453"));
-        assert!(matches!(legs[0].to, AnyFix::FixReference(_)));
-        assert!(legs[1].identifier.is_none());
     }
 
-    #[tokio::test]
-    async fn handles_empty_and_unresolved_routes() {
-        let navdata = navdata().await;
-        assert!(parse(&navdata, "").await.is_empty());
-        let tokens = Resolver::new(&navdata, Lexer::new("UNKNOWN").parse_all())
-            .resolve_tokens()
-            .await
-            .unwrap();
-        assert!(matches!(
-            RouteParser::new(tokens).parse(),
-            Err(RouteParserError::FirstTokenIsNotFix)
-        ));
+    #[test]
+    fn retains_flight_rules_without_a_preceding_point() {
+        for rule in ["VFR", "IFR"] {
+            let input = format!("ZBAA DCT {rule} ZSPD");
+            let route = parse(&input);
+            assert_eq!(route.len(), 4);
+            assert_eq!(route[2].ident, rule);
+            assert_eq!(route[2].errors, [ParserIdentError::UnexpectedFlightRule]);
+            assert!(route.iter().all(|ident| ident.amendments.is_empty()));
+        }
+    }
 
-        for (route, unknown, identifier) in [
-            ("MBAC UNKNOWN MBAC", "UNKNOWN", None),
-            ("MBAC DCT UNKNOWN MBAC", "UNKNOWN", None),
-            ("MBAC UNKNOWN090040 MBAC", "UNKNOWN090040", None),
-            ("MBAC DCT UNKNOWN090040 MBAC", "UNKNOWN090040", None),
-            ("ASIVO L453 UNKNOWN MBAC", "UNKNOWN", Some("L453")),
-        ] {
-            let legs = parse(&navdata, route).await;
-            assert_eq!(legs.len(), 2);
-            assert_eq!(legs[0].to, AnyFix::Unknown(unknown.to_owned()));
-            assert_eq!(legs[0].identifier.as_deref(), identifier);
-            assert_eq!(legs[1].from, legs[0].to);
-            assert_eq!(legs[1].to.identifier(), Some("MBAC"));
-            assert!(legs[1].identifier.is_none());
+    #[test]
+    fn requires_arrival_after_amended_enroute_point() {
+        let route = parse("ZBAA VYK IFR ZSPD");
+        assert_eq!(route.len(), 3);
+        assert_eq!(route[1].amendments, [IdentAmend::FlightRuleIfr]);
+        assert!(route[2].amendments.is_empty());
+        assert!(route.iter().all(|ident| ident.errors.is_empty()));
+
+        for point in ["ZSPD", "38N054E", "VYK180040"] {
+            for rule in ["VFR", "IFR"] {
+                let input = format!("ZBAA {point} {rule}");
+                let route = parse(&input);
+                assert_eq!(route.len(), 2);
+                assert_eq!(route[1].amendments.len(), 1);
+                assert_eq!(route[1].errors, [ParserIdentError::MissingArrival]);
+            }
+        }
+    }
+
+    #[test]
+    fn accepts_zero_enroute_idents() {
+        for input in ["ZBAA ZSPD", "ZBAA K0830M0840 ZSPD"] {
+            let route = parse(input);
+            assert_eq!(route.len(), 2);
+            assert_eq!(route[0].ident, "ZBAA");
+            assert_eq!(route[1].ident, "ZSPD");
+            assert!(route[1].amendments.is_empty());
+            assert!(route.iter().all(|ident| ident.errors.is_empty()));
+        }
+    }
+
+    #[test]
+    fn handles_empty_and_incomplete_routes() {
+        assert!(parse("").is_empty());
+        for input in ["ZBAA", "ZBAA K0830M0840"] {
+            let route = parse(input);
+            assert_eq!(route.len(), 1);
+            assert_eq!(route[0].errors, [ParserIdentError::MissingArrival]);
         }
     }
 }
