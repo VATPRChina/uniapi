@@ -86,15 +86,16 @@ impl AtcBookingService {
         &self,
         bookings: Vec<AtcBooking>,
     ) -> Result<Vec<AtcBookingView>, AtcBookingServiceError> {
-        let mut users = self
+        let users = self
             .user
             .get_users_bulk(bookings.iter().map(|booking| booking.user_id))
             .await?;
         let mut views = Vec::with_capacity(bookings.len());
         for booking in bookings {
             let user = users
-                .remove(&booking.user_id)
-                .ok_or(AtcBookingServiceError::UserNotFound(booking.user_id))?;
+                .get(&booking.user_id)
+                .ok_or(AtcBookingServiceError::UserNotFound(booking.user_id))?
+                .to_owned();
             let event_position = self.event_position(&booking).await?;
             views.push(AtcBookingView {
                 booking,
