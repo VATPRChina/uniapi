@@ -173,6 +173,7 @@ impl ApiError {
 
 impl From<AuthError> for ApiError {
     fn from(error: AuthError) -> Self {
+        tracing::error!("AuthError: {}", error);
         match error {
             AuthError::MissingRole(role) => ApiError::forbidden([role]),
             AuthError::MissingAnyRole(roles) => ApiError::forbidden(roles),
@@ -188,6 +189,7 @@ impl From<AuthError> for ApiError {
 
 impl From<UserServiceError> for ApiError {
     fn from(error: UserServiceError) -> Self {
+        tracing::error!("UserServiceError: {}", error);
         match error {
             UserServiceError::RemoveStaffForbidden => ApiError::RemoveStaffForbidden,
             UserServiceError::Database(source) => ApiError::Database { source },
@@ -199,6 +201,7 @@ impl From<UserServiceError> for ApiError {
 
 impl From<AtcApplicationServiceError> for ApiError {
     fn from(error: AtcApplicationServiceError) -> Self {
+        tracing::error!("AtcApplicationServiceError: {}", error);
         match error {
             AtcApplicationServiceError::AlreadyExists => ApiError::ApplicationAlreadyExists,
             AtcApplicationServiceError::CannotUpdate => ApiError::ApplicationCannotUpdate,
@@ -224,6 +227,7 @@ impl From<AtcApplicationServiceError> for ApiError {
 
 impl From<AtcBookingServiceError> for ApiError {
     fn from(error: AtcBookingServiceError) -> Self {
+        tracing::error!("AtcBookingServiceError: {}", error);
         match error {
             AtcBookingServiceError::NotFound(id) => {
                 ApiError::not_found("ATC booking", ulid::Ulid::from(id).to_string())
@@ -242,6 +246,7 @@ impl From<AtcBookingServiceError> for ApiError {
 
 impl From<AtcPositionServiceError> for ApiError {
     fn from(error: AtcPositionServiceError) -> Self {
+        tracing::error!("AtcPositionServiceError: {}", error);
         match error {
             AtcPositionServiceError::NotFound(callsign) => {
                 ApiError::not_found("ATC position", callsign)
@@ -254,6 +259,7 @@ impl From<AtcPositionServiceError> for ApiError {
 
 impl From<TrainingServiceError> for ApiError {
     fn from(error: TrainingServiceError) -> Self {
+        tracing::error!("TrainingServiceError: {}", error);
         match error {
             TrainingServiceError::NotFound(id) => {
                 ApiError::not_found("training", ulid::Ulid::from(id).to_string())
@@ -279,6 +285,7 @@ impl From<TrainingServiceError> for ApiError {
 
 impl From<EventServiceError> for ApiError {
     fn from(error: EventServiceError) -> Self {
+        tracing::error!("EventServiceError: {}", error);
         match error {
             EventServiceError::EventNotFound(id) => {
                 ApiError::not_found("event", ulid::Ulid::from(id).to_string())
@@ -312,6 +319,7 @@ impl From<EventServiceError> for ApiError {
 
 impl From<FlightServiceError> for ApiError {
     fn from(error: FlightServiceError) -> Self {
+        tracing::error!("FlightServiceError: {}", error);
         match error {
             FlightServiceError::CallsignNotFound(callsign) => {
                 ApiError::not_found("callsign", callsign)
@@ -330,6 +338,7 @@ impl From<FlightServiceError> for ApiError {
 
 impl From<SheetServiceError> for ApiError {
     fn from(error: SheetServiceError) -> Self {
+        tracing::error!("SheetServiceError: {}", error);
         match error {
             SheetServiceError::NotFound(id) => ApiError::not_found("sheet", id),
             SheetServiceError::FieldNotFound { sheet_id, field_id } => {
@@ -342,6 +351,7 @@ impl From<SheetServiceError> for ApiError {
 
 impl From<TrainingApplicationServiceError> for ApiError {
     fn from(error: TrainingApplicationServiceError) -> Self {
+        tracing::error!("TrainingApplicationServiceError: {}", error);
         match error {
             TrainingApplicationServiceError::NotFound(id) => {
                 ApiError::not_found("training application", ulid::Ulid::from(id).to_string())
@@ -371,6 +381,7 @@ impl From<TrainingApplicationServiceError> for ApiError {
 
 impl From<ControllerServiceError> for ApiError {
     fn from(error: ControllerServiceError) -> Self {
+        tracing::error!("ControllerServiceError: {}", error);
         match error {
             ControllerServiceError::UserNotFound(id) => {
                 ApiError::not_found("user", ulid::Ulid::from(id).to_string())
