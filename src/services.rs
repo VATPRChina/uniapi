@@ -41,6 +41,7 @@ pub struct Services {
     atc_booking: AtcBookingService,
     atc_position: AtcPositionService,
     event: EventService,
+    discord: crate::discord::service::DiscordService,
     flight: FlightService,
     sheet: SheetService,
     training: TrainingService,
@@ -76,7 +77,12 @@ impl Services {
             AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone(), sheet.clone());
         let atc_booking = AtcBookingService::new(db.clone(), user.clone());
         let atc_position = AtcPositionService::new(db.clone(), audit_log.clone());
-        let event = EventService::new(db.clone(), audit_log.clone(), user.clone());
+        let discord = crate::discord::service::DiscordService::new(
+            db.clone(),
+            audit_log.clone(),
+            &settings.discord,
+        );
+        let event = EventService::new(db.clone(), audit_log.clone(), user.clone(), discord.clone());
         let access_token = AccessTokenService::new(&settings.authentication.jwt);
         let refresh_token =
             RefreshTokenService::new(db.clone(), settings.authentication.jwt.refresh_expires_days);
@@ -101,6 +107,7 @@ impl Services {
             atc_booking,
             atc_position,
             event,
+            discord,
             flight,
             sheet,
             training,
@@ -175,6 +182,10 @@ impl Services {
 
     pub fn atc_position(&self) -> &AtcPositionService {
         &self.atc_position
+    }
+
+    pub fn discord(&self) -> &crate::discord::service::DiscordService {
+        &self.discord
     }
 
     pub fn event(&self) -> &EventService {

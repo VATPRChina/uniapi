@@ -25,14 +25,21 @@ pub struct EventService {
     db: PgPool,
     audit_log: AuditLogService,
     user: UserService,
+    discord: crate::discord::service::DiscordService,
 }
 
 impl EventService {
-    pub fn new(db: PgPool, audit_log: AuditLogService, user: UserService) -> Self {
+    pub fn new(
+        db: PgPool,
+        audit_log: AuditLogService,
+        user: UserService,
+        discord: crate::discord::service::DiscordService,
+    ) -> Self {
         Self {
             db,
             audit_log,
             user,
+            discord,
         }
     }
 
@@ -85,11 +92,17 @@ impl EventService {
             .find_event_by_id_for_update(id)
             .await?
             .ok_or(EventServiceError::EventNotFound(id))?;
-        let event = (&mut *transaction)
+        let mut event = (&mut *transaction)
             .update_event(id, event)
             .await?
             .ok_or(EventServiceError::EventNotFound(id))?;
         transaction.commit().await?;
+        if event.discord_message.is_some() {
+            match self.discord.sync_event(&mut event).await {
+                Err(crate::discord::service::DiscordServiceError::Publish(_)) => {}
+                result => result?,
+            }
+        }
         self.audit_log
             .record(
                 AuditLogEntity::Event(event.id),
@@ -557,6 +570,8 @@ fn permission_satisfies(permission: &UserAtcPermissionRecord, minimum_state: i32
 
 #[derive(Debug, thiserror::Error)]
 pub enum EventServiceError {
+    #[error(transparent)]
+    Discord(#[from] crate::discord::service::DiscordServiceError),
     #[error("event {0} not found")]
     EventNotFound(Uuid),
     #[error("event slot {0} not found")]
