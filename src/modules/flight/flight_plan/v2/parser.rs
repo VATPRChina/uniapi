@@ -20,6 +20,12 @@ pub struct Ident<'s> {
     errors: Vec<ParserIdentError>,
 }
 
+impl<'s> Ident<'s> {
+    pub fn identifier(&self) -> &'s str {
+        self.ident
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum IdentAmend {
     SpeedAndAltitude {

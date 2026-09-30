@@ -1,4 +1,4 @@
-use crate::modules::navdata::models::{Airport, AnyFix, Fix, Ndb, Vhf, Waypoint};
+use crate::modules::navdata::models::{Airport, AnyFix, Fix, GeoPoint, Ndb, Vhf, Waypoint};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FixReference {
@@ -24,21 +24,9 @@ impl FixReference {
             FixReferenceBase::Waypoint(fix) => fix,
             FixReferenceBase::Unknown(_) => return (0., 0.),
         };
-        let latitude = fix.latitude().to_radians();
-        let longitude = fix.longitude().to_radians();
-        let bearing = f64::from(self.heading).to_radians();
-        // Distance is in nautical miles; use the mean Earth radius in metres.
-        let angle = f64::from(self.distance) * 1852.0 / 6_371_008.8;
-        let lat = (latitude.sin() * angle.cos() + latitude.cos() * angle.sin() * bearing.cos())
-            .clamp(-1., 1.)
-            .asin();
-        let lon = longitude
-            + (bearing.sin() * angle.sin() * latitude.cos())
-                .atan2(angle.cos() - latitude.sin() * lat.sin());
-        (
-            lat.to_degrees(),
-            (lon.to_degrees() + 180.).rem_euclid(360.) - 180.,
-        )
+        let point =
+            GeoPoint::new(fix.latitude(), fix.longitude()).destination(self.heading, self.distance);
+        (point.latitude, point.longitude)
     }
 }
 

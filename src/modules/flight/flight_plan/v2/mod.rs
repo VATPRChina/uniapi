@@ -29,5 +29,6 @@ mod constraint_solver;
 mod lexer;
 mod parser;
 
+pub use candidate_resolver::{CandidateResolver, IdentCandidate, IdentWithCandidate};
 pub use lexer::{CruisingLevel, Lexer, LexerToken, LexerTokenAmend, LexerTokenValue, Speed};
 pub use parser::{Ident, IdentAmend, Parser};
