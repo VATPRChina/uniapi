@@ -24,11 +24,13 @@
 
 #![allow(unused)]
 
-mod candidate_resolver;
-mod constraint_solver;
 mod lexer;
 mod parser;
+mod resolver;
+mod solver;
 
-pub use candidate_resolver::{CandidateResolver, IdentCandidate, IdentWithCandidate};
 pub use lexer::{CruisingLevel, Lexer, LexerToken, LexerTokenAmend, LexerTokenValue, Speed};
 pub use parser::{Ident, IdentAmend, Parser};
+pub use resolver::{
+    CandidateResolver, FixCandidate, IdentCandidate, IdentWithCandidate, LegCandidate,
+};

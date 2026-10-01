@@ -13,11 +13,11 @@ pub struct Parser<'s> {
     tokens: Vec<LexerToken<'s>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Ident<'s> {
-    ident: &'s str,
-    amendments: Vec<IdentAmend>,
-    errors: Vec<ParserIdentError>,
+    pub ident: &'s str,
+    pub amendments: Vec<IdentAmend>,
+    pub errors: Vec<ParserIdentError>,
 }
 
 impl<'s> Ident<'s> {
@@ -26,7 +26,7 @@ impl<'s> Ident<'s> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum IdentAmend {
     SpeedAndAltitude {
         speed: Speed,
@@ -36,7 +36,7 @@ pub enum IdentAmend {
     FlightRuleIfr,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ParserIdentError {
     ExpectedDepartureIdentifier,
     ExpectedArrivalIdentifier,

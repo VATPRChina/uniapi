@@ -14,7 +14,7 @@ use crate::modules::{
 pub struct CandidateResolver<'s> {
     idents: Vec<Ident<'s>>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IdentWithCandidate<'s> {
     pub(super) ident: Ident<'s>,
     pub(super) candidates: Vec<IdentCandidate>,
@@ -23,22 +23,21 @@ pub struct IdentWithCandidate<'s> {
 pub type IcaoCode = ArrayString<2>;
 pub type AirportIdentifier = ArrayString<4>;
 
-#[derive(Debug, PartialEq)]
+/// An identifier can denote either a physical fix or a connecting leg.
+#[derive(Debug, Clone, PartialEq)]
 pub enum IdentCandidate {
+    Fix(FixCandidate),
+    Leg(LegCandidate),
+}
+
+/// Physical-point interpretations, retaining their coordinates and scope.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FixCandidate {
     Airport {
         airport: AirportIdentifier,
         lat: f64,
         lon: f64,
     },
-    Direct,
-    Airway,
-    Sid {
-        airport: AirportIdentifier,
-    },
-    Star {
-        airport: AirportIdentifier,
-    },
-    UnknownAirway,
     EnrouteWaypoint {
         icao_code: IcaoCode,
         lat: f64,
@@ -76,6 +75,60 @@ pub enum IdentCandidate {
     UnknownWaypoint,
 }
 
+impl FixCandidate {
+    pub fn latitude(&self) -> Option<f64> {
+        match self {
+            FixCandidate::Airport { lat, .. }
+            | FixCandidate::EnrouteWaypoint { lat, .. }
+            | FixCandidate::TerminalWaypoint { lat, .. }
+            | FixCandidate::EnrouteVor { lat, .. }
+            | FixCandidate::TerminalVor { lat, .. }
+            | FixCandidate::EnrouteNdb { lat, .. }
+            | FixCandidate::TerminalNdb { lat, .. }
+            | FixCandidate::Geo { lat, .. } => Some(*lat),
+            FixCandidate::UnknownWaypoint => None,
+        }
+    }
+
+    pub fn longitude(&self) -> Option<f64> {
+        match self {
+            FixCandidate::Airport { lon, .. }
+            | FixCandidate::EnrouteWaypoint { lon, .. }
+            | FixCandidate::TerminalWaypoint { lon, .. }
+            | FixCandidate::EnrouteVor { lon, .. }
+            | FixCandidate::TerminalVor { lon, .. }
+            | FixCandidate::EnrouteNdb { lon, .. }
+            | FixCandidate::TerminalNdb { lon, .. }
+            | FixCandidate::Geo { lon, .. } => Some(*lon),
+            FixCandidate::UnknownWaypoint => None,
+        }
+    }
+
+    pub fn position(&self) -> Option<(f64, f64)> {
+        match self {
+            FixCandidate::Airport { lat, lon, .. }
+            | FixCandidate::EnrouteWaypoint { lat, lon, .. }
+            | FixCandidate::TerminalWaypoint { lat, lon, .. }
+            | FixCandidate::EnrouteVor { lat, lon, .. }
+            | FixCandidate::TerminalVor { lat, lon, .. }
+            | FixCandidate::EnrouteNdb { lat, lon, .. }
+            | FixCandidate::TerminalNdb { lat, lon, .. }
+            | FixCandidate::Geo { lat, lon, .. } => Some((*lat, *lon)),
+            FixCandidate::UnknownWaypoint => None,
+        }
+    }
+}
+
+/// Connection interpretations, completed by subsequent fix entries.
+#[derive(Debug, Clone, PartialEq)]
+pub enum LegCandidate {
+    Direct,
+    Airway,
+    Sid { airport: AirportIdentifier },
+    Star { airport: AirportIdentifier },
+    UnknownAirway,
+}
+
 impl<'s> CandidateResolver<'s> {
     pub fn new(idents: Vec<Ident<'s>>) -> Self {
         Self { idents }
@@ -110,8 +163,10 @@ async fn resolve_ident(
         return Ok(Vec::new());
     };
     match token.value {
-        LexerTokenValue::Direct => Ok(vec![IdentCandidate::Direct]),
-        LexerTokenValue::Geo { lat, lon } => Ok(vec![IdentCandidate::Geo { lat, lon }]),
+        LexerTokenValue::Direct => Ok(vec![IdentCandidate::Leg(LegCandidate::Direct)]),
+        LexerTokenValue::Geo { lat, lon } => {
+            Ok(vec![IdentCandidate::Fix(FixCandidate::Geo { lat, lon })])
+        }
         LexerTokenValue::IdentifierReference {
             ident,
             heading,
@@ -119,9 +174,9 @@ async fn resolve_ident(
         } => {
             let fixes = find_fix_candidates(navdata, ident, Some((heading, distance))).await?;
             if fixes.is_empty() {
-                Ok(vec![IdentCandidate::UnknownWaypoint])
+                Ok(vec![IdentCandidate::Fix(FixCandidate::UnknownWaypoint)])
             } else {
-                Ok(fixes)
+                Ok(fixes.into_iter().map(IdentCandidate::Fix).collect())
             }
         }
 
@@ -132,10 +187,11 @@ async fn resolve_ident(
             )?;
             Ok(routes
                 .into_iter()
-                .chain(fixes)
+                .map(IdentCandidate::Leg)
+                .chain(fixes.into_iter().map(IdentCandidate::Fix))
                 .chain([
-                    IdentCandidate::UnknownAirway,
-                    IdentCandidate::UnknownWaypoint,
+                    IdentCandidate::Leg(LegCandidate::UnknownAirway),
+                    IdentCandidate::Fix(FixCandidate::UnknownWaypoint),
                 ])
                 .collect())
         }
@@ -148,22 +204,22 @@ async fn resolve_ident(
 async fn find_route_candidates(
     navdata: &NavdataService,
     ident: &str,
-) -> NavdataResult<Vec<IdentCandidate>> {
+) -> NavdataResult<Vec<LegCandidate>> {
     let (airway, sids, stars) = tokio::try_join!(
         navdata.exists_airway(ident),
         navdata.list_sid_airports(ident),
         navdata.list_star_airports(ident),
     )?;
     airway
-        .then_some(Ok(IdentCandidate::Airway))
+        .then_some(Ok(LegCandidate::Airway))
         .into_iter()
         .chain(sids.into_iter().map(|airport| -> NavdataResult<_> {
-            Ok(IdentCandidate::Sid {
+            Ok(LegCandidate::Sid {
                 airport: airport.as_str().try_into()?,
             })
         }))
         .chain(stars.into_iter().map(|airport| -> NavdataResult<_> {
-            Ok(IdentCandidate::Star {
+            Ok(LegCandidate::Star {
                 airport: airport.as_str().try_into()?,
             })
         }))
@@ -181,7 +237,7 @@ struct FixCandidateRecord {
 }
 
 impl FixCandidateRecord {
-    fn into_candidate(self, reference: Option<(u16, u16)>) -> NavdataResult<IdentCandidate> {
+    fn into_candidate(self, reference: Option<(u16, u16)>) -> NavdataResult<FixCandidate> {
         let lat = self
             .latitude
             .ok_or(InvalidNavdataError::InvalidNavaidNullLatLong)?;
@@ -216,39 +272,39 @@ impl FixCandidateRecord {
                 .try_into()?)
         };
         Ok(match self.kind.as_str() {
-            "tbl_pa_airports" => IdentCandidate::Airport {
+            "tbl_pa_airports" => FixCandidate::Airport {
                 airport: self.identifier.as_str().try_into()?,
                 lat,
                 lon,
             },
-            "tbl_ea_enroute_waypoints" => IdentCandidate::EnrouteWaypoint {
+            "tbl_ea_enroute_waypoints" => FixCandidate::EnrouteWaypoint {
                 icao_code: icao_code()?,
                 lat,
                 lon,
             },
-            "tbl_pc_terminal_waypoints" => IdentCandidate::TerminalWaypoint {
+            "tbl_pc_terminal_waypoints" => FixCandidate::TerminalWaypoint {
                 airport: terminal_airport()?,
                 lat,
                 lon,
             },
             "tbl_d_vhfnavaids" => match airport {
-                Some(_) => IdentCandidate::TerminalVor {
+                Some(_) => FixCandidate::TerminalVor {
                     airport: terminal_airport()?,
                     lat,
                     lon,
                 },
-                None => IdentCandidate::EnrouteVor {
+                None => FixCandidate::EnrouteVor {
                     icao_code: icao_code()?,
                     lat,
                     lon,
                 },
             },
-            "tbl_db_enroute_ndbnavaids" => IdentCandidate::EnrouteNdb {
+            "tbl_db_enroute_ndbnavaids" => FixCandidate::EnrouteNdb {
                 icao_code: icao_code()?,
                 lat,
                 lon,
             },
-            "tbl_pn_terminal_ndbnavaids" => IdentCandidate::TerminalNdb {
+            "tbl_pn_terminal_ndbnavaids" => FixCandidate::TerminalNdb {
                 airport: terminal_airport()?,
                 lat,
                 lon,
@@ -263,7 +319,7 @@ async fn find_fix_candidates(
     navdata: &NavdataService,
     ident: &str,
     reference: Option<(u16, u16)>,
-) -> NavdataResult<Vec<IdentCandidate>> {
+) -> NavdataResult<Vec<FixCandidate>> {
     let records: Vec<FixCandidateRecord> = sqlx::query_as(
         r#"
         SELECT * FROM (
@@ -364,61 +420,79 @@ mod tests {
         let navdata = navdata().await;
         let route = resolve(&navdata, "MBAC DOM AC07F ICDO GD AGNOD MBAC").await;
         assert!(
-            route[0].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::Airport { airport, .. } if airport == "MBAC"))
+            route[0].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::Fix(FixCandidate::Airport { airport, .. }) if airport == "MBAC"))
         );
         assert_eq!(route[1].candidates.len(), 4);
-        assert!(route[1].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::EnrouteVor { icao_code, lat, lon } if icao_code == "TD" && lat.is_finite() && lon.is_finite())));
-        assert!(
-            route[1]
-                .candidates
-                .iter()
-                .any(|candidate| matches!(candidate, IdentCandidate::EnrouteNdb { .. }))
-        );
-        assert!(route[2].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::TerminalWaypoint { airport, .. } if airport == "MBAC")));
-        assert!(route[3].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::TerminalVor { airport, .. } if airport == "MDSD")));
-        assert!(route[4].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::TerminalNdb { airport, .. } if airport == "MMGL")));
-        assert!(route[5].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::EnrouteWaypoint { icao_code, .. } if icao_code == "MB")));
+        assert!(route[1].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::Fix(FixCandidate::EnrouteVor { icao_code, lat, lon }) if icao_code == "TD" && lat.is_finite() && lon.is_finite())));
+        assert!(route[1].candidates.iter().any(|candidate| matches!(
+            candidate,
+            IdentCandidate::Fix(FixCandidate::EnrouteNdb { .. })
+        )));
+        assert!(route[2].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::Fix(FixCandidate::TerminalWaypoint { airport, .. }) if airport == "MBAC")));
+        assert!(route[3].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::Fix(FixCandidate::TerminalVor { airport, .. }) if airport == "MDSD")));
+        assert!(route[4].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::Fix(FixCandidate::TerminalNdb { airport, .. }) if airport == "MMGL")));
+        assert!(route[5].candidates.iter().any(|candidate| matches!(candidate, IdentCandidate::Fix(FixCandidate::EnrouteWaypoint { icao_code, .. }) if icao_code == "MB")));
     }
 
     #[tokio::test]
     async fn preserves_ambiguous_procedures_and_airways() {
         let navdata = navdata().await;
         let route = resolve(&navdata, "MBAC L453 GTK2A ANTE2D MBAC").await;
-        assert!(route[1].candidates.contains(&IdentCandidate::Airway));
-        assert!(route[2].candidates.contains(&IdentCandidate::Sid {
-            airport: "MBAC".try_into().unwrap()
-        }));
-        assert!(route[3].candidates.contains(&IdentCandidate::Sid {
-            airport: "MMUN".try_into().unwrap()
-        }));
-        assert!(route[3].candidates.contains(&IdentCandidate::Star {
-            airport: "MDLR".try_into().unwrap()
-        }));
+        assert!(
+            route[1]
+                .candidates
+                .contains(&IdentCandidate::Leg(LegCandidate::Airway))
+        );
+        assert!(
+            route[2]
+                .candidates
+                .contains(&IdentCandidate::Leg(LegCandidate::Sid {
+                    airport: "MBAC".try_into().unwrap()
+                }))
+        );
+        assert!(
+            route[3]
+                .candidates
+                .contains(&IdentCandidate::Leg(LegCandidate::Sid {
+                    airport: "MMUN".try_into().unwrap()
+                }))
+        );
+        assert!(
+            route[3]
+                .candidates
+                .contains(&IdentCandidate::Leg(LegCandidate::Star {
+                    airport: "MDLR".try_into().unwrap()
+                }))
+        );
     }
 
     #[tokio::test]
     async fn resolves_geo_direct_and_all_reference_bases() {
         let navdata = navdata().await;
         let route = resolve(&navdata, "MBAC DCT 38N054E 3806N16730W DOM180040 MBAC").await;
-        assert_eq!(route[1].candidates, [IdentCandidate::Direct]);
+        assert_eq!(
+            route[1].candidates,
+            [IdentCandidate::Leg(LegCandidate::Direct)]
+        );
         assert_eq!(
             route[2].candidates,
-            [IdentCandidate::Geo {
+            [IdentCandidate::Fix(FixCandidate::Geo {
                 lat: 38.0,
                 lon: 54.0
-            }]
+            })]
         );
         assert_eq!(
             route[3].candidates,
-            [IdentCandidate::Geo {
+            [IdentCandidate::Fix(FixCandidate::Geo {
                 lat: 38.1,
                 lon: -167.5
-            }]
+            })]
         );
         assert_eq!(route[4].candidates.len(), 2);
         assert!(route[4].candidates.iter().all(|candidate| matches!(
             candidate,
-            IdentCandidate::EnrouteVor { .. } | IdentCandidate::EnrouteNdb { .. }
+            IdentCandidate::Fix(FixCandidate::EnrouteVor { .. })
+                | IdentCandidate::Fix(FixCandidate::EnrouteNdb { .. })
         )));
         assert_eq!(route[4].ident.identifier(), "DOM180040");
     }
@@ -435,7 +509,8 @@ mod tests {
                 .filter(|candidate| {
                     !matches!(
                         candidate,
-                        IdentCandidate::UnknownAirway | IdentCandidate::UnknownWaypoint
+                        IdentCandidate::Leg(LegCandidate::UnknownAirway)
+                            | IdentCandidate::Fix(FixCandidate::UnknownWaypoint)
                     )
                 })
                 .collect();
@@ -443,7 +518,16 @@ mod tests {
             assert_eq!(bases, route[3].candidates.iter().collect::<Vec<_>>());
             assert_eq!(bases.len(), route[2].candidates.len());
             for (base, offset) in bases.into_iter().zip(&route[2].candidates) {
-                assert_eq!(std::mem::discriminant(base), std::mem::discriminant(offset));
+                let IdentCandidate::Fix(base_fix) = base else {
+                    panic!("expected a base fix");
+                };
+                let IdentCandidate::Fix(offset_fix) = offset else {
+                    panic!("expected an offset fix");
+                };
+                assert_eq!(
+                    std::mem::discriminant(base_fix),
+                    std::mem::discriminant(offset_fix)
+                );
                 let (scope, lat, lon) = fix_fields(base);
                 let (offset_scope, offset_lat, offset_lon) = fix_fields(offset);
                 assert_eq!(scope, offset_scope);
@@ -460,25 +544,27 @@ mod tests {
 
     fn fix_fields(candidate: &IdentCandidate) -> (&str, f64, f64) {
         match candidate {
-            IdentCandidate::Airport { airport, lat, lon }
-            | IdentCandidate::TerminalWaypoint { airport, lat, lon }
-            | IdentCandidate::TerminalVor { airport, lat, lon }
-            | IdentCandidate::TerminalNdb { airport, lat, lon } => (airport.as_str(), *lat, *lon),
-            IdentCandidate::EnrouteWaypoint {
-                icao_code,
-                lat,
-                lon,
+            IdentCandidate::Fix(FixCandidate::Airport { airport, lat, lon })
+            | IdentCandidate::Fix(FixCandidate::TerminalWaypoint { airport, lat, lon })
+            | IdentCandidate::Fix(FixCandidate::TerminalVor { airport, lat, lon })
+            | IdentCandidate::Fix(FixCandidate::TerminalNdb { airport, lat, lon }) => {
+                (airport.as_str(), *lat, *lon)
             }
-            | IdentCandidate::EnrouteVor {
+            IdentCandidate::Fix(FixCandidate::EnrouteWaypoint {
                 icao_code,
                 lat,
                 lon,
-            }
-            | IdentCandidate::EnrouteNdb {
+            })
+            | IdentCandidate::Fix(FixCandidate::EnrouteVor {
                 icao_code,
                 lat,
                 lon,
-            } => (icao_code.as_str(), *lat, *lon),
+            })
+            | IdentCandidate::Fix(FixCandidate::EnrouteNdb {
+                icao_code,
+                lat,
+                lon,
+            }) => (icao_code.as_str(), *lat, *lon),
             _ => panic!("expected a navigation fix"),
         }
     }
@@ -498,18 +584,21 @@ mod tests {
         assert_eq!(
             route[0].candidates,
             [
-                IdentCandidate::UnknownAirway,
-                IdentCandidate::UnknownWaypoint
+                IdentCandidate::Leg(LegCandidate::UnknownAirway),
+                IdentCandidate::Fix(FixCandidate::UnknownWaypoint)
             ]
         );
         assert_eq!(
             route[1].candidates,
             [
-                IdentCandidate::UnknownAirway,
-                IdentCandidate::UnknownWaypoint
+                IdentCandidate::Leg(LegCandidate::UnknownAirway),
+                IdentCandidate::Fix(FixCandidate::UnknownWaypoint)
             ]
         );
-        assert_eq!(route[3].candidates, [IdentCandidate::UnknownWaypoint]);
+        assert_eq!(
+            route[3].candidates,
+            [IdentCandidate::Fix(FixCandidate::UnknownWaypoint)]
+        );
     }
 
     #[tokio::test]
@@ -521,8 +610,8 @@ mod tests {
         assert_eq!(route[1].candidates, route[4].candidates);
         for entry in route {
             assert!(entry.candidates.ends_with(&[
-                IdentCandidate::UnknownAirway,
-                IdentCandidate::UnknownWaypoint,
+                IdentCandidate::Leg(LegCandidate::UnknownAirway),
+                IdentCandidate::Fix(FixCandidate::UnknownWaypoint),
             ]));
         }
     }
