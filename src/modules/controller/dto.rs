@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::error::ApiError;
-use crate::modules::controller::models::{Controller, ControllerOnlineTime};
+use crate::modules::controller::models::{
+    Controller, ControllerOnlineTime, ControllerOnlineTimeByPosition, ControllerOnlineTimeSummary,
+};
 use crate::modules::user::dto::UserDto;
 use crate::modules::user::models::UserSummary;
 
@@ -18,6 +20,27 @@ pub struct ControllerOnlineTimeDto {
     pub period_start: DateTime<Utc>,
     pub as_of: DateTime<Utc>,
     pub total_seconds: u64,
+    /// Current-quarter seconds for S1 (GND/DEL/RMP), S2 (TWR), S3 (APP), C1+ (CTR).
+    /// DEP and FSS count toward total_seconds only.
+    pub by_position: ControllerOnlineTimeByPosition,
+    pub lifetime: ControllerOnlineTimeSummaryDto,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct ControllerOnlineTimeSummaryDto {
+    /// All recorded VATPRC controlling seconds, including the current session.
+    pub total_seconds: u64,
+    /// Position groups in seconds. DEP and FSS count toward total_seconds only.
+    pub by_position: ControllerOnlineTimeByPosition,
+}
+
+impl From<ControllerOnlineTimeSummary> for ControllerOnlineTimeSummaryDto {
+    fn from(summary: ControllerOnlineTimeSummary) -> Self {
+        Self {
+            total_seconds: summary.total_seconds,
+            by_position: summary.by_position,
+        }
+    }
 }
 
 impl From<ControllerOnlineTime> for ControllerOnlineTimeDto {
@@ -27,6 +50,8 @@ impl From<ControllerOnlineTime> for ControllerOnlineTimeDto {
             period_start: online_time.period_start,
             as_of: online_time.as_of,
             total_seconds: online_time.total_seconds,
+            by_position: online_time.by_position,
+            lifetime: online_time.lifetime.into(),
         }
     }
 }
@@ -150,6 +175,24 @@ impl From<ControllerPermission> for AtcPermissionDto {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serializes_all_position_groups_even_without_sessions() {
+        let now = Utc::now();
+        let dto = ControllerOnlineTimeDto::from(ControllerOnlineTime {
+            period: "2026Q3".to_owned(),
+            period_start: now,
+            as_of: now,
+            total_seconds: 0,
+            by_position: ControllerOnlineTimeByPosition::default(),
+            lifetime: ControllerOnlineTimeSummary::default(),
+        });
+        let json = serde_json::to_value(dto).unwrap();
+        let expected = serde_json::json!({"S1": 0, "S2": 0, "S3": 0, "C1+": 0});
+        assert_eq!(json["by_position"], expected);
+        assert_eq!(json["lifetime"]["by_position"], expected);
+        assert_eq!(json["lifetime"]["total_seconds"], 0);
+    }
 
     fn atc_status_request(is_absent: bool, state: UserControllerState) -> AtcStatusRequest {
         AtcStatusRequest {

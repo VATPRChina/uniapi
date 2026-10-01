@@ -1371,13 +1371,51 @@ export type components = {
             last_updated: string;
             pilots: components["schemas"]["CompatPilotDto"][];
         };
+        /** @description Seconds grouped by position suffix, independently of the controller's rating. */
+        ControllerOnlineTimeByPosition: {
+            /**
+             * Format: int64
+             * @description CTR seconds.
+             */
+            "C1+": number;
+            /**
+             * Format: int64
+             * @description GND, DEL and RMP seconds.
+             */
+            S1: number;
+            /**
+             * Format: int64
+             * @description TWR seconds.
+             */
+            S2: number;
+            /**
+             * Format: int64
+             * @description APP seconds.
+             */
+            S3: number;
+        };
         ControllerOnlineTimeDto: {
             /** Format: date-time */
             as_of: string;
+            /**
+             * @description Current-quarter seconds for S1 (GND/DEL/RMP), S2 (TWR), S3 (APP), C1+ (CTR).
+             *     DEP and FSS count toward total_seconds only.
+             */
+            by_position: components["schemas"]["ControllerOnlineTimeByPosition"];
+            lifetime: components["schemas"]["ControllerOnlineTimeSummaryDto"];
             period: string;
             /** Format: date-time */
             period_start: string;
             /** Format: int64 */
+            total_seconds: number;
+        };
+        ControllerOnlineTimeSummaryDto: {
+            /** @description Position groups in seconds. DEP and FSS count toward total_seconds only. */
+            by_position: components["schemas"]["ControllerOnlineTimeByPosition"];
+            /**
+             * Format: int64
+             * @description All recorded VATPRC controlling seconds, including the current session.
+             */
             total_seconds: number;
         };
         DeviceAuthorizationRequest: {
@@ -3819,7 +3857,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Current calendar-quarter VATPRC controlling time */
+            /** @description Current calendar-quarter and lifetime VATPRC controlling time by position */
             200: {
                 headers: {
                     [name: string]: unknown;

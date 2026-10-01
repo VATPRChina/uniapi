@@ -10,8 +10,9 @@ use crate::modules::audit_log::service::{AuditLogService, AuditLogServiceError};
 use crate::modules::user::service::user::{UserService, UserServiceError};
 
 use super::models::{
-    CompatFutureController, Controller, ControllerOnlineTime, ControllerPermission,
-    ControllerPositionKind, ControllerRating, ControllerSave, UserControllerState,
+    CompatFutureController, Controller, ControllerOnlineTime, ControllerOnlineTimeSummary,
+    ControllerPermission, ControllerPositionKind, ControllerRating, ControllerSave,
+    UserControllerState,
 };
 use super::repository::compat::CompatRepository;
 use super::repository::controller::{AtcControllerPermissionRecord, ControllerRepository};
@@ -160,13 +161,21 @@ impl ControllerService {
         );
         let sessions = sessions?;
 
-        let mut total_seconds = sessions
-            .iter()
-            .filter_map(|session| {
-                let end = session.end?;
-                session_seconds(&session.callsign, session.start?, end, period_start, as_of)
-            })
-            .sum::<u64>();
+        let mut quarter = ControllerOnlineTimeSummary::default();
+        let mut lifetime = ControllerOnlineTimeSummary::default();
+        for session in &sessions {
+            if let (Some(start), Some(end)) = (session.start, session.end) {
+                accumulate_session(
+                    &mut quarter,
+                    &mut lifetime,
+                    &session.callsign,
+                    start,
+                    end,
+                    period_start,
+                    as_of,
+                );
+            }
+        }
 
         match online_data {
             Ok(online_data) => {
@@ -175,14 +184,15 @@ impl ControllerService {
                         online_data.controllers.iter().find(|item| item.cid == cid)
                     && let Some(logon_time) = controller.logon_time
                 {
-                    total_seconds += session_seconds(
+                    accumulate_session(
+                        &mut quarter,
+                        &mut lifetime,
                         &controller.callsign,
                         logon_time,
                         as_of,
                         period_start,
                         as_of,
-                    )
-                    .unwrap_or_default();
+                    );
                 }
             }
             Err(error) => {
@@ -194,7 +204,9 @@ impl ControllerService {
             period: format!("{}Q{}", as_of.year(), as_of.month0() / 3 + 1),
             period_start,
             as_of,
-            total_seconds,
+            total_seconds: quarter.total_seconds,
+            by_position: quarter.by_position,
+            lifetime,
         })
     }
 
@@ -226,6 +238,35 @@ fn current_quarter_start(now: DateTime<Utc>) -> DateTime<Utc> {
     Utc.with_ymd_and_hms(now.year(), first_month, 1, 0, 0, 0)
         .single()
         .expect("the first day of a calendar quarter is valid")
+}
+
+fn accumulate_session(
+    quarter: &mut ControllerOnlineTimeSummary,
+    lifetime: &mut ControllerOnlineTimeSummary,
+    callsign: &str,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+    period_start: DateTime<Utc>,
+    as_of: DateTime<Utc>,
+) {
+    for (summary, since) in [(quarter, period_start), (lifetime, start)] {
+        if let Some(seconds) = session_seconds(callsign, start, end, since, as_of) {
+            summary.total_seconds += seconds;
+            match callsign
+                .rsplit('_')
+                .next()
+                .unwrap_or_default()
+                .to_ascii_uppercase()
+                .as_str()
+            {
+                "GND" | "DEL" | "RMP" => summary.by_position.s1 += seconds,
+                "TWR" => summary.by_position.s2 += seconds,
+                "APP" => summary.by_position.s3 += seconds,
+                "CTR" => summary.by_position.c1_plus += seconds,
+                _ => {}
+            }
+        }
+    }
 }
 
 fn session_seconds(
@@ -261,7 +302,7 @@ fn is_vatprc_position(callsign: &str) -> bool {
         && prefix[2..].iter().all(u8::is_ascii_alphabetic)
         && matches!(
             *position,
-            "DEL" | "GND" | "TWR" | "APP" | "DEP" | "CTR" | "FSS"
+            "DEL" | "GND" | "RMP" | "TWR" | "APP" | "DEP" | "CTR" | "FSS"
         )
 }
 
@@ -414,6 +455,74 @@ mod tests {
         for callsign in ["VHHH_TWR", "ZKPY_CTR", "ZBAA_OBS", "ZBAA_ATIS", "PRC_FSS"] {
             assert!(!is_vatprc_position(callsign), "{callsign}");
         }
+    }
+
+    #[test]
+    fn groups_lifetime_and_quarter_seconds_by_position() {
+        let period_start = time("2026-07-01T00:00:00Z");
+        let as_of = time("2026-07-01T01:00:00Z");
+        let mut quarter = ControllerOnlineTimeSummary::default();
+        let mut lifetime = ControllerOnlineTimeSummary::default();
+        for callsign in [
+            "ZBAA_GND",
+            "ZBAA_DEL",
+            "zbaa_2_rmp",
+            "ZBAA_TWR",
+            "ZBAA_APP",
+            "ZSHA_E_CTR",
+            "ZBAA_DEP",
+            "ZSHA_FSS",
+            "RJTT_TWR",
+            "ZBAA_OBS",
+        ] {
+            accumulate_session(
+                &mut quarter,
+                &mut lifetime,
+                callsign,
+                time("2026-06-30T23:00:00Z"),
+                time("2026-07-01T02:00:00Z"),
+                period_start,
+                as_of,
+            );
+        }
+        assert_eq!(quarter.total_seconds, 8 * 3600);
+        assert_eq!(lifetime.total_seconds, 8 * 7200);
+        assert_eq!(quarter.by_position.s1, 3 * 3600);
+        assert_eq!(quarter.by_position.s2, 3600);
+        assert_eq!(quarter.by_position.s3, 3600);
+        assert_eq!(quarter.by_position.c1_plus, 3600);
+        assert_eq!(lifetime.by_position.s1, 3 * 7200);
+        assert_eq!(lifetime.by_position.s2, 7200);
+        assert_eq!(lifetime.by_position.s3, 7200);
+        assert_eq!(lifetime.by_position.c1_plus, 7200);
+    }
+
+    #[test]
+    fn includes_historical_and_live_sessions_without_counting_future_or_invalid_time() {
+        let period_start = time("2026-07-01T00:00:00Z");
+        let as_of = time("2026-07-01T01:00:00Z");
+        let mut quarter = ControllerOnlineTimeSummary::default();
+        let mut lifetime = ControllerOnlineTimeSummary::default();
+        for (start, end) in [
+            ("2026-06-01T00:00:00Z", "2026-06-01T01:00:00Z"),
+            ("2026-07-01T00:30:00Z", "2026-07-01T01:00:00Z"),
+            ("2026-07-01T02:00:00Z", "2026-07-01T03:00:00Z"),
+            ("2026-07-01T00:30:00Z", "2026-07-01T00:00:00Z"),
+        ] {
+            accumulate_session(
+                &mut quarter,
+                &mut lifetime,
+                "ZBAA_TWR",
+                time(start),
+                time(end),
+                period_start,
+                as_of,
+            );
+        }
+        assert_eq!(quarter.total_seconds, 1800);
+        assert_eq!(quarter.by_position.s2, 1800);
+        assert_eq!(lifetime.total_seconds, 5400);
+        assert_eq!(lifetime.by_position.s2, 5400);
     }
 
     #[test]

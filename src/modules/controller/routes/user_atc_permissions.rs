@@ -31,7 +31,7 @@ async fn get_my_status(
     get_status_for_user(&services, user_id).await.map(Json)
 }
 
-#[utoipa::path(get, path = "api/users/me/atc/online-time", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Current calendar-quarter VATPRC controlling time", body = ControllerOnlineTimeDto)))]
+#[utoipa::path(get, path = "api/users/me/atc/online-time", tag = "ATC", security(("oauth2" = [])), responses((status = 200, description = "Current calendar-quarter and lifetime VATPRC controlling time by position", body = ControllerOnlineTimeDto)))]
 async fn get_my_online_time(
     State(services): State<Services>,
     current_user: CurrentUser,

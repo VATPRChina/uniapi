@@ -16,6 +16,31 @@ pub struct ControllerOnlineTime {
     pub period_start: DateTime<Utc>,
     pub as_of: DateTime<Utc>,
     pub total_seconds: u64,
+    pub by_position: ControllerOnlineTimeByPosition,
+    pub lifetime: ControllerOnlineTimeSummary,
+}
+
+#[derive(Default)]
+pub struct ControllerOnlineTimeSummary {
+    pub total_seconds: u64,
+    pub by_position: ControllerOnlineTimeByPosition,
+}
+
+/// Seconds grouped by position suffix, independently of the controller's rating.
+#[derive(Default, Debug, PartialEq, Eq, Serialize, utoipa::ToSchema)]
+pub struct ControllerOnlineTimeByPosition {
+    /// GND, DEL and RMP seconds.
+    #[serde(rename = "S1")]
+    pub s1: u64,
+    /// TWR seconds.
+    #[serde(rename = "S2")]
+    pub s2: u64,
+    /// APP seconds.
+    #[serde(rename = "S3")]
+    pub s3: u64,
+    /// CTR seconds.
+    #[serde(rename = "C1+")]
+    pub c1_plus: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
