@@ -1371,7 +1371,7 @@ export type components = {
             last_updated: string;
             pilots: components["schemas"]["CompatPilotDto"][];
         };
-        /** @description Seconds grouped by position suffix, independently of the controller's rating. */
+        /** @description Eligible seconds grouped by the controller rating required for the position. */
         ControllerOnlineTimeByPosition: {
             /**
              * Format: int64
@@ -1398,8 +1398,7 @@ export type components = {
             /** Format: date-time */
             as_of: string;
             /**
-             * @description Current-quarter seconds for S1 (GND/DEL/RMP), S2 (TWR), S3 (APP), C1+ (CTR).
-             *     DEP and FSS count toward total_seconds only.
+             * @description Current-quarter eligible seconds for S1 (GND/DEL/RMP), S2 (TWR), S3 (APP), C1+ (CTR).
              */
             by_position: components["schemas"]["ControllerOnlineTimeByPosition"];
             lifetime: components["schemas"]["ControllerOnlineTimeSummaryDto"];
@@ -1410,11 +1409,11 @@ export type components = {
             total_seconds: number;
         };
         ControllerOnlineTimeSummaryDto: {
-            /** @description Position groups in seconds. DEP and FSS count toward total_seconds only. */
+            /** @description Eligible position groups in seconds. */
             by_position: components["schemas"]["ControllerOnlineTimeByPosition"];
             /**
              * Format: int64
-             * @description All recorded VATPRC controlling seconds, including the current session.
+             * @description All eligible VATPRC controlling seconds, including the current session.
              */
             total_seconds: number;
         };

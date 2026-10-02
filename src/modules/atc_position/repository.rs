@@ -12,6 +12,7 @@ const SELECT: &str = r#"
 
 pub(crate) trait AtcPositionRepository<'executor> {
     async fn list_atc_positions(self) -> Result<Vec<AtcPosition>, sqlx::Error>;
+    async fn list_tier_2_atc_position_callsigns(self) -> Result<Vec<String>, sqlx::Error>;
     async fn find_atc_position(self, callsign: &str) -> Result<Option<AtcPosition>, sqlx::Error>;
     async fn find_atc_position_for_update(
         self,
@@ -47,6 +48,19 @@ where
             END,
             callsign"#
         ))
+        .fetch_all(self)
+        .await
+    }
+
+    async fn list_tier_2_atc_position_callsigns(self) -> Result<Vec<String>, sqlx::Error> {
+        sqlx::query_scalar(
+            r#"
+            SELECT callsign
+            FROM public.atc_position
+            WHERE is_tier_2
+            ORDER BY callsign
+            "#,
+        )
         .fetch_all(self)
         .await
     }

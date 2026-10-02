@@ -71,6 +71,12 @@ impl CompatClient {
         Ok(serde_json::from_str(&self.cached_get(&url).await?)?)
     }
 
+    #[instrument(skip(self), fields(cid = %cid))]
+    pub async fn get_member(&self, cid: &str) -> Result<VatsimMember, CompatClientError> {
+        let url = format!("{VATSIM_CORE_BASE_URL}/members/{cid}");
+        Ok(serde_json::from_str(&self.cached_get(&url).await?)?)
+    }
+
     #[instrument(skip(self))]
     pub async fn get_track_audio_version(&self) -> Result<String, CompatClientError> {
         self.cached_get(TRACK_AUDIO_VERSION_URL).await
@@ -230,4 +236,9 @@ pub struct AtcConnection {
     pub callsign: String,
     pub start: Option<chrono::DateTime<Utc>>,
     pub end: Option<chrono::DateTime<Utc>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VatsimMember {
+    pub rating: i32,
 }

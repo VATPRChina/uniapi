@@ -26,7 +26,7 @@ pub struct ControllerOnlineTimeSummary {
     pub by_position: ControllerOnlineTimeByPosition,
 }
 
-/// Seconds grouped by position suffix, independently of the controller's rating.
+/// Eligible seconds grouped by the controller rating required for the position.
 #[derive(Default, Debug, PartialEq, Eq, Serialize, utoipa::ToSchema)]
 pub struct ControllerOnlineTimeByPosition {
     /// GND, DEL and RMP seconds.

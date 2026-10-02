@@ -2,7 +2,9 @@ import { expect, test } from "vitest";
 import { getClient } from "../../lib/backend.js";
 
 test("GET /api/users/me/atc/online-time returns quarter and lifetime totals by position", async () => {
-  const controller = await getClient(["controller"], { cid: "1573922" });
+  const controller = await getClient(["controller"], {
+    cid: process.env.E2E_CONTROLLER_CID ?? "1573922",
+  });
 
   const { data, error, response } = await controller.GET(
     "/api/users/me/atc/online-time",
@@ -55,6 +57,6 @@ test("GET /api/users/me/atc/online-time returns quarter and lifetime totals by p
   for (const summary of [data, data.lifetime]) {
     expect(
       Object.values(summary.by_position).reduce((a, b) => a + b, 0),
-    ).toBeLessThanOrEqual(summary.total_seconds);
+    ).toBe(summary.total_seconds);
   }
 });
