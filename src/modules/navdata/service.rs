@@ -701,32 +701,7 @@ impl EnrouteAirwayRecord {
 
         let leg = ResolvedLeg {
             identifier: Some(self.route_identifier.clone()),
-            from: match prev.waypoint_ref_table.as_str() {
-                "EA" => AnyFix::Waypoint(Waypoint {
-                    icao_code: ArrayString::from(&prev.icao_code)?,
-                    identifier: ArrayString::from(&prev.waypoint_identifier)?,
-                    latitude: prev.waypoint_latitude,
-                    longitude: prev.waypoint_longitude,
-                    kind: WaypointKind::Enroute,
-                }),
-                "DB" => AnyFix::Ndb(Ndb {
-                    icao_code: ArrayString::from(&prev.icao_code)?,
-                    identifier: ArrayString::from(&prev.waypoint_identifier)?,
-                    latitude: prev.waypoint_latitude,
-                    longitude: prev.waypoint_longitude,
-                    kind: NdbKind::Enroute,
-                }),
-                "D " => AnyFix::Vhf(Vhf {
-                    icao_code: ArrayString::from(&prev.icao_code)?,
-                    identifier: ArrayString::from(&prev.waypoint_identifier)?,
-                    latitude: prev.waypoint_latitude,
-                    longitude: prev.waypoint_longitude,
-                }),
-                _ => unimplemented!(
-                    "Unknown waypoint reference table '{}'",
-                    prev.waypoint_ref_table
-                ),
-            },
+            from: prev.to_fix()?,
             to: self.to_fix()?,
             direction_restriction: match self.direction_restriction.as_str() {
                 "F" => DirectionRestriction::Forward,
@@ -738,7 +713,7 @@ impl EnrouteAirwayRecord {
     }
 
     fn to_fix(&self) -> NavdataResult<AnyFix> {
-        let fix = match self.waypoint_ref_table.as_str() {
+        let fix = match self.waypoint_ref_table.trim() {
             "EA" => AnyFix::Waypoint(Waypoint {
                 icao_code: ArrayString::from(&self.icao_code)?,
                 identifier: ArrayString::from(&self.waypoint_identifier)?,
@@ -753,16 +728,17 @@ impl EnrouteAirwayRecord {
                 longitude: self.waypoint_longitude,
                 kind: NdbKind::Enroute,
             }),
-            "D " => AnyFix::Vhf(Vhf {
+            "D" => AnyFix::Vhf(Vhf {
                 icao_code: ArrayString::from(&self.icao_code)?,
                 identifier: ArrayString::from(&self.waypoint_identifier)?,
                 latitude: self.waypoint_latitude,
                 longitude: self.waypoint_longitude,
             }),
-            _ => unimplemented!(
-                "Unknown waypoint reference table '{}'",
-                self.waypoint_ref_table
-            ),
+            _ => {
+                return Err(InvalidNavdataError::InternalError(
+                    "unsupported airway waypoint reference table",
+                ));
+            }
         };
         Ok(fix)
     }

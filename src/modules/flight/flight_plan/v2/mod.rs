@@ -21,18 +21,22 @@
 //!  │
 //!  └─ M0.82 / FL350
 //!         ▼ Constructor
-//! Full Route
+//! Route legs
+//!         ▼ Expander ◄── NavData
+//! Published leg segments
 //! ```
 
 #![allow(unused)]
 
 mod constructor;
+mod expander;
 mod lexer;
 mod parser;
 mod resolver;
 mod solver;
 
 pub use constructor::Constructor;
+pub use expander::Expander;
 pub use lexer::{CruisingLevel, Lexer, LexerToken, LexerTokenAmend, LexerTokenValue, Speed};
 pub use parser::{Ident, IdentAmend, Parser};
 pub use resolver::{

@@ -2,6 +2,29 @@ use super::*;
 use crate::modules::navdata::models::{GeoPoint, ProcedureKind, ProcedureSegment};
 
 impl NavdataService {
+    /// Load published adjacent airway segments without joining separate areas
+    /// or crossing a published end marker. Invalid records propagate to callers.
+    pub async fn list_airway_segments(&self, identifier: &str) -> NavdataResult<Vec<ResolvedLeg>> {
+        let records: Vec<EnrouteAirwayRecord> = sqlx::query_as(
+            "SELECT area_code, COALESCE(direction_restriction, '') AS direction_restriction,
+                    icao_code, route_identifier, seqno, waypoint_description_code,
+                    waypoint_identifier, waypoint_latitude, waypoint_longitude, waypoint_ref_table
+             FROM tbl_er_enroute_airways WHERE route_identifier = $1 ORDER BY area_code, seqno",
+        )
+        .bind(identifier)
+        .fetch_all(&self.db)
+        .await?;
+        Ok(records
+            .iter()
+            .tuple_windows()
+            .filter(|(from, to)| from.area_code == to.area_code)
+            .map(|(from, to)| to.to_leg(from))
+            .collect::<NavdataResult<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect())
+    }
+
     pub async fn list_procedure_segments(
         &self,
         kind: ProcedureKind,
