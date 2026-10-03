@@ -34,15 +34,21 @@ enum StateToken {
 
 #[derive(Debug, PartialEq)]
 pub struct SolvedIdent<'s> {
-    ident: Ident<'s>,
-    candidates: Vec<CandidateWithState>,
+    pub ident: Ident<'s>,
+    pub candidates: Vec<CandidateWithState>,
 }
 
 #[derive(Debug, PartialEq)]
-struct CandidateWithState {
-    candidate: IdentCandidate,
+pub struct CandidateWithState {
+    pub candidate: IdentCandidate,
     state: State,
-    last_candidate_idx: usize,
+    pub last_candidate_idx: usize,
+}
+
+impl CandidateWithState {
+    pub(super) fn distance(&self) -> f64 {
+        self.state.distance
+    }
 }
 
 impl<'s, 'n> Solver<'s, 'n> {
@@ -299,7 +305,7 @@ impl State {
     }
 }
 
-pub fn distance_nm(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+fn distance_nm(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     const EARTH_RADIUS_NM: f64 = 3440.065;
 
     let lat1 = lat1.to_radians();
