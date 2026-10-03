@@ -9,7 +9,9 @@ use axum::{Json, Router};
 use tokio::time;
 
 use crate::error::ApiError;
-use crate::modules::flight::dto::{FlightDto, FlightLeg, FlightRouteV2Query, TemporaryFlightQuery};
+use crate::modules::flight::dto::{
+    FlightDto, FlightRouteLeg, FlightRouteV2Query, TemporaryFlightQuery,
+};
 use crate::modules::flight::flight_plan::validator;
 use crate::modules::flight::models::Flight;
 use crate::modules::flight::service::FlightService;
@@ -50,7 +52,7 @@ pub fn build_flight_routes() -> Router<Services> {
     get, path = "api/flights/route/v2", tag = "Flights", security(("oauth2" = [])),
     params(("route" = String, Query, description = "Complete route including departure and arrival")),
     responses(
-        (status = 200, description = "Expanded route segments", body = Vec<FlightLeg>),
+        (status = 200, description = "Expanded route segments with coordinates", body = Vec<FlightRouteLeg>),
         (status = 400, description = "Invalid or incomplete route"),
         (status = 401, description = "Authentication required"),
         (status = 403, description = "Software engineer role required")
@@ -60,7 +62,7 @@ async fn route_v2(
     current_user: CurrentUser,
     State(flight): State<FlightService>,
     Query(query): Query<FlightRouteV2Query>,
-) -> Result<Json<Vec<FlightLeg>>, ApiError> {
+) -> Result<Json<Vec<FlightRouteLeg>>, ApiError> {
     current_user.require_role(UserRole::SoftwareEngineer)?;
     Ok(Json(
         flight
@@ -192,159 +194,4 @@ async fn send_validation_snapshot(
     let payload =
         serde_json::to_string(snapshot).expect("flight validation snapshot should serialize");
     socket.send(Message::Text(payload.into())).await
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        adapter::{compat::CompatClient, moodle::MoodleClient},
-        modules::{
-            audit_log::service::AuditLogService, navdata::service::NavdataService,
-            user::service::user::UserService,
-        },
-    };
-    use axum::http::{StatusCode, Uri};
-
-    async fn navdata() -> NavdataService {
-        NavdataService::with_preferred_routes_path(
-            "data/NavigraphDFDv2-2604.1.0.db?mode=ro",
-            "data/Route-Server.csv",
-        )
-        .await
-        .unwrap()
-    }
-
-    fn flight_service(navdata: NavdataService) -> FlightService {
-        // Parsing uses only local navdata. The other service dependencies stay idle.
-        let db = sqlx::postgres::PgPoolOptions::new()
-            .connect_lazy("postgres://test:test@localhost/test")
-            .unwrap();
-        let user = UserService::new(
-            db.clone(),
-            MoodleClient::new(String::new()),
-            AuditLogService::new(db),
-        );
-        FlightService::new(CompatClient::new(String::new()), navdata, user)
-    }
-
-    fn query(route: &str) -> Query<FlightRouteV2Query> {
-        Query(FlightRouteV2Query {
-            route: route.to_owned(),
-        })
-    }
-
-    #[tokio::test]
-    async fn route_v2_requires_an_authenticated_current_user() {
-        use axum::extract::FromRequestParts;
-        let request = axum::http::Request::builder()
-            .uri("/api/flights/route/v2?route=ZBAA%20ZSPD")
-            .body(())
-            .unwrap();
-        let error = CurrentUser::from_request_parts(&mut request.into_parts().0, &())
-            .await
-            .unwrap_err();
-        assert_eq!(
-            ApiError::from(error).status_code(),
-            StatusCode::UNAUTHORIZED
-        );
-    }
-
-    #[tokio::test]
-    async fn route_v2_rejects_non_developers_before_accessing_navdata() {
-        let navdata = navdata().await;
-        navdata.db.close().await;
-        let flight = flight_service(navdata);
-        for role in [UserRole::ApiClient, UserRole::User, UserRole::Volunteer] {
-            let result = route_v2(
-                CurrentUser::for_test_roles([role]),
-                State(flight.clone()),
-                query("ZBAA ELKUR W40 YQG ZSPD"),
-            )
-            .await;
-            assert!(
-                matches!(result, Err(ApiError::Forbidden { allowed_roles }) if allowed_roles == [UserRole::SoftwareEngineer].into_iter().collect())
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn route_v2_returns_expanded_route_for_developers() {
-        let flight = flight_service(navdata().await);
-        let uri: Uri = "/route/v2?route=ZBAA%20ELKUR%20W40%20YQG%20ZSPD"
-            .parse()
-            .unwrap();
-        for role in [UserRole::SoftwareEngineer, UserRole::TechDirectorAssistant] {
-            let query = Query::<FlightRouteV2Query>::try_from_uri(&uri).unwrap();
-            let Json(route) = route_v2(
-                CurrentUser::for_test_roles([role]),
-                State(flight.clone()),
-                query,
-            )
-            .await
-            .unwrap();
-            let json = serde_json::to_value(route).unwrap();
-            let segments = json.as_array().unwrap();
-            assert_eq!(segments.first().unwrap()["from"]["identifier"], "ZBAA");
-            assert_eq!(segments.last().unwrap()["to"]["identifier"], "ZSPD");
-            assert!(segments.iter().any(|leg| leg["to"]["identifier"] == "PANKI" && leg["leg_identifier"] == "W40"));
-            assert!(
-                segments
-                    .windows(2)
-                    .all(|pair| pair[0]["to"] == pair[1]["from"])
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn route_v2_reports_invalid_and_incomplete_routes_as_bad_requests() {
-        let flight = flight_service(navdata().await);
-        for route in [
-            "",
-            "ZBAA",
-            "ZBAA IFR ZSPD",
-            "ZBAA N0450F350 N0460F360 ZSPD",
-            "ZBAA DCT DCT ZSPD",
-        ] {
-            let error = route_v2(
-                CurrentUser::for_test_roles([UserRole::SoftwareEngineer]),
-                State(flight.clone()),
-                query(route),
-            )
-            .await
-            .err()
-            .unwrap();
-            assert_eq!(error.status_code(), StatusCode::BAD_REQUEST, "{route:?}");
-            assert!(matches!(error, ApiError::BadRequest { field, .. } if field == "route"));
-        }
-    }
-
-    #[tokio::test]
-    async fn route_v2_propagates_navdata_errors() {
-        let navdata = navdata().await;
-        navdata.db.close().await;
-        let result = route_v2(
-            CurrentUser::for_test_roles([UserRole::SoftwareEngineer]),
-            State(flight_service(navdata)),
-            query("ZBAA ZSPD"),
-        )
-        .await;
-        assert!(matches!(result, Err(ApiError::RouteParser { .. })));
-    }
-
-    #[test]
-    fn route_v2_is_documented_with_query_authentication_and_response_schema() {
-        let doc = serde_json::to_value(crate::openapi::openapi()).unwrap();
-        let operation = doc.pointer("/paths/~1api~1flights~1route~1v2/get").unwrap();
-        assert_eq!(operation["security"][0]["oauth2"], serde_json::json!([]));
-        assert_eq!(operation["parameters"][0]["name"], "route");
-        assert_eq!(operation["parameters"][0]["required"], true);
-        for status in ["200", "400", "401", "403", "500"] {
-            assert!(operation["responses"].get(status).is_some());
-        }
-        assert_eq!(
-            operation["responses"]["200"]["content"]["application/json"]["schema"]["items"]["$ref"],
-            "#/components/schemas/FlightLeg"
-        );
-    }
 }

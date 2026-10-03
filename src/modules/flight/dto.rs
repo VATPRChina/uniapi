@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::navdata::models::{AnyFix, ResolvedLeg};
+use crate::modules::navdata::models::{AnyFix, Fix, ResolvedLeg};
 
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
 
@@ -182,6 +182,47 @@ impl From<Flight> for FlightDto {
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
+pub struct FlightRouteLeg {
+    pub from: FlightRouteFix,
+    pub to: FlightRouteFix,
+    pub leg_identifier: String,
+}
+
+impl From<ResolvedLeg> for FlightRouteLeg {
+    fn from(leg: ResolvedLeg) -> Self {
+        Self {
+            from: FlightRouteFix::from(&leg.from),
+            to: FlightRouteFix::from(&leg.to),
+            leg_identifier: leg.identifier.unwrap_or_default(),
+        }
+    }
+}
+
+/// Coordinates are exposed only by the developer-only v2 route endpoint.
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct FlightRouteFix {
+    pub identifier: String,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+}
+
+impl From<&AnyFix> for FlightRouteFix {
+    fn from(fix: &AnyFix) -> Self {
+        let position = (!matches!(fix, AnyFix::Unknown(_))
+            && fix.latitude().is_finite()
+            && fix.longitude().is_finite()
+            && (-90.0..=90.0).contains(&fix.latitude())
+            && (-180.0..=180.0).contains(&fix.longitude()))
+        .then(|| (fix.latitude(), fix.longitude()));
+        Self {
+            identifier: FlightFix::from(fix).identifier,
+            latitude: position.map(|point| point.0),
+            longitude: position.map(|point| point.1),
+        }
+    }
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct FlightLeg {
     pub from: FlightFix,
     pub to: FlightFix,
@@ -236,5 +277,21 @@ mod tests {
         let fix = GeoPoint::new(-7.5, 8.25).into();
 
         assert_eq!(FlightFix::from(&fix).identifier, "0730S00815E");
+    }
+
+    #[test]
+    fn route_coordinates_preserve_real_origin_and_omit_unknown_positions() {
+        let origin = FlightRouteFix::from(&AnyFix::GeoPoint(GeoPoint::new(0., 0.)));
+        assert_eq!(origin.latitude, Some(0.));
+        assert_eq!(origin.longitude, Some(0.));
+        let unknown = FlightRouteFix::from(&AnyFix::Unknown("MISSING".to_owned()));
+        assert_eq!(unknown.identifier, "MISSING");
+        assert_eq!(unknown.latitude, None);
+        assert_eq!(unknown.longitude, None);
+        assert_eq!(
+            serde_json::to_value(FlightFix::from(&AnyFix::GeoPoint(GeoPoint::new(0., 0.))))
+                .unwrap(),
+            serde_json::json!({"identifier": "0000N00000E"})
+        );
     }
 }

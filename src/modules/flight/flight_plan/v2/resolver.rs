@@ -396,7 +396,7 @@ mod tests {
 
     async fn navdata() -> NavdataService {
         NavdataService::with_preferred_routes_path(
-            "data/ng_jeppesen_fwdfd_2401.s3db?mode=ro",
+            "data/navdata.db?mode=ro",
             "assets/test/routes.csv",
         )
         .await

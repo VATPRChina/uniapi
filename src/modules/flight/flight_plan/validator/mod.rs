@@ -284,7 +284,7 @@ mod tests {
     #[tokio::test]
     async fn matching_preferred_route_skips_leg_validation() {
         let navdata = NavdataService::with_preferred_routes_path(
-            "data/ng_jeppesen_fwdfd_2401.s3db",
+            "data/navdata.db",
             "assets/test/matching_route.csv",
         )
         .await

@@ -3,7 +3,7 @@ use std::path::Path;
 
 use clap::Parser;
 use vatprc_uniapi::discord::DiscordBot;
-use vatprc_uniapi::modules::flight::{dto::FlightLeg, flight_plan::v2};
+use vatprc_uniapi::modules::flight::{dto::FlightRouteLeg, flight_plan::v2};
 use vatprc_uniapi::modules::navdata::service::NavdataService;
 use vatprc_uniapi::services::Services;
 use vatprc_uniapi::{app, command, openapi, repository, settings, telemetry};
@@ -84,7 +84,7 @@ async fn route_v2(
         preferred_routes.unwrap_or_else(|| Path::new(&configured.preferred_routes_path)),
     )
     .await?;
-    let segments: Vec<FlightLeg> = v2::parse_route(&navdata, route)
+    let segments: Vec<FlightRouteLeg> = v2::parse_route(&navdata, route)
         .await?
         .into_iter()
         .map(Into::into)
