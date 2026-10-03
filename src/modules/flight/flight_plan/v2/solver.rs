@@ -21,6 +21,8 @@ pub struct Solver<'s, 'n> {
 #[derive(Debug, PartialEq)]
 struct State {
     last_token: StateToken,
+    /// Recovery interpretations anywhere in the predecessor path.
+    fallbacks: usize,
     distance: f64,
     position_lat: f64,
     position_lon: f64,
@@ -82,6 +84,7 @@ impl<'s, 'n> Solver<'s, 'n> {
                     candidate: candidate.clone(),
                     state: State {
                         last_token: StateToken::Fix(fix.clone()),
+                        fallbacks: usize::from(matches!(fix, FixCandidate::UnknownWaypoint)),
                         distance: 0.,
                         position_lat: fix.latitude().unwrap_or_default(),
                         position_lon: fix.longitude().unwrap_or_default(),
@@ -212,7 +215,9 @@ impl CandidateSortPruneState {
             .into_iter()
             .flat_map(|(p, g)| {
                 g.into_iter()
-                    .sorted_by_key(|c| OrderedFloat(c.state.distance))
+                    // Prefer a known history before comparing its distance. A
+                    // cheap unknown point must not displace a published airway.
+                    .sorted_by_key(|c| (c.state.fallbacks, OrderedFloat(c.state.distance)))
                     .next()
             })
             .filter(|c| {
@@ -253,6 +258,7 @@ impl State {
     pub fn next_state_fix_fix(&self, last: &FixCandidate, cur: &FixCandidate) -> Option<State> {
         Some(State {
             last_token: StateToken::Fix(cur.clone()),
+            fallbacks: self.fallbacks + usize::from(matches!(cur, FixCandidate::UnknownWaypoint)),
             distance: self.distance
                 + cur.position().map_or(1000., |(lat, lon)| {
                     distance_nm(lat, lon, self.position_lat, self.position_lon)
@@ -266,6 +272,7 @@ impl State {
         // TODO: if fix not on leg return None
         Some(State {
             last_token: StateToken::Leg(last.clone(), cur.clone()),
+            fallbacks: self.fallbacks + usize::from(matches!(cur, LegCandidate::UnknownAirway)),
             distance: self.distance,
             position_lat: self.position_lat,
             position_lon: self.position_lon,
@@ -281,6 +288,7 @@ impl State {
         // TODO: if fix not on leg return None
         Some(State {
             last_token: StateToken::Fix(cur.clone()),
+            fallbacks: self.fallbacks + usize::from(matches!(cur, FixCandidate::UnknownWaypoint)),
             // TODO: use real leg distance
             distance: self.distance
                 + cur.position().map_or(1000., |(lat, lon)| {
@@ -366,6 +374,68 @@ fn pretty_print_idents(idents: &[SolvedIdent<'_>]) {
         } else {
             &output
         }
+    );
+}
+
+#[cfg(test)]
+#[test]
+fn prefers_known_predecessors_over_shorter_recovery_paths() {
+    let entry = |ident, candidates| IdentWithCandidate {
+        ident: Ident {
+            ident,
+            amendments: Vec::new(),
+            errors: Vec::new(),
+        },
+        candidates,
+    };
+    let vor = |lon| {
+        IdentCandidate::Fix(FixCandidate::EnrouteVor {
+            icao_code: "ZG".try_into().unwrap(),
+            lat: 0.,
+            lon,
+        })
+    };
+    let departure = Solver::solve_init_ident(&entry(
+        "ADEP",
+        vec![IdentCandidate::Fix(FixCandidate::UnknownWaypoint)],
+    ));
+    let fix = Solver::solve_ident(
+        &entry(
+            "LYA",
+            vec![vor(150.), IdentCandidate::Leg(LegCandidate::UnknownAirway)],
+        ),
+        &departure,
+    );
+    let airway = Solver::solve_ident(
+        &entry(
+            "W45",
+            vec![
+                IdentCandidate::Leg(LegCandidate::Airway),
+                IdentCandidate::Fix(FixCandidate::UnknownWaypoint),
+            ],
+        ),
+        &fix,
+    );
+    let arrival = Solver::solve_ident(&entry("ML", vec![vor(1.)]), &airway);
+    let selected = &arrival.candidates[0];
+    let predecessor = &airway.candidates[selected.last_candidate_idx];
+    let recovery = airway
+        .candidates
+        .iter()
+        .find(|candidate| {
+            matches!(
+                candidate.candidate,
+                IdentCandidate::Fix(FixCandidate::UnknownWaypoint)
+            )
+        })
+        .unwrap();
+    // The known detour is much longer than returning via an unknown W45 at
+    // the initial position, but W45 must keep its published airway meaning.
+    assert!(selected.distance() > recovery.distance() + distance_nm(0., 1., 0., 0.));
+    assert_eq!(selected.state.fallbacks, 1); // Only the missing departure.
+    assert_eq!(
+        predecessor.candidate,
+        IdentCandidate::Leg(LegCandidate::Airway)
     );
 }
 

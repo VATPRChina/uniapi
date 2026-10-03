@@ -146,40 +146,16 @@ impl FlightService {
 
     /// Parse and expand a complete route using the v2 pipeline.
     pub async fn route_v2(&self, route: &str) -> Result<Vec<ResolvedLeg>, FlightServiceError> {
-        let parsed: Vec<_> = v2::Parser::new(v2::Lexer::new(route).parse_all().collect())
-            .parse()
-            .collect();
-        if parsed.is_empty() {
-            return Err(FlightServiceError::InvalidRoute(
-                "route is empty".to_owned(),
-            ));
-        }
-        if let Some(ident) = parsed.iter().find(|ident| !ident.errors.is_empty()) {
-            return Err(FlightServiceError::InvalidRoute(format!(
-                "invalid route entry {:?}: {:?}",
-                ident.identifier(),
-                ident.errors
-            )));
-        }
-        let candidates = v2::CandidateResolver::new(parsed)
-            .resolve_candidates(&self.navdata)
+        v2::parse_route(&self.navdata, route)
             .await
-            .map_err(ParserError::from)?
-            .collect();
-        let solved = v2::Solver::new(candidates, &self.navdata)
-            .solve()
-            .into_iter()
-            .collect();
-        let constructed = v2::Constructor::new(solved).construct();
-        if constructed.is_empty() {
-            return Err(FlightServiceError::InvalidRoute(
-                "no complete route could be constructed".to_owned(),
-            ));
-        }
-        Ok(v2::Expander::new(constructed)
-            .expand(&self.navdata)
-            .await
-            .map_err(ParserError::from)?)
+            .map_err(|error| match error {
+                v2::ParseRouteError::InvalidRoute(reason) => {
+                    FlightServiceError::InvalidRoute(reason)
+                }
+                v2::ParseRouteError::Navdata(source) => {
+                    FlightServiceError::Parser(ParserError::Navdata(source))
+                }
+            })
     }
 
     pub async fn warnings(

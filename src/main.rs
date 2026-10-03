@@ -3,6 +3,8 @@ use std::path::Path;
 
 use clap::Parser;
 use vatprc_uniapi::discord::DiscordBot;
+use vatprc_uniapi::modules::flight::{dto::FlightLeg, flight_plan::v2};
+use vatprc_uniapi::modules::navdata::service::NavdataService;
 use vatprc_uniapi::services::Services;
 use vatprc_uniapi::{app, command, openapi, repository, settings, telemetry};
 
@@ -12,6 +14,11 @@ async fn main() -> Result<(), anyhow::Error> {
         command::Command::Run => run().await,
         command::Command::Openapi { output } => save_openapi(&output),
         command::Command::Migrate => migrate().await,
+        command::Command::RouteV2 {
+            route,
+            navdata,
+            preferred_routes,
+        } => route_v2(&route, navdata.as_deref(), preferred_routes.as_deref()).await,
     }
 }
 
@@ -63,6 +70,27 @@ async fn migrate() -> Result<(), anyhow::Error> {
     let settings = settings::Settings::new()?;
     repository::migration::migrate(&settings.database.url).await?;
 
+    Ok(())
+}
+
+async fn route_v2(
+    route: &str,
+    navdata: Option<&str>,
+    preferred_routes: Option<&Path>,
+) -> Result<(), anyhow::Error> {
+    let configured = settings::Settings::new()?.navdata;
+    let navdata = NavdataService::with_preferred_routes_path(
+        navdata.unwrap_or(&configured.local_data_path),
+        preferred_routes.unwrap_or_else(|| Path::new(&configured.preferred_routes_path)),
+    )
+    .await?;
+    let segments: Vec<FlightLeg> = v2::parse_route(&navdata, route)
+        .await?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+    serde_json::to_writer_pretty(std::io::stdout().lock(), &segments)?;
+    std::io::stdout().lock().write_all(b"\n")?;
     Ok(())
 }
 

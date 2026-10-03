@@ -43,3 +43,51 @@ pub use resolver::{
     CandidateResolver, FixCandidate, IdentCandidate, IdentWithCandidate, LegCandidate,
 };
 pub use solver::{CandidateWithState, SolvedIdent, Solver};
+
+use crate::modules::navdata::{
+    models::ResolvedLeg,
+    service::{InvalidNavdataError, NavdataService},
+};
+
+#[derive(Debug, thiserror::Error)]
+pub enum ParseRouteError {
+    #[error("invalid flight route: {0}")]
+    InvalidRoute(String),
+    #[error("failed to load route navigation data: {0}")]
+    Navdata(#[from] InvalidNavdataError),
+}
+
+/// Parse and expand complete route text using the shared API/CLI pipeline.
+pub async fn parse_route(
+    navdata: &NavdataService,
+    route: &str,
+) -> Result<Vec<ResolvedLeg>, ParseRouteError> {
+    let parsed: Vec<_> = Parser::new(Lexer::new(route).parse_all().collect())
+        .parse()
+        .collect();
+    if parsed.is_empty() {
+        return Err(ParseRouteError::InvalidRoute("route is empty".to_owned()));
+    }
+    if let Some(ident) = parsed.iter().find(|ident| !ident.errors.is_empty()) {
+        return Err(ParseRouteError::InvalidRoute(format!(
+            "invalid route entry {:?}: {:?}",
+            ident.identifier(),
+            ident.errors
+        )));
+    }
+    let candidates = CandidateResolver::new(parsed)
+        .resolve_candidates(navdata)
+        .await?
+        .collect();
+    let solved = Solver::new(candidates, navdata)
+        .solve()
+        .into_iter()
+        .collect();
+    let constructed = Constructor::new(solved).construct();
+    if constructed.is_empty() {
+        return Err(ParseRouteError::InvalidRoute(
+            "no complete route could be constructed".to_owned(),
+        ));
+    }
+    Ok(Expander::new(constructed).expand(navdata).await?)
+}

@@ -16,7 +16,33 @@ vatprc-uniapi run          # start the web application
 vatprc-uniapi openapi      # save the specification to openapi.json
 vatprc-uniapi openapi -o api.json
 vatprc-uniapi migrate      # apply pending database migrations
+vatprc-uniapi route-v2 "ZBAA ELKUR W40 YQG ZSPD" # print expanded route JSON
 ```
+
+`route-v2` accepts a complete route including departure and arrival. It runs the
+same v2 pipeline as `GET /api/flights/route/v2` and prints expanded `FlightLeg`
+segments as JSON. It uses the configured navdata paths and requires no running
+HTTP server or PostgreSQL connection. Invalid routes exit with an error.
+
+To use other local navigation data files:
+
+```sh
+cargo run -- route-v2 "ZBAA ELKUR W40 YQG ZSPD" \
+  --navdata "data/NavigraphDFDv2-2604.1.0.db?mode=ro" \
+  --preferred-routes data/Route-Server.csv
+```
+
+To validate every route in the CSV and measure the v2 pipeline:
+
+```sh
+cargo run --offline --example route_v2_corpus -- --output /tmp/route-v2-corpus.json
+```
+
+The report records errors, endpoint/continuity checks, unresolved fixes, and
+per-route timings. Unknown fixes and unknown connecting legs fail validation by
+default; use `--allow-unresolved` to explicitly measure recovery behavior instead.
+See [the corpus benchmark](flight-plan-v2-corpus-benchmark.md)
+for measured results and instructions for running against an indexed navdata copy.
 
 ### Database
 

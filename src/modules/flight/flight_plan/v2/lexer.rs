@@ -88,15 +88,16 @@ impl TokenHandler for SpeedAndAltitudeTokenHandler {
         if speed_len == 0 {
             return None;
         }
-        let Ok(speed) = Speed::from_str(&token[0..speed_len]) else {
+        let Ok(speed) = Speed::from_str(token.get(..speed_len)?) else {
             return None;
         };
 
-        let altitude_len = CruisingLevel::predict_len(&token[speed_len..]);
+        let altitude_text = token.get(speed_len..)?;
+        let altitude_len = CruisingLevel::predict_len(altitude_text);
         if altitude_len == 0 {
             return None;
         }
-        let Ok(altitude) = CruisingLevel::from_str(&token[speed_len..]) else {
+        let Ok(altitude) = CruisingLevel::from_str(altitude_text) else {
             return None;
         };
 
@@ -122,6 +123,16 @@ fn test_speed_and_altitude_token_handler() {
         })
     );
     assert_eq!(SpeedAndAltitudeTokenHandler::handle_segment("P123"), None);
+    for identifier in ["NLG", "ML", "KWE", "KBOS", "K", "N", "M", "M中"] {
+        assert_eq!(
+            SpeedAndAltitudeTokenHandler::handle_segment(identifier),
+            None
+        );
+        assert!(matches!(
+            Lexer::new(identifier).parse_all().next().unwrap().value,
+            LexerTokenValue::Identifier
+        ));
+    }
 }
 
 struct DctTokenHandler;
