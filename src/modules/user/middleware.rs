@@ -30,6 +30,18 @@ pub struct CurrentUser {
 }
 
 impl CurrentUser {
+    #[cfg(test)]
+    pub(crate) fn for_test_roles(roles: impl IntoIterator<Item = UserRole>) -> Self {
+        Self {
+            subject: "test-user".to_owned(),
+            issued_at: 0,
+            expires_at: 0,
+            session_id: None,
+            user_id: None,
+            roles: role_closure(roles),
+        }
+    }
+
     pub fn has_role(&self, role: UserRole) -> bool {
         self.roles.contains(&role)
     }
@@ -232,14 +244,7 @@ mod tests {
     use super::*;
 
     fn current_user(roles: impl IntoIterator<Item = UserRole>) -> CurrentUser {
-        CurrentUser {
-            subject: "test-user".to_string(),
-            issued_at: 0,
-            expires_at: 0,
-            session_id: None,
-            user_id: None,
-            roles: role_closure(roles),
-        }
+        CurrentUser::for_test_roles(roles)
     }
 
     #[test]

@@ -49,6 +49,12 @@ pub struct Services {
     controller: ControllerService,
 }
 
+impl axum::extract::FromRef<Services> for FlightService {
+    fn from_ref(services: &Services) -> Self {
+        services.flight().clone()
+    }
+}
+
 impl Services {
     pub async fn connect(settings: &Settings) -> Result<Self, anyhow::Error> {
         let db = PgPoolOptions::new()

@@ -12,6 +12,12 @@ pub struct MetarQuery {
     pub id: String,
 }
 
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct FlightRouteV2Query {
+    /// Complete route, including the departure and arrival identifiers.
+    pub route: String,
+}
+
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct CompatVatprcStatusDto {
     pub last_updated: DateTime<Utc>,

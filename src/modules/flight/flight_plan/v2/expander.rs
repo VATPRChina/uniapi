@@ -2,7 +2,7 @@ use crate::modules::navdata::{
     models::{AnyFix, DirectionRestriction, Fix, ProcedureKind, ProcedureSegment, ResolvedLeg},
     service::{InvalidNavdataError, NavdataResult, NavdataService},
 };
-use futures::{TryStreamExt, stream};
+use futures::{StreamExt, TryStreamExt, stream};
 
 pub struct Expander {
     route: Vec<ResolvedLeg>,
@@ -19,8 +19,9 @@ impl Expander {
     /// Procedures use fixed endpoints only; runway selection and vector geometry
     /// are not represented by the constructed route.
     pub async fn expand(&self, navdata: &NavdataService) -> NavdataResult<Vec<ResolvedLeg>> {
-        stream::iter(self.route.iter().map(Ok::<_, InvalidNavdataError>))
-            .and_then(|leg| expand_leg(navdata, leg))
+        stream::iter(self.route.iter().cloned().map(Ok::<_, InvalidNavdataError>))
+            .and_then(|leg| async move { expand_leg(navdata, &leg).await })
+            .boxed()
             .try_concat()
             .await
     }

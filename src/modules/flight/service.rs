@@ -9,6 +9,7 @@ use crate::modules::user::service::user::{UserService, UserServiceError};
 use regex::Regex;
 
 use super::flight_plan::parser::{self, ParserError};
+use super::flight_plan::v2;
 use super::flight_plan::validator::{self, ValidatorError, WarningMessage};
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
 use super::repository::flight::FlightRepository;
@@ -143,6 +144,44 @@ impl FlightService {
         Ok(parser::parse_route(&self.navdata, &route_string(flight)).await?)
     }
 
+    /// Parse and expand a complete route using the v2 pipeline.
+    pub async fn route_v2(&self, route: &str) -> Result<Vec<ResolvedLeg>, FlightServiceError> {
+        let parsed: Vec<_> = v2::Parser::new(v2::Lexer::new(route).parse_all().collect())
+            .parse()
+            .collect();
+        if parsed.is_empty() {
+            return Err(FlightServiceError::InvalidRoute(
+                "route is empty".to_owned(),
+            ));
+        }
+        if let Some(ident) = parsed.iter().find(|ident| !ident.errors.is_empty()) {
+            return Err(FlightServiceError::InvalidRoute(format!(
+                "invalid route entry {:?}: {:?}",
+                ident.identifier(),
+                ident.errors
+            )));
+        }
+        let candidates = v2::CandidateResolver::new(parsed)
+            .resolve_candidates(&self.navdata)
+            .await
+            .map_err(ParserError::from)?
+            .collect();
+        let solved = v2::Solver::new(candidates, &self.navdata)
+            .solve()
+            .into_iter()
+            .collect();
+        let constructed = v2::Constructor::new(solved).construct();
+        if constructed.is_empty() {
+            return Err(FlightServiceError::InvalidRoute(
+                "no complete route could be constructed".to_owned(),
+            ));
+        }
+        Ok(v2::Expander::new(constructed)
+            .expand(&self.navdata)
+            .await
+            .map_err(ParserError::from)?)
+    }
+
     pub async fn warnings(
         &self,
         flight: &Flight,
@@ -176,6 +215,8 @@ fn route_string(flight: &Flight) -> String {
 
 #[derive(Debug, thiserror::Error)]
 pub enum FlightServiceError {
+    #[error("invalid flight route: {0}")]
+    InvalidRoute(String),
     #[error("callsign {0} not found")]
     CallsignNotFound(String),
     #[error("user {0} not found")]

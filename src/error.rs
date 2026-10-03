@@ -321,6 +321,7 @@ impl From<FlightServiceError> for ApiError {
     fn from(error: FlightServiceError) -> Self {
         tracing::error!("FlightServiceError: {}", error);
         match error {
+            FlightServiceError::InvalidRoute(reason) => ApiError::bad_request("route", reason),
             FlightServiceError::CallsignNotFound(callsign) => {
                 ApiError::not_found("callsign", callsign)
             }
