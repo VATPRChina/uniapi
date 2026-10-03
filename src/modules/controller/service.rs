@@ -4,7 +4,7 @@ use chrono::{DateTime, Datelike, TimeZone, Utc};
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
-use crate::adapter::compat::{AtcConnection, CompatClient, CompatClientError};
+use crate::adapter::compat::{AtcConnection, CompatClient, CompatClientError, VatsimRating};
 use crate::modules::atc_position::repository::AtcPositionRepository;
 use crate::modules::audit_log::models::AuditLogEntity;
 use crate::modules::audit_log::service::{AuditLogService, AuditLogServiceError};
@@ -260,7 +260,7 @@ fn accumulate_session(
     end: DateTime<Utc>,
     period_start: DateTime<Utc>,
     as_of: DateTime<Utc>,
-    rating: i32,
+    rating: VatsimRating,
     tier_2_callsigns: &HashSet<String>,
 ) {
     let Some(position) = eligible_position(callsign, rating, tier_2_callsigns) else {
@@ -295,7 +295,7 @@ fn session_seconds(
     end: DateTime<Utc>,
     period_start: DateTime<Utc>,
     as_of: DateTime<Utc>,
-    rating: i32,
+    rating: VatsimRating,
     tier_2_callsigns: &HashSet<String>,
 ) -> Option<u64> {
     eligible_position(callsign, rating, tier_2_callsigns)?;
@@ -315,41 +315,40 @@ fn overlap_seconds(
 
 fn eligible_position(
     callsign: &str,
-    rating: i32,
+    rating: VatsimRating,
     tier_2_callsigns: &HashSet<String>,
 ) -> Option<OnlineTimePosition> {
-    let callsign = callsign.to_ascii_uppercase();
-    if !is_vatprc_position(&callsign)
-        || is_training_position(&callsign)
-        || is_military_position(&callsign)
-        || is_tier_2_position(&callsign, tier_2_callsigns)
-    {
+    let metadata = CallsignMetadata::parse(callsign, tier_2_callsigns);
+    if !metadata.is_vatprc || metadata.is_training || metadata.is_military || metadata.is_tier_2 {
         return None;
     }
 
-    let position = match callsign.rsplit('_').next()? {
-        "GND" | "DEL" | "RMP" => OnlineTimePosition::S1,
-        "TWR" => OnlineTimePosition::S2,
-        "APP" => OnlineTimePosition::S3,
-        "CTR" => OnlineTimePosition::C1Plus,
-        _ => return None,
-    };
+    let position = metadata.position?;
 
     rating_allows_position(rating, position).then_some(position)
 }
 
-fn rating_allows_position(rating: i32, position: OnlineTimePosition) -> bool {
+fn rating_allows_position(rating: VatsimRating, position: OnlineTimePosition) -> bool {
     match rating {
-        2 => matches!(position, OnlineTimePosition::S1 | OnlineTimePosition::S2),
-        3 => matches!(
+        VatsimRating::S1 => {
+            matches!(position, OnlineTimePosition::S1 | OnlineTimePosition::S2)
+        }
+        VatsimRating::S2 => matches!(
             position,
             OnlineTimePosition::S1 | OnlineTimePosition::S2 | OnlineTimePosition::S3
         ),
-        4 => matches!(
+        VatsimRating::S3 => matches!(
             position,
             OnlineTimePosition::S2 | OnlineTimePosition::S3 | OnlineTimePosition::C1Plus
         ),
-        5..=12 => matches!(
+        VatsimRating::C1
+        | VatsimRating::C2
+        | VatsimRating::C3
+        | VatsimRating::I1
+        | VatsimRating::I2
+        | VatsimRating::I3
+        | VatsimRating::Supervisor
+        | VatsimRating::Administrator => matches!(
             position,
             OnlineTimePosition::S3 | OnlineTimePosition::C1Plus
         ),
@@ -357,48 +356,49 @@ fn rating_allows_position(rating: i32, position: OnlineTimePosition) -> bool {
     }
 }
 
-fn is_training_position(callsign: &str) -> bool {
-    let parts = callsign.split('_').collect::<Vec<_>>();
-    parts.len() > 2
-        && parts[1..parts.len() - 1].iter().any(|part| {
-            let Some(suffix) = part.strip_prefix('X').or_else(|| part.strip_prefix('I')) else {
-                return false;
-            };
-            suffix.bytes().all(|byte| byte.is_ascii_digit())
-        })
+#[derive(Debug, PartialEq, Eq)]
+struct CallsignMetadata {
+    position: Option<OnlineTimePosition>,
+    is_vatprc: bool,
+    is_training: bool,
+    is_military: bool,
+    is_tier_2: bool,
 }
 
-fn is_military_position(callsign: &str) -> bool {
-    let parts = callsign.split('_').collect::<Vec<_>>();
-    parts.len() > 2 && parts[1..parts.len() - 1].contains(&"MIL")
-}
+impl CallsignMetadata {
+    fn parse(callsign: &str, tier_2_callsigns: &HashSet<String>) -> Self {
+        let callsign = callsign.to_ascii_uppercase();
+        let parts = callsign.split('_').collect::<Vec<_>>();
+        let prefix = parts.first().copied().unwrap_or_default().as_bytes();
+        let position = parts.last().and_then(|part| match *part {
+            "GND" | "DEL" | "RMP" => Some(OnlineTimePosition::S1),
+            "TWR" => Some(OnlineTimePosition::S2),
+            "APP" => Some(OnlineTimePosition::S3),
+            "CTR" => Some(OnlineTimePosition::C1Plus),
+            _ => None,
+        });
+        let middle_parts = if parts.len() > 2 {
+            &parts[1..parts.len() - 1]
+        } else {
+            &[]
+        };
+        let is_military = callsign.contains("_MIL_");
 
-fn is_tier_2_position(callsign: &str, tier_2_callsigns: &HashSet<String>) -> bool {
-    tier_2_callsigns.iter().any(|tier_2_callsign| {
-        tier_2_callsign
-            .strip_prefix('*')
-            .map_or(callsign == tier_2_callsign, |suffix| {
-                callsign.ends_with(suffix)
-            })
-    })
-}
-
-fn is_vatprc_position(callsign: &str) -> bool {
-    let callsign = callsign.to_ascii_uppercase();
-    let parts = callsign.split('_').collect::<Vec<_>>();
-    let Some(prefix) = parts.first() else {
-        return false;
-    };
-    let Some(position) = parts.last() else {
-        return false;
-    };
-    let prefix = prefix.as_bytes();
-
-    prefix.len() == 4
-        && prefix[0] == b'Z'
-        && b"BGHJLPSUWY".contains(&prefix[1])
-        && prefix[2..].iter().all(u8::is_ascii_alphabetic)
-        && matches!(*position, "DEL" | "GND" | "RMP" | "TWR" | "APP" | "CTR")
+        Self {
+            position,
+            is_vatprc: prefix.len() == 4
+                && prefix[0] == b'Z'
+                && b"BGHJLPSUWY".contains(&prefix[1])
+                && prefix[2..].iter().all(u8::is_ascii_alphabetic)
+                && position.is_some(),
+            is_training: !is_military
+                && middle_parts
+                    .iter()
+                    .any(|part| part.contains('X') || part.contains('I')),
+            is_military,
+            is_tier_2: tier_2_callsigns.contains(&callsign),
+        }
+    }
 }
 
 fn controller(row: &AtcControllerPermissionRecord) -> Result<Controller, ControllerServiceError> {
@@ -559,7 +559,10 @@ mod tests {
             "zgzu_app",
             "ZUUU_2_GND",
         ] {
-            assert!(is_vatprc_position(callsign), "{callsign}");
+            assert!(
+                CallsignMetadata::parse(callsign, &HashSet::new()).is_vatprc,
+                "{callsign}"
+            );
         }
         for callsign in [
             "VHHH_TWR",
@@ -570,7 +573,10 @@ mod tests {
             "ZBAA_DEP",
             "ZSHA_FSS",
         ] {
-            assert!(!is_vatprc_position(callsign), "{callsign}");
+            assert!(
+                !CallsignMetadata::parse(callsign, &HashSet::new()).is_vatprc,
+                "{callsign}"
+            );
         }
     }
 
@@ -578,15 +584,15 @@ mod tests {
     fn allows_only_positions_within_one_rating_level() {
         let tier_2_callsigns = HashSet::new();
         for (rating, allowed) in [
-            (2, [true, true, false, false]),
-            (3, [true, true, true, false]),
-            (4, [false, true, true, true]),
-            (5, [false, false, true, true]),
-            (7, [false, false, true, true]),
-            (8, [false, false, true, true]),
-            (10, [false, false, true, true]),
-            (11, [false, false, true, true]),
-            (12, [false, false, true, true]),
+            (VatsimRating::S1, [true, true, false, false]),
+            (VatsimRating::S2, [true, true, true, false]),
+            (VatsimRating::S3, [false, true, true, true]),
+            (VatsimRating::C1, [false, false, true, true]),
+            (VatsimRating::C3, [false, false, true, true]),
+            (VatsimRating::I1, [false, false, true, true]),
+            (VatsimRating::I3, [false, false, true, true]),
+            (VatsimRating::Supervisor, [false, false, true, true]),
+            (VatsimRating::Administrator, [false, false, true, true]),
         ] {
             for (callsign, expected) in ["ZBAA_GND", "ZBAA_TWR", "ZBAA_APP", "ZBAA_CTR"]
                 .into_iter()
@@ -595,22 +601,23 @@ mod tests {
                 assert_eq!(
                     eligible_position(callsign, rating, &tier_2_callsigns).is_some(),
                     expected,
-                    "rating {rating}, callsign {callsign}"
+                    "rating {rating:?}, callsign {callsign}"
                 );
             }
         }
 
-        for rating in [-1, 0, 1, 13] {
+        for rating in [
+            VatsimRating::Inactive,
+            VatsimRating::Suspended,
+            VatsimRating::Observer,
+        ] {
             assert!(eligible_position("ZBAA_TWR", rating, &tier_2_callsigns).is_none());
         }
     }
 
     #[test]
     fn excludes_training_tier_2_and_non_vatprc_positions() {
-        let tier_2_callsigns = ["ZBAL_TWR", "*_MIL_TWR"]
-            .into_iter()
-            .map(str::to_owned)
-            .collect();
+        let tier_2_callsigns = ["ZBAL_TWR"].into_iter().map(str::to_owned).collect();
 
         for callsign in [
             "ZBAA_X_CTR",
@@ -621,24 +628,20 @@ mod tests {
             "ZBAA__I1__CTR",
             "ZBAA_I2_CTR",
             "zbaa_i2_ctr",
+            "ZBAA_IX_CTR",
         ] {
             assert!(
-                eligible_position(callsign, 5, &tier_2_callsigns).is_none(),
+                eligible_position(callsign, VatsimRating::C1, &tier_2_callsigns).is_none(),
                 "{callsign}"
             );
         }
-        for callsign in ["ZBAA_W_CTR", "ZBAA_2_CTR", "ZBAA_IX_CTR"] {
+        for callsign in ["ZBAA_W_CTR", "ZBAA_2_CTR"] {
             assert!(
-                eligible_position(callsign, 5, &tier_2_callsigns).is_some(),
+                eligible_position(callsign, VatsimRating::C1, &tier_2_callsigns).is_some(),
                 "{callsign}"
             );
         }
-        for callsign in ["ZBAL_TWR", "ZBAA_MIL_TWR"] {
-            assert!(
-                eligible_position(callsign, 3, &tier_2_callsigns).is_none(),
-                "{callsign}"
-            );
-        }
+        assert!(eligible_position("ZBAL_TWR", VatsimRating::S2, &tier_2_callsigns).is_none());
         for callsign in [
             "ZBAA_MIL_TWR",
             "ZBAA__MIL__APP",
@@ -646,16 +649,46 @@ mod tests {
             "zbaa_mil_gnd",
         ] {
             assert!(
-                eligible_position(callsign, 5, &HashSet::new()).is_none(),
+                eligible_position(callsign, VatsimRating::C1, &HashSet::new()).is_none(),
                 "{callsign}"
             );
         }
         for callsign in ["VHHH_TWR", "ZKPY_CTR", "ZBAA_DEP", "ZSHA_FSS"] {
             assert!(
-                eligible_position(callsign, 5, &tier_2_callsigns).is_none(),
+                eligible_position(callsign, VatsimRating::C1, &tier_2_callsigns).is_none(),
                 "{callsign}"
             );
         }
+    }
+
+    #[test]
+    fn parses_callsign_metadata_once() {
+        let tier_2_callsigns = ["ZBAL_TWR", "*_MIL_TWR"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect();
+
+        assert_eq!(
+            CallsignMetadata::parse("ZBAA__X1__CTR", &tier_2_callsigns),
+            CallsignMetadata {
+                position: Some(OnlineTimePosition::C1Plus),
+                is_vatprc: true,
+                is_training: true,
+                is_military: false,
+                is_tier_2: false,
+            }
+        );
+        assert_eq!(
+            CallsignMetadata::parse("ZBAA__MIL__TWR", &tier_2_callsigns),
+            CallsignMetadata {
+                position: Some(OnlineTimePosition::S2),
+                is_vatprc: true,
+                is_training: false,
+                is_military: true,
+                is_tier_2: false,
+            }
+        );
+        assert!(CallsignMetadata::parse("ZBAL_TWR", &tier_2_callsigns).is_tier_2);
     }
 
     #[test]
@@ -685,7 +718,7 @@ mod tests {
                 time("2026-07-01T02:00:00Z"),
                 period_start,
                 as_of,
-                3,
+                VatsimRating::S2,
                 &tier_2_callsigns,
             );
         }
@@ -722,7 +755,7 @@ mod tests {
                 time(end),
                 period_start,
                 as_of,
-                3,
+                VatsimRating::S2,
                 &tier_2_callsigns,
             );
         }
@@ -745,7 +778,7 @@ mod tests {
                 time("2026-07-01T02:30:00Z"),
                 period_start,
                 as_of,
-                3,
+                VatsimRating::S2,
                 &tier_2_callsigns,
             ),
             Some(9_000)
@@ -757,7 +790,7 @@ mod tests {
                 as_of,
                 period_start,
                 as_of,
-                3,
+                VatsimRating::S2,
                 &tier_2_callsigns,
             ),
             None
