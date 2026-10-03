@@ -71,6 +71,12 @@ impl CompatClient {
         Ok(serde_json::from_str(&self.cached_get(&url).await?)?)
     }
 
+    #[instrument(skip(self), fields(cid = %cid))]
+    pub async fn get_member(&self, cid: &str) -> Result<VatsimMember, CompatClientError> {
+        let url = format!("{VATSIM_CORE_BASE_URL}/members/{cid}");
+        Ok(serde_json::from_str(&self.cached_get(&url).await?)?)
+    }
+
     #[instrument(skip(self))]
     pub async fn get_track_audio_version(&self) -> Result<String, CompatClientError> {
         self.cached_get(TRACK_AUDIO_VERSION_URL).await
@@ -230,4 +236,68 @@ pub struct AtcConnection {
     pub callsign: String,
     pub start: Option<chrono::DateTime<Utc>>,
     pub end: Option<chrono::DateTime<Utc>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VatsimMember {
+    pub rating: VatsimRating,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "i32")]
+pub enum VatsimRating {
+    Inactive,
+    Suspended,
+    Observer,
+    S1,
+    S2,
+    S3,
+    C1,
+    C2,
+    C3,
+    I1,
+    I2,
+    I3,
+    Supervisor,
+    Administrator,
+}
+
+impl TryFrom<i32> for VatsimRating {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            -1 => Ok(Self::Inactive),
+            0 => Ok(Self::Suspended),
+            1 => Ok(Self::Observer),
+            2 => Ok(Self::S1),
+            3 => Ok(Self::S2),
+            4 => Ok(Self::S3),
+            5 => Ok(Self::C1),
+            6 => Ok(Self::C2),
+            7 => Ok(Self::C3),
+            8 => Ok(Self::I1),
+            9 => Ok(Self::I2),
+            10 => Ok(Self::I3),
+            11 => Ok(Self::Supervisor),
+            12 => Ok(Self::Administrator),
+            _ => Err(format!("invalid VATSIM controller rating {value}")),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserializes_vatsim_member_rating_to_enum() {
+        let member = serde_json::from_str::<VatsimMember>(r#"{"rating":11}"#).unwrap();
+        assert_eq!(member.rating, VatsimRating::Supervisor);
+    }
+
+    #[test]
+    fn rejects_unknown_vatsim_member_rating() {
+        assert!(serde_json::from_str::<VatsimMember>(r#"{"rating":13}"#).is_err());
+    }
 }

@@ -20,17 +20,16 @@ pub struct ControllerOnlineTimeDto {
     pub period_start: DateTime<Utc>,
     pub as_of: DateTime<Utc>,
     pub total_seconds: u64,
-    /// Current-quarter seconds for S1 (GND/DEL/RMP), S2 (TWR), S3 (APP), C1+ (CTR).
-    /// DEP and FSS count toward total_seconds only.
+    /// Current-quarter eligible seconds for S1 (GND/DEL/RMP), S2 (TWR), S3 (APP), C1+ (CTR).
     pub by_position: ControllerOnlineTimeByPosition,
     pub lifetime: ControllerOnlineTimeSummaryDto,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct ControllerOnlineTimeSummaryDto {
-    /// All recorded VATPRC controlling seconds, including the current session.
+    /// All eligible VATPRC controlling seconds, including the current session.
     pub total_seconds: u64,
-    /// Position groups in seconds. DEP and FSS count toward total_seconds only.
+    /// Eligible position groups in seconds.
     pub by_position: ControllerOnlineTimeByPosition,
 }
 
