@@ -1,9 +1,14 @@
+use std::collections::{BTreeMap, HashMap};
+
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
+use sea_query::IndexType::BTree;
 
 use crate::modules::{
     flight::flight_plan::v2::{
-        FixCandidate, Ident, IdentCandidate, IdentWithCandidate, LegCandidate,
+        FixCandidate, Ident,
+        IdentCandidate::{self, Fix},
+        IdentWithCandidate, LegCandidate,
     },
     navdata::service::NavdataService,
 };
@@ -46,53 +51,59 @@ impl<'s, 'n> Solver<'s, 'n> {
 
     pub fn solve(self) -> impl IntoIterator<Item = SolvedIdent<'s>> {
         let mut solved_idents = vec![];
-        let first_pos = self
-            .idents
-            .first()
-            .unwrap()
-            .candidates
-            .iter()
-            .find_map(|c| match c {
-                IdentCandidate::Fix(fix_candidate) => fix_candidate.position(),
-                IdentCandidate::Leg(leg_candidate) => None,
-            })
-            .unwrap_or_default();
-        for ident in self.idents.iter() {
-            let solved = Self::solve_ident(
-                ident,
-                solved_idents.last().unwrap_or(&SolvedIdent {
-                    ident: Ident {
-                        ident: "",
-                        amendments: vec![],
-                        errors: vec![],
-                    },
-                    candidates: vec![CandidateWithState {
-                        candidate: IdentCandidate::Fix(FixCandidate::UnknownWaypoint),
-                        state: State {
-                            last_token: StateToken::Fix(FixCandidate::UnknownWaypoint),
-                            distance: 0.,
-                            position_lat: first_pos.0,
-                            position_lon: first_pos.1,
-                        },
-                    }],
-                }),
-            );
+
+        if let Some(first) = self.idents.first() {
+            solved_idents.push(Self::solve_init_ident(first));
+        } else {
+            return solved_idents;
+        }
+
+        for ident in self.idents.iter().skip(1) {
+            let solved = Self::solve_ident(ident, solved_idents.last().unwrap());
             solved_idents.push(solved);
         }
         solved_idents
+    }
+
+    fn solve_init_ident(ident: &IdentWithCandidate<'s>) -> SolvedIdent<'s> {
+        let candidates: Vec<_> = ident
+            .candidates
+            .iter()
+            .sorted_by_key(|c| c.priority())
+            .flat_map(|candidate| match candidate {
+                IdentCandidate::Fix(fix) => Some(CandidateWithState {
+                    candidate: candidate.clone(),
+                    state: State {
+                        last_token: StateToken::Fix(fix.clone()),
+                        distance: 0.,
+                        position_lat: fix.latitude().unwrap_or_default(),
+                        position_lon: fix.longitude().unwrap_or_default(),
+                    },
+                }),
+                IdentCandidate::Leg(_) => None,
+            })
+            .collect();
+
+        let candidates = CandidateSortPruneState::new(candidates.iter()).handle(candidates);
+
+        SolvedIdent {
+            ident: ident.ident.clone(),
+            candidates,
+        }
     }
 
     fn solve_ident(
         ident: &IdentWithCandidate<'s>,
         last_solved: &SolvedIdent<'s>,
     ) -> SolvedIdent<'s> {
-        let candidates = last_solved
+        let candidates: Vec<_> = last_solved
             .candidates
             .iter()
             .flat_map(|last_candidate| Self::solve_ident_with_last_candidate(ident, last_candidate))
-            .sorted_by_key(|c| OrderedFloat(c.state.distance))
-            .take(3)
             .collect();
+
+        let candidates = CandidateSortPruneState::new(candidates.iter()).handle(candidates);
+
         SolvedIdent {
             ident: ident.ident.clone(),
             candidates,
@@ -113,58 +124,137 @@ impl<'s, 'n> Solver<'s, 'n> {
         candidate: &IdentCandidate,
         last_candidate: &CandidateWithState,
     ) -> impl IntoIterator<Item = CandidateWithState> {
-        let state: Option<State> = match (&last_candidate.state.last_token, candidate) {
+        (last_candidate.state)
+            .next_state(candidate)
+            .map(|state| CandidateWithState {
+                candidate: candidate.clone(),
+                state,
+            })
+    }
+}
+
+trait Priority {
+    fn priority(&self) -> u8;
+}
+
+impl Priority for IdentCandidate {
+    fn priority(&self) -> u8 {
+        match self {
+            IdentCandidate::Leg(LegCandidate::Direct) => 1,
+            IdentCandidate::Leg(LegCandidate::Airway) => 2,
+            IdentCandidate::Fix(FixCandidate::Geo { .. }) => 3,
+            IdentCandidate::Fix(FixCandidate::Airport { .. }) => 4,
+            IdentCandidate::Fix(FixCandidate::EnrouteVor { .. }) => 5,
+            IdentCandidate::Fix(FixCandidate::EnrouteNdb { .. }) => 6,
+            IdentCandidate::Fix(FixCandidate::EnrouteWaypoint { .. }) => 7,
+            IdentCandidate::Leg(LegCandidate::Sid { .. }) => 8,
+            IdentCandidate::Leg(LegCandidate::Star { .. }) => 9,
+            IdentCandidate::Fix(FixCandidate::TerminalVor { .. }) => 10,
+            IdentCandidate::Fix(FixCandidate::TerminalNdb { .. }) => 11,
+            IdentCandidate::Fix(FixCandidate::TerminalWaypoint { .. }) => 12,
+            IdentCandidate::Leg(LegCandidate::UnknownAirway) => 101,
+            IdentCandidate::Fix(FixCandidate::UnknownWaypoint) => 102,
+        }
+    }
+}
+
+struct CandidateSortPruneState {
+    item_kind_count: BTreeMap<u8, usize>,
+}
+
+impl CandidateSortPruneState {
+    pub fn new<'c>(candiates: impl Iterator<Item = &'c CandidateWithState>) -> Self {
+        let item_kind_count = candiates.fold(BTreeMap::new(), |mut acc, candidate| {
+            *acc.entry(candidate.candidate.priority()).or_insert(0) += 1;
+            acc
+        });
+        CandidateSortPruneState { item_kind_count }
+    }
+
+    pub fn handle(&mut self, candiates: Vec<CandidateWithState>) -> Vec<CandidateWithState> {
+        let has_known_fix = candiates.iter().any(|c| {
+            matches!(c.candidate, IdentCandidate::Fix(_))
+                && !matches!(
+                    c.candidate,
+                    IdentCandidate::Fix(FixCandidate::UnknownWaypoint),
+                )
+        });
+        let has_known_leg = candiates.iter().any(|c| {
+            matches!(c.candidate, IdentCandidate::Leg(_))
+                && !matches!(
+                    c.candidate,
+                    IdentCandidate::Leg(LegCandidate::UnknownAirway),
+                )
+        });
+
+        candiates
+            .into_iter()
+            .into_group_map_by(|c| c.candidate.priority())
+            .into_iter()
+            .flat_map(|(p, g)| {
+                g.into_iter()
+                    .sorted_by_key(|c| OrderedFloat(c.state.distance))
+                    .next()
+            })
+            .filter(|c| {
+                !matches!(
+                    c.candidate,
+                    IdentCandidate::Fix(FixCandidate::UnknownWaypoint)
+                ) || !has_known_fix
+            })
+            .filter(|c| {
+                !matches!(
+                    c.candidate,
+                    IdentCandidate::Leg(LegCandidate::UnknownAirway)
+                ) || !has_known_leg
+            })
+            .sorted_by_key(|c| c.candidate.priority())
+            .collect()
+    }
+}
+
+impl State {
+    pub fn next_state(&self, candidate: &IdentCandidate) -> Option<State> {
+        match (&self.last_token, candidate) {
             (StateToken::Fix(last_fix), IdentCandidate::Fix(cur_fix)) => {
-                Self::compute_state_fix_fix(&last_candidate.state, last_fix, cur_fix)
+                self.next_state_fix_fix(last_fix, cur_fix)
             }
             (StateToken::Fix(last_fix), IdentCandidate::Leg(cur_leg)) => {
-                Self::compute_state_fix_leg(&last_candidate.state, last_fix, cur_leg)
+                self.next_state_fix_leg(last_fix, cur_leg)
             }
             (StateToken::Leg(last_fix, last_leg), IdentCandidate::Fix(cur_fix)) => {
-                Self::compute_state_leg_fix(&last_candidate.state, last_leg, last_fix, cur_fix)
+                self.next_state_leg_fix(last_leg, last_fix, cur_fix)
             }
             (StateToken::Leg(last_fix, last_leg), IdentCandidate::Leg(cur_leg)) => {
-                Self::compute_state_leg_leg(&last_candidate.state, last_leg, last_fix, cur_leg)
+                self.next_state_leg_leg(last_leg, last_fix, cur_leg)
             }
-        };
-        state.map(|state| CandidateWithState {
-            candidate: candidate.clone(),
-            state,
-        })
+        }
     }
 
-    fn compute_state_fix_fix(
-        state: &State,
-        last: &FixCandidate,
-        cur: &FixCandidate,
-    ) -> Option<State> {
+    pub fn next_state_fix_fix(&self, last: &FixCandidate, cur: &FixCandidate) -> Option<State> {
         Some(State {
             last_token: StateToken::Fix(cur.clone()),
-            distance: state.distance
+            distance: self.distance
                 + cur.position().map_or(1000., |(lat, lon)| {
-                    distance_nm(lat, lon, state.position_lat, state.position_lon)
+                    distance_nm(lat, lon, self.position_lat, self.position_lon)
                 }),
-            position_lat: cur.latitude().unwrap_or(state.position_lat),
-            position_lon: cur.longitude().unwrap_or(state.position_lon),
+            position_lat: cur.latitude().unwrap_or(self.position_lat),
+            position_lon: cur.longitude().unwrap_or(self.position_lon),
         })
     }
 
-    fn compute_state_fix_leg(
-        state: &State,
-        last: &FixCandidate,
-        cur: &LegCandidate,
-    ) -> Option<State> {
+    pub fn next_state_fix_leg(&self, last: &FixCandidate, cur: &LegCandidate) -> Option<State> {
         // TODO: if fix not on leg return None
         Some(State {
             last_token: StateToken::Leg(last.clone(), cur.clone()),
-            distance: state.distance,
-            position_lat: state.position_lat,
-            position_lon: state.position_lon,
+            distance: self.distance,
+            position_lat: self.position_lat,
+            position_lon: self.position_lon,
         })
     }
 
-    fn compute_state_leg_fix(
-        state: &State,
+    pub fn next_state_leg_fix(
+        &self,
         last: &LegCandidate,
         last_fix: &FixCandidate,
         cur: &FixCandidate,
@@ -173,20 +263,20 @@ impl<'s, 'n> Solver<'s, 'n> {
         Some(State {
             last_token: StateToken::Fix(cur.clone()),
             // TODO: use real leg distance
-            distance: state.distance
+            distance: self.distance
                 + cur.position().map_or(1000., |(lat, lon)| {
-                    distance_nm(lat, lon, state.position_lat, state.position_lon)
+                    distance_nm(lat, lon, self.position_lat, self.position_lon)
                 })
                 + matches!(last, LegCandidate::UnknownAirway)
                     .then(|| 1000.)
                     .unwrap_or(0.),
-            position_lat: cur.latitude().unwrap_or(state.position_lat),
-            position_lon: cur.longitude().unwrap_or(state.position_lon),
+            position_lat: cur.latitude().unwrap_or(self.position_lat),
+            position_lon: cur.longitude().unwrap_or(self.position_lon),
         })
     }
 
-    fn compute_state_leg_leg(
-        state: &State,
+    pub fn next_state_leg_leg(
+        &self,
         last: &LegCandidate,
         last_fix: &FixCandidate,
         cur: &LegCandidate,
@@ -195,10 +285,6 @@ impl<'s, 'n> Solver<'s, 'n> {
         None
     }
 }
-
-// TODO: improve candidate sorting
-// TODO: improve candidate pruning
-// TODO: improve candidate validation
 
 pub fn distance_nm(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     const EARTH_RADIUS_NM: f64 = 3440.065;
@@ -270,6 +356,36 @@ async fn test() {
 
     let lexed = Lexer::new(
         "ZBAA ELKUR W40 YQG W142 DALIM A593 DPX A470 DALNU W166 ZJ W167 SASAN R343 EKIMU ZSPD",
+    )
+    .parse_all()
+    .collect();
+    let parsed = Parser::new(lexed).parse().collect();
+    let navdata = NavdataService::with_preferred_routes_path(
+        "data/NavigraphDFDv2-2604.1.0.db?mode=ro",
+        "data/Route-Server.csv",
+    )
+    .await
+    .unwrap();
+    let resolved = CandidateResolver::new(parsed)
+        .resolve_candidates(&navdata)
+        .await
+        .unwrap()
+        .collect();
+    let solved: Vec<_> = Solver::new(resolved, &navdata)
+        .solve()
+        .into_iter()
+        .collect();
+    pretty_print_idents(&solved);
+    assert!(solved.is_empty(), "expected no solved identifiers");
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn test2() {
+    use crate::modules::flight::flight_plan::v2::{CandidateResolver, Lexer, Parser};
+
+    let lexed = Lexer::new(
+        "ZBAA ELKUR W40 PANKI W158 AR ONAXU ATVIM W127 HFE VILID P37 P321 P206 P468 P179 P262 P599 JDZ P395 P263 P645 OMDEM XLN A470 DOTMI RPLL",
     )
     .parse_all()
     .collect();
