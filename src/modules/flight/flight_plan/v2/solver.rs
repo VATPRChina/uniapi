@@ -42,6 +42,7 @@ pub struct SolvedIdent<'s> {
 struct CandidateWithState {
     candidate: IdentCandidate,
     state: State,
+    last_candidate_idx: usize,
 }
 
 impl<'s, 'n> Solver<'s, 'n> {
@@ -79,6 +80,7 @@ impl<'s, 'n> Solver<'s, 'n> {
                         position_lat: fix.latitude().unwrap_or_default(),
                         position_lon: fix.longitude().unwrap_or_default(),
                     },
+                    last_candidate_idx: 0,
                 }),
                 IdentCandidate::Leg(_) => None,
             })
@@ -99,7 +101,10 @@ impl<'s, 'n> Solver<'s, 'n> {
         let candidates: Vec<_> = last_solved
             .candidates
             .iter()
-            .flat_map(|last_candidate| Self::solve_ident_with_last_candidate(ident, last_candidate))
+            .enumerate()
+            .flat_map(|(last_candidate_idx, last_candidate)| {
+                Self::solve_ident_with_last_candidate(ident, last_candidate, last_candidate_idx)
+            })
             .collect();
 
         let candidates = CandidateSortPruneState::new(candidates.iter()).handle(candidates);
@@ -113,9 +118,15 @@ impl<'s, 'n> Solver<'s, 'n> {
     fn solve_ident_with_last_candidate(
         ident: &IdentWithCandidate<'s>,
         last_candidate: &CandidateWithState,
+        last_candidate_idx: usize,
     ) -> impl IntoIterator<Item = CandidateWithState> {
-        ident.candidates.iter().flat_map(|candidate| {
-            Self::solve_ident_candidate_with_last_candidate(ident, candidate, last_candidate)
+        ident.candidates.iter().flat_map(move |candidate| {
+            Self::solve_ident_candidate_with_last_candidate(
+                ident,
+                candidate,
+                last_candidate,
+                last_candidate_idx,
+            )
         })
     }
 
@@ -123,12 +134,14 @@ impl<'s, 'n> Solver<'s, 'n> {
         ident: &IdentWithCandidate<'s>,
         candidate: &IdentCandidate,
         last_candidate: &CandidateWithState,
+        last_candidate_idx: usize,
     ) -> impl IntoIterator<Item = CandidateWithState> {
         (last_candidate.state)
             .next_state(candidate)
             .map(|state| CandidateWithState {
                 candidate: candidate.clone(),
                 state,
+                last_candidate_idx,
             })
     }
 }
@@ -318,13 +331,14 @@ fn pretty_print_idents(idents: &[SolvedIdent<'_>]) {
                 .map(|(index, candidate)| {
                     let state = &candidate.state;
                     format!(
-                        "  Candidate {}: {:?}\n    State: {:?}\n    Distance: {:.2} NM\n    Position: ({:.6}, {:.6})",
+                        "  Candidate {}: {:?}\n    State: {:?}\n    Distance: {:.2} NM\n    Position: ({:.6}, {:.6})\n    Last: Candidate {}",
                         index + 1,
                         candidate.candidate,
                         state.last_token,
                         state.distance,
                         state.position_lat,
                         state.position_lon,
+                        candidate.last_candidate_idx,
                     )
                 })
                 .join("\n");
