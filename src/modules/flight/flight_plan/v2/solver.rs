@@ -84,7 +84,7 @@ impl<'s, 'n> Solver<'s, 'n> {
                     candidate: candidate.clone(),
                     state: State {
                         last_token: StateToken::Fix(fix.clone()),
-                        fallbacks: usize::from(matches!(fix, FixCandidate::UnknownWaypoint)),
+                        fallbacks: usize::from(fix.is_unknown()),
                         distance: 0.,
                         position_lat: fix.latitude().unwrap_or_default(),
                         position_lon: fix.longitude().unwrap_or_default(),
@@ -194,20 +194,12 @@ impl CandidateSortPruneState {
     }
 
     pub fn handle(&mut self, candiates: Vec<CandidateWithState>) -> Vec<CandidateWithState> {
-        let has_known_fix = candiates.iter().any(|c| {
-            matches!(c.candidate, IdentCandidate::Fix(_))
-                && !matches!(
-                    c.candidate,
-                    IdentCandidate::Fix(FixCandidate::UnknownWaypoint),
-                )
-        });
-        let has_known_leg = candiates.iter().any(|c| {
-            matches!(c.candidate, IdentCandidate::Leg(_))
-                && !matches!(
-                    c.candidate,
-                    IdentCandidate::Leg(LegCandidate::UnknownAirway),
-                )
-        });
+        let has_known_fix = candiates
+            .iter()
+            .any(|c| matches!(c.candidate, IdentCandidate::Fix(_)) && !c.candidate.is_unknown());
+        let has_known_leg = candiates
+            .iter()
+            .any(|c| matches!(c.candidate, IdentCandidate::Leg(_)) && !c.candidate.is_unknown());
 
         candiates
             .into_iter()
@@ -220,18 +212,8 @@ impl CandidateSortPruneState {
                     .sorted_by_key(|c| (c.state.fallbacks, OrderedFloat(c.state.distance)))
                     .next()
             })
-            .filter(|c| {
-                !matches!(
-                    c.candidate,
-                    IdentCandidate::Fix(FixCandidate::UnknownWaypoint)
-                ) || !has_known_fix
-            })
-            .filter(|c| {
-                !matches!(
-                    c.candidate,
-                    IdentCandidate::Leg(LegCandidate::UnknownAirway)
-                ) || !has_known_leg
-            })
+            .filter(|c| !c.candidate.is_unknown() || !has_known_fix)
+            .filter(|c| !c.candidate.is_unknown() || !has_known_leg)
             .sorted_by_key(|c| c.candidate.priority())
             .collect()
     }
@@ -258,7 +240,7 @@ impl State {
     pub fn next_state_fix_fix(&self, last: &FixCandidate, cur: &FixCandidate) -> Option<State> {
         Some(State {
             last_token: StateToken::Fix(cur.clone()),
-            fallbacks: self.fallbacks + usize::from(matches!(cur, FixCandidate::UnknownWaypoint)),
+            fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
             distance: self.distance
                 + cur.position().map_or(1000., |(lat, lon)| {
                     distance_nm(lat, lon, self.position_lat, self.position_lon)
@@ -272,7 +254,7 @@ impl State {
         // TODO: if fix not on leg return None
         Some(State {
             last_token: StateToken::Leg(last.clone(), cur.clone()),
-            fallbacks: self.fallbacks + usize::from(matches!(cur, LegCandidate::UnknownAirway)),
+            fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
             distance: self.distance,
             position_lat: self.position_lat,
             position_lon: self.position_lon,
@@ -288,15 +270,13 @@ impl State {
         // TODO: if fix not on leg return None
         Some(State {
             last_token: StateToken::Fix(cur.clone()),
-            fallbacks: self.fallbacks + usize::from(matches!(cur, FixCandidate::UnknownWaypoint)),
+            fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
             // TODO: use real leg distance
             distance: self.distance
                 + cur.position().map_or(1000., |(lat, lon)| {
                     distance_nm(lat, lon, self.position_lat, self.position_lon)
                 })
-                + matches!(last, LegCandidate::UnknownAirway)
-                    .then(|| 1000.)
-                    .unwrap_or(0.),
+                + if last.is_unknown() { 1000. } else { 0. },
             position_lat: cur.latitude().unwrap_or(self.position_lat),
             position_lon: cur.longitude().unwrap_or(self.position_lon),
         })

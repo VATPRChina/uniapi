@@ -30,6 +30,15 @@ pub enum IdentCandidate {
     Leg(LegCandidate),
 }
 
+impl IdentCandidate {
+    pub fn is_unknown(&self) -> bool {
+        match self {
+            IdentCandidate::Fix(fix_candidate) => fix_candidate.is_unknown(),
+            IdentCandidate::Leg(leg_candidate) => leg_candidate.is_unknown(),
+        }
+    }
+}
+
 /// Physical-point interpretations, retaining their coordinates and scope.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FixCandidate {
@@ -117,6 +126,10 @@ impl FixCandidate {
             FixCandidate::UnknownWaypoint => None,
         }
     }
+
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, FixCandidate::UnknownWaypoint)
+    }
 }
 
 /// Connection interpretations, completed by subsequent fix entries.
@@ -127,6 +140,12 @@ pub enum LegCandidate {
     Sid { airport: AirportIdentifier },
     Star { airport: AirportIdentifier },
     UnknownAirway,
+}
+
+impl LegCandidate {
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, LegCandidate::UnknownAirway)
+    }
 }
 
 impl<'s> CandidateResolver<'s> {
