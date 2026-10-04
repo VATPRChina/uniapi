@@ -136,6 +136,7 @@ impl<'a> RouteParser<'a> {
             identifier: None,
             from: last_fix,
             to: fix,
+            is_unknown: false,
             direction_restriction: DirectionRestriction::None,
         });
         Ok(())

@@ -20,9 +20,10 @@ vatprc-uniapi route-v2 "ZBAA ELKUR W40 YQG ZSPD" # print expanded route JSON
 ```
 
 `route-v2` accepts a complete route including departure and arrival. It runs the
-same v2 pipeline as `GET /api/flights/route/v2` and prints expanded `FlightLeg`
-segments as JSON. It uses the configured navdata paths and requires no running
-HTTP server or PostgreSQL connection. Invalid routes exit with an error.
+same v2 pipeline as `GET /api/flights/route/v2` and prints expanded segments as
+JSON with fix coordinates (null for unresolved fixes). It uses the configured
+navdata paths and requires no running HTTP server or PostgreSQL connection.
+Invalid routes exit with an error.
 
 To use other local navigation data files:
 

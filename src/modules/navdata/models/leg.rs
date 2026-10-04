@@ -5,6 +5,8 @@ pub struct ResolvedLeg {
     pub from: AnyFix,
     pub to: AnyFix,
     pub identifier: Option<String>,
+    /// The connection was recovered as an unknown leg rather than navdata.
+    pub is_unknown: bool,
     pub direction_restriction: DirectionRestriction,
 }
 
@@ -21,6 +23,7 @@ impl ResolvedLeg {
             from: self.to,
             to: self.from,
             identifier: self.identifier,
+            is_unknown: self.is_unknown,
             direction_restriction: match self.direction_restriction {
                 DirectionRestriction::None => DirectionRestriction::None,
                 DirectionRestriction::Forward => DirectionRestriction::Backward,

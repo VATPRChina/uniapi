@@ -186,6 +186,7 @@ pub struct FlightRouteLeg {
     pub from: FlightRouteFix,
     pub to: FlightRouteFix,
     pub leg_identifier: String,
+    pub is_unknown: bool,
 }
 
 impl From<ResolvedLeg> for FlightRouteLeg {
@@ -194,6 +195,7 @@ impl From<ResolvedLeg> for FlightRouteLeg {
             from: FlightRouteFix::from(&leg.from),
             to: FlightRouteFix::from(&leg.to),
             leg_identifier: leg.identifier.unwrap_or_default(),
+            is_unknown: leg.is_unknown,
         }
     }
 }
@@ -204,6 +206,7 @@ pub struct FlightRouteFix {
     pub identifier: String,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    pub is_unknown: bool,
 }
 
 impl From<&AnyFix> for FlightRouteFix {
@@ -218,6 +221,7 @@ impl From<&AnyFix> for FlightRouteFix {
             identifier: FlightFix::from(fix).identifier,
             latitude: position.map(|point| point.0),
             longitude: position.map(|point| point.1),
+            is_unknown: position.is_none(),
         }
     }
 }
@@ -284,10 +288,12 @@ mod tests {
         let origin = FlightRouteFix::from(&AnyFix::GeoPoint(GeoPoint::new(0., 0.)));
         assert_eq!(origin.latitude, Some(0.));
         assert_eq!(origin.longitude, Some(0.));
+        assert!(!origin.is_unknown);
         let unknown = FlightRouteFix::from(&AnyFix::Unknown("MISSING".to_owned()));
         assert_eq!(unknown.identifier, "MISSING");
         assert_eq!(unknown.latitude, None);
         assert_eq!(unknown.longitude, None);
+        assert!(unknown.is_unknown);
         assert_eq!(
             serde_json::to_value(FlightFix::from(&AnyFix::GeoPoint(GeoPoint::new(0., 0.))))
                 .unwrap(),

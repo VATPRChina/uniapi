@@ -338,6 +338,7 @@ mod tests {
             from: fix(from),
             to: fix(to),
             identifier: Some(airway.to_owned()),
+            is_unknown: false,
             direction_restriction: DirectionRestriction::None,
         }
     }
@@ -347,6 +348,7 @@ mod tests {
             from,
             to,
             identifier: None,
+            is_unknown: false,
             direction_restriction: DirectionRestriction::None,
         }
     }

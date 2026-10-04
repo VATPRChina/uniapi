@@ -34,7 +34,11 @@ async fn expand_leg(
     let Some(identifier) = leg.identifier.as_deref() else {
         return Ok(vec![leg.clone()]);
     };
-    if !known_fix(&leg.from) || !known_fix(&leg.to) || same_fix(&leg.from, &leg.to) {
+    if leg.is_unknown
+        || !known_fix(&leg.from)
+        || !known_fix(&leg.to)
+        || same_fix(&leg.from, &leg.to)
+    {
         return Ok(vec![leg.clone()]);
     }
     let procedure = match (&leg.from, &leg.to) {
@@ -151,6 +155,7 @@ fn named_segment(from: AnyFix, to: AnyFix, identifier: &str) -> ResolvedLeg {
         from,
         to,
         identifier: Some(identifier.to_owned()),
+        is_unknown: false,
         direction_restriction: DirectionRestriction::None,
     }
 }
