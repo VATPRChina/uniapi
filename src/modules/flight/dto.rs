@@ -187,6 +187,8 @@ pub struct FlightRouteLeg {
     pub to: FlightRouteFix,
     pub leg_identifier: String,
     pub is_unknown: bool,
+    pub is_sid: bool,
+    pub is_star: bool,
 }
 
 impl From<ResolvedLeg> for FlightRouteLeg {
@@ -196,6 +198,8 @@ impl From<ResolvedLeg> for FlightRouteLeg {
             to: FlightRouteFix::from(&leg.to),
             leg_identifier: leg.identifier.unwrap_or_default(),
             is_unknown: leg.is_unknown,
+            is_sid: leg.is_sid,
+            is_star: leg.is_star,
         }
     }
 }
