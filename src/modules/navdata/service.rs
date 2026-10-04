@@ -704,6 +704,8 @@ impl EnrouteAirwayRecord {
             from: prev.to_fix()?,
             to: self.to_fix()?,
             is_unknown: false,
+            is_sid: false,
+            is_star: false,
             direction_restriction: match self.direction_restriction.as_str() {
                 "F" => DirectionRestriction::Forward,
                 "B" => DirectionRestriction::Backward,

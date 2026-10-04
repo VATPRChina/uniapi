@@ -3,7 +3,7 @@ use std::path::Path;
 
 use clap::Parser;
 use vatprc_uniapi::discord::DiscordBot;
-use vatprc_uniapi::modules::flight::{dto::FlightRouteLeg, flight_plan::v2};
+use vatprc_uniapi::modules::flight::flight_plan::v2;
 use vatprc_uniapi::modules::navdata::service::NavdataService;
 use vatprc_uniapi::services::Services;
 use vatprc_uniapi::{app, command, openapi, repository, settings, telemetry};
@@ -78,19 +78,27 @@ async fn route_v2(
     navdata: Option<&str>,
     preferred_routes: Option<&Path>,
 ) -> Result<(), anyhow::Error> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                tracing_subscriber::EnvFilter::new(
+                    "vatprc_uniapi::modules::flight::flight_plan::v2=trace",
+                )
+            }),
+        )
+        .with_writer(std::io::stdout)
+        .with_ansi(false)
+        .without_time()
+        .try_init()
+        .map_err(|error| anyhow::anyhow!("failed to initialize route trace logging: {error}"))?;
     let configured = settings::Settings::new()?.navdata;
     let navdata = NavdataService::with_preferred_routes_path(
         navdata.unwrap_or(&configured.local_data_path),
         preferred_routes.unwrap_or_else(|| Path::new(&configured.preferred_routes_path)),
     )
     .await?;
-    let segments: Vec<FlightRouteLeg> = v2::parse_route(&navdata, route)
-        .await?
-        .into_iter()
-        .map(Into::into)
-        .collect();
-    serde_json::to_writer_pretty(std::io::stdout().lock(), &segments)?;
-    std::io::stdout().lock().write_all(b"\n")?;
+    println!("Route: {route}\n");
+    v2::parse_route_with_observer(&navdata, route, |step| print!("{step}")).await?;
     Ok(())
 }
 

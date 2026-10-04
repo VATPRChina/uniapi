@@ -78,13 +78,15 @@ fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ResolvedLeg>> {
             let [(from_index, from), (to_index, to)] = pair else {
                 unreachable!("windows contain two fixes")
             };
-            let (identifier, is_unknown) = match &path[from_index + 1..*to_index] {
-                [] => (None, false),
+            let (identifier, is_unknown, is_sid, is_star) = match &path[from_index + 1..*to_index] {
+                [] => (None, false, false, false),
                 [(ident, candidate)] => match &candidate.candidate {
-                    IdentCandidate::Leg(LegCandidate::Direct) => (None, false),
+                    IdentCandidate::Leg(LegCandidate::Direct) => (None, false, false, false),
                     IdentCandidate::Leg(leg) => (
                         Some(ident.ident.identifier().to_owned()),
-                        matches!(leg, LegCandidate::UnknownAirway),
+                        leg.is_unknown(),
+                        matches!(leg, LegCandidate::Sid { .. } | LegCandidate::UnknownSid),
+                        matches!(leg, LegCandidate::Star { .. } | LegCandidate::UnknownStar),
                     ),
                     IdentCandidate::Fix(_) => return None,
                 },
@@ -95,6 +97,8 @@ fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ResolvedLeg>> {
                 to: to.clone(),
                 identifier,
                 is_unknown,
+                is_sid,
+                is_star,
                 direction_restriction: DirectionRestriction::None,
             })
         })

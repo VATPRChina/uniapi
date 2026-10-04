@@ -40,7 +40,7 @@ impl IdentCandidate {
 }
 
 /// Physical-point interpretations, retaining their coordinates and scope.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum FixCandidate {
     Airport {
         airport: AirportIdentifier,
@@ -132,8 +132,44 @@ impl FixCandidate {
     }
 }
 
+impl std::fmt::Debug for FixCandidate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Airport { airport, lat, lon } => {
+                write!(f, "Airport({} @ {:.3}, {:.3})", airport, lat, lon)
+            }
+            Self::EnrouteWaypoint {
+                icao_code,
+                lat,
+                lon,
+            } => write!(f, "EnrouteWaypoint({} @ {:.3}, {:.3})", icao_code, lat, lon),
+            Self::TerminalWaypoint { airport, lat, lon } => {
+                write!(f, "TerminalWaypoint({} @ {:.3}, {:.3})", airport, lat, lon)
+            }
+            Self::EnrouteVor {
+                icao_code,
+                lat,
+                lon,
+            } => write!(f, "EnrouteVor({} @ {:.3}, {:.3})", icao_code, lat, lon),
+            Self::TerminalVor { airport, lat, lon } => {
+                write!(f, "TerminalVor({} @ {:.3}, {:.3})", airport, lat, lon)
+            }
+            Self::EnrouteNdb {
+                icao_code,
+                lat,
+                lon,
+            } => write!(f, "EnrouteNdb({} @ {:.3}, {:.3})", icao_code, lat, lon),
+            Self::TerminalNdb { airport, lat, lon } => {
+                write!(f, "TerminalNdb({} @ {:.3}, {:.3})", airport, lat, lon)
+            }
+            Self::Geo { lat, lon } => write!(f, "Geo( @ {:.3}, {:.3})", lat, lon),
+            Self::UnknownWaypoint => write!(f, "UnknownWaypoint"),
+        }
+    }
+}
+
 /// Connection interpretations, completed by subsequent fix entries.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum LegCandidate {
     Direct,
     Airway,
@@ -153,6 +189,17 @@ impl LegCandidate {
     }
 }
 
+impl std::fmt::Debug for LegCandidate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Direct => write!(f, "Direct"),
+            Self::Airway => write!(f, "Airway"),
+            Self::Sid { airport } => write!(f, "SID({})", airport),
+            Self::Star { airport } => write!(f, "STAR({})", airport),
+            Self::UnknownAirway => write!(f, "UnknownAirway"),
+            Self::UnknownSid => write!(f, "UnknownSid"),
+            Self::UnknownStar => write!(f, "UnknownStar"),
+        }
     }
 }
 

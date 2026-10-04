@@ -27,7 +27,7 @@ pub enum Command {
     },
     /// Apply pending database migrations.
     Migrate,
-    /// Parse and expand a complete flight route with v2, printing JSON to stdout.
+    /// Parse and expand a complete flight route with v2, printing every stage as text.
     RouteV2 {
         /// Complete route text, including departure and arrival (quote spaces).
         route: String,

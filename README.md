@@ -16,14 +16,20 @@ vatprc-uniapi run          # start the web application
 vatprc-uniapi openapi      # save the specification to openapi.json
 vatprc-uniapi openapi -o api.json
 vatprc-uniapi migrate      # apply pending database migrations
-vatprc-uniapi route-v2 "ZBAA ELKUR W40 YQG ZSPD" # print expanded route JSON
+vatprc-uniapi route-v2 "ZBAA ELKUR W40 YQG ZSPD" # print the complete parser trace
 ```
 
 `route-v2` accepts a complete route including departure and arrival. It runs the
-same v2 pipeline as `GET /api/flights/route/v2` and prints expanded segments as
-JSON with fix coordinates (null for unresolved fixes). It uses the configured
-navdata paths and requires no running HTTP server or PostgreSQL connection.
-Invalid routes exit with an error.
+same v2 pipeline as `GET /api/flights/route/v2` and prints a plain-text trace of
+the lexer, parser, candidate resolver, solver, constructor, and expander.
+The trace includes every token, amendment, parser error, resolved candidate,
+surviving solver state (distance, recovery count, position, and predecessor),
+and constructed/expanded leg with coordinates and direction restrictions.
+Existing v2 diagnostic logs (such as rejected transitions) are also printed;
+`RUST_LOG` can override the default v2 trace filter.
+Unknown fixes and legs are explicitly marked. It uses the configured navdata
+paths and requires no running HTTP server or PostgreSQL connection. Invalid
+routes exit with an error after printing the completed stages.
 
 To use other local navigation data files:
 

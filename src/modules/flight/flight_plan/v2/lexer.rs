@@ -27,11 +27,45 @@ impl<'r> Lexer<'r> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct LexerToken<'r> {
     pub(super) str: &'r str,
     pub(super) value: LexerTokenValue<'r>,
     amend: Option<LexerTokenAmend>,
+}
+
+impl<'r> std::fmt::Debug for LexerToken<'r> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match &self.value {
+                LexerTokenValue::SpeedAndAltitude { .. } => "SpeedAndAltitude",
+                LexerTokenValue::Direct => "Direct",
+                LexerTokenValue::Vfr => "Vfr",
+                LexerTokenValue::Ifr => "Ifr",
+                LexerTokenValue::Identifier => "Identifier",
+                LexerTokenValue::Geo { .. } => "Geo",
+                LexerTokenValue::IdentifierReference { .. } => "IdentifierReference",
+            }
+        )?;
+        write!(f, "<{}>", self.str)?;
+        if let LexerTokenValue::SpeedAndAltitude { speed, altitude } = &self.value {
+            write!(f, "({:?}, {:?})", speed, altitude)?;
+        }
+        if let LexerTokenValue::Geo { lat, lon } = &self.value {
+            write!(f, "({:.3}, {:.3})", lat, lon)?;
+        }
+        if let LexerTokenValue::IdentifierReference {
+            ident,
+            heading,
+            distance,
+        } = &self.value
+        {
+            write!(f, "({}, {}, {})", ident, heading, distance)?;
+        }
+        Ok(())
+    }
 }
 
 impl<'r> LexerToken<'r> {

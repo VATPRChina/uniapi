@@ -34,6 +34,7 @@ mod lexer;
 mod parser;
 mod resolver;
 mod solver;
+mod trace;
 
 pub use constructor::Constructor;
 pub use expander::Expander;
@@ -43,6 +44,7 @@ pub use resolver::{
     CandidateResolver, FixCandidate, IdentCandidate, IdentWithCandidate, LegCandidate,
 };
 pub use solver::{CandidateWithState, SolvedIdent, Solver};
+pub use trace::RouteParseStep;
 
 use crate::modules::navdata::{
     models::ResolvedLeg,
@@ -62,9 +64,20 @@ pub async fn parse_route(
     navdata: &NavdataService,
     route: &str,
 ) -> Result<Vec<ResolvedLeg>, ParseRouteError> {
-    let parsed: Vec<_> = Parser::new(Lexer::new(route).parse_all().collect())
-        .parse()
-        .collect();
+    parse_route_with_observer(navdata, route, |_| {}).await
+}
+
+/// Observe each completed stage before its output is consumed by the next one.
+/// Earlier stages remain available to the observer if a later stage fails.
+pub async fn parse_route_with_observer(
+    navdata: &NavdataService,
+    route: &str,
+    observe: impl Fn(RouteParseStep<'_, '_>),
+) -> Result<Vec<ResolvedLeg>, ParseRouteError> {
+    let tokens: Vec<_> = Lexer::new(route).parse_all().collect();
+    observe(RouteParseStep::Lexed(&tokens));
+    let parsed: Vec<_> = Parser::new(tokens).parse().collect();
+    observe(RouteParseStep::Parsed(&parsed));
     if parsed.is_empty() {
         return Err(ParseRouteError::InvalidRoute("route is empty".to_owned()));
     }
@@ -75,19 +88,24 @@ pub async fn parse_route(
             ident.errors
         )));
     }
-    let candidates = CandidateResolver::new(parsed)
+    let candidates: Vec<_> = CandidateResolver::new(parsed)
         .resolve_candidates(navdata)
         .await?
         .collect();
-    let solved = Solver::new(candidates, navdata)
+    observe(RouteParseStep::Candidates(&candidates));
+    let solved: Vec<_> = Solver::new(candidates, navdata)
         .solve()
         .into_iter()
         .collect();
+    observe(RouteParseStep::Solved(&solved));
     let constructed = Constructor::new(solved).construct();
+    observe(RouteParseStep::Constructed(&constructed));
     if constructed.is_empty() {
         return Err(ParseRouteError::InvalidRoute(
             "no complete route could be constructed".to_owned(),
         ));
     }
-    Ok(Expander::new(constructed).expand(navdata).await?)
+    let expanded = Expander::new(constructed).expand(navdata).await?;
+    observe(RouteParseStep::Expanded(&expanded));
+    Ok(expanded)
 }

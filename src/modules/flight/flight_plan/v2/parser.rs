@@ -13,7 +13,7 @@ pub struct Parser<'s> {
     tokens: Vec<LexerToken<'s>>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Ident<'s> {
     pub ident: &'s str,
     pub amendments: Vec<IdentAmend>,
@@ -26,7 +26,16 @@ impl<'s> Ident<'s> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl<'s> std::fmt::Debug for Ident<'s> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{}/{:?}/E={:?}",
+            self.ident, self.amendments, self.errors
+        ))
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub enum IdentAmend {
     SpeedAndAltitude {
         speed: Speed,
@@ -34,6 +43,24 @@ pub enum IdentAmend {
     },
     FlightRuleVfr,
     FlightRuleIfr,
+}
+
+impl std::fmt::Debug for IdentAmend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::SpeedAndAltitude { .. } => "SpeedAndAltitude",
+                Self::FlightRuleVfr => "FlightRuleVfr",
+                Self::FlightRuleIfr => "FlightRuleIfr",
+            }
+        )?;
+        if let Self::SpeedAndAltitude { speed, altitude } = self {
+            write!(f, "({:?}, {:?})", speed, altitude)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

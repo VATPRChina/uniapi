@@ -119,43 +119,55 @@ fn procedure_edges(
         .iter()
         .filter(runway)
         .any(|segment| !segment.fixes.is_empty());
-    let connectors = segments
-        .iter()
-        .filter(|segment| {
-            if has_runway {
-                runway(segment)
-            } else {
-                matches!(segment.route_type.as_str(), "2" | "5")
-            }
-        })
-        .filter_map(|segment| match kind {
-            ProcedureKind::Sid => segment
-                .fixes
-                .first()
-                .map(|fix| named_segment(airport.clone(), fix.clone(), identifier)),
-            ProcedureKind::Star => segment
-                .fixes
-                .last()
-                .map(|fix| named_segment(fix.clone(), airport.clone(), identifier)),
-        });
+    let connectors =
+        segments
+            .iter()
+            .filter(|segment| {
+                if has_runway {
+                    runway(segment)
+                } else {
+                    matches!(segment.route_type.as_str(), "2" | "5")
+                }
+            })
+            .filter_map(|segment| match kind {
+                ProcedureKind::Sid => segment.fixes.first().map(|fix| {
+                    named_segment(airport.clone(), fix.clone(), identifier, true, false)
+                }),
+                ProcedureKind::Star => segment.fixes.last().map(|fix| {
+                    named_segment(fix.clone(), airport.clone(), identifier, false, true)
+                }),
+            });
     segments
         .iter()
         .flat_map(|segment| {
-            segment
-                .fixes
-                .windows(2)
-                .map(|pair| named_segment(pair[0].clone(), pair[1].clone(), identifier))
+            segment.fixes.windows(2).map(|pair| {
+                named_segment(
+                    pair[0].clone(),
+                    pair[1].clone(),
+                    identifier,
+                    kind == ProcedureKind::Sid,
+                    kind == ProcedureKind::Star,
+                )
+            })
         })
         .chain(connectors)
         .collect()
 }
 
-fn named_segment(from: AnyFix, to: AnyFix, identifier: &str) -> ResolvedLeg {
+fn named_segment(
+    from: AnyFix,
+    to: AnyFix,
+    identifier: &str,
+    is_sid: bool,
+    is_star: bool,
+) -> ResolvedLeg {
     ResolvedLeg {
         from,
         to,
         identifier: Some(identifier.to_owned()),
         is_unknown: false,
+        is_sid,
+        is_star,
         direction_restriction: DirectionRestriction::None,
     }
 }
