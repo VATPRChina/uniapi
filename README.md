@@ -39,18 +39,6 @@ cargo run -- route-v2 "ZBAA ELKUR W40 YQG ZSPD" \
   --preferred-routes data/Route-Server.csv
 ```
 
-To validate every route in the CSV and measure the v2 pipeline:
-
-```sh
-cargo run --offline --example route_v2_corpus -- --output /tmp/route-v2-corpus.json
-```
-
-The report records errors, endpoint/continuity checks, unresolved fixes, and
-per-route timings. Unknown fixes and unknown connecting legs fail validation by
-default; use `--allow-unresolved` to explicitly measure recovery behavior instead.
-See [the corpus benchmark](flight-plan-v2-corpus-benchmark.md)
-for measured results and instructions for running against an indexed navdata copy.
-
 ### Database
 
 This server requires a local PostgreSQL server. Please start one and specify the
