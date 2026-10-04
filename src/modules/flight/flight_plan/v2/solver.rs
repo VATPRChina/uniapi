@@ -174,8 +174,10 @@ impl Priority for IdentCandidate {
             IdentCandidate::Fix(FixCandidate::TerminalVor { .. }) => 10,
             IdentCandidate::Fix(FixCandidate::TerminalNdb { .. }) => 11,
             IdentCandidate::Fix(FixCandidate::TerminalWaypoint { .. }) => 12,
-            IdentCandidate::Leg(LegCandidate::UnknownAirway) => 101,
-            IdentCandidate::Fix(FixCandidate::UnknownWaypoint) => 102,
+            IdentCandidate::Leg(LegCandidate::UnknownSid) => 101,
+            IdentCandidate::Leg(LegCandidate::UnknownStar) => 102,
+            IdentCandidate::Leg(LegCandidate::UnknownAirway) => 103,
+            IdentCandidate::Fix(FixCandidate::UnknownWaypoint) => 104,
         }
     }
 }
@@ -212,8 +214,11 @@ impl CandidateSortPruneState {
                     .sorted_by_key(|c| (c.state.fallbacks, OrderedFloat(c.state.distance)))
                     .next()
             })
-            .filter(|c| !c.candidate.is_unknown() || !has_known_fix)
-            .filter(|c| !c.candidate.is_unknown() || !has_known_leg)
+            .filter(|c| match &c.candidate {
+                Fix(fix_candidate) => !fix_candidate.is_unknown() || !has_known_fix,
+                // do not prune leg as leg depends on future fix
+                IdentCandidate::Leg(leg_candidate) => true,
+            })
             .sorted_by_key(|c| c.candidate.priority())
             .collect()
     }
@@ -251,6 +256,19 @@ impl State {
     }
 
     pub fn next_state_fix_leg(&self, last: &FixCandidate, cur: &LegCandidate) -> Option<State> {
+        if !matches!(last, FixCandidate::Airport { .. }) && matches!(cur, LegCandidate::UnknownSid)
+        {
+            return None;
+        }
+        if let LegCandidate::Sid { airport: sid_aprt } = cur {
+            if let FixCandidate::Airport { airport, .. } = last {
+                if airport != sid_aprt {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+        }
         // TODO: if fix not on leg return None
         Some(State {
             last_token: StateToken::Leg(last.clone(), cur.clone()),
@@ -267,6 +285,19 @@ impl State {
         last_fix: &FixCandidate,
         cur: &FixCandidate,
     ) -> Option<State> {
+        if matches!(last, LegCandidate::UnknownStar) && !matches!(cur, FixCandidate::Airport { .. })
+        {
+            return None;
+        }
+        if let LegCandidate::Star { airport: star_aprt } = last {
+            if let FixCandidate::Airport { airport, .. } = cur {
+                if airport != star_aprt {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+        }
         // TODO: if fix not on leg return None
         Some(State {
             last_token: StateToken::Fix(cur.clone()),

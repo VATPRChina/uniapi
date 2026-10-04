@@ -140,11 +140,19 @@ pub enum LegCandidate {
     Sid { airport: AirportIdentifier },
     Star { airport: AirportIdentifier },
     UnknownAirway,
+    UnknownSid,
+    UnknownStar,
 }
 
 impl LegCandidate {
     pub fn is_unknown(&self) -> bool {
-        matches!(self, LegCandidate::UnknownAirway)
+        matches!(
+            self,
+            LegCandidate::UnknownAirway | LegCandidate::UnknownSid | LegCandidate::UnknownStar
+        )
+    }
+}
+
     }
 }
 
@@ -209,6 +217,8 @@ async fn resolve_ident(
                 .map(IdentCandidate::Leg)
                 .chain(fixes.into_iter().map(IdentCandidate::Fix))
                 .chain([
+                    IdentCandidate::Leg(LegCandidate::UnknownSid),
+                    IdentCandidate::Leg(LegCandidate::UnknownStar),
                     IdentCandidate::Leg(LegCandidate::UnknownAirway),
                     IdentCandidate::Fix(FixCandidate::UnknownWaypoint),
                 ])
