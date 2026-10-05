@@ -26,8 +26,6 @@
 //! Published leg segments
 //! ```
 
-#![allow(unused)]
-
 mod constructor;
 mod expander;
 mod lexer;
@@ -40,9 +38,7 @@ pub use constructor::Constructor;
 pub use expander::Expander;
 pub use lexer::{CruisingLevel, Lexer, LexerToken, LexerTokenAmend, LexerTokenValue, Speed};
 pub use parser::{Ident, IdentAmend, Parser};
-pub use resolver::{
-    CandidateResolver, FixCandidate, IdentCandidate, IdentWithCandidate, LegCandidate,
-};
+pub use resolver::{CandidateResolver, IdentCandidate, IdentWithCandidate};
 pub use solver::{CandidateWithState, SolvedIdent, Solver};
 pub use trace::RouteParseStep;
 
@@ -93,10 +89,7 @@ pub async fn parse_route_with_observer(
         .await?
         .collect();
     observe(RouteParseStep::Candidates(&candidates));
-    let solved: Vec<_> = Solver::new(candidates, navdata)
-        .solve()
-        .into_iter()
-        .collect();
+    let solved: Vec<_> = Solver::new(candidates).solve().into_iter().collect();
     observe(RouteParseStep::Solved(&solved));
     let constructed = Constructor::new(solved).construct();
     observe(RouteParseStep::Constructed(&constructed));

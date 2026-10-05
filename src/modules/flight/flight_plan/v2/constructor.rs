@@ -1,13 +1,5 @@
-use arrayvec::ArrayString;
-
-use super::{
-    CandidateWithState, FixCandidate, IdentCandidate, LegCandidate, Lexer, LexerTokenValue,
-    SolvedIdent,
-};
-use crate::modules::navdata::models::{
-    Airport, AnyFix, DirectionRestriction, GeoPoint, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint,
-    WaypointKind,
-};
+use super::{CandidateWithState, IdentCandidate, SolvedIdent};
+use crate::modules::navdata::models::{DirectionRestriction, NavProc, ResolvedLeg};
 
 type PathEntry<'a, 's> = (&'a SolvedIdent<'s>, &'a CandidateWithState);
 
@@ -67,8 +59,8 @@ fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ResolvedLeg>> {
     let fixes: Vec<_> = path
         .iter()
         .enumerate()
-        .filter_map(|(index, (ident, candidate))| match &candidate.candidate {
-            IdentCandidate::Fix(fix) => Some((index, to_fix(ident.ident.identifier(), fix))),
+        .filter_map(|(index, (_, candidate))| match &candidate.candidate {
+            IdentCandidate::Fix(fix) => Some((index, fix)),
             IdentCandidate::Leg(_) => None,
         })
         .collect();
@@ -81,20 +73,20 @@ fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ResolvedLeg>> {
             let (identifier, is_unknown, is_sid, is_star) = match &path[from_index + 1..*to_index] {
                 [] => (None, false, false, false),
                 [(ident, candidate)] => match &candidate.candidate {
-                    IdentCandidate::Leg(LegCandidate::Direct) => (None, false, false, false),
+                    IdentCandidate::Leg(NavProc::Direct) => (None, false, false, false),
                     IdentCandidate::Leg(leg) => (
                         Some(ident.ident.identifier().to_owned()),
                         leg.is_unknown(),
-                        matches!(leg, LegCandidate::Sid { .. } | LegCandidate::UnknownSid),
-                        matches!(leg, LegCandidate::Star { .. } | LegCandidate::UnknownStar),
+                        matches!(leg, NavProc::Sid(_) | NavProc::UnknownSid(_)),
+                        matches!(leg, NavProc::Star(_) | NavProc::UnknownStar(_)),
                     ),
                     IdentCandidate::Fix(_) => return None,
                 },
                 _ => return None,
             };
             Some(ResolvedLeg {
-                from: from.clone(),
-                to: to.clone(),
+                from: (*from).to_owned(),
+                to: (*to).to_owned(),
                 identifier,
                 is_unknown,
                 is_sid,
@@ -103,77 +95,4 @@ fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ResolvedLeg>> {
             })
         })
         .collect()
-}
-
-fn to_fix(identifier: &str, candidate: &FixCandidate) -> AnyFix {
-    // Reference candidates already contain the projected coordinates. Treat them
-    // as points to avoid projecting twice or fitting the reference text into the
-    // fixed-size identifier fields of the shared navigation models.
-    if let Some((lat, lon)) = candidate.position()
-        && matches!(
-            Lexer::new(identifier)
-                .parse_all()
-                .next()
-                .map(|token| token.value),
-            Some(LexerTokenValue::IdentifierReference { .. })
-        )
-    {
-        return AnyFix::GeoPoint(GeoPoint::new(lat, lon));
-    }
-    typed_fix(identifier, candidate).unwrap_or_else(|| AnyFix::Unknown(identifier.to_owned()))
-}
-
-fn typed_fix(identifier: &str, candidate: &FixCandidate) -> Option<AnyFix> {
-    let (latitude, longitude) = candidate.position()?;
-    Some(match candidate {
-        FixCandidate::Airport { airport, .. } => AnyFix::Airport(Airport {
-            identifier: *airport,
-            latitude,
-            longitude,
-        }),
-        FixCandidate::Geo { .. } => AnyFix::GeoPoint(GeoPoint::new(latitude, longitude)),
-        FixCandidate::EnrouteWaypoint { icao_code, .. } => AnyFix::Waypoint(Waypoint {
-            icao_code: ArrayString::from(icao_code.as_str()).ok()?,
-            identifier: ArrayString::from(identifier).ok()?,
-            latitude,
-            longitude,
-            kind: WaypointKind::Enroute,
-        }),
-        // Terminal candidates retain an airport scope, but no ICAO region.
-        // Shared models cannot carry that scope; leave the region empty.
-        FixCandidate::TerminalWaypoint { .. } => AnyFix::Waypoint(Waypoint {
-            icao_code: ArrayString::new(),
-            identifier: ArrayString::from(identifier).ok()?,
-            latitude,
-            longitude,
-            kind: WaypointKind::Terminal,
-        }),
-        FixCandidate::EnrouteNdb { icao_code, .. } => AnyFix::Ndb(Ndb {
-            icao_code: ArrayString::from(icao_code.as_str()).ok()?,
-            identifier: ArrayString::from(identifier).ok()?,
-            latitude,
-            longitude,
-            kind: NdbKind::Enroute,
-        }),
-        FixCandidate::TerminalNdb { .. } => AnyFix::Ndb(Ndb {
-            icao_code: ArrayString::new(),
-            identifier: ArrayString::from(identifier).ok()?,
-            latitude,
-            longitude,
-            kind: NdbKind::Terminal,
-        }),
-        FixCandidate::EnrouteVor { icao_code, .. } => AnyFix::Vhf(Vhf {
-            icao_code: ArrayString::from(icao_code.as_str()).ok()?,
-            identifier: ArrayString::from(identifier).ok()?,
-            latitude,
-            longitude,
-        }),
-        FixCandidate::TerminalVor { .. } => AnyFix::Vhf(Vhf {
-            icao_code: ArrayString::new(),
-            identifier: ArrayString::from(identifier).ok()?,
-            latitude,
-            longitude,
-        }),
-        FixCandidate::UnknownWaypoint => return None,
-    })
 }

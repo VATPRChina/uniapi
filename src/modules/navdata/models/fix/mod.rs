@@ -17,6 +17,32 @@ use crate::modules::navdata::models::Identifiable;
 pub trait Fix {
     fn latitude(&self) -> f64;
     fn longitude(&self) -> f64;
+
+    fn valid_latitude_or(&self, default: f64) -> f64 {
+        if self.latitude().is_finite() {
+            self.latitude()
+        } else {
+            default
+        }
+    }
+
+    fn valid_longitude_or(&self, default: f64) -> f64 {
+        if self.longitude().is_finite() {
+            self.longitude()
+        } else {
+            default
+        }
+    }
+
+    fn position(&self) -> Option<(f64, f64)> {
+        if !self.latitude().is_finite() {
+            return None;
+        }
+        if !self.longitude().is_finite() {
+            return None;
+        }
+        Some((self.latitude(), self.longitude()))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -39,7 +65,7 @@ impl Fix for AnyFix {
             AnyFix::Vhf(vhf) => vhf.latitude(),
             AnyFix::Waypoint(waypoint) => waypoint.latitude(),
             AnyFix::FixReference(fix_ref) => fix_ref.latitude(),
-            AnyFix::Unknown(_) => 0.,
+            AnyFix::Unknown(_) => f64::NAN,
         }
     }
 
@@ -51,7 +77,7 @@ impl Fix for AnyFix {
             AnyFix::Vhf(vhf) => vhf.longitude(),
             AnyFix::Waypoint(waypoint) => waypoint.longitude(),
             AnyFix::FixReference(fix_ref) => fix_ref.longitude(),
-            AnyFix::Unknown(_) => 0.,
+            AnyFix::Unknown(_) => f64::NAN,
         }
     }
 }
@@ -80,5 +106,9 @@ impl AnyFix {
             AnyFix::FixReference(_) => None,
             AnyFix::Unknown(str) => Some(str.as_str()),
         }
+    }
+
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, AnyFix::Unknown(_))
     }
 }

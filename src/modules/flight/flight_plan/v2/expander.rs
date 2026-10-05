@@ -1,7 +1,5 @@
-use crate::modules::navdata::{
-    models::{AnyFix, DirectionRestriction, Fix, NavProc, ResolvedLeg},
-    service::{InvalidNavdataError, NavdataResult, NavdataService},
-};
+use crate::modules::navdata::models::{AnyFix, Fix, ResolvedLeg};
+use crate::modules::navdata::service::{InvalidNavdataError, NavdataResult, NavdataService};
 use futures::{StreamExt, TryStreamExt, stream};
 
 pub struct Expander {
@@ -35,8 +33,8 @@ async fn expand_leg(
         return Ok(vec![leg.clone()]);
     };
     if leg.is_unknown
-        || !known_fix(&leg.from)
-        || !known_fix(&leg.to)
+        || leg.from.is_unknown()
+        || leg.to.is_unknown()
         || same_fix(&leg.from, &leg.to)
     {
         return Ok(vec![leg.clone()]);
@@ -46,7 +44,7 @@ async fn expand_leg(
             .find_sids(identifier)
             .await?
             .into_iter()
-            .find(|sid| leg.from.identifier() == Some(identifier))
+            .find(|_| leg.from.identifier() == Some(identifier))
             .map(|s| s.legs)
             .unwrap_or_default()
     } else if leg.is_star {
@@ -54,7 +52,7 @@ async fn expand_leg(
             .find_stars(identifier)
             .await?
             .into_iter()
-            .find(|sid| leg.from.identifier() == Some(identifier))
+            .find(|_| leg.from.identifier() == Some(identifier))
             .map(|s| s.legs)
             .unwrap_or_default()
     } else {
@@ -66,7 +64,7 @@ async fn expand_leg(
     };
     if edges
         .iter()
-        .any(|edge| !known_fix(&edge.from) || !known_fix(&edge.to))
+        .any(|edge| edge.from.is_unknown() || edge.to.is_unknown())
     {
         return Err(InvalidNavdataError::InternalError(
             "invalid expansion coordinates",
@@ -93,49 +91,6 @@ async fn expand_leg(
                 .collect()
         })
         .unwrap_or_else(|| vec![leg.clone()]))
-}
-
-async fn airway_edges(
-    navdata: &NavdataService,
-    identifier: &str,
-) -> NavdataResult<Vec<ResolvedLeg>> {
-    Ok(navdata
-        .find_airway(identifier)
-        .await?
-        .map(|airway| {
-            airway
-                .legs
-                .into_iter()
-                .flat_map(|segment| [segment.clone(), segment.into_reversed()])
-                .collect()
-        })
-        .unwrap_or_default())
-}
-
-fn named_segment(
-    from: AnyFix,
-    to: AnyFix,
-    identifier: &str,
-    is_sid: bool,
-    is_star: bool,
-) -> ResolvedLeg {
-    ResolvedLeg {
-        from,
-        to,
-        identifier: Some(identifier.to_owned()),
-        is_unknown: false,
-        is_sid,
-        is_star,
-        direction_restriction: DirectionRestriction::None,
-    }
-}
-
-fn known_fix(fix: &AnyFix) -> bool {
-    !matches!(fix, AnyFix::Unknown(_))
-        && fix.latitude().is_finite()
-        && fix.longitude().is_finite()
-        && (-90. ..=90.).contains(&fix.latitude())
-        && (-180. ..=180.).contains(&fix.longitude())
 }
 
 fn same_fix(left: &AnyFix, right: &AnyFix) -> bool {

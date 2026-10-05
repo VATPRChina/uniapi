@@ -11,6 +11,10 @@ pub enum NavProc {
     Airway(Airway),
     Sid(Sid),
     Star(Star),
+    UnknownAirway(String),
+    UnknownSid(String),
+    UnknownStar(String),
+    Direct,
 }
 
 impl NavProc {
@@ -19,6 +23,10 @@ impl NavProc {
             Self::Airway(proc) => proc.identifier.as_str(),
             Self::Sid(proc) => proc.identifier.as_str(),
             Self::Star(proc) => proc.identifier.as_str(),
+            Self::UnknownAirway(ident) => ident.as_str(),
+            Self::UnknownSid(ident) => ident.as_str(),
+            Self::UnknownStar(ident) => ident.as_str(),
+            Self::Direct => "DCT",
         }
     }
 
@@ -27,6 +35,17 @@ impl NavProc {
             Self::Airway(proc) => &proc.legs,
             Self::Sid(proc) => &proc.legs,
             Self::Star(proc) => &proc.legs,
+            Self::UnknownAirway(_) => &[],
+            Self::UnknownSid(_) => &[],
+            Self::UnknownStar(_) => &[],
+            Self::Direct => &[],
         }
+    }
+
+    pub fn is_unknown(&self) -> bool {
+        matches!(
+            self,
+            NavProc::UnknownAirway(_) | NavProc::UnknownSid(_) | NavProc::UnknownStar(_)
+        )
     }
 }

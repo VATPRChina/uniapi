@@ -1,21 +1,11 @@
-use std::collections::{BTreeMap, HashMap};
-
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use sea_query::IndexType::BTree;
 
-use crate::modules::{
-    flight::flight_plan::v2::{
-        FixCandidate, Ident,
-        IdentCandidate::{self, Fix},
-        IdentWithCandidate, LegCandidate,
-    },
-    navdata::service::NavdataService,
-};
+use crate::modules::flight::flight_plan::v2::{Ident, IdentCandidate, IdentWithCandidate};
+use crate::modules::navdata::models::{AnyFix, Fix, NavProc, Ndb, NdbKind, Waypoint, WaypointKind};
 
-pub struct Solver<'s, 'n> {
+pub struct Solver<'s> {
     idents: Vec<IdentWithCandidate<'s>>,
-    navdata: &'n NavdataService,
 }
 
 #[derive(Debug, PartialEq)]
@@ -30,8 +20,8 @@ struct State {
 
 #[derive(Debug, PartialEq)]
 enum StateToken {
-    Fix(FixCandidate),
-    Leg(FixCandidate, LegCandidate),
+    Fix(AnyFix),
+    Leg(AnyFix, NavProc),
 }
 
 #[derive(Debug, PartialEq)]
@@ -53,9 +43,9 @@ impl CandidateWithState {
     }
 }
 
-impl<'s, 'n> Solver<'s, 'n> {
-    pub fn new(idents: Vec<IdentWithCandidate<'s>>, navdata: &'n NavdataService) -> Self {
-        Self { idents, navdata }
+impl<'s> Solver<'s> {
+    pub fn new(idents: Vec<IdentWithCandidate<'s>>) -> Self {
+        Self { idents }
     }
 
     pub fn solve(self) -> impl IntoIterator<Item = SolvedIdent<'s>> {
@@ -86,8 +76,8 @@ impl<'s, 'n> Solver<'s, 'n> {
                         last_token: StateToken::Fix(fix.clone()),
                         fallbacks: usize::from(fix.is_unknown()),
                         distance: 0.,
-                        position_lat: fix.latitude().unwrap_or_default(),
-                        position_lon: fix.longitude().unwrap_or_default(),
+                        position_lat: fix.valid_latitude_or(0.),
+                        position_lon: fix.valid_longitude_or(0.),
                     },
                     last_candidate_idx: 0,
                 }),
@@ -140,7 +130,7 @@ impl<'s, 'n> Solver<'s, 'n> {
     }
 
     fn solve_ident_candidate_with_last_candidate(
-        ident: &IdentWithCandidate<'s>,
+        _ident: &IdentWithCandidate<'s>,
         candidate: &IdentCandidate,
         last_candidate: &CandidateWithState,
         last_candidate_idx: usize,
@@ -162,52 +152,55 @@ trait Priority {
 impl Priority for IdentCandidate {
     fn priority(&self) -> u8 {
         match self {
-            IdentCandidate::Leg(LegCandidate::Direct) => 1,
-            IdentCandidate::Leg(LegCandidate::Airway) => 2,
-            IdentCandidate::Fix(FixCandidate::Geo { .. }) => 3,
-            IdentCandidate::Fix(FixCandidate::Airport { .. }) => 4,
-            IdentCandidate::Fix(FixCandidate::EnrouteVor { .. }) => 5,
-            IdentCandidate::Fix(FixCandidate::EnrouteNdb { .. }) => 6,
-            IdentCandidate::Fix(FixCandidate::EnrouteWaypoint { .. }) => 7,
-            IdentCandidate::Leg(LegCandidate::Sid { .. }) => 8,
-            IdentCandidate::Leg(LegCandidate::Star { .. }) => 9,
-            IdentCandidate::Fix(FixCandidate::TerminalVor { .. }) => 10,
-            IdentCandidate::Fix(FixCandidate::TerminalNdb { .. }) => 11,
-            IdentCandidate::Fix(FixCandidate::TerminalWaypoint { .. }) => 12,
-            IdentCandidate::Leg(LegCandidate::UnknownSid) => 101,
-            IdentCandidate::Leg(LegCandidate::UnknownStar) => 102,
-            IdentCandidate::Leg(LegCandidate::UnknownAirway) => 103,
-            IdentCandidate::Fix(FixCandidate::UnknownWaypoint) => 104,
+            IdentCandidate::Leg(NavProc::Direct) => 1,
+            IdentCandidate::Leg(NavProc::Airway(_)) => 2,
+            IdentCandidate::Fix(AnyFix::GeoPoint(_)) => 3,
+            IdentCandidate::Fix(AnyFix::Airport(_)) => 4,
+            IdentCandidate::Fix(AnyFix::Vhf(_)) => 5,
+            IdentCandidate::Fix(AnyFix::Ndb(Ndb {
+                kind: NdbKind::Enroute,
+                ..
+            })) => 6,
+            IdentCandidate::Fix(AnyFix::Waypoint(Waypoint {
+                kind: WaypointKind::Enroute,
+                ..
+            })) => 7,
+            IdentCandidate::Leg(NavProc::Sid(_)) => 8,
+            IdentCandidate::Leg(NavProc::Star(_)) => 9,
+            IdentCandidate::Fix(AnyFix::Ndb(Ndb {
+                kind: NdbKind::Terminal,
+                ..
+            })) => 10,
+            IdentCandidate::Fix(AnyFix::Waypoint(Waypoint {
+                kind: WaypointKind::Terminal,
+                ..
+            })) => 11,
+            IdentCandidate::Leg(NavProc::UnknownSid(_)) => 101,
+            IdentCandidate::Leg(NavProc::UnknownStar(_)) => 102,
+            IdentCandidate::Leg(NavProc::UnknownAirway(_)) => 103,
+            IdentCandidate::Fix(AnyFix::Unknown(_)) => 104,
+            IdentCandidate::Fix(AnyFix::FixReference(_)) => 255, // unreachable
         }
     }
 }
 
-struct CandidateSortPruneState {
-    item_kind_count: BTreeMap<u8, usize>,
-}
+struct CandidateSortPruneState {}
 
 impl CandidateSortPruneState {
-    pub fn new<'c>(candiates: impl Iterator<Item = &'c CandidateWithState>) -> Self {
-        let item_kind_count = candiates.fold(BTreeMap::new(), |mut acc, candidate| {
-            *acc.entry(candidate.candidate.priority()).or_insert(0) += 1;
-            acc
-        });
-        CandidateSortPruneState { item_kind_count }
+    pub fn new<'c>(_: impl Iterator<Item = &'c CandidateWithState>) -> Self {
+        CandidateSortPruneState {}
     }
 
     pub fn handle(&mut self, candiates: Vec<CandidateWithState>) -> Vec<CandidateWithState> {
         let has_known_fix = candiates
             .iter()
             .any(|c| matches!(c.candidate, IdentCandidate::Fix(_)) && !c.candidate.is_unknown());
-        let has_known_leg = candiates
-            .iter()
-            .any(|c| matches!(c.candidate, IdentCandidate::Leg(_)) && !c.candidate.is_unknown());
 
         candiates
             .into_iter()
             .into_group_map_by(|c| c.candidate.priority())
-            .into_iter()
-            .flat_map(|(p, g)| {
+            .into_values()
+            .flat_map(|g| {
                 g.into_iter()
                     // Prefer a known history before comparing its distance. A
                     // cheap unknown point must not displace a published airway.
@@ -215,9 +208,9 @@ impl CandidateSortPruneState {
                     .next()
             })
             .filter(|c| match &c.candidate {
-                Fix(fix_candidate) => !fix_candidate.is_unknown() || !has_known_fix,
+                IdentCandidate::Fix(fix_candidate) => !fix_candidate.is_unknown() || !has_known_fix,
                 // do not prune leg as leg depends on future fix
-                IdentCandidate::Leg(leg_candidate) => true,
+                IdentCandidate::Leg(_) => true,
             })
             .sorted_by_key(|c| c.candidate.priority())
             .collect()
@@ -242,7 +235,7 @@ impl State {
         }
     }
 
-    pub fn next_state_fix_fix(&self, last: &FixCandidate, cur: &FixCandidate) -> Option<State> {
+    pub fn next_state_fix_fix(&self, _last: &AnyFix, cur: &AnyFix) -> Option<State> {
         Some(State {
             last_token: StateToken::Fix(cur.clone()),
             fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
@@ -250,19 +243,18 @@ impl State {
                 + cur.position().map_or(1000., |(lat, lon)| {
                     distance_nm(lat, lon, self.position_lat, self.position_lon)
                 }),
-            position_lat: cur.latitude().unwrap_or(self.position_lat),
-            position_lon: cur.longitude().unwrap_or(self.position_lon),
+            position_lat: cur.valid_latitude_or(self.position_lat),
+            position_lon: cur.valid_longitude_or(self.position_lon),
         })
     }
 
-    pub fn next_state_fix_leg(&self, last: &FixCandidate, cur: &LegCandidate) -> Option<State> {
-        if !matches!(last, FixCandidate::Airport { .. }) && matches!(cur, LegCandidate::UnknownSid)
-        {
+    pub fn next_state_fix_leg(&self, last: &AnyFix, cur: &NavProc) -> Option<State> {
+        if !matches!(last, AnyFix::Airport { .. }) && matches!(cur, NavProc::UnknownSid(_)) {
             return None;
         }
-        if let LegCandidate::Sid { airport: sid_aprt } = cur {
-            if let FixCandidate::Airport { airport, .. } = last {
-                if airport != sid_aprt {
+        if let NavProc::Sid(sid) = cur {
+            if let AnyFix::Airport(airport) = last {
+                if airport.identifier != sid.airport {
                     return None;
                 }
             } else {
@@ -281,17 +273,16 @@ impl State {
 
     pub fn next_state_leg_fix(
         &self,
-        last: &LegCandidate,
-        last_fix: &FixCandidate,
-        cur: &FixCandidate,
+        last: &NavProc,
+        _last_fix: &AnyFix,
+        cur: &AnyFix,
     ) -> Option<State> {
-        if matches!(last, LegCandidate::UnknownStar) && !matches!(cur, FixCandidate::Airport { .. })
-        {
+        if matches!(last, NavProc::UnknownStar(_)) && !matches!(cur, AnyFix::Airport(_)) {
             return None;
         }
-        if let LegCandidate::Star { airport: star_aprt } = last {
-            if let FixCandidate::Airport { airport, .. } = cur {
-                if airport != star_aprt {
+        if let NavProc::Star(star) = last {
+            if let AnyFix::Airport(airport) = cur {
+                if airport.identifier != star.airport {
                     return None;
                 }
             } else {
@@ -308,16 +299,16 @@ impl State {
                     distance_nm(lat, lon, self.position_lat, self.position_lon)
                 })
                 + if last.is_unknown() { 1000. } else { 0. },
-            position_lat: cur.latitude().unwrap_or(self.position_lat),
-            position_lon: cur.longitude().unwrap_or(self.position_lon),
+            position_lat: cur.valid_latitude_or(self.position_lat),
+            position_lon: cur.valid_longitude_or(self.position_lon),
         })
     }
 
     pub fn next_state_leg_leg(
         &self,
-        last: &LegCandidate,
-        last_fix: &FixCandidate,
-        cur: &LegCandidate,
+        _last: &NavProc,
+        _last_fix: &AnyFix,
+        _cur: &NavProc,
     ) -> Option<State> {
         // TODO: support leg-leg error recovery
         None

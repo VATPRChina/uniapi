@@ -66,7 +66,6 @@ impl NavdataService {
         })
     }
 
-    #[deprecated]
     #[instrument(skip(self), fields(ident = %ident))]
     pub async fn find_airport(&self, ident: &str) -> NavdataResult<Option<Airport>> {
         let result: Option<AirportRecord> = sqlx::query_as(
