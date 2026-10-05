@@ -1,22 +1,23 @@
 use super::{CandidateWithState, IdentCandidate, SolvedIdent};
 use crate::modules::navdata::models::{DirectionRestriction, NavProc, ResolvedLeg};
 
-type PathEntry<'a, 's> = (&'a SolvedIdent<'s>, &'a CandidateWithState);
+type PathEntry<'a, 'c, 's> = (&'a SolvedIdent<'c, 's>, &'a CandidateWithState<'c>);
 
 /// A logical route leg and the exact procedure selected by the solver.
 /// Direct connections have no procedure; named procedures retain their loaded legs.
+/// Procedures are borrowed from the resolved candidates, not copied into each leg.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ConstructedLeg {
+pub struct ConstructedLeg<'c> {
     pub leg: ResolvedLeg,
-    pub procedure: Option<NavProc>,
+    pub procedure: Option<&'c NavProc>,
 }
 
-pub struct Constructor<'s> {
-    idents: Vec<SolvedIdent<'s>>,
+pub struct Constructor<'c, 's> {
+    idents: Vec<SolvedIdent<'c, 's>>,
 }
 
-impl<'s> Constructor<'s> {
-    pub fn new(idents: Vec<SolvedIdent<'s>>) -> Self {
+impl<'c, 's> Constructor<'c, 's> {
+    pub fn new(idents: Vec<SolvedIdent<'c, 's>>) -> Self {
         Self { idents }
     }
 
@@ -25,7 +26,7 @@ impl<'s> Constructor<'s> {
     /// Empty or incomplete input yields no legs. Named connections retain their
     /// route identifier and selected procedure for subsequent expansion.
     /// ResolvedLeg cannot represent the parsed speed/level or flight-rule amendments.
-    pub fn construct(&self) -> Vec<ConstructedLeg> {
+    pub fn construct(&self) -> Vec<ConstructedLeg<'c>> {
         self.idents
             .last()
             .into_iter()
@@ -38,7 +39,7 @@ impl<'s> Constructor<'s> {
             .unwrap_or_default()
     }
 
-    fn path(&self, candidate_index: usize) -> Option<Vec<PathEntry<'_, 's>>> {
+    fn path(&self, candidate_index: usize) -> Option<Vec<PathEntry<'_, 'c, 's>>> {
         let ident_index = self.idents.len().checked_sub(1)?;
         let candidate = self.idents[ident_index].candidates.get(candidate_index)?;
         let backwards: Vec<_> =
@@ -60,14 +61,14 @@ impl<'s> Constructor<'s> {
     }
 }
 
-fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ConstructedLeg>> {
+fn construct_path<'c>(path: &[PathEntry<'_, 'c, '_>]) -> Option<Vec<ConstructedLeg<'c>>> {
     if !matches!(path.first()?.1.candidate, IdentCandidate::Fix(_)) {
         return None;
     }
     let fixes: Vec<_> = path
         .iter()
         .enumerate()
-        .filter_map(|(index, (_, candidate))| match &candidate.candidate {
+        .filter_map(|(index, (_, candidate))| match candidate.candidate {
             IdentCandidate::Fix(fix) => Some((index, fix)),
             IdentCandidate::Leg(_) => None,
         })
@@ -80,10 +81,10 @@ fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ConstructedLeg>> {
             };
             let (identifier, procedure) = match &path[from_index + 1..*to_index] {
                 [] => (None, None),
-                [(ident, candidate)] => match &candidate.candidate {
+                [(ident, candidate)] => match candidate.candidate {
                     IdentCandidate::Leg(NavProc::Direct) => (None, None),
                     IdentCandidate::Leg(leg) => {
-                        (Some(ident.ident.identifier().to_owned()), Some(leg.clone()))
+                        (Some(ident.ident.identifier().to_owned()), Some(leg))
                     }
                     IdentCandidate::Fix(_) => return None,
                 },
@@ -94,7 +95,7 @@ fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ConstructedLeg>> {
                     from: (*from).to_owned(),
                     to: (*to).to_owned(),
                     identifier,
-                    is_unknown: procedure.as_ref().is_some_and(NavProc::is_unknown),
+                    is_unknown: procedure.is_some_and(NavProc::is_unknown),
                     is_sid: matches!(procedure, Some(NavProc::Sid(_) | NavProc::UnknownSid(_))),
                     is_star: matches!(procedure, Some(NavProc::Star(_) | NavProc::UnknownStar(_))),
                     direction_restriction: DirectionRestriction::None,
@@ -103,4 +104,53 @@ fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ConstructedLeg>> {
             })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::modules::flight::flight_plan::v2::{
+        Expander, IdentWithCandidate, Lexer, Parser, Solver,
+    };
+    use crate::modules::navdata::models::{Airway, AnyFix, GeoPoint};
+
+    #[test]
+    fn reconstructs_a_known_predecessor_path_instead_of_a_recovery_path() {
+        let from = AnyFix::GeoPoint(GeoPoint::new(30., 110.));
+        let via = AnyFix::GeoPoint(GeoPoint::new(30., 111.));
+        let to = AnyFix::GeoPoint(GeoPoint::new(30., 112.));
+        let published: Vec<_> = [(from.clone(), via.clone()), (via, to.clone())]
+            .into_iter()
+            .map(|(from, to)| ResolvedLeg {
+                from,
+                to,
+                identifier: Some("A1".to_owned()),
+                is_unknown: false,
+                is_sid: false,
+                is_star: false,
+                direction_restriction: DirectionRestriction::None,
+            })
+            .collect();
+        let candidates = [
+            vec![IdentCandidate::Fix(from)],
+            vec![
+                IdentCandidate::Leg(NavProc::UnknownAirway("A1".to_owned())),
+                IdentCandidate::Leg(NavProc::Airway(Airway {
+                    identifier: "A1".try_into().unwrap(),
+                    legs: published.clone(),
+                })),
+            ],
+            vec![IdentCandidate::Fix(to)],
+        ];
+        let resolved: Vec<_> = Parser::new(Lexer::new("AAAA A1 BBBB").parse_all().collect())
+            .parse()
+            .zip(candidates)
+            .map(|(ident, candidates)| IdentWithCandidate { ident, candidates })
+            .collect();
+        let constructed = Constructor::new(Solver::new(&resolved).solve()).construct();
+        assert_eq!(constructed.len(), 1);
+        assert!(!constructed[0].leg.is_unknown);
+        assert!(matches!(constructed[0].procedure, Some(NavProc::Airway(_))));
+        assert_eq!(Expander::new(constructed).expand().unwrap(), published);
+    }
 }
