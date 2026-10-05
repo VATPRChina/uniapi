@@ -7,9 +7,11 @@
 //! seg = (IDENTIFIER | IDENTIFIER_REFERENCE | GEO) (VFR | IFR)? | DIRECT
 //! ```
 
-use crate::modules::flight::flight_plan::v2::{CruisingLevel, LexerToken, LexerTokenValue, Speed};
+use crate::modules::flight::flight_plan::parser::{
+    CruisingLevel, LexerToken, LexerTokenValue, Speed,
+};
 
-pub struct Parser<'s> {
+pub struct LexGrouper<'s> {
     tokens: Vec<LexerToken<'s>>,
 }
 
@@ -72,7 +74,7 @@ pub enum ParserIdentError {
     MissingArrival,
 }
 
-impl<'s> Parser<'s> {
+impl<'s> LexGrouper<'s> {
     pub fn new(tokens: Vec<LexerToken<'s>>) -> Self {
         Self { tokens }
     }
@@ -238,10 +240,10 @@ impl<'t, 's> Input<'t, 's> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::modules::flight::flight_plan::v2::lexer::Lexer;
+    use crate::modules::flight::flight_plan::parser::lexer::Lexer;
 
     fn parse(route: &str) -> Vec<Ident<'_>> {
-        Parser::new(Lexer::new(route).parse_all().collect())
+        LexGrouper::new(Lexer::new(route).parse_all().collect())
             .parse()
             .collect()
     }

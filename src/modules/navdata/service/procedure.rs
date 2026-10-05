@@ -75,6 +75,7 @@ pub(super) async fn find_common_procedures(
 struct ProcedureRecord {
     airport: String,
     route_type: String,
+    #[allow(unused)]
     transition: String,
     identifier: Option<String>,
     icao_code: Option<String>,

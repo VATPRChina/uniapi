@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 
-use crate::modules::flight::flight_plan::v2::{Ident, IdentCandidate, IdentWithCandidate};
+use crate::modules::flight::flight_plan::parser::{Ident, IdentCandidate, IdentWithCandidate};
 use crate::modules::navdata::models::{AnyFix, Fix, NavProc, Ndb, NdbKind, Waypoint, WaypointKind};
 
 pub struct Solver<'s> {

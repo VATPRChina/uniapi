@@ -16,7 +16,7 @@ use crate::modules::atc_position::service::AtcPositionServiceError;
 use crate::modules::audit_log::service::AuditLogServiceError;
 use crate::modules::controller::service::ControllerServiceError;
 use crate::modules::event::service::EventServiceError;
-use crate::modules::flight::flight_plan::parser::ParserError;
+use crate::modules::flight::flight_plan::ParseRouteError;
 use crate::modules::flight::flight_plan::validator::ValidatorError;
 use crate::modules::flight::service::FlightServiceError;
 use crate::modules::sheet::service::SheetServiceError;
@@ -116,7 +116,7 @@ api_errors!(
     SoloExpirationNotProvided => StatusCode::BAD_REQUEST
         => "solo expiration not provided",
 
-    RouteParser { #[from] source: ParserError } => StatusCode::INTERNAL_SERVER_ERROR
+    RouteParser { #[from] source: ParseRouteError } => StatusCode::INTERNAL_SERVER_ERROR
         => "failed to parse route: {source}",
     RouteValidator { #[from] source: ValidatorError } => StatusCode::INTERNAL_SERVER_ERROR
         => "failed to validate route: {source}",

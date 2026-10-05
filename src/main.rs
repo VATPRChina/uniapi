@@ -3,7 +3,7 @@ use std::path::Path;
 
 use clap::Parser;
 use vatprc_uniapi::discord::DiscordBot;
-use vatprc_uniapi::modules::flight::flight_plan::v2;
+use vatprc_uniapi::modules::flight::flight_plan::parse_route_with_observer;
 use vatprc_uniapi::modules::navdata::service::NavdataService;
 use vatprc_uniapi::services::Services;
 use vatprc_uniapi::{app, command, openapi, repository, settings, telemetry};
@@ -98,7 +98,7 @@ async fn route_v2(
     )
     .await?;
     println!("Route: {route}\n");
-    v2::parse_route_with_observer(&navdata, route, |step| print!("{step}")).await?;
+    parse_route_with_observer(&navdata, route, |step| print!("{step}")).await?;
     Ok(())
 }
 

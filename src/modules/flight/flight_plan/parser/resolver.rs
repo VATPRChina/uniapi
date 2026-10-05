@@ -1,6 +1,6 @@
 use futures::{StreamExt, TryStreamExt, stream};
 
-use crate::modules::flight::flight_plan::v2::{Ident, Lexer, LexerTokenValue};
+use crate::modules::flight::flight_plan::parser::{Ident, Lexer, LexerTokenValue};
 use crate::modules::navdata::models::{AnyFix, GeoPoint, NavProc};
 use crate::modules::navdata::service::{InvalidNavdataError, NavdataResult, NavdataService};
 

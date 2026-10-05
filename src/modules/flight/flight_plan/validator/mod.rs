@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use serde::Serialize;
 
-use crate::modules::flight::flight_plan::parser::{self, ParserError};
 use crate::modules::flight::flight_plan::validator::flight_validator::{
     EquipmentRnav1Validator, NavigationPerformanceRnav1Validator, RnpArValidator,
     RnpArWithoutRfValidator, RvsmValidator,
@@ -11,6 +10,7 @@ use crate::modules::flight::flight_plan::validator::matching_route_validator::{
     AllowedAltitudesValidator, CruisingLevelRestrictionValidator, MinimalAltitudeValidator,
     NoMatchingRouteValidator, RouteMatchValidator,
 };
+use crate::modules::flight::flight_plan::{ParseRouteError, parse_route};
 use crate::modules::flight::models::Flight;
 use crate::modules::navdata::models::{AnyFix, Fix, PreferredRoute, ResolvedLeg};
 use crate::modules::navdata::service::{InvalidNavdataError, NavdataService};
@@ -24,7 +24,7 @@ pub enum ValidatorError {
     #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
     #[error("parser error: {0}")]
-    Parser(#[from] ParserError),
+    Parser(#[from] ParseRouteError),
     #[error("navdata error: {0}")]
     Navdata(InvalidNavdataError),
 }
@@ -186,7 +186,7 @@ async fn find_matching_route<'a>(
             preferred_route.name,
             preferred_route.raw_route
         );
-        let parsed = parser::parse_route(navdata, &preferred_route.raw_route).await?;
+        let parsed = parse_route(navdata, &preferred_route.raw_route).await?;
         if route_matches_expected(legs, &parsed) {
             return Ok(Some(preferred_route));
         }

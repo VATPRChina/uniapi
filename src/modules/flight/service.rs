@@ -3,13 +3,12 @@ use std::sync::LazyLock;
 
 use crate::adapter::compat::{CompatClient, CompatClientError};
 use crate::modules::controller::models::CompatFutureController;
+use crate::modules::flight::flight_plan::{ParseRouteError, parse_route};
 use crate::modules::navdata::models::ResolvedLeg;
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 use regex::Regex;
 
-use super::flight_plan::parser::{self, ParserError};
-use super::flight_plan::v2;
 use super::flight_plan::validator::{self, ValidatorError, WarningMessage};
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
 use super::repository::flight::FlightRepository;
@@ -141,19 +140,17 @@ impl FlightService {
     }
 
     pub async fn route(&self, flight: &Flight) -> Result<Vec<ResolvedLeg>, FlightServiceError> {
-        Ok(parser::parse_route(&self.navdata, &route_string(flight)).await?)
+        Ok(parse_route(&self.navdata, &route_string(flight)).await?)
     }
 
     /// Parse and expand a complete route using the v2 pipeline.
     pub async fn route_v2(&self, route: &str) -> Result<Vec<ResolvedLeg>, FlightServiceError> {
-        v2::parse_route(&self.navdata, route)
+        parse_route(&self.navdata, route)
             .await
             .map_err(|error| match error {
-                v2::ParseRouteError::InvalidRoute(reason) => {
-                    FlightServiceError::InvalidRoute(reason)
-                }
-                v2::ParseRouteError::Navdata(source) => {
-                    FlightServiceError::Parser(ParserError::Navdata(source))
+                ParseRouteError::InvalidRoute(reason) => FlightServiceError::InvalidRoute(reason),
+                ParseRouteError::Navdata(source) => {
+                    FlightServiceError::Parser(ParseRouteError::Navdata(source))
                 }
             })
     }
@@ -202,7 +199,7 @@ pub enum FlightServiceError {
     #[error("failed to retrieve flights: {0}")]
     Compat(#[from] CompatClientError),
     #[error("failed to parse flight route: {0}")]
-    Parser(#[from] ParserError),
+    Parser(#[from] ParseRouteError),
     #[error("failed to validate flight route: {0}")]
     Validator(#[from] ValidatorError),
     #[error("failed to access flight user: {0}")]

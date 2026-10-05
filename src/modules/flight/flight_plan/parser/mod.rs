@@ -28,16 +28,18 @@
 
 mod constructor;
 mod expander;
+mod lex_grouper;
 mod lexer;
-mod parser;
 mod resolver;
 mod solver;
 mod trace;
 
 pub use constructor::{ConstructedLeg, Constructor};
 pub use expander::{Expander, ExpansionError};
+#[allow(unused_imports)]
+pub use lex_grouper::{Ident, IdentAmend, LexGrouper};
+#[allow(unused_imports)]
 pub use lexer::{CruisingLevel, Lexer, LexerToken, LexerTokenAmend, LexerTokenValue, Speed};
-pub use parser::{Ident, IdentAmend, Parser};
 pub use resolver::{CandidateResolver, IdentCandidate, IdentWithCandidate};
 pub use solver::{CandidateWithState, SolvedIdent, Solver};
 pub use trace::RouteParseStep;
@@ -72,7 +74,7 @@ pub async fn parse_route_with_observer(
 ) -> Result<Vec<ResolvedLeg>, ParseRouteError> {
     let tokens: Vec<_> = Lexer::new(route).parse_all().collect();
     observe(RouteParseStep::Lexed(&tokens));
-    let parsed: Vec<_> = Parser::new(tokens).parse().collect();
+    let parsed: Vec<_> = LexGrouper::new(tokens).parse().collect();
     observe(RouteParseStep::Parsed(&parsed));
     if parsed.is_empty() {
         return Err(ParseRouteError::InvalidRoute("route is empty".to_owned()));
