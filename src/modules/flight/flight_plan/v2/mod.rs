@@ -15,14 +15,14 @@
 //! XAC   -> {VOR, Fix}
 //! Y28   -> {Airway, Fix}
 //! KASMI -> {Fix, ...}
-//!         ▼ Constraint Solver ◄── NavData
+//!         ▼ Constraint Solver
 //! Resolved Route
 //! XAC ──Y28──> KASMI
 //!  │
 //!  └─ M0.82 / FL350
 //!         ▼ Constructor
-//! Route legs
-//!         ▼ Expander ◄── NavData
+//! Route legs with selected procedures and their published legs
+//!         ▼ Expander
 //! Published leg segments
 //! ```
 
@@ -34,8 +34,8 @@ mod resolver;
 mod solver;
 mod trace;
 
-pub use constructor::Constructor;
-pub use expander::Expander;
+pub use constructor::{ConstructedLeg, Constructor};
+pub use expander::{Expander, ExpansionError};
 pub use lexer::{CruisingLevel, Lexer, LexerToken, LexerTokenAmend, LexerTokenValue, Speed};
 pub use parser::{Ident, IdentAmend, Parser};
 pub use resolver::{CandidateResolver, IdentCandidate, IdentWithCandidate};
@@ -98,7 +98,13 @@ pub async fn parse_route_with_observer(
             "no complete route could be constructed".to_owned(),
         ));
     }
-    let expanded = Expander::new(constructed).expand(navdata).await?;
+    let expanded = Expander::new(constructed)
+        .expand()
+        .map_err(|error| match error {
+            ExpansionError::InvalidCoordinates => {
+                InvalidNavdataError::InternalError("invalid expansion coordinates")
+            }
+        })?;
     observe(RouteParseStep::Expanded(&expanded));
     Ok(expanded)
 }

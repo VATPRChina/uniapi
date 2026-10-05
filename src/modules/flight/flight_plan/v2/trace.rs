@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use super::{Ident, IdentWithCandidate, LexerToken, SolvedIdent};
+use super::{ConstructedLeg, Ident, IdentWithCandidate, LexerToken, SolvedIdent};
 use crate::modules::{
     flight::dto::FlightRouteFix,
     navdata::models::{AnyFix, ResolvedLeg},
@@ -12,7 +12,7 @@ pub enum RouteParseStep<'a, 's> {
     Parsed(&'a [Ident<'s>]),
     Candidates(&'a [IdentWithCandidate<'s>]),
     Solved(&'a [SolvedIdent<'s>]),
-    Constructed(&'a [ResolvedLeg]),
+    Constructed(&'a [ConstructedLeg]),
     Expanded(&'a [ResolvedLeg]),
 }
 
@@ -75,16 +75,22 @@ impl Display for RouteParseStep<'_, '_> {
                     }
                 }
             }
-            Self::Constructed(legs) => write_legs(f, "5. Constructor", legs)?,
-            Self::Expanded(legs) => write_legs(f, "6. Expander", legs)?,
+            Self::Constructed(legs) => {
+                write_legs(f, "5. Constructor", legs.iter().map(|entry| &entry.leg))?
+            }
+            Self::Expanded(legs) => write_legs(f, "6. Expander", legs.iter())?,
         }
         writeln!(f)
     }
 }
 
-fn write_legs(f: &mut fmt::Formatter<'_>, stage: &str, legs: &[ResolvedLeg]) -> fmt::Result {
+fn write_legs<'a>(
+    f: &mut fmt::Formatter<'_>,
+    stage: &str,
+    legs: impl ExactSizeIterator<Item = &'a ResolvedLeg>,
+) -> fmt::Result {
     writeln!(f, "=== {stage}: {} legs ===", legs.len())?;
-    for (index, leg) in legs.iter().enumerate() {
+    for (index, leg) in legs.enumerate() {
         writeln!(
             f,
             "  [{index}] {} --{}{}{}{}--> {}",

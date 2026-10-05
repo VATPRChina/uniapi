@@ -3,6 +3,14 @@ use crate::modules::navdata::models::{DirectionRestriction, NavProc, ResolvedLeg
 
 type PathEntry<'a, 's> = (&'a SolvedIdent<'s>, &'a CandidateWithState);
 
+/// A logical route leg and the exact procedure selected by the solver.
+/// Direct connections have no procedure; named procedures retain their loaded legs.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConstructedLeg {
+    pub leg: ResolvedLeg,
+    pub procedure: Option<NavProc>,
+}
+
 pub struct Constructor<'s> {
     idents: Vec<SolvedIdent<'s>>,
 }
@@ -15,9 +23,9 @@ impl<'s> Constructor<'s> {
     /// Construct the first complete surviving path in solver order, following
     /// saved predecessor indices rather than selecting each entry independently.
     /// Empty or incomplete input yields no legs. Named connections retain their
-    /// route identifier; this synchronous step does not expand navigation data.
+    /// route identifier and selected procedure for subsequent expansion.
     /// ResolvedLeg cannot represent the parsed speed/level or flight-rule amendments.
-    pub fn construct(&self) -> Vec<ResolvedLeg> {
+    pub fn construct(&self) -> Vec<ConstructedLeg> {
         self.idents
             .last()
             .into_iter()
@@ -52,7 +60,7 @@ impl<'s> Constructor<'s> {
     }
 }
 
-fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ResolvedLeg>> {
+fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ConstructedLeg>> {
     if !matches!(path.first()?.1.candidate, IdentCandidate::Fix(_)) {
         return None;
     }
@@ -70,28 +78,28 @@ fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ResolvedLeg>> {
             let [(from_index, from), (to_index, to)] = pair else {
                 unreachable!("windows contain two fixes")
             };
-            let (identifier, is_unknown, is_sid, is_star) = match &path[from_index + 1..*to_index] {
-                [] => (None, false, false, false),
+            let (identifier, procedure) = match &path[from_index + 1..*to_index] {
+                [] => (None, None),
                 [(ident, candidate)] => match &candidate.candidate {
-                    IdentCandidate::Leg(NavProc::Direct) => (None, false, false, false),
-                    IdentCandidate::Leg(leg) => (
-                        Some(ident.ident.identifier().to_owned()),
-                        leg.is_unknown(),
-                        matches!(leg, NavProc::Sid(_) | NavProc::UnknownSid(_)),
-                        matches!(leg, NavProc::Star(_) | NavProc::UnknownStar(_)),
-                    ),
+                    IdentCandidate::Leg(NavProc::Direct) => (None, None),
+                    IdentCandidate::Leg(leg) => {
+                        (Some(ident.ident.identifier().to_owned()), Some(leg.clone()))
+                    }
                     IdentCandidate::Fix(_) => return None,
                 },
                 _ => return None,
             };
-            Some(ResolvedLeg {
-                from: (*from).to_owned(),
-                to: (*to).to_owned(),
-                identifier,
-                is_unknown,
-                is_sid,
-                is_star,
-                direction_restriction: DirectionRestriction::None,
+            Some(ConstructedLeg {
+                leg: ResolvedLeg {
+                    from: (*from).to_owned(),
+                    to: (*to).to_owned(),
+                    identifier,
+                    is_unknown: procedure.as_ref().is_some_and(NavProc::is_unknown),
+                    is_sid: matches!(procedure, Some(NavProc::Sid(_) | NavProc::UnknownSid(_))),
+                    is_star: matches!(procedure, Some(NavProc::Star(_) | NavProc::UnknownStar(_))),
+                    direction_restriction: DirectionRestriction::None,
+                },
+                procedure,
             })
         })
         .collect()

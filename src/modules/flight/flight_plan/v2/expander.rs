@@ -1,35 +1,38 @@
+use super::ConstructedLeg;
 use crate::modules::navdata::models::{AnyFix, Fix, ResolvedLeg};
-use crate::modules::navdata::service::{InvalidNavdataError, NavdataResult, NavdataService};
-use futures::{StreamExt, TryStreamExt, stream};
+
+#[derive(Debug, thiserror::Error)]
+pub enum ExpansionError {
+    #[error("invalid expansion coordinates on procedure data")]
+    InvalidCoordinates,
+}
 
 pub struct Expander {
-    route: Vec<ResolvedLeg>,
+    route: Vec<ConstructedLeg>,
 }
 
 impl Expander {
-    pub fn new(route: Vec<ResolvedLeg>) -> Self {
+    pub fn new(route: Vec<ConstructedLeg>) -> Self {
         Self { route }
     }
 
     /// Expand named legs into connected published segments, in route order.
     /// Direct legs and legs without a matching path retain their original form.
-    /// Airway reversals retain direction restrictions for subsequent validation.
+    /// Published segment order and direction restrictions are preserved.
     /// Procedures use fixed endpoints only; runway selection and vector geometry
     /// are not represented by the constructed route.
-    pub async fn expand(&self, navdata: &NavdataService) -> NavdataResult<Vec<ResolvedLeg>> {
-        stream::iter(self.route.iter().cloned().map(Ok::<_, InvalidNavdataError>))
-            .and_then(|leg| async move { expand_leg(navdata, &leg).await })
-            .boxed()
-            .try_concat()
-            .await
+    pub fn expand(&self) -> Result<Vec<ResolvedLeg>, ExpansionError> {
+        self.route
+            .iter()
+            .map(expand_leg)
+            .collect::<Result<Vec<_>, _>>()
+            .map(|legs| legs.into_iter().flatten().collect())
     }
 }
 
-async fn expand_leg(
-    navdata: &NavdataService,
-    leg: &ResolvedLeg,
-) -> NavdataResult<Vec<ResolvedLeg>> {
-    let Some(identifier) = leg.identifier.as_deref() else {
+fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, ExpansionError> {
+    let leg = &constructed.leg;
+    let Some(procedure) = &constructed.procedure else {
         return Ok(vec![leg.clone()]);
     };
     if leg.is_unknown
@@ -39,38 +42,14 @@ async fn expand_leg(
     {
         return Ok(vec![leg.clone()]);
     }
-    let edges = if leg.is_sid {
-        navdata
-            .find_sids(identifier)
-            .await?
-            .into_iter()
-            .find(|_| leg.from.identifier() == Some(identifier))
-            .map(|s| s.legs)
-            .unwrap_or_default()
-    } else if leg.is_star {
-        navdata
-            .find_stars(identifier)
-            .await?
-            .into_iter()
-            .find(|_| leg.from.identifier() == Some(identifier))
-            .map(|s| s.legs)
-            .unwrap_or_default()
-    } else {
-        navdata
-            .find_airway(identifier)
-            .await?
-            .map(|a| a.legs)
-            .unwrap_or_default()
-    };
+    let edges = procedure.legs();
     if edges
         .iter()
         .any(|edge| edge.from.is_unknown() || edge.to.is_unknown())
     {
-        return Err(InvalidNavdataError::InternalError(
-            "invalid expansion coordinates",
-        ));
+        return Err(ExpansionError::InvalidCoordinates);
     }
-    Ok(find_path(&edges, &leg.from, &leg.to)
+    Ok(find_path(edges, &leg.from, &leg.to)
         .filter(|path| !path.is_empty())
         .map(|path| {
             path.iter()
