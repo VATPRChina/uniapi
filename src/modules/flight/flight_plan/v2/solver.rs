@@ -297,8 +297,7 @@ impl State {
             distance: self.distance
                 + cur.position().map_or(1000., |(lat, lon)| {
                     distance_nm(lat, lon, self.position_lat, self.position_lon)
-                })
-                + if last.is_unknown() { 1000. } else { 0. },
+                }),
             position_lat: cur.valid_latitude_or(self.position_lat),
             position_lon: cur.valid_longitude_or(self.position_lon),
         })
