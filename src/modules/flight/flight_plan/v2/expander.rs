@@ -1,5 +1,6 @@
 use super::ConstructedLeg;
-use crate::modules::navdata::models::{AnyFix, Fix, ResolvedLeg};
+use crate::modules::navdata::models::{AnyFix, Fix, NavProc, ResolvedLeg};
+use std::borrow::Cow;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ExpansionError {
@@ -18,7 +19,8 @@ impl Expander {
 
     /// Expand named legs into connected published segments, in route order.
     /// Direct legs and legs without a matching path retain their original form.
-    /// Published segment order and direction restrictions are preserved.
+    /// Airways allow reverse traversal, flipping the direction restrictions.
+    /// SID/STAR common legs retain their published direction.
     /// Procedures use fixed endpoints only; runway selection and vector geometry
     /// are not represented by the constructed route.
     pub fn expand(&self) -> Result<Vec<ResolvedLeg>, ExpansionError> {
@@ -49,7 +51,17 @@ fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, Expansio
     {
         return Err(ExpansionError::InvalidCoordinates);
     }
-    Ok(find_path(edges, &leg.from, &leg.to)
+    let edges: Cow<'_, [ResolvedLeg]> = match procedure {
+        NavProc::Airway(_) => Cow::Owned(
+            edges
+                .iter()
+                .cloned()
+                .flat_map(|edge| [edge.clone(), edge.into_reversed()])
+                .collect(),
+        ),
+        _ => Cow::Borrowed(edges),
+    };
+    Ok(find_path(&edges, &leg.from, &leg.to)
         .filter(|path| !path.is_empty())
         .map(|path| {
             path.iter()
