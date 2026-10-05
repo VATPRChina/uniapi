@@ -1,4 +1,4 @@
-use super::AnyFix;
+use crate::modules::navdata::models::AnyFix;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProcedureKind {

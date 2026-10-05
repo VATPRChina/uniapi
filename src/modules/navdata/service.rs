@@ -8,8 +8,8 @@ use sqlx::{SqlitePool, prelude::FromRow};
 use tracing::instrument;
 
 use crate::modules::navdata::models::{
-    Airport, Airway, AnyFix, DirectionRestriction, Fix, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint,
-    WaypointKind,
+    Airport, Airway, AnyFix, DirectionRestriction, Fix, LegKind, Ndb, NdbKind, ResolvedLeg, Vhf,
+    Waypoint, WaypointKind,
 };
 use crate::modules::navdata::repository::{
     PreferredRouteRepository, PreferredRouteRepositoryError,
@@ -57,115 +57,6 @@ impl NavdataService {
             db,
             preferred_routes,
         })
-    }
-
-    pub async fn resolve_identifier(&self, ident: &str) -> NavdataResult<Vec<ResolvedIdent>> {
-        let airways = self.find_airways(ident).await?;
-        let fixes = self.find_fixes(ident).await?;
-        Ok(airways
-            .into_iter()
-            .chain(fixes.into_iter().map(ResolvedIdent::Fix))
-            .collect())
-    }
-
-    pub async fn find_fixes(&self, ident: &str) -> NavdataResult<Vec<AnyFix>> {
-        let fixes: Vec<FindFixRecord> = sqlx::query_as(
-            r#"
-            SELECT
-                'tbl_pa_airports' AS kind,
-                icao_code AS icao_code,
-                airport_identifier AS identifier,
-                airport_ref_latitude AS latitude,
-                airport_ref_longitude AS longitude
-            FROM tbl_pa_airports
-            WHERE airport_identifier = $1
-            UNION SELECT
-                'tbl_d_vhfnavaids' AS kind,
-                icao_code AS icao_code,
-                coalesce(navaid_identifier, dme_ident) AS identifier,
-                coalesce(navaid_latitude, dme_latitude) AS latitude,
-                coalesce(navaid_longitude, dme_longitude) AS longitude
-            FROM tbl_d_vhfnavaids
-            WHERE navaid_identifier = $1 OR dme_ident = $1
-            UNION SELECT
-                'tbl_db_enroute_ndbnavaids' AS kind,
-                icao_code AS icao_code,
-                navaid_identifier AS identifier,
-                navaid_latitude AS latitude,
-                navaid_longitude AS longitude
-            FROM tbl_db_enroute_ndbnavaids
-            WHERE navaid_identifier = $1
-            UNION SELECT
-                'tbl_pn_terminal_ndbnavaids' AS kind,
-                airport_identifier AS icao_code,
-                navaid_identifier AS identifier,
-                navaid_latitude AS latitude,
-                navaid_longitude AS longitude
-            FROM tbl_pn_terminal_ndbnavaids
-            WHERE navaid_identifier = $1
-            UNION SELECT
-                'tbl_ea_enroute_waypoints' AS kind,
-                icao_code AS icao_code,
-                waypoint_identifier AS identifier,
-                waypoint_latitude AS latitude,
-                waypoint_longitude AS longitude
-            FROM tbl_ea_enroute_waypoints
-            WHERE waypoint_identifier = $1
-            UNION SELECT
-                'tbl_pc_terminal_waypoints' AS kind,
-                region_code AS icao_code,
-                waypoint_identifier AS identifier,
-                waypoint_latitude AS latitude,
-                waypoint_longitude AS longitude
-            FROM tbl_pc_terminal_waypoints
-            WHERE waypoint_identifier = $1;
-                    "#,
-        )
-        .bind(ident)
-        .fetch_all(&self.db)
-        .await?;
-        Ok(fixes.into_iter().map(Into::into).collect())
-    }
-
-    pub async fn find_airways(&self, ident: &str) -> NavdataResult<Vec<ResolvedIdent>> {
-        let airways: Vec<FindAirwayRecord> = sqlx::query_as(
-            r#"
-            SELECT
-                'tbl_er_enroute_airways' AS kind,
-                NULL AS airport_identifier,
-                route_identifier AS identifier,
-                json_group_array(DISTINCT waypoint_identifier) AS fix_identifiers
-            FROM
-                tbl_er_enroute_airways
-            WHERE
-                route_identifier = $1
-            GROUP BY route_identifier
-            UNION
-            SELECT DISTINCT
-                'tbl_pd_sids' AS kind,
-                airport_identifier AS airport_identifier,
-                procedure_identifier AS identifier,
-                '[]' AS fix_identifiers
-            FROM
-                tbl_pd_sids
-            WHERE
-                procedure_identifier = $1
-            UNION
-            SELECT DISTINCT
-                'tbl_pe_stars' AS kind,
-                airport_identifier AS airport_identifier,
-                procedure_identifier AS identifier,
-                '[]' AS fix_identifiers
-            FROM
-                tbl_pe_stars
-            WHERE
-                procedure_identifier = $1;
-            "#,
-        )
-        .bind(ident)
-        .fetch_all(&self.db)
-        .await?;
-        Ok(airways.into_iter().map(Into::into).collect())
     }
 
     pub async fn exists_airway(&self, ident: &str) -> NavdataResult<bool> {
@@ -610,7 +501,6 @@ struct FindAirwayRecord {
     kind: String,
     airport_identifier: Option<String>,
     identifier: String,
-    fix_identifiers: sqlx::types::Json<Vec<ArrayString<7>>>,
 }
 
 impl From<FindAirwayRecord> for ResolvedIdent {
@@ -618,7 +508,6 @@ impl From<FindAirwayRecord> for ResolvedIdent {
         match val.kind.as_str() {
             "tbl_er_enroute_airways" => ResolvedIdent::Airway(Airway {
                 identifier: val.identifier.as_str().try_into().unwrap(),
-                fix_identifiers: val.fix_identifiers.0.into_iter().collect(),
             }),
             "tbl_pd_sids" => ResolvedIdent::Sid(
                 val.airport_identifier
@@ -764,170 +653,13 @@ fn geo_distance_ordering(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 mod test {
     use super::*;
 
-    const LOCAL_DATA_PATH: &str = "data/navdata.db";
+    const LOCAL_DATA_PATH: &str = "data/navdata.db?mode=ro";
     const PREFERRED_ROUTES_PATH: &str = "assets/test/routes.csv";
 
     async fn get_navdata_adapter() -> NavdataService {
         NavdataService::with_preferred_routes_path(LOCAL_DATA_PATH, PREFERRED_ROUTES_PATH)
             .await
             .unwrap()
-    }
-
-    async fn get_readonly_navdata_adapter() -> NavdataService {
-        NavdataService::with_preferred_routes_path(
-            format!("{LOCAL_DATA_PATH}?mode=ro"),
-            PREFERRED_ROUTES_PATH,
-        )
-        .await
-        .unwrap()
-    }
-
-    #[tokio::test]
-    async fn test_resolve_identifier() {
-        let adapter = get_readonly_navdata_adapter().await;
-        let resolved = adapter.resolve_identifier("DOM").await.unwrap();
-        assert_eq!(resolved.len(), 2);
-        assert!(resolved.iter().any(|item| matches!(item,
-            ResolvedIdent::Fix(AnyFix::Vhf(vhf)) if vhf.identifier.as_str() == "DOM" && vhf.icao_code.as_str() == "TD"
-        )));
-        assert!(resolved.iter().any(|item| matches!(item,
-            ResolvedIdent::Fix(AnyFix::Ndb(ndb)) if ndb.identifier.as_str() == "DOM" && ndb.kind == NdbKind::Enroute
-        )));
-        let airway = adapter.resolve_identifier("L453").await.unwrap();
-        assert!(
-            matches!(airway.as_slice(), [ResolvedIdent::Airway(airway)] if airway.identifier.as_str() == "L453")
-        );
-        let sid = adapter.resolve_identifier("GTK2A").await.unwrap();
-        assert!(
-            matches!(sid.as_slice(), [ResolvedIdent::Sid(airport, ident)] if airport == "MBAC" && ident == "GTK2A")
-        );
-        let star = adapter.resolve_identifier("ANTE2D").await.unwrap();
-        assert_eq!(star.len(), 2);
-        assert!(star.iter().any(|item| matches!(item, ResolvedIdent::Star(airport, ident) if airport == "MDLR" && ident == "ANTE2D")));
-        assert!(star.iter().any(|item| matches!(item, ResolvedIdent::Sid(airport, ident) if airport == "MMUN" && ident == "ANTE2D")));
-        assert!(
-            adapter
-                .resolve_identifier("UNKNOWN")
-                .await
-                .unwrap()
-                .is_empty()
-        );
-    }
-
-    #[tokio::test]
-    async fn test_find_fixes() {
-        let adapter = get_readonly_navdata_adapter().await;
-        let airports = adapter.find_fixes("MBAC").await.unwrap();
-        let [AnyFix::Airport(airport)] = airports.as_slice() else {
-            panic!("expected MBAC airport");
-        };
-        assert_eq!(airport.identifier.as_str(), "MBAC");
-        approx::assert_abs_diff_eq!(airport.latitude, 21.3006333333333, epsilon = 1e-9);
-        approx::assert_abs_diff_eq!(airport.longitude, -71.64115, epsilon = 1e-9);
-
-        // DOM has both an enroute NDB and a VHF record using DME coordinates.
-        let fixes = adapter.find_fixes("DOM").await.unwrap();
-        assert_eq!(fixes.len(), 2);
-        for fix in &fixes {
-            assert_eq!(fix.identifier(), Some("DOM"));
-            assert_eq!(fix.icao_code(), Some("TD"));
-            match fix {
-                AnyFix::Vhf(vhf) => {
-                    approx::assert_abs_diff_eq!(vhf.latitude, 15.5505555555556, epsilon = 1e-9);
-                    approx::assert_abs_diff_eq!(vhf.longitude, -61.2955555555556, epsilon = 1e-9);
-                }
-                AnyFix::Ndb(ndb) => {
-                    assert_eq!(ndb.kind, NdbKind::Enroute);
-                    approx::assert_abs_diff_eq!(ndb.latitude, 15.5509333333333, epsilon = 1e-9);
-                    approx::assert_abs_diff_eq!(ndb.longitude, -61.295625, epsilon = 1e-9);
-                }
-                _ => panic!("unexpected DOM fix"),
-            }
-        }
-        let ndbs = adapter.find_fixes("GD").await.unwrap();
-        let [AnyFix::Ndb(ndb)] = ndbs.as_slice() else {
-            panic!("expected GD terminal NDB");
-        };
-        assert_eq!(ndb.kind, NdbKind::Terminal);
-        assert_eq!(ndb.icao_code.as_str(), "MMGL");
-        approx::assert_abs_diff_eq!(ndb.latitude, 20.4685916666667, epsilon = 1e-9);
-        approx::assert_abs_diff_eq!(ndb.longitude, -103.174683333333, epsilon = 1e-9);
-
-        let waypoints = adapter.find_fixes("AC07F").await.unwrap();
-        let [AnyFix::Waypoint(waypoint)] = waypoints.as_slice() else {
-            panic!("expected AC07F terminal waypoint");
-        };
-        assert_eq!(waypoint.kind, WaypointKind::Terminal);
-        assert_eq!(waypoint.icao_code.as_str(), "MBAC");
-        approx::assert_abs_diff_eq!(waypoint.latitude, 21.260175, epsilon = 1e-9);
-        approx::assert_abs_diff_eq!(waypoint.longitude, -71.7191222222222, epsilon = 1e-9);
-
-        // This identifier is reused in eight regions; retain every candidate.
-        let waypoints = adapter.find_fixes("VP001").await.unwrap();
-        let mut regions: Vec<_> = waypoints
-            .iter()
-            .map(|fix| {
-                let AnyFix::Waypoint(waypoint) = fix else {
-                    panic!("expected enroute waypoint");
-                };
-                assert_eq!(waypoint.identifier.as_str(), "VP001");
-                assert_eq!(waypoint.kind, WaypointKind::Enroute);
-                waypoint.icao_code.as_str()
-            })
-            .collect();
-        regions.sort_unstable();
-        assert_eq!(regions, ["MB", "MD", "MM", "MU", "TI", "TJ", "TL", "TT"]);
-        assert!(adapter.find_fixes("UNKNOWN").await.unwrap().is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_find_airways() {
-        let adapter = get_readonly_navdata_adapter().await;
-        // L453 has multiple rows, but resolves to one airway.
-        let airways = adapter.find_airways("L453").await.unwrap();
-        assert!(
-            matches!(airways.as_slice(), [ResolvedIdent::Airway(airway)] if airway.identifier.as_str() == "L453")
-        );
-        let ResolvedIdent::Airway(airway) = &airways[0] else {
-            panic!("expected L453 airway");
-        };
-        let mut identifiers: Vec<_> = airway
-            .fix_identifiers
-            .iter()
-            .map(ArrayString::as_str)
-            .collect();
-        identifiers.sort_unstable();
-        assert_eq!(identifiers, ["ASIVO", "MACKI"]);
-        let asivo = adapter.find_fixes("ASIVO").await.unwrap().remove(0);
-        assert!(airway.contains_fix(&asivo));
-        let airport = adapter.find_fixes("MBAC").await.unwrap().remove(0);
-        assert!(!airway.contains_fix(&airport));
-        for (identifier, expected) in [
-            ("GTK2A", vec![("sid", "MBAC")]),
-            ("ANTE2D", vec![("sid", "MMUN"), ("star", "MDLR")]),
-            ("ANEG1A", vec![("sid", "MMCU"), ("sid", "MMSD")]),
-            ("BERO1B", vec![("star", "MMIO"), ("star", "TNCC")]),
-        ] {
-            let procedures = adapter.find_airways(identifier).await.unwrap();
-            let mut actual: Vec<_> = procedures
-                .iter()
-                .map(|item| match item {
-                    ResolvedIdent::Sid(airport, ident) => {
-                        assert_eq!(ident.as_str(), identifier);
-                        ("sid", airport.as_str())
-                    }
-                    ResolvedIdent::Star(airport, ident) => {
-                        assert_eq!(ident.as_str(), identifier);
-                        ("star", airport.as_str())
-                    }
-                    _ => panic!("unexpected procedure kind for {identifier}"),
-                })
-                .collect();
-            actual.sort_unstable();
-            assert_eq!(actual, expected);
-        }
-        assert!(adapter.find_airways("DOM").await.unwrap().is_empty());
-        assert!(adapter.find_airways("UNKNOWN").await.unwrap().is_empty());
     }
 
     #[tokio::test]
@@ -1118,48 +850,6 @@ mod test {
         assert_eq!(leg.direction_restriction, DirectionRestriction::None);
         assert_eq!(leg.from.identifier(), Some("MACKI"));
         assert_eq!(leg.to.identifier(), Some("ASIVO"));
-        assert!(matches!(leg.from, AnyFix::Waypoint(_)));
-        assert!(matches!(leg.to, AnyFix::Waypoint(_)));
-    }
-
-    #[tokio::test]
-    async fn test_list_airway_legs_between_present2() {
-        let adapter = get_navdata_adapter().await;
-        sqlx::query(r#"
-            WITH rows("area_code","crusing_table_identifier","direction_restriction","flightlevel","icao_code","inbound_course","inbound_distance","maximum_altitude","minimum_altitude1","minimum_altitude2","outbound_course","route_identifier_postfix","route_identifier","route_type","seqno","waypoint_description_code","waypoint_identifier","waypoint_latitude","waypoint_longitude","waypoint_ref_table") AS (
-                VALUES
-                ('PAC','XX',NULL,'B','VH',0,31.6,NULL,8000,NULL,400,NULL,'A470','O',5510,'E   ','MAGOG',22.296111111111113,115.82500000000002,'EA'),
-                ('EEU','EE',NULL,'B','ZG',0,17.3,NULL,NULL,NULL,180,NULL,'A470','R',5520,'E C ','DOTMI',22.718333333333334,116.16833333333334,'EA'),
-                ('PAC',NULL,NULL,'B','ZG',400,0,NULL,NULL,NULL,0,NULL,'A470','O',5520,'EEC ','DOTMI',22.718333333333334,116.16833333333334,'EA'),
-                ('EEU','EE',NULL,'B','ZG',400,36.7,NULL,NULL,NULL,400,NULL,'A470','R',5521,'E C ','BEBEM',22.95,116.36055555555555,'EA')
-            )
-            INSERT INTO "tbl_er_enroute_airways"("area_code","crusing_table_identifier","direction_restriction","flightlevel","icao_code","inbound_course","inbound_distance","maximum_altitude","minimum_altitude1","minimum_altitude2","outbound_course","route_identifier_postfix","route_identifier","route_type","seqno","waypoint_description_code","waypoint_identifier","waypoint_latitude","waypoint_longitude","waypoint_ref_table")
-            SELECT *
-            FROM rows
-            WHERE NOT EXISTS (
-                SELECT 1
-                FROM "tbl_er_enroute_airways"
-                WHERE "area_code" IS rows."area_code"
-                    AND "icao_code" IS rows."icao_code"
-                    AND "route_identifier_postfix" IS rows."route_identifier_postfix"
-                    AND "route_identifier" IS rows."route_identifier"
-                    AND "route_type" IS rows."route_type"
-                    AND "seqno" IS rows."seqno"
-                    AND "waypoint_identifier" IS rows."waypoint_identifier"
-                    AND "waypoint_ref_table" IS rows."waypoint_ref_table"
-            );
-            "#).execute(&adapter.db).await.unwrap();
-        let legs = adapter
-            .list_airway_legs_between("A470", "BEBEM", "DOTMI")
-            .await
-            .unwrap();
-        assert_eq!(legs.len(), 1);
-
-        let leg = &legs[0];
-        assert_eq!(leg.identifier.as_deref(), Some("A470"));
-        assert_eq!(leg.direction_restriction, DirectionRestriction::None);
-        assert_eq!(leg.from.identifier(), Some("DOTMI"));
-        assert_eq!(leg.to.identifier(), Some("BEBEM"));
         assert!(matches!(leg.from, AnyFix::Waypoint(_)));
         assert!(matches!(leg.to, AnyFix::Waypoint(_)));
     }

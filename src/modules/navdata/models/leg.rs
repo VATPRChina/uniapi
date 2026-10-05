@@ -19,6 +19,15 @@ pub enum DirectionRestriction {
     Backward,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum LegKind {
+    Airway,
+    Sid,
+    Star,
+    Unknown,
+    Direct,
+}
+
 impl ResolvedLeg {
     pub fn into_reversed(self) -> Self {
         Self {
