@@ -1,5 +1,3 @@
-mod expansion;
-
 use arrayvec::{ArrayString, CapacityError};
 use itertools::Itertools;
 use ordered_float::NotNan;
@@ -8,12 +6,21 @@ use sqlx::{SqlitePool, prelude::FromRow};
 use tracing::instrument;
 
 use crate::modules::navdata::models::{
-    Airport, Airway, AnyFix, DirectionRestriction, Fix, LegKind, Ndb, NdbKind, ResolvedLeg, Vhf,
-    Waypoint, WaypointKind,
+    Airport, AnyFix, DirectionRestriction, Fix, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint,
+    WaypointKind,
 };
 use crate::modules::navdata::repository::{
     PreferredRouteRepository, PreferredRouteRepositoryError,
 };
+
+mod airway;
+mod fix_record;
+mod ndb;
+mod procedure;
+mod sid;
+mod star;
+mod vhf;
+mod waypoint;
 
 pub type NavdataResult<T> = Result<T, InvalidNavdataError>;
 
@@ -59,27 +66,7 @@ impl NavdataService {
         })
     }
 
-    pub async fn exists_airway(&self, ident: &str) -> NavdataResult<bool> {
-        Ok(sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM tbl_er_enroute_airways WHERE route_identifier = $1)",
-        )
-        .bind(ident)
-        .fetch_one(&self.db)
-        .await?)
-    }
-
-    /// List every airport with a SID of this name, once per airport.
-    pub async fn list_sid_airports(&self, ident: &str) -> NavdataResult<Vec<String>> {
-        Ok(sqlx::query_scalar("SELECT DISTINCT airport_identifier FROM tbl_pd_sids WHERE procedure_identifier = $1 ORDER BY airport_identifier")
-            .bind(ident).fetch_all(&self.db).await?)
-    }
-
-    /// List every airport with a STAR of this name, once per airport.
-    pub async fn list_star_airports(&self, ident: &str) -> NavdataResult<Vec<String>> {
-        Ok(sqlx::query_scalar("SELECT DISTINCT airport_identifier FROM tbl_pe_stars WHERE procedure_identifier = $1 ORDER BY airport_identifier")
-            .bind(ident).fetch_all(&self.db).await?)
-    }
-
+    #[deprecated]
     #[instrument(skip(self), fields(ident = %ident))]
     pub async fn find_airport(&self, ident: &str) -> NavdataResult<Option<Airport>> {
         let result: Option<AirportRecord> = sqlx::query_as(
@@ -105,6 +92,7 @@ impl NavdataService {
         Ok(airport)
     }
 
+    #[deprecated]
     #[instrument(skip(self))]
     pub async fn find_nearest_fix(
         &self,
@@ -134,6 +122,7 @@ impl NavdataService {
         Ok(None)
     }
 
+    #[deprecated]
     pub async fn find_nearest_vhf(
         &self,
         latitude: f64,
@@ -182,6 +171,7 @@ impl NavdataService {
         ))
     }
 
+    #[deprecated]
     pub async fn find_nearest_enroute_ndb(
         &self,
         latitude: f64,
@@ -219,6 +209,7 @@ impl NavdataService {
         ))
     }
 
+    #[deprecated]
     pub async fn find_nearest_enroute_waypoint(
         &self,
         latitude: f64,
@@ -256,6 +247,7 @@ impl NavdataService {
         ))
     }
 
+    #[deprecated]
     #[instrument(skip(self), fields(airport_ident = %airport_ident, ident = %ident))]
     pub async fn exists_sid(&self, airport_ident: &str, ident: &str) -> NavdataResult<bool> {
         let result: u32 = sqlx::query_scalar(
@@ -274,6 +266,7 @@ impl NavdataService {
         Ok(result > 0)
     }
 
+    #[deprecated]
     pub async fn exists_star(&self, airport_ident: &str, ident: &str) -> NavdataResult<bool> {
         let result: u32 = sqlx::query_scalar(
             r#"
@@ -291,6 +284,7 @@ impl NavdataService {
         Ok(result > 0)
     }
 
+    #[deprecated]
     #[instrument(skip(self), fields(airway_ident = %airway_ident, fix_ident = %fix_ident))]
     pub async fn exists_airway_with_fix(
         &self,
@@ -313,6 +307,7 @@ impl NavdataService {
         Ok(result > 0)
     }
 
+    #[deprecated]
     #[instrument(skip(self), fields(airway_ident = %airway_ident, from_ident = %from_ident, to_ident = %to_ident))]
     pub async fn list_airway_legs_between(
         &self,
@@ -416,30 +411,6 @@ where
         .map(|(_, fix)| fix)
 }
 
-#[derive(Debug, PartialEq)]
-pub enum ResolvedIdent {
-    Fix(AnyFix),
-    Airway(Airway),
-    Sid(ArrayString<4>, ArrayString<8>),
-    Star(ArrayString<4>, ArrayString<8>),
-}
-
-impl ResolvedIdent {
-    pub fn as_fix(&self) -> Option<&AnyFix> {
-        match self {
-            ResolvedIdent::Fix(f) => Some(f),
-            _ => None,
-        }
-    }
-
-    pub fn into_fix(self) -> Option<AnyFix> {
-        match self {
-            ResolvedIdent::Fix(f) => Some(f),
-            _ => None,
-        }
-    }
-}
-
 #[derive(FromRow)]
 struct FindFixRecord {
     kind: String,
@@ -491,40 +462,6 @@ impl From<FindFixRecord> for AnyFix {
                 longitude: val.longitude,
                 kind: WaypointKind::Terminal,
             }),
-            k => unreachable!("unexpected kind: {}", k),
-        }
-    }
-}
-
-#[derive(FromRow)]
-struct FindAirwayRecord {
-    kind: String,
-    airport_identifier: Option<String>,
-    identifier: String,
-}
-
-impl From<FindAirwayRecord> for ResolvedIdent {
-    fn from(val: FindAirwayRecord) -> Self {
-        match val.kind.as_str() {
-            "tbl_er_enroute_airways" => ResolvedIdent::Airway(Airway {
-                identifier: val.identifier.as_str().try_into().unwrap(),
-            }),
-            "tbl_pd_sids" => ResolvedIdent::Sid(
-                val.airport_identifier
-                    .as_deref()
-                    .expect("SID must have an airport identifier")
-                    .try_into()
-                    .unwrap(),
-                val.identifier.as_str().try_into().unwrap(),
-            ),
-            "tbl_pe_stars" => ResolvedIdent::Star(
-                val.airport_identifier
-                    .as_deref()
-                    .expect("STAR must have an airport identifier")
-                    .try_into()
-                    .unwrap(),
-                val.identifier.as_str().try_into().unwrap(),
-            ),
             k => unreachable!("unexpected kind: {}", k),
         }
     }

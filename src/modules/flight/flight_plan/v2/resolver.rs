@@ -282,24 +282,20 @@ async fn find_route_candidates(
     ident: &str,
 ) -> NavdataResult<Vec<LegCandidate>> {
     let (airway, sids, stars) = tokio::try_join!(
-        navdata.exists_airway(ident),
-        navdata.list_sid_airports(ident),
-        navdata.list_star_airports(ident),
+        navdata.find_airway(ident),
+        navdata.find_sids(ident),
+        navdata.find_stars(ident),
     )?;
-    airway
-        .then_some(Ok(LegCandidate::Airway))
+    Ok(airway
+        .map(|_| LegCandidate::Airway)
         .into_iter()
-        .chain(sids.into_iter().map(|airport| -> NavdataResult<_> {
-            Ok(LegCandidate::Sid {
-                airport: airport.as_str().try_into()?,
-            })
+        .chain(sids.into_iter().map(|sid| LegCandidate::Sid {
+            airport: sid.airport,
         }))
-        .chain(stars.into_iter().map(|airport| -> NavdataResult<_> {
-            Ok(LegCandidate::Star {
-                airport: airport.as_str().try_into()?,
-            })
+        .chain(stars.into_iter().map(|star| LegCandidate::Star {
+            airport: star.airport,
         }))
-        .collect()
+        .collect())
 }
 
 #[derive(FromRow)]

@@ -7,7 +7,7 @@ pub use fix::{
     Airport, AnyFix, Fix, FixReference, GeoPoint, Ndb, NdbKind, Vhf, Waypoint, WaypointKind,
 };
 pub use leg::{DirectionRestriction, LegKind, ResolvedLeg};
-pub use nav_proc::{Airway, ProcedureKind, ProcedureSegment};
+pub use nav_proc::{Airway, NavProc, Sid, Star};
 pub use preferred_route::{LevelRestrictionType, PreferredRoute};
 
 pub trait Identifiable {

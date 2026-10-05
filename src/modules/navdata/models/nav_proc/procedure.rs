@@ -1,15 +1,18 @@
-use crate::modules::navdata::models::AnyFix;
+use crate::modules::navdata::models::ResolvedLeg;
+use arrayvec::ArrayString;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProcedureKind {
-    Sid,
-    Star,
+#[derive(Debug, Clone, PartialEq)]
+pub struct Sid {
+    pub airport: ArrayString<4>,
+    pub identifier: ArrayString<8>,
+    /// Published common-route legs only; runway/enroute transitions are excluded.
+    pub legs: Vec<ResolvedLeg>,
 }
 
-/// One published runway, common-route, or enroute portion, in sequence order.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ProcedureSegment {
-    pub route_type: String,
-    pub transition: String,
-    pub fixes: Vec<AnyFix>,
+pub struct Star {
+    pub airport: ArrayString<4>,
+    pub identifier: ArrayString<8>,
+    /// Published common-route legs only; runway/enroute transitions are excluded.
+    pub legs: Vec<ResolvedLeg>,
 }

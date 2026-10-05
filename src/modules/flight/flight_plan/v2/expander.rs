@@ -1,5 +1,5 @@
 use crate::modules::navdata::{
-    models::{AnyFix, DirectionRestriction, Fix, ProcedureKind, ProcedureSegment, ResolvedLeg},
+    models::{AnyFix, DirectionRestriction, Fix, NavProc, ResolvedLeg},
     service::{InvalidNavdataError, NavdataResult, NavdataService},
 };
 use futures::{StreamExt, TryStreamExt, stream};
@@ -41,26 +41,28 @@ async fn expand_leg(
     {
         return Ok(vec![leg.clone()]);
     }
-    let procedure = match (&leg.from, &leg.to) {
-        (AnyFix::Airport(airport), _) => {
-            Some((ProcedureKind::Sid, airport.identifier.as_str(), &leg.from))
-        }
-        (_, AnyFix::Airport(airport)) => {
-            Some((ProcedureKind::Star, airport.identifier.as_str(), &leg.to))
-        }
-        _ => None,
-    };
-    let edges = if let Some((kind, airport, point)) = procedure {
-        let segments = navdata
-            .list_procedure_segments(kind, airport, identifier)
-            .await?;
-        if segments.is_empty() {
-            airway_edges(navdata, identifier).await?
-        } else {
-            procedure_edges(&segments, kind, point, identifier)
-        }
+    let edges = if leg.is_sid {
+        navdata
+            .find_sids(identifier)
+            .await?
+            .into_iter()
+            .find(|sid| leg.from.identifier() == Some(identifier))
+            .map(|s| s.legs)
+            .unwrap_or_default()
+    } else if leg.is_star {
+        navdata
+            .find_stars(identifier)
+            .await?
+            .into_iter()
+            .find(|sid| leg.from.identifier() == Some(identifier))
+            .map(|s| s.legs)
+            .unwrap_or_default()
     } else {
-        airway_edges(navdata, identifier).await?
+        navdata
+            .find_airway(identifier)
+            .await?
+            .map(|a| a.legs)
+            .unwrap_or_default()
     };
     if edges
         .iter()
@@ -98,60 +100,16 @@ async fn airway_edges(
     identifier: &str,
 ) -> NavdataResult<Vec<ResolvedLeg>> {
     Ok(navdata
-        .list_airway_segments(identifier)
+        .find_airway(identifier)
         .await?
-        .into_iter()
-        .flat_map(|segment| [segment.clone(), segment.into_reversed()])
-        .collect())
-}
-
-fn procedure_edges(
-    segments: &[ProcedureSegment],
-    kind: ProcedureKind,
-    airport: &AnyFix,
-    identifier: &str,
-) -> Vec<ResolvedLeg> {
-    let runway = |segment: &&ProcedureSegment| match kind {
-        ProcedureKind::Sid => matches!(segment.route_type.as_str(), "1" | "4"),
-        ProcedureKind::Star => matches!(segment.route_type.as_str(), "3" | "6"),
-    };
-    let has_runway = segments
-        .iter()
-        .filter(runway)
-        .any(|segment| !segment.fixes.is_empty());
-    let connectors =
-        segments
-            .iter()
-            .filter(|segment| {
-                if has_runway {
-                    runway(segment)
-                } else {
-                    matches!(segment.route_type.as_str(), "2" | "5")
-                }
-            })
-            .filter_map(|segment| match kind {
-                ProcedureKind::Sid => segment.fixes.first().map(|fix| {
-                    named_segment(airport.clone(), fix.clone(), identifier, true, false)
-                }),
-                ProcedureKind::Star => segment.fixes.last().map(|fix| {
-                    named_segment(fix.clone(), airport.clone(), identifier, false, true)
-                }),
-            });
-    segments
-        .iter()
-        .flat_map(|segment| {
-            segment.fixes.windows(2).map(|pair| {
-                named_segment(
-                    pair[0].clone(),
-                    pair[1].clone(),
-                    identifier,
-                    kind == ProcedureKind::Sid,
-                    kind == ProcedureKind::Star,
-                )
-            })
+        .map(|airway| {
+            airway
+                .legs
+                .into_iter()
+                .flat_map(|segment| [segment.clone(), segment.into_reversed()])
+                .collect()
         })
-        .chain(connectors)
-        .collect()
+        .unwrap_or_default())
 }
 
 fn named_segment(
