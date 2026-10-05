@@ -19,16 +19,6 @@ pub enum DirectionRestriction {
     Backward,
 }
 
-impl DirectionRestriction {
-    pub fn reversed(&self) -> Self {
-        match self {
-            Self::None => Self::None,
-            Self::Forward => Self::Backward,
-            Self::Backward => Self::Forward,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum LegKind {
     Airway,
@@ -47,7 +37,11 @@ impl ResolvedLeg {
             is_unknown: self.is_unknown,
             is_sid: self.is_sid,
             is_star: self.is_star,
-            direction_restriction: self.direction_restriction.reversed(),
+            direction_restriction: match self.direction_restriction {
+                DirectionRestriction::None => DirectionRestriction::None,
+                DirectionRestriction::Forward => DirectionRestriction::Backward,
+                DirectionRestriction::Backward => DirectionRestriction::Forward,
+            },
         }
     }
 }

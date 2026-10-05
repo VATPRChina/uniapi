@@ -89,7 +89,7 @@ pub async fn parse_route_with_observer(
         .await?
         .collect();
     observe(RouteParseStep::Candidates(&candidates));
-    let solved = Solver::new(&candidates).solve();
+    let solved: Vec<_> = Solver::new(candidates).solve().into_iter().collect();
     observe(RouteParseStep::Solved(&solved));
     let constructed = Constructor::new(solved).construct();
     observe(RouteParseStep::Constructed(&constructed));

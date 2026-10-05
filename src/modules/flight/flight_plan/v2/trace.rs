@@ -11,8 +11,8 @@ pub enum RouteParseStep<'a, 's> {
     Lexed(&'a [LexerToken<'s>]),
     Parsed(&'a [Ident<'s>]),
     Candidates(&'a [IdentWithCandidate<'s>]),
-    Solved(&'a [SolvedIdent<'a, 's>]),
-    Constructed(&'a [ConstructedLeg<'a>]),
+    Solved(&'a [SolvedIdent<'s>]),
+    Constructed(&'a [ConstructedLeg]),
     Expanded(&'a [ResolvedLeg]),
 }
 

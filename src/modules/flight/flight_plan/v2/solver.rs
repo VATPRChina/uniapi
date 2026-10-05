@@ -4,14 +4,13 @@ use ordered_float::OrderedFloat;
 use crate::modules::flight::flight_plan::v2::{Ident, IdentCandidate, IdentWithCandidate};
 use crate::modules::navdata::models::{AnyFix, Fix, NavProc, Ndb, NdbKind, Waypoint, WaypointKind};
 
-/// Resolved candidates own navigation data; search states only borrow it.
-pub struct Solver<'c, 's> {
-    idents: &'c [IdentWithCandidate<'s>],
+pub struct Solver<'s> {
+    idents: Vec<IdentWithCandidate<'s>>,
 }
 
 #[derive(Debug, PartialEq)]
-struct State<'c> {
-    last_token: StateToken<'c>,
+struct State {
+    last_token: StateToken,
     /// Recovery interpretations anywhere in the predecessor path.
     fallbacks: usize,
     distance: f64,
@@ -19,37 +18,37 @@ struct State<'c> {
     position_lon: f64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum StateToken<'c> {
-    Fix(&'c AnyFix),
-    Leg(&'c AnyFix, &'c NavProc),
+#[derive(Debug, PartialEq)]
+enum StateToken {
+    Fix(AnyFix),
+    Leg(AnyFix, NavProc),
 }
 
 #[derive(Debug, PartialEq)]
-pub struct SolvedIdent<'c, 's> {
-    pub ident: &'c Ident<'s>,
-    pub candidates: Vec<CandidateWithState<'c>>,
+pub struct SolvedIdent<'s> {
+    pub ident: Ident<'s>,
+    pub candidates: Vec<CandidateWithState>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct CandidateWithState<'c> {
-    pub candidate: &'c IdentCandidate,
-    state: State<'c>,
+pub struct CandidateWithState {
+    pub candidate: IdentCandidate,
+    state: State,
     pub last_candidate_idx: usize,
 }
 
-impl CandidateWithState<'_> {
+impl CandidateWithState {
     pub(super) fn distance(&self) -> f64 {
         self.state.distance
     }
 }
 
-impl<'c, 's> Solver<'c, 's> {
-    pub fn new(idents: &'c [IdentWithCandidate<'s>]) -> Self {
+impl<'s> Solver<'s> {
+    pub fn new(idents: Vec<IdentWithCandidate<'s>>) -> Self {
         Self { idents }
     }
 
-    pub fn solve(self) -> Vec<SolvedIdent<'c, 's>> {
+    pub fn solve(self) -> impl IntoIterator<Item = SolvedIdent<'s>> {
         let mut solved_idents = vec![];
 
         if let Some(first) = self.idents.first() {
@@ -65,16 +64,16 @@ impl<'c, 's> Solver<'c, 's> {
         solved_idents
     }
 
-    fn solve_init_ident(ident: &'c IdentWithCandidate<'s>) -> SolvedIdent<'c, 's> {
+    fn solve_init_ident(ident: &IdentWithCandidate<'s>) -> SolvedIdent<'s> {
         let candidates: Vec<_> = ident
             .candidates
             .iter()
             .sorted_by_key(|c| c.priority())
             .flat_map(|candidate| match candidate {
                 IdentCandidate::Fix(fix) => Some(CandidateWithState {
-                    candidate,
+                    candidate: candidate.clone(),
                     state: State {
-                        last_token: StateToken::Fix(fix),
+                        last_token: StateToken::Fix(fix.clone()),
                         fallbacks: usize::from(fix.is_unknown()),
                         distance: 0.,
                         position_lat: fix.valid_latitude_or(0.),
@@ -89,15 +88,15 @@ impl<'c, 's> Solver<'c, 's> {
         let candidates = CandidateSortPruneState::new(candidates.iter()).handle(candidates);
 
         SolvedIdent {
-            ident: &ident.ident,
+            ident: ident.ident.clone(),
             candidates,
         }
     }
 
     fn solve_ident(
-        ident: &'c IdentWithCandidate<'s>,
-        last_solved: &SolvedIdent<'c, 's>,
-    ) -> SolvedIdent<'c, 's> {
+        ident: &IdentWithCandidate<'s>,
+        last_solved: &SolvedIdent<'s>,
+    ) -> SolvedIdent<'s> {
         let candidates: Vec<_> = last_solved
             .candidates
             .iter()
@@ -110,16 +109,16 @@ impl<'c, 's> Solver<'c, 's> {
         let candidates = CandidateSortPruneState::new(candidates.iter()).handle(candidates);
 
         SolvedIdent {
-            ident: &ident.ident,
+            ident: ident.ident.clone(),
             candidates,
         }
     }
 
     fn solve_ident_with_last_candidate(
-        ident: &'c IdentWithCandidate<'s>,
-        last_candidate: &CandidateWithState<'c>,
+        ident: &IdentWithCandidate<'s>,
+        last_candidate: &CandidateWithState,
         last_candidate_idx: usize,
-    ) -> impl IntoIterator<Item = CandidateWithState<'c>> {
+    ) -> impl IntoIterator<Item = CandidateWithState> {
         ident.candidates.iter().flat_map(move |candidate| {
             Self::solve_ident_candidate_with_last_candidate(
                 ident,
@@ -131,15 +130,15 @@ impl<'c, 's> Solver<'c, 's> {
     }
 
     fn solve_ident_candidate_with_last_candidate(
-        _ident: &'c IdentWithCandidate<'s>,
-        candidate: &'c IdentCandidate,
-        last_candidate: &CandidateWithState<'c>,
+        _ident: &IdentWithCandidate<'s>,
+        candidate: &IdentCandidate,
+        last_candidate: &CandidateWithState,
         last_candidate_idx: usize,
-    ) -> impl IntoIterator<Item = CandidateWithState<'c>> {
+    ) -> impl IntoIterator<Item = CandidateWithState> {
         (last_candidate.state)
             .next_state(candidate)
             .map(|state| CandidateWithState {
-                candidate,
+                candidate: candidate.clone(),
                 state,
                 last_candidate_idx,
             })
@@ -188,14 +187,11 @@ impl Priority for IdentCandidate {
 struct CandidateSortPruneState {}
 
 impl CandidateSortPruneState {
-    pub fn new<'a, 'c: 'a>(_: impl Iterator<Item = &'a CandidateWithState<'c>>) -> Self {
+    pub fn new<'c>(_: impl Iterator<Item = &'c CandidateWithState>) -> Self {
         CandidateSortPruneState {}
     }
 
-    pub fn handle<'c>(
-        &self,
-        candiates: Vec<CandidateWithState<'c>>,
-    ) -> Vec<CandidateWithState<'c>> {
+    pub fn handle(&mut self, candiates: Vec<CandidateWithState>) -> Vec<CandidateWithState> {
         let has_known_fix = candiates
             .iter()
             .any(|c| matches!(c.candidate, IdentCandidate::Fix(_)) && !c.candidate.is_unknown());
@@ -221,9 +217,9 @@ impl CandidateSortPruneState {
     }
 }
 
-impl<'c> State<'c> {
-    pub fn next_state(&self, candidate: &'c IdentCandidate) -> Option<State<'c>> {
-        match (self.last_token, candidate) {
+impl State {
+    pub fn next_state(&self, candidate: &IdentCandidate) -> Option<State> {
+        match (&self.last_token, candidate) {
             (StateToken::Fix(last_fix), IdentCandidate::Fix(cur_fix)) => {
                 self.next_state_fix_fix(last_fix, cur_fix)
             }
@@ -239,9 +235,9 @@ impl<'c> State<'c> {
         }
     }
 
-    pub fn next_state_fix_fix(&self, _last: &'c AnyFix, cur: &'c AnyFix) -> Option<State<'c>> {
+    pub fn next_state_fix_fix(&self, _last: &AnyFix, cur: &AnyFix) -> Option<State> {
         Some(State {
-            last_token: StateToken::Fix(cur),
+            last_token: StateToken::Fix(cur.clone()),
             fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
             distance: self.distance
                 + cur.position().map_or(1000., |(lat, lon)| {
@@ -252,7 +248,7 @@ impl<'c> State<'c> {
         })
     }
 
-    pub fn next_state_fix_leg(&self, last: &'c AnyFix, cur: &'c NavProc) -> Option<State<'c>> {
+    pub fn next_state_fix_leg(&self, last: &AnyFix, cur: &NavProc) -> Option<State> {
         if !matches!(last, AnyFix::Airport { .. }) && matches!(cur, NavProc::UnknownSid(_)) {
             return None;
         }
@@ -267,7 +263,7 @@ impl<'c> State<'c> {
         }
         // TODO: if fix not on leg return None
         Some(State {
-            last_token: StateToken::Leg(last, cur),
+            last_token: StateToken::Leg(last.clone(), cur.clone()),
             fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
             distance: self.distance,
             position_lat: self.position_lat,
@@ -277,10 +273,10 @@ impl<'c> State<'c> {
 
     pub fn next_state_leg_fix(
         &self,
-        last: &'c NavProc,
-        _last_fix: &'c AnyFix,
-        cur: &'c AnyFix,
-    ) -> Option<State<'c>> {
+        last: &NavProc,
+        _last_fix: &AnyFix,
+        cur: &AnyFix,
+    ) -> Option<State> {
         if matches!(last, NavProc::UnknownStar(_)) && !matches!(cur, AnyFix::Airport(_)) {
             return None;
         }
@@ -295,7 +291,7 @@ impl<'c> State<'c> {
         }
         // TODO: if fix not on leg return None
         Some(State {
-            last_token: StateToken::Fix(cur),
+            last_token: StateToken::Fix(cur.clone()),
             fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
             // TODO: use real leg distance
             distance: self.distance
@@ -309,10 +305,10 @@ impl<'c> State<'c> {
 
     pub fn next_state_leg_leg(
         &self,
-        _last: &'c NavProc,
-        _last_fix: &'c AnyFix,
-        _cur: &'c NavProc,
-    ) -> Option<State<'c>> {
+        _last: &NavProc,
+        _last_fix: &AnyFix,
+        _cur: &NavProc,
+    ) -> Option<State> {
         // TODO: support leg-leg error recovery
         None
     }
