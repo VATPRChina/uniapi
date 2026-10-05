@@ -22,7 +22,7 @@ impl<'r> Lexer<'r> {
                     .or_else(|| Geo11TokenHandler::handle_segment(seg))
                     .or_else(|| Geo7TokenHandler::handle_segment(seg))
                     .or_else(|| IdentifierReferenceTokenHandler::handle_segment(seg))
-                    .unwrap_or_else(|| LexerToken::new(seg, LexerTokenValue::Identifier))
+                    .unwrap_or_else(|| LexerToken::new(seg, LexerTokenValue::Ident))
             })
     }
 }
@@ -44,9 +44,9 @@ impl<'r> std::fmt::Debug for LexerToken<'r> {
                 LexerTokenValue::Direct => "Direct",
                 LexerTokenValue::Vfr => "Vfr",
                 LexerTokenValue::Ifr => "Ifr",
-                LexerTokenValue::Identifier => "Identifier",
+                LexerTokenValue::Ident => "Identifier",
                 LexerTokenValue::Geo { .. } => "Geo",
-                LexerTokenValue::IdentifierReference { .. } => "IdentifierReference",
+                LexerTokenValue::IdentRef { .. } => "IdentifierReference",
             }
         )?;
         write!(f, "<{}>", self.str)?;
@@ -56,7 +56,7 @@ impl<'r> std::fmt::Debug for LexerToken<'r> {
         if let LexerTokenValue::Geo { lat, lon } = &self.value {
             write!(f, "({:.3}, {:.3})", lat, lon)?;
         }
-        if let LexerTokenValue::IdentifierReference {
+        if let LexerTokenValue::IdentRef {
             ident,
             heading,
             distance,
@@ -95,12 +95,12 @@ pub enum LexerTokenValue<'s> {
     Direct,
     Vfr,
     Ifr,
-    Identifier,
+    Ident,
     Geo {
         lat: f64,
         lon: f64,
     },
-    IdentifierReference {
+    IdentRef {
         ident: &'s str,
         heading: u16,
         distance: u16,
@@ -164,7 +164,7 @@ fn test_speed_and_altitude_token_handler() {
         );
         assert!(matches!(
             Lexer::new(identifier).parse_all().next().unwrap().value,
-            LexerTokenValue::Identifier
+            LexerTokenValue::Ident
         ));
     }
 }
@@ -342,7 +342,7 @@ impl TokenHandler for IdentifierReferenceTokenHandler {
         };
         Some(LexerToken::new(
             token,
-            LexerTokenValue::IdentifierReference {
+            LexerTokenValue::IdentRef {
                 ident: &token[..(token.len() - 6)],
                 heading,
                 distance,
@@ -358,7 +358,7 @@ fn test_ident_ref_token_handler() {
         IdentifierReferenceTokenHandler::handle_segment("VYK180040"),
         Some(LexerToken {
             str: "VYK180040",
-            value: LexerTokenValue::IdentifierReference {
+            value: LexerTokenValue::IdentRef {
                 ident: "VYK",
                 heading: 180,
                 distance: 40

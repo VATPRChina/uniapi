@@ -70,7 +70,7 @@ async fn resolve_ident(
                 longitude: lon,
             }))])
         }
-        LexerTokenValue::IdentifierReference { ident, .. } => {
+        LexerTokenValue::IdentRef { ident, .. } => {
             let fixes = find_fix_candidates(navdata, ident).await?;
             if fixes.is_empty() {
                 Ok(vec![IdentCandidate::Fix(AnyFix::Unknown(
@@ -81,7 +81,7 @@ async fn resolve_ident(
             }
         }
 
-        LexerTokenValue::Identifier => {
+        LexerTokenValue::Ident => {
             let (routes, fixes) = tokio::try_join!(
                 find_route_candidates(navdata, ident),
                 find_fix_candidates(navdata, ident),

@@ -67,11 +67,11 @@ impl std::fmt::Debug for IdentAmend {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParserIdentError {
-    ExpectedDepartureIdentifier,
-    ExpectedArrivalIdentifier,
+    ExpectedDepIdent,
+    ExpectedArrIdent,
     UnexpectedSpeedAndAltitude,
     UnexpectedFlightRule,
-    MissingArrival,
+    MissingArr,
 }
 
 impl<'s> LexGrouper<'s> {
@@ -119,7 +119,7 @@ impl<'t, 's> Input<'t, 's> {
                 errors: departure
                     .errors
                     .into_iter()
-                    .chain([ParserIdentError::MissingArrival])
+                    .chain([ParserIdentError::MissingArr])
                     .collect(),
                 ..departure
             }];
@@ -132,7 +132,7 @@ impl<'t, 's> Input<'t, 's> {
     // dep = IDENTIFIER SPEED_AND_ALTITUDE?
     fn parse_departure(self) -> Option<(Ident<'s>, Self)> {
         let (token, input) = self.advance()?;
-        let valid = matches!(token.value, LexerTokenValue::Identifier);
+        let valid = matches!(token.value, LexerTokenValue::Ident);
         let (amendment, input) = if valid {
             input.parse_speed_and_altitude()
         } else {
@@ -143,7 +143,7 @@ impl<'t, 's> Input<'t, 's> {
                 ident: token.str,
                 amendments: amendment.into_iter().collect(),
                 errors: (!valid)
-                    .then_some(ParserIdentError::ExpectedDepartureIdentifier)
+                    .then_some(ParserIdentError::ExpectedDepIdent)
                     .into_iter()
                     .collect(),
             },
@@ -162,7 +162,7 @@ impl<'t, 's> Input<'t, 's> {
                 errors: ident
                     .errors
                     .into_iter()
-                    .chain([ParserIdentError::MissingArrival])
+                    .chain([ParserIdentError::MissingArr])
                     .collect(),
                 ..ident
             }];
@@ -176,8 +176,8 @@ impl<'t, 's> Input<'t, 's> {
         Some(Ident {
             ident: token.str,
             amendments: Vec::new(),
-            errors: (!matches!(token.value, LexerTokenValue::Identifier))
-                .then_some(ParserIdentError::ExpectedArrivalIdentifier)
+            errors: (!matches!(token.value, LexerTokenValue::Ident))
+                .then_some(ParserIdentError::ExpectedArrIdent)
                 .into_iter()
                 .collect(),
         })
@@ -188,8 +188,8 @@ impl<'t, 's> Input<'t, 's> {
     fn parse_ident(self) -> Option<(Ident<'s>, Self)> {
         let (token, input) = self.advance()?;
         let (amendment, input) = match token.value {
-            LexerTokenValue::Identifier
-            | LexerTokenValue::IdentifierReference { .. }
+            LexerTokenValue::Ident
+            | LexerTokenValue::IdentRef { .. }
             | LexerTokenValue::Geo { .. } => input.parse_flight_rule(),
             _ => (None, input),
         };
@@ -288,16 +288,10 @@ mod tests {
         for token in ["DCT", "38N054E", "VYK180040", "K0830M0840", "VFR", "IFR"] {
             let input = format!("{token} DCT ZSPD");
             let route = parse(&input);
-            assert_eq!(
-                route[0].errors,
-                [ParserIdentError::ExpectedDepartureIdentifier]
-            );
+            assert_eq!(route[0].errors, [ParserIdentError::ExpectedDepIdent]);
             let input = format!("ZBAA DCT {token}");
             let route = parse(&input);
-            assert_eq!(
-                route[2].errors,
-                [ParserIdentError::ExpectedArrivalIdentifier]
-            );
+            assert_eq!(route[2].errors, [ParserIdentError::ExpectedArrIdent]);
         }
     }
 
@@ -392,7 +386,7 @@ mod tests {
                 let route = parse(&input);
                 assert_eq!(route.len(), 2);
                 assert_eq!(route[1].amendments.len(), 1);
-                assert_eq!(route[1].errors, [ParserIdentError::MissingArrival]);
+                assert_eq!(route[1].errors, [ParserIdentError::MissingArr]);
             }
         }
     }
@@ -415,7 +409,7 @@ mod tests {
         for input in ["ZBAA", "ZBAA K0830M0840"] {
             let route = parse(input);
             assert_eq!(route.len(), 1);
-            assert_eq!(route[0].errors, [ParserIdentError::MissingArrival]);
+            assert_eq!(route[0].errors, [ParserIdentError::MissingArr]);
         }
     }
 }
