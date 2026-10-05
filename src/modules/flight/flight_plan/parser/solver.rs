@@ -261,7 +261,14 @@ impl State {
                 return None;
             }
         }
-        // TODO: if fix not on leg return None
+        if let NavProc::Airway(airway) = cur
+            && !airway.legs.iter().any(|leg| {
+                leg.from.identifier() == last.identifier()
+                    || leg.to.identifier() == last.identifier()
+            })
+        {
+            return None;
+        }
         Some(State {
             last_token: StateToken::Leg(last.clone(), cur.clone()),
             fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
@@ -289,7 +296,13 @@ impl State {
                 return None;
             }
         }
-        // TODO: if fix not on leg return None
+        if let NavProc::Airway(airway) = last
+            && !airway.legs.iter().any(|leg| {
+                leg.from.identifier() == cur.identifier() || leg.to.identifier() == cur.identifier()
+            })
+        {
+            return None;
+        }
         Some(State {
             last_token: StateToken::Fix(cur.clone()),
             fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
