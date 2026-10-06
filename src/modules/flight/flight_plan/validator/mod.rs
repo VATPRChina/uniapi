@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use serde::Serialize;
+use tracing::info;
 
 use crate::modules::flight::flight_plan::validator::flight_validator::{
     EquipmentRnav1Validator, NavigationPerformanceRnav1Validator, RnpArValidator,
@@ -215,6 +216,10 @@ fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> b
     let enroute = &actual[enroute_start..enroute_end];
     let sid_exit = enroute_start.checked_sub(1).map(|index| &actual[index].to);
     let star_enter = actual.get(enroute_end).map(|leg| &leg.from);
+    info!(
+        "actual enroute={:?}[{}:{}], sid_exit={:?}, star_enter={:?}",
+        enroute, enroute_start, enroute_end, sid_exit, star_enter
+    );
 
     let expected_enroute_start = sid_exit
         .map(|sid_exit| {
@@ -235,6 +240,10 @@ fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> b
             })
             .unwrap_or_default();
     let expected_enroute = &expected[expected_enroute_start..expected_enroute_end];
+    info!(
+        "expected enroute={:?}[{}:{}]",
+        expected_enroute, expected_enroute_start, expected_enroute_end
+    );
 
     if enroute.len() != expected_enroute.len() {
         return false;
