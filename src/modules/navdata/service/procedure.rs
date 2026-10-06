@@ -48,6 +48,12 @@ pub(super) async fn find_common_procedures(
                     }
                 })
                 .map(ProcedureRecord::to_fix)
+                .filter(|r| {
+                    !matches!(
+                        r,
+                        Err(InvalidNavdataError::ProcedureRecordMissingFixIdentifier),
+                    )
+                })
                 .collect::<NavdataResult<Vec<_>>>()?;
             let legs = fixes
                 .windows(2)
@@ -86,9 +92,7 @@ struct ProcedureRecord {
 impl ProcedureRecord {
     fn to_fix(&self) -> NavdataResult<AnyFix> {
         let Some(identifier) = self.identifier.as_deref().filter(|s| !s.trim().is_empty()) else {
-            return Err(InvalidNavdataError::InternalError(
-                "record missing fix identifier",
-            ));
+            return Err(InvalidNavdataError::ProcedureRecordMissingFixIdentifier);
         };
         let record = super::fix_record::FixRecord {
             icao_code: self.icao_code.clone().unwrap_or_default(),

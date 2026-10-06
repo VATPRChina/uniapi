@@ -31,6 +31,8 @@ pub enum InvalidNavdataError {
     PreferredRoute(#[from] PreferredRouteRepositoryError),
     #[error("internal error: {0}")]
     InternalError(&'static str),
+    #[error("procedure record missing fix identifier")]
+    ProcedureRecordMissingFixIdentifier,
 }
 
 impl From<arrayvec::CapacityError<&str>> for InvalidNavdataError {
