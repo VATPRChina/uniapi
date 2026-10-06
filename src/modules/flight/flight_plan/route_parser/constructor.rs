@@ -108,7 +108,7 @@ fn construct_path(path: &[PathEntry<'_, '_>]) -> Option<Vec<ConstructedLeg>> {
 mod tests {
     use super::*;
     use crate::modules::flight::dto::FlightRouteLeg;
-    use crate::modules::flight::flight_plan::parser::{
+    use crate::modules::flight::flight_plan::route_parser::{
         Expander, IdentWithCandidate, LexGrouper, Lexer, Solver,
     };
     use crate::modules::navdata::models::{Airport, Airway, AnyFix, GeoPoint, Sid, Star};

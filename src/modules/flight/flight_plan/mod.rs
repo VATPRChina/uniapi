@@ -1,9 +1,9 @@
 use crate::modules::navdata::models::AnyFix;
 
-mod parser;
+mod route_parser;
 pub mod validator;
 
-pub use parser::{ParseRouteError, parse_route, parse_route_with_observer};
+pub use route_parser::{ParseRouteError, parse_route, parse_route_with_observer};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RouteToken {

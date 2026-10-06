@@ -7,7 +7,7 @@
 //! seg = (IDENTIFIER | IDENTIFIER_REFERENCE | GEO) (VFR | IFR)? | DIRECT
 //! ```
 
-use crate::modules::flight::flight_plan::parser::{
+use crate::modules::flight::flight_plan::route_parser::{
     CruisingLevel, LexerToken, LexerTokenValue, Speed,
 };
 
@@ -240,7 +240,7 @@ impl<'t, 's> Input<'t, 's> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::modules::flight::flight_plan::parser::lexer::Lexer;
+    use crate::modules::flight::flight_plan::route_parser::lexer::Lexer;
 
     fn parse(route: &str) -> Vec<Ident<'_>> {
         LexGrouper::new(Lexer::new(route).parse_all().collect())
