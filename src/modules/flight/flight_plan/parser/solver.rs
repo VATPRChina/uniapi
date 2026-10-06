@@ -202,9 +202,7 @@ impl CandidateSortPruneState {
             .into_values()
             .flat_map(|g| {
                 g.into_iter()
-                    // Prefer a known history before comparing its distance. A
-                    // cheap unknown point must not displace a published airway.
-                    .sorted_by_key(|c| (c.state.fallbacks, OrderedFloat(c.state.distance)))
+                    .sorted_by_key(|c| OrderedFloat(c.state.distance))
                     .next()
             })
             .filter(|c| match &c.candidate {
@@ -236,13 +234,13 @@ impl State {
     }
 
     pub fn next_state_fix_fix(&self, _last: &AnyFix, cur: &AnyFix) -> Option<State> {
+        let delta = cur.position().map_or(1000., |(lat, lon)| {
+            distance_nm(lat, lon, self.position_lat, self.position_lon)
+        });
         Some(State {
             last_token: StateToken::Fix(cur.clone()),
             fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
-            distance: self.distance
-                + cur.position().map_or(1000., |(lat, lon)| {
-                    distance_nm(lat, lon, self.position_lat, self.position_lon)
-                }),
+            distance: self.distance + delta,
             position_lat: cur.valid_latitude_or(self.position_lat),
             position_lon: cur.valid_longitude_or(self.position_lon),
         })
@@ -272,7 +270,7 @@ impl State {
         Some(State {
             last_token: StateToken::Leg(last.clone(), cur.clone()),
             fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
-            distance: self.distance,
+            distance: self.distance + (f64::from(cur.is_unknown()) * 500.),
             position_lat: self.position_lat,
             position_lon: self.position_lon,
         })
@@ -303,14 +301,14 @@ impl State {
         {
             return None;
         }
+        let delta = cur.position().map_or(1000., |(lat, lon)| {
+            distance_nm(lat, lon, self.position_lat, self.position_lon)
+        });
         Some(State {
             last_token: StateToken::Fix(cur.clone()),
             fallbacks: self.fallbacks + usize::from(cur.is_unknown()),
             // TODO: use real leg distance
-            distance: self.distance
-                + cur.position().map_or(1000., |(lat, lon)| {
-                    distance_nm(lat, lon, self.position_lat, self.position_lon)
-                }),
+            distance: self.distance + delta,
             position_lat: cur.valid_latitude_or(self.position_lat),
             position_lon: cur.valid_longitude_or(self.position_lon),
         })
