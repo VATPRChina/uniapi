@@ -195,7 +195,7 @@ async fn find_matching_route<'a>(
             ),
         )
         .await?;
-        if route_matches_expected(legs, &parsed) {
+        if route_matches_expected(legs, &parsed, preferred_route) {
             return Ok(Some(preferred_route));
         }
     }
@@ -205,10 +205,37 @@ async fn find_matching_route<'a>(
 /// Match the actual enroute span between its leading SID and trailing STAR.
 /// Procedure boundaries must occur in expected; absent procedures anchor that
 /// end of the comparison to the corresponding route edge.
-fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {
+fn route_matches_expected(
+    actual: &[ResolvedLeg],
+    expected: &[ResolvedLeg],
+    preferred_route: &PreferredRoute,
+) -> bool {
     if actual.is_empty() || expected.is_empty() {
         return false;
     }
+
+    // incomplete expected route for international routes
+    let (expected, actual) = if let Some(expected_final_fix) =
+        preferred_route.name.split('-').nth(1)
+        && expected
+            .last()
+            .is_some_and(|leg| leg.from.identifier() == Some(expected_final_fix))
+        && !preferred_route.arrival.starts_with('Z')
+    {
+        let actual_pos = actual
+            .iter()
+            .take_while(|leg| leg.from.identifier() != Some(expected_final_fix))
+            .count();
+        info!(
+            "incomplete route end at {}, truncate actual to [0..{}/{}]",
+            expected_final_fix,
+            actual_pos,
+            actual.len()
+        );
+        (&expected[0..(expected.len() - 1)], &actual[0..actual_pos])
+    } else {
+        (expected, actual)
+    };
 
     let enroute_start = actual
         .iter()
