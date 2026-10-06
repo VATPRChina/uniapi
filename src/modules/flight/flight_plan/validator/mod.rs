@@ -12,7 +12,7 @@ use crate::modules::flight::flight_plan::validator::matching_route_validator::{
 };
 use crate::modules::flight::flight_plan::{ParseRouteError, parse_route};
 use crate::modules::flight::models::Flight;
-use crate::modules::navdata::models::{AnyFix, Fix, PreferredRoute, ResolvedLeg};
+use crate::modules::navdata::models::{AnyFix, Fix, LegKind, PreferredRoute, ResolvedLeg};
 use crate::modules::navdata::service::{InvalidNavdataError, NavdataService};
 
 mod flight_validator;
@@ -194,14 +194,56 @@ async fn find_matching_route<'a>(
     Ok(None)
 }
 
+/// Match the actual enroute span between its leading SID and trailing STAR.
+/// Procedure boundaries must occur in expected; absent procedures anchor that
+/// end of the comparison to the corresponding route edge.
 fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {
-    !expected.is_empty()
-        && expected.len() <= actual.len()
-        && actual.windows(expected.len()).any(|legs| {
-            legs.iter()
-                .zip(expected)
-                .all(|(actual, expected)| leg_matches(actual, expected))
+    if actual.is_empty() || expected.is_empty() {
+        return false;
+    }
+
+    let enroute_start = actual
+        .iter()
+        .take_while(|leg| leg.kind == LegKind::Sid)
+        .count();
+    let enroute_end = actual.len()
+        - actual
+            .iter()
+            .rev()
+            .take_while(|leg| leg.kind == LegKind::Star)
+            .count();
+    let enroute = &actual[enroute_start..enroute_end];
+    let sid_exit = enroute_start.checked_sub(1).map(|index| &actual[index].to);
+    let star_enter = actual.get(enroute_end).map(|leg| &leg.from);
+
+    let expected_enroute_start = sid_exit
+        .map(|sid_exit| {
+            expected
+                .iter()
+                .take_while(|leg| !fix_matches(&leg.from, sid_exit))
+                .count()
         })
+        .unwrap_or_default();
+    let expected_enroute_end = expected.len()
+        - star_enter
+            .map(|star_enter| {
+                expected
+                    .iter()
+                    .rev()
+                    .take_while(|leg| !fix_matches(&leg.from, star_enter))
+                    .count()
+            })
+            .unwrap_or_default();
+    let expected_enroute = &expected[expected_enroute_start..expected_enroute_end];
+
+    if enroute.len() != expected_enroute.len() {
+        return false;
+    }
+
+    enroute
+        .iter()
+        .zip(expected_enroute.iter())
+        .all(|(expected, actual)| leg_matches(actual, expected))
 }
 
 fn leg_matches(actual: &ResolvedLeg, expected: &ResolvedLeg) -> bool {
