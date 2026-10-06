@@ -246,6 +246,10 @@ fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> b
                     .count()
             })
             .unwrap_or_default();
+    if expected_enroute_end <= expected_enroute_start {
+        info!("unable to find start and end on preferred route");
+        return false;
+    }
     let expected_enroute = &expected[expected_enroute_start..expected_enroute_end];
     info!(
         "expected enroute={:?}[{}:{}]",
