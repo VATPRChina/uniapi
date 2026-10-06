@@ -242,7 +242,7 @@ fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> b
                 expected
                     .iter()
                     .rev()
-                    .take_while(|leg| !fix_matches(&leg.from, star_enter))
+                    .take_while(|leg| !fix_matches(&leg.to, star_enter))
                     .count()
             })
             .unwrap_or_default();
