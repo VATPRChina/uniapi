@@ -20,7 +20,7 @@ pub struct PreferredRoute {
 impl PreferredRoute {
     #[allow(unused)]
     pub fn is_public(&self) -> bool {
-        self.remarks.to_ascii_lowercase().contains("aip route")
+        !self.remarks.to_ascii_lowercase().contains("aip route")
     }
 }
 
