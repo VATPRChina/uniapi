@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::navdata::models::{AnyFix, Fix, ResolvedLeg};
+use crate::modules::navdata::models::{AnyFix, Fix, LegKind, ResolvedLeg};
 
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
 
@@ -198,8 +198,8 @@ impl From<ResolvedLeg> for FlightRouteLeg {
             to: FlightRouteFix::from(&leg.to),
             leg_identifier: leg.identifier.unwrap_or_default(),
             is_unknown: leg.is_unknown,
-            is_sid: leg.is_sid,
-            is_star: leg.is_star,
+            is_sid: leg.kind == LegKind::Sid,
+            is_star: leg.kind == LegKind::Star,
         }
     }
 }

@@ -3,7 +3,7 @@ use sqlx::{FromRow, SqlitePool};
 
 use super::{InvalidNavdataError, NavdataResult};
 use crate::modules::navdata::models::{
-    Airport, AnyFix, DirectionRestriction, GeoPoint, NdbKind, ResolvedLeg, WaypointKind,
+    Airport, AnyFix, DirectionRestriction, GeoPoint, LegKind, NdbKind, ResolvedLeg, WaypointKind,
 };
 
 /// Return all airport-scoped matches, including procedures with no common legs.
@@ -60,8 +60,7 @@ pub(super) async fn find_common_procedures(
                         to: to.clone(),
                         identifier: Some(ident.to_owned()),
                         is_unknown: false,
-                        is_sid: !is_star,
-                        is_star,
+                        kind: if is_star { LegKind::Star } else { LegKind::Sid },
                         direction_restriction: DirectionRestriction::None,
                     })
                 })

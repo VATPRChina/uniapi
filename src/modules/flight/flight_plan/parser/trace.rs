@@ -3,7 +3,7 @@ use std::fmt::{self, Display};
 use super::{ConstructedLeg, Ident, IdentWithCandidate, LexerToken, SolvedIdent};
 use crate::modules::{
     flight::dto::FlightRouteFix,
-    navdata::models::{AnyFix, ResolvedLeg},
+    navdata::models::{AnyFix, LegKind, ResolvedLeg},
 };
 
 /// Borrowed snapshots of the shared parser pipeline, in execution order.
@@ -91,20 +91,24 @@ fn write_legs<'a>(
 ) -> fmt::Result {
     writeln!(f, "=== {stage}: {} legs ===", legs.len())?;
     for (index, leg) in legs.enumerate() {
+        let procedure_tag = match leg.kind {
+            LegKind::Sid => " [SID]",
+            LegKind::Star => " [STAR]",
+            _ => "",
+        };
         writeln!(
             f,
-            "  [{index}] {} --{}{}{}{}--> {}",
+            "  [{index}] {} --{}{}{}--> {}",
             fix_text(&leg.from),
             leg.identifier.as_deref().unwrap_or("DCT"),
             if leg.is_unknown { " [UNK]" } else { "" },
-            if leg.is_sid { " [SID]" } else { "" },
-            if leg.is_star { " [STAR]" } else { "" },
+            procedure_tag,
             fix_text(&leg.to)
         )?;
         writeln!(
             f,
-            "      direction_restriction={:?}",
-            leg.direction_restriction
+            "      kind={:?}, direction_restriction={:?}",
+            leg.kind, leg.direction_restriction
         )?;
     }
     Ok(())

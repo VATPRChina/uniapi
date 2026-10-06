@@ -4,7 +4,7 @@ mod procedure;
 pub use airway::Airway;
 pub use procedure::{Sid, Star};
 
-use crate::modules::navdata::models::ResolvedLeg;
+use crate::modules::navdata::models::{LegKind, ResolvedLeg};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NavProc {
@@ -18,6 +18,15 @@ pub enum NavProc {
 }
 
 impl NavProc {
+    pub fn kind(&self) -> LegKind {
+        match self {
+            Self::Airway(_) | Self::UnknownAirway(_) => LegKind::Airway,
+            Self::Sid(_) | Self::UnknownSid(_) => LegKind::Sid,
+            Self::Star(_) | Self::UnknownStar(_) => LegKind::Star,
+            Self::Direct => LegKind::Direct,
+        }
+    }
+
     pub fn identifier(&self) -> &str {
         match self {
             Self::Airway(proc) => proc.identifier.as_str(),

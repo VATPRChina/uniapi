@@ -1,5 +1,6 @@
 use crate::modules::navdata::models::{
-    Airway, AnyFix, DirectionRestriction, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint, WaypointKind,
+    Airway, AnyFix, DirectionRestriction, LegKind, Ndb, NdbKind, ResolvedLeg, Vhf, Waypoint,
+    WaypointKind,
 };
 use crate::modules::navdata::service::{InvalidNavdataError, NavdataResult, NavdataService};
 use arrayvec::ArrayString;
@@ -63,8 +64,7 @@ impl EnrouteAirwayRecord {
             from: prev.to_fix()?,
             to: self.to_fix()?,
             is_unknown: false,
-            is_sid: false,
-            is_star: false,
+            kind: LegKind::Airway,
             direction_restriction: match self.direction_restriction.as_str() {
                 "F" => DirectionRestriction::Forward,
                 "B" => DirectionRestriction::Backward,
