@@ -187,7 +187,14 @@ async fn find_matching_route<'a>(
             preferred_route.name,
             preferred_route.raw_route
         );
-        let parsed = parse_route(navdata, &preferred_route.raw_route).await?;
+        let parsed = parse_route(
+            navdata,
+            &format!(
+                "{} {} {}",
+                preferred_route.departure, preferred_route.raw_route, preferred_route.arrival
+            ),
+        )
+        .await?;
         if route_matches_expected(legs, &parsed) {
             return Ok(Some(preferred_route));
         }
