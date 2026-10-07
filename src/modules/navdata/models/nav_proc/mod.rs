@@ -2,7 +2,7 @@ mod airway;
 mod procedure;
 
 pub use airway::Airway;
-pub use procedure::{Sid, Star};
+pub use procedure::{Sid, Star, TerminalProcedure};
 
 use crate::modules::navdata::models::{LegKind, ResolvedLeg};
 
@@ -42,8 +42,8 @@ impl NavProc {
     pub fn legs(&self) -> &[ResolvedLeg] {
         match self {
             Self::Airway(proc) => &proc.legs,
-            Self::Sid(proc) => &proc.legs,
-            Self::Star(proc) => &proc.legs,
+            Self::Sid(_) => &[],
+            Self::Star(_) => &[],
             Self::UnknownAirway(_) => &[],
             Self::UnknownSid(_) => &[],
             Self::UnknownStar(_) => &[],

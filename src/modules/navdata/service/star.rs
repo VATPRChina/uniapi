@@ -1,18 +1,13 @@
 use crate::modules::navdata::models::Star;
-use crate::modules::navdata::service::{NavdataResult, NavdataService};
+use crate::modules::navdata::service::{FindProcedureMode, NavdataResult, NavdataService};
 
 impl NavdataService {
-    pub async fn find_stars(&self, ident: &str) -> NavdataResult<Vec<Star>> {
-        super::procedure::find_common_procedures(&self.db, ident, true)
+    pub async fn find_stars_by_ident(&self, ident: &str) -> NavdataResult<Vec<Star>> {
+        Ok(self
+            .find_procedure_by_ident(ident, FindProcedureMode::Star)
             .await?
             .into_iter()
-            .map(|(airport, legs)| {
-                Ok(Star {
-                    airport: airport.as_str().try_into()?,
-                    identifier: ident.try_into()?,
-                    legs,
-                })
-            })
-            .collect()
+            .map(|proc| Star { proc })
+            .collect())
     }
 }

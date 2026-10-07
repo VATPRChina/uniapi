@@ -110,8 +110,8 @@ async fn find_route_candidates(
 ) -> NavdataResult<Vec<NavProc>> {
     let (airway, sids, stars) = tokio::try_join!(
         navdata.find_airway(ident),
-        navdata.find_sids(ident),
-        navdata.find_stars(ident),
+        navdata.find_sids_by_ident(ident),
+        navdata.find_stars_by_ident(ident),
     )?;
     Ok((airway.into_iter().map(NavProc::Airway))
         .chain(sids.into_iter().map(NavProc::Sid))

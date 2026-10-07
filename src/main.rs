@@ -82,7 +82,7 @@ async fn route_v2(
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
                 tracing_subscriber::EnvFilter::new(
-                    "vatprc_uniapi::modules::flight::flight_plan::v2=trace",
+                    "info,vatprc_uniapi::modules::flight::flight_plan::v2=trace",
                 )
             }),
         )

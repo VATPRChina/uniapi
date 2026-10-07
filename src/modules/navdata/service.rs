@@ -15,6 +15,8 @@ mod star;
 mod vhf;
 mod waypoint;
 
+pub use procedure::FindProcedureMode;
+
 pub type NavdataResult<T> = Result<T, InvalidNavdataError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -33,6 +35,19 @@ pub enum InvalidNavdataError {
     InternalError(&'static str),
     #[error("procedure record missing fix identifier")]
     ProcedureRecordMissingFixIdentifier,
+    #[error(
+        "{boundary} {transition:?} at sequence {seqno} has non-fix termination {path_termination:?}"
+    )]
+    ProcedureEndpointNotFix {
+        boundary: &'static str,
+        transition: String,
+        seqno: u32,
+        path_termination: String,
+    },
+    #[error("procedure has no {0} transition or usable common-route fallback")]
+    ProcedureMissingTransition(&'static str),
+    #[error("runway transitions do not share the same connection fix")]
+    ProcedureRunwayEndpointsDiffer,
 }
 
 impl From<arrayvec::CapacityError<&str>> for InvalidNavdataError {

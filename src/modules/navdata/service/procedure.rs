@@ -1,129 +1,290 @@
+use std::collections::HashSet;
+
+use arrayvec::ArrayString;
 use itertools::Itertools;
-use sqlx::{FromRow, SqlitePool};
+use sqlx::FromRow;
 
-use super::{InvalidNavdataError, NavdataResult};
-use crate::modules::navdata::models::{
-    Airport, AnyFix, DirectionRestriction, GeoPoint, LegKind, NdbKind, ResolvedLeg, WaypointKind,
-};
+use super::{InvalidNavdataError, NavdataResult, NavdataService};
+use crate::modules::navdata::models::TerminalProcedure;
 
-/// Return all airport-scoped matches, including procedures with no common legs.
-pub(super) async fn find_common_procedures(
-    db: &SqlitePool,
-    ident: &str,
-    is_star: bool,
-) -> NavdataResult<Vec<(String, Vec<ResolvedLeg>)>> {
-    // DFD v2: conventional/RNAV/FMS common routes, plus STAR profile descent.
-    // https://developers.navigraph.com/docs/navigation-data/dfd-data-format-v2
-    let table = if is_star {
-        "tbl_pe_stars"
-    } else {
-        "tbl_pd_sids"
-    };
-
-    let records: Vec<ProcedureRecord> = sqlx::query_as(&format!(
-        "SELECT airport_identifier AS airport, route_type,
-                COALESCE(transition_identifier, '') AS transition,
-                waypoint_identifier AS identifier, waypoint_icao_code AS icao_code,
-                waypoint_ref_table AS ref_table, waypoint_latitude AS latitude,
-                waypoint_longitude AS longitude
-         FROM {table} WHERE procedure_identifier = $1
-         ORDER BY airport_identifier, route_type, transition_identifier, seqno",
-    ))
-    .bind(ident)
-    .fetch_all(db)
-    .await?;
-    let records = records
-        .into_iter()
-        .into_group_map_by(|record| record.airport.clone());
-    records
-        .into_iter()
-        .map(|(airport, fixes)| {
-            let fixes = fixes
-                .iter()
-                .filter(|f| {
-                    if is_star {
-                        ["2", "5", "8", "M"].contains(&f.route_type.as_str())
-                    } else {
-                        ["2", "5", "M"].contains(&f.route_type.as_str())
+impl NavdataService {
+    /// Load airport-scoped procedures by identifier, skipping invalid procedures.
+    pub async fn find_procedure_by_ident(
+        &self,
+        ident: &str,
+        mode: FindProcedureMode,
+    ) -> NavdataResult<Vec<TerminalProcedure>> {
+        let table = match mode {
+            FindProcedureMode::Sid => "tbl_pd_sids",
+            FindProcedureMode::Star => "tbl_pe_stars",
+        };
+        let legs: Vec<ProcedureLegRecord> = sqlx::query_as(&format!(
+            "SELECT airport_identifier, procedure_identifier, route_type,
+                    transition_identifier, seqno, path_termination, waypoint_identifier
+             FROM {table} WHERE procedure_identifier = $1
+             ORDER BY airport_identifier, seqno",
+        ))
+        .bind(ident)
+        .fetch_all(&self.db)
+        .await?;
+        Ok(legs
+            .into_iter()
+            .chunk_by(|leg| (leg.airport_identifier.clone(), leg.procedure_identifier.clone()))
+            .into_iter()
+            .filter_map(|((airport, identifier), legs)| {
+                match TerminalProcedure::try_from(ProcedureRecord { mode, legs: legs.collect() }) {
+                    Ok(procedure) => Some(procedure),
+                    Err(error) => {
+                        tracing::warn!(airport, identifier, ?mode, %error, "ignoring invalid terminal procedure");
+                        None
                     }
-                })
-                .map(ProcedureRecord::to_fix)
-                .filter(|r| {
-                    !matches!(
-                        r,
-                        Err(InvalidNavdataError::ProcedureRecordMissingFixIdentifier),
-                    )
-                })
-                .collect::<NavdataResult<Vec<_>>>()?;
-            let legs = fixes
-                .windows(2)
-                .filter_map(|pair| {
-                    let [from, to] = dbg!(pair) else {
-                        return None;
-                    };
-                    Some(ResolvedLeg {
-                        from: from.clone(),
-                        to: to.clone(),
-                        identifier: Some(ident.to_owned()),
-                        is_unknown: false,
-                        kind: if is_star { LegKind::Star } else { LegKind::Sid },
-                        direction_restriction: DirectionRestriction::None,
-                    })
-                })
-                .collect();
-            Ok((airport, legs))
+                }
+            })
+            .collect())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum FindProcedureMode {
+    Sid,
+    Star,
+}
+
+/// The complete set of records for one airport/procedure.
+struct ProcedureRecord {
+    mode: FindProcedureMode,
+    legs: Vec<ProcedureLegRecord>,
+}
+
+#[derive(FromRow)]
+struct ProcedureLegRecord {
+    airport_identifier: String,
+    procedure_identifier: String,
+    route_type: String,
+    transition_identifier: Option<String>,
+    seqno: u32,
+    path_termination: Option<String>,
+    waypoint_identifier: Option<String>,
+}
+
+impl TryFrom<ProcedureRecord> for TerminalProcedure {
+    type Error = InvalidNavdataError;
+
+    fn try_from(value: ProcedureRecord) -> NavdataResult<Self> {
+        let first = value
+            .legs
+            .first()
+            .ok_or(InvalidNavdataError::InternalError(
+                "procedure has no records",
+            ))?;
+        let (runway_types, common_types, enroute_types): (&[&str], &[&str], &[&str]) =
+            match value.mode {
+                FindProcedureMode::Sid => (
+                    &["1", "4", "F", "T"],
+                    &["2", "5", "M"],
+                    &["3", "6", "S", "V"],
+                ),
+                FindProcedureMode::Star => (
+                    &["3", "6", "9", "S"],
+                    &["2", "5", "8", "M"],
+                    &["1", "4", "7", "F"],
+                ),
+            };
+        let common_legs: Vec<_> = value
+            .legs
+            .iter()
+            .filter(|leg| common_types.contains(&leg.route_type.as_str()))
+            .collect();
+        let runway_legs: Vec<_> = value
+            .legs
+            .iter()
+            .filter(|leg| runway_types.contains(&leg.route_type.as_str()))
+            .collect();
+        let runway_transitions = runway_identifiers(
+            runway_legs
+                .iter()
+                .copied()
+                .filter_map(ProcedureLegRecord::runway),
+        )?;
+        let runway_transitions = if runway_transitions.is_empty() {
+            runway_identifiers(
+                common_legs
+                    .iter()
+                    .copied()
+                    .filter_map(ProcedureLegRecord::runway),
+            )?
+        } else {
+            runway_transitions
+        };
+        if runway_transitions.is_empty() {
+            return Err(InvalidNavdataError::ProcedureMissingTransition("runway"));
+        }
+        let enroute_legs: Vec<_> = value
+            .legs
+            .iter()
+            .filter(|leg| enroute_types.contains(&leg.route_type.as_str()))
+            .collect();
+        let (enroute_boundary, connection_boundary) = match value.mode {
+            FindProcedureMode::Sid => (Boundary::Start, Boundary::End),
+            FindProcedureMode::Star => (Boundary::End, Boundary::Start),
+        };
+        let enroute_points = branch_endpoints(&enroute_legs, enroute_boundary);
+        let common_points = branch_endpoints(&common_legs, connection_boundary);
+        let enroute_transitions = if enroute_points.iter().any(|leg| leg.has_fix()) {
+            enroute_identifiers(&enroute_points, false)?
+        } else if common_points.iter().any(|leg| leg.has_fix()) {
+            enroute_identifiers(&common_points, true)?
+        } else {
+            let runway_points = branch_endpoints(&runway_legs, connection_boundary);
+            runway_connection(&runway_points)?
+        };
+        Ok(Self {
+            airport: first.airport_identifier.as_str().try_into()?,
+            identifier: first.procedure_identifier.as_str().try_into()?,
+            runway_transitions,
+            enroute_transitions,
+        })
+    }
+}
+
+impl ProcedureLegRecord {
+    fn runway(&self) -> Option<&str> {
+        let transition = self.transition_identifier.as_deref()?.trim();
+        let runway = transition.strip_prefix("RW").unwrap_or(transition);
+        (!runway.is_empty()).then_some(runway)
+    }
+
+    fn terminates_at_fix(&self) -> bool {
+        matches!(
+            self.path_termination.as_deref().unwrap_or("").trim(),
+            "IF" | "TF" | "CF" | "DF" | "AF" | "RF" | "HF"
+        )
+    }
+
+    fn has_fix(&self) -> bool {
+        self.terminates_at_fix()
+            && self
+                .waypoint_identifier
+                .as_deref()
+                .is_some_and(|identifier| !identifier.trim().is_empty())
+    }
+
+    fn fix(&self, boundary: &'static str) -> NavdataResult<&str> {
+        let path = self.path_termination.as_deref().unwrap_or("").trim();
+        // DFD path/termination codes that finish at a fix, including a hold to fix.
+        if !self.terminates_at_fix() {
+            return Err(InvalidNavdataError::ProcedureEndpointNotFix {
+                boundary,
+                transition: self.transition_identifier.clone().unwrap_or_default(),
+                seqno: self.seqno,
+                path_termination: path.to_owned(),
+            });
+        }
+        self.waypoint_identifier
+            .as_deref()
+            .map(str::trim)
+            .filter(|identifier| !identifier.is_empty())
+            .ok_or(InvalidNavdataError::ProcedureRecordMissingFixIdentifier)
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Boundary {
+    Start,
+    End,
+}
+
+fn branch_endpoints<'a>(
+    legs: &[&'a ProcedureLegRecord],
+    boundary: Boundary,
+) -> Vec<&'a ProcedureLegRecord> {
+    legs.iter()
+        .copied()
+        .into_group_map_by(|leg| {
+            (
+                leg.route_type.as_str(),
+                leg.transition_identifier.as_deref().unwrap_or(""),
+            )
+        })
+        .into_values()
+        .filter_map(|branch| match boundary {
+            Boundary::Start => branch.into_iter().min_by_key(|leg| leg.seqno),
+            Boundary::End => branch.into_iter().max_by_key(|leg| leg.seqno),
         })
         .collect()
 }
 
-#[derive(FromRow)]
-struct ProcedureRecord {
-    airport: String,
-    route_type: String,
-    #[allow(unused)]
-    transition: String,
-    identifier: Option<String>,
-    icao_code: Option<String>,
-    ref_table: Option<String>,
-    latitude: Option<f64>,
-    longitude: Option<f64>,
+/// Retain strict validation when a source contains any usable boundary fix.
+fn enroute_identifiers(
+    endpoints: &[&ProcedureLegRecord],
+    common: bool,
+) -> NavdataResult<HashSet<ArrayString<5>>> {
+    let transitions: Vec<_> = endpoints
+        .iter()
+        .map(|endpoint| {
+            let fix = endpoint.fix(if common {
+                "common-route boundary"
+            } else {
+                "enroute-transition boundary"
+            })?;
+            if common {
+                Ok(fix)
+            } else {
+                endpoint
+                    .transition_identifier
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|transition| !transition.is_empty())
+                    .ok_or(InvalidNavdataError::ProcedureMissingTransition("enroute"))
+            }
+        })
+        .collect::<NavdataResult<_>>()?;
+    identifiers(transitions.into_iter())
 }
 
-impl ProcedureRecord {
-    fn to_fix(&self) -> NavdataResult<AnyFix> {
-        let Some(identifier) = self.identifier.as_deref().filter(|s| !s.trim().is_empty()) else {
-            return Err(InvalidNavdataError::ProcedureRecordMissingFixIdentifier);
-        };
-        let record = super::fix_record::FixRecord {
-            icao_code: self.icao_code.clone().unwrap_or_default(),
-            identifier: identifier.to_owned(),
-            latitude: self.latitude,
-            longitude: self.longitude,
-        };
-        let fix = match self.ref_table.as_deref().unwrap_or("").trim() {
-            "PA" => {
-                let (latitude, longitude) = record.position()?;
-                AnyFix::Airport(Airport {
-                    identifier: identifier.try_into()?,
-                    latitude,
-                    longitude,
-                })
-            }
-            "D" => AnyFix::Vhf(record.into_vhf()?),
-            "DB" => AnyFix::Ndb(record.into_ndb(NdbKind::Enroute)?),
-            "PN" => AnyFix::Ndb(record.into_ndb(NdbKind::Terminal)?),
-            "EA" => AnyFix::Waypoint(record.into_waypoint(WaypointKind::Enroute)?),
-            "PC" => AnyFix::Waypoint(record.into_waypoint(WaypointKind::Terminal)?),
-            "PG" => {
-                let (latitude, longitude) = record.position()?;
-                GeoPoint::new(latitude, longitude).into()
-            }
-            _ => {
-                return Err(InvalidNavdataError::InternalError(
-                    "unsupported procedure waypoint reference table",
-                ));
-            }
-        };
-        Ok(fix)
+/// A runway fallback is unambiguous only if every branch has the same boundary fix.
+fn runway_connection(endpoints: &[&ProcedureLegRecord]) -> NavdataResult<HashSet<ArrayString<5>>> {
+    let fixes: Vec<_> = endpoints
+        .iter()
+        .map(|endpoint| endpoint.fix("runway-transition boundary"))
+        .collect::<NavdataResult<_>>()?;
+    let first = fixes
+        .first()
+        .ok_or(InvalidNavdataError::ProcedureMissingTransition("enroute"))?;
+    if fixes.iter().any(|fix| fix != first) {
+        return Err(InvalidNavdataError::ProcedureRunwayEndpointsDiffer);
     }
+    identifiers(std::iter::once(*first))
+}
+
+fn identifiers<'a, const N: usize>(
+    identifiers: impl Iterator<Item = &'a str>,
+) -> NavdataResult<HashSet<ArrayString<N>>> {
+    Ok(identifiers
+        .map(str::trim)
+        .filter(|identifier| !identifier.is_empty())
+        .map(ArrayString::try_from)
+        .collect::<Result<_, _>>()?)
+}
+
+fn runway_identifiers<'a>(
+    identifiers: impl Iterator<Item = &'a str>,
+) -> NavdataResult<HashSet<ArrayString<3>>> {
+    let expanded: Vec<_> = identifiers
+        .filter(|identifier| !identifier.is_empty())
+        .flat_map(|identifier| {
+            let (number, suffixes): (&str, &[&str]) =
+                if let Some(number) = identifier.strip_suffix('B') {
+                    (number, &["L", "R"])
+                } else if let Some(number) = identifier.strip_suffix('A') {
+                    (number, &["L", "C", "R"])
+                } else {
+                    (identifier, &[""])
+                };
+            suffixes
+                .iter()
+                .map(move |suffix| format!("{number}{suffix}"))
+        })
+        .collect();
+    self::identifiers(expanded.iter().map(String::as_str))
 }
