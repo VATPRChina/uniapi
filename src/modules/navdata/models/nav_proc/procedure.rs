@@ -10,6 +10,8 @@ pub struct TerminalProcedure {
     pub runway_transitions: HashSet<ArrayString<3>>,
     /// Nonempty set of named transitions, or common/runway connection fixes.
     pub enroute_transitions: HashSet<ArrayString<5>>,
+    /// True when any procedure leg has RNAV route type 4, 5, or 6.
+    pub is_rnav: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

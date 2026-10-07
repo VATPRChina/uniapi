@@ -4,11 +4,12 @@ use std::sync::LazyLock;
 use crate::adapter::compat::{CompatClient, CompatClientError};
 use crate::modules::controller::models::CompatFutureController;
 use crate::modules::flight::flight_plan::{ParseRouteError, parse_route};
-use crate::modules::navdata::models::ResolvedLeg;
+use crate::modules::navdata::models::{LegKind, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 use regex::Regex;
 
+use super::dto::SidCandidate;
 use super::flight_plan::validator::{self, ValidatorError, WarningMessage};
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
 use super::repository::flight::FlightRepository;
@@ -153,6 +154,38 @@ impl FlightService {
                     FlightServiceError::Parser(ParseRouteError::Navdata(source))
                 }
             })
+    }
+
+    /// Procedures matching the route's SID exit, or its first fix without a SID.
+    pub async fn sid_candidates(
+        &self,
+        legs: &[ResolvedLeg],
+    ) -> Result<Vec<SidCandidate>, FlightServiceError> {
+        let Some(first) = legs.first() else {
+            return Ok(Vec::new());
+        };
+        let connection = legs
+            .iter()
+            .take_while(|leg| leg.kind == LegKind::Sid)
+            .last()
+            .map_or(&first.to, |leg| &leg.to);
+        let (Some(airport), Some(connection)) = (first.from.identifier(), connection.identifier())
+        else {
+            return Ok(Vec::new());
+        };
+        Ok(self
+            .navdata
+            .find_sids_by_airport(airport)
+            .await
+            .map_err(ParseRouteError::from)?
+            .into_iter()
+            .filter(|sid| {
+                sid.enroute_transitions
+                    .iter()
+                    .any(|identifier| identifier.as_str() == connection)
+            })
+            .map(Into::into)
+            .collect())
     }
 
     pub async fn warnings(

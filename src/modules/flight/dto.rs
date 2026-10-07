@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::navdata::models::{AnyFix, Fix, LegKind, ResolvedLeg};
+use crate::modules::navdata::models::{AnyFix, Fix, LegKind, ResolvedLeg, Sid};
 
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
 
@@ -177,6 +178,35 @@ impl From<Flight> for FlightDto {
             aircraft: flight.aircraft,
             altitude: flight.altitude,
             cruising_level: flight.cruising_level,
+        }
+    }
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct RouteDeliveryInfo {
+    pub legs: Vec<FlightRouteLeg>,
+    pub sid_candidates: Vec<SidCandidate>,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct SidCandidate {
+    pub identifier: String,
+    pub runway_transitions: Vec<String>,
+    pub is_rnav: bool,
+}
+
+impl From<Sid> for SidCandidate {
+    fn from(sid: Sid) -> Self {
+        Self {
+            identifier: sid.identifier.to_string(),
+            runway_transitions: sid
+                .proc
+                .runway_transitions
+                .into_iter()
+                .map(|runway| runway.to_string())
+                .sorted()
+                .collect(),
+            is_rnav: sid.proc.is_rnav,
         }
     }
 }

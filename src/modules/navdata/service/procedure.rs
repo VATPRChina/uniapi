@@ -163,6 +163,10 @@ impl TryFrom<ProcedureRecord> for TerminalProcedure {
             identifier: first.procedure_identifier.as_str().try_into()?,
             runway_transitions,
             enroute_transitions,
+            is_rnav: value
+                .legs
+                .iter()
+                .any(|leg| matches!(leg.route_type.as_str(), "4" | "5" | "6")),
         })
     }
 }

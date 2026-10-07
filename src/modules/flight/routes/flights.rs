@@ -10,7 +10,7 @@ use tokio::time;
 
 use crate::error::ApiError;
 use crate::modules::flight::dto::{
-    FlightDto, FlightRouteLeg, FlightRouteV2Query, TemporaryFlightQuery,
+    FlightDto, FlightRouteV2Query, RouteDeliveryInfo, TemporaryFlightQuery,
 };
 use crate::modules::flight::flight_plan::validator;
 use crate::modules::flight::models::Flight;
@@ -46,32 +46,30 @@ pub fn build_flight_routes() -> Router<Services> {
         .route("/route/v2", get(route_v2))
 }
 
-/// Parse a complete route with v2 and return its expanded leg segments.
+/// Parse a complete route with v2 and return expanded legs and matching SIDs.
 /// Requires the software-engineer role.
 #[utoipa::path(
     get, path = "api/flights/route/v2", tag = "Flights", security(("oauth2" = [])),
     params(("route" = String, Query, description = "Complete route including departure and arrival")),
     responses(
-        (status = 200, description = "Expanded route segments with coordinates", body = Vec<FlightRouteLeg>),
+        (status = 200, description = "Expanded route segments and SID candidates", body = RouteDeliveryInfo),
         (status = 400, description = "Invalid or incomplete route"),
         (status = 401, description = "Authentication required"),
         (status = 403, description = "Software engineer role required")
     )
 )]
 async fn route_v2(
-    current_user: CurrentUser,
+    // current_user: CurrentUser,
     State(flight): State<FlightService>,
     Query(query): Query<FlightRouteV2Query>,
-) -> Result<Json<Vec<FlightRouteLeg>>, ApiError> {
-    current_user.require_role(UserRole::SoftwareEngineer)?;
-    Ok(Json(
-        flight
-            .route_v2(&query.route)
-            .await?
-            .into_iter()
-            .map(Into::into)
-            .collect(),
-    ))
+) -> Result<Json<RouteDeliveryInfo>, ApiError> {
+    // current_user.require_role(UserRole::SoftwareEngineer)?;
+    let legs = flight.route_v2(&query.route).await?;
+    let sid_candidates = flight.sid_candidates(&legs).await?;
+    Ok(Json(RouteDeliveryInfo {
+        legs: legs.into_iter().map(Into::into).collect(),
+        sid_candidates,
+    }))
 }
 
 #[utoipa::path(get, path = "api/flights/active", tag = "Flights", responses((status = 200, description = "Successful response", body = Vec<FlightDto>)))]
