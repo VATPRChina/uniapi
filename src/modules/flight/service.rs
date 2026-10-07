@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use crate::adapter::compat::{CompatClient, CompatClientError};
 use crate::modules::controller::models::CompatFutureController;
 use crate::modules::flight::flight_plan::{ParseRouteError, parse_route};
-use crate::modules::navdata::models::{LegKind, ResolvedLeg};
+use crate::modules::navdata::models::ResolvedLeg;
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 use regex::Regex;
@@ -156,28 +156,33 @@ impl FlightService {
             })
     }
 
-    /// Procedures matching the route's SID exit, or its first fix without a SID.
+    /// Procedures matching the first route fix with a SID at the departure airport.
     pub async fn sid_candidates(
         &self,
         legs: &[ResolvedLeg],
     ) -> Result<Vec<SidCandidate>, FlightServiceError> {
-        let Some(first) = legs.first() else {
+        let Some(airport) = legs.first().and_then(|leg| leg.from.identifier()) else {
             return Ok(Vec::new());
         };
-        let connection = legs
-            .iter()
-            .take_while(|leg| leg.kind == LegKind::Sid)
-            .last()
-            .map_or(&first.to, |leg| &leg.to);
-        let (Some(airport), Some(connection)) = (first.from.identifier(), connection.identifier())
-        else {
-            return Ok(Vec::new());
-        };
-        Ok(self
+        let sids = self
             .navdata
             .find_sids_by_airport(airport)
             .await
-            .map_err(ParseRouteError::from)?
+            .map_err(ParseRouteError::from)?;
+        let Some(connection) =
+            legs.iter()
+                .filter_map(|leg| leg.from.identifier())
+                .find(|connection| {
+                    sids.iter().any(|sid| {
+                        sid.enroute_transitions
+                            .iter()
+                            .any(|identifier| identifier.as_str() == *connection)
+                    })
+                })
+        else {
+            return Ok(Vec::new());
+        };
+        Ok(sids
             .into_iter()
             .filter(|sid| {
                 sid.enroute_transitions
