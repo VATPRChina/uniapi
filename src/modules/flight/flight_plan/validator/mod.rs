@@ -215,12 +215,8 @@ fn route_matches_expected(
     }
 
     // incomplete expected route for international routes
-    let (expected, actual) = if let Some(expected_final_fix) =
-        preferred_route.name.split('-').nth(1)
-        && expected
-            .last()
-            .is_some_and(|leg| leg.from.identifier() == Some(expected_final_fix))
-        && !preferred_route.arrival.starts_with('Z')
+    if !preferred_route.arrival.starts_with('Z')
+        && let Some(expected_final_fix) = expected.last().and_then(|last| last.from.identifier())
     {
         let actual_pos = actual
             .iter()
