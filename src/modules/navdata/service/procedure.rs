@@ -14,6 +14,26 @@ impl NavdataService {
         ident: &str,
         mode: FindProcedureMode,
     ) -> NavdataResult<Vec<TerminalProcedure>> {
+        self.find_procedures("procedure_identifier", ident, mode)
+            .await
+    }
+
+    /// Load all valid procedures at an airport, ordered by procedure identifier.
+    pub async fn find_procedure_by_airport(
+        &self,
+        airport: &str,
+        mode: FindProcedureMode,
+    ) -> NavdataResult<Vec<TerminalProcedure>> {
+        self.find_procedures("airport_identifier", airport, mode)
+            .await
+    }
+
+    async fn find_procedures(
+        &self,
+        column: &'static str,
+        value: &str,
+        mode: FindProcedureMode,
+    ) -> NavdataResult<Vec<TerminalProcedure>> {
         let table = match mode {
             FindProcedureMode::Sid => "tbl_pd_sids",
             FindProcedureMode::Star => "tbl_pe_stars",
@@ -21,10 +41,10 @@ impl NavdataService {
         let legs: Vec<ProcedureLegRecord> = sqlx::query_as(&format!(
             "SELECT airport_identifier, procedure_identifier, route_type,
                     transition_identifier, seqno, path_termination, waypoint_identifier
-             FROM {table} WHERE procedure_identifier = $1
-             ORDER BY airport_identifier, seqno",
+             FROM {table} WHERE {column} = $1
+             ORDER BY airport_identifier, procedure_identifier, seqno",
         ))
-        .bind(ident)
+        .bind(value)
         .fetch_all(&self.db)
         .await?;
         Ok(legs
