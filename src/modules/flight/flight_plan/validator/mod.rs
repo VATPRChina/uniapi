@@ -2,6 +2,7 @@ use itertools::Itertools;
 use serde::Serialize;
 use tracing::info;
 
+use crate::modules::flight::flight_plan::v1::parser::ParserError;
 use crate::modules::flight::flight_plan::validator::flight_validator::{
     EquipmentRnav1Validator, NavigationPerformanceRnav1Validator, RnpArValidator,
     RnpArWithoutRfValidator, RvsmValidator,
@@ -26,6 +27,8 @@ pub enum ValidatorError {
     Database(#[from] sqlx::Error),
     #[error("parser error: {0}")]
     Parser(#[from] ParseRouteError),
+    #[error("parser error: {0}")]
+    ParserV1(#[from] ParserError),
     #[error("navdata error: {0}")]
     Navdata(InvalidNavdataError),
 }

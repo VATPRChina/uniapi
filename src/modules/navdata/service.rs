@@ -7,6 +7,7 @@ use crate::modules::navdata::repository::{
 
 mod airport;
 mod airway;
+mod deprecated;
 mod fix_record;
 mod ndb;
 mod procedure;

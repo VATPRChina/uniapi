@@ -3,7 +3,8 @@ use std::sync::LazyLock;
 
 use crate::adapter::compat::{CompatClient, CompatClientError};
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::flight::flight_plan::{ParseRouteError, parse_route};
+use crate::modules::flight::flight_plan::v1::parser::ParserError;
+use crate::modules::flight::flight_plan::{ParseRouteError, parse_route, v1};
 use crate::modules::flight::models::ParsedRoute;
 use crate::modules::navdata::models::ResolvedLeg;
 use crate::modules::navdata::service::NavdataService;
@@ -11,7 +12,7 @@ use crate::modules::user::service::user::{UserService, UserServiceError};
 use regex::Regex;
 
 use super::dto::SidCandidate;
-use super::flight_plan::validator::{self, ValidatorError, WarningMessage};
+use super::flight_plan::validator::{ValidatorError, WarningMessage};
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
 use super::repository::flight::FlightRepository;
 
@@ -130,7 +131,7 @@ impl FlightService {
         callsign: &str,
     ) -> Result<ParsedRoute, FlightServiceError> {
         let flight = self.find_by_callsign(callsign).await?;
-        self.route(&flight).await
+        self.route_v1(&flight).await
     }
 
     pub async fn warnings_by_callsign(
@@ -141,8 +142,9 @@ impl FlightService {
         self.warnings(&flight).await
     }
 
-    pub async fn route(&self, flight: &Flight) -> Result<ParsedRoute, FlightServiceError> {
-        Ok(parse_route(&self.navdata, &route_string(flight)).await?)
+    pub async fn route_v1(&self, flight: &Flight) -> Result<ParsedRoute, FlightServiceError> {
+        let legs = v1::parser::parse_route(&self.navdata, &route_string(flight)).await?;
+        Ok(ParsedRoute { legs })
     }
 
     /// Parse and expand a complete route using the v2 pipeline.
@@ -198,8 +200,8 @@ impl FlightService {
         &self,
         flight: &Flight,
     ) -> Result<Vec<WarningMessage>, FlightServiceError> {
-        let legs = self.route(flight).await?;
-        Ok(validator::validate_route(&self.navdata, flight, &legs).await?)
+        let legs = self.route_v1(flight).await?;
+        Ok(v1::validator::validate_route(&self.navdata, flight, &legs.legs).await?)
     }
 
     pub async fn warnings_for_all(
@@ -239,6 +241,8 @@ pub enum FlightServiceError {
     Compat(#[from] CompatClientError),
     #[error("failed to parse flight route: {0}")]
     Parser(#[from] ParseRouteError),
+    #[error("failed to parse flight route: {0}")]
+    ParserV1(#[from] ParserError),
     #[error("failed to validate flight route: {0}")]
     Validator(#[from] ValidatorError),
     #[error("failed to access flight user: {0}")]

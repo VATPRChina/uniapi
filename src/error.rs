@@ -17,6 +17,7 @@ use crate::modules::audit_log::service::AuditLogServiceError;
 use crate::modules::controller::service::ControllerServiceError;
 use crate::modules::event::service::EventServiceError;
 use crate::modules::flight::flight_plan::ParseRouteError;
+use crate::modules::flight::flight_plan::v1::parser::ParserError;
 use crate::modules::flight::flight_plan::validator::ValidatorError;
 use crate::modules::flight::service::FlightServiceError;
 use crate::modules::sheet::service::SheetServiceError;
@@ -117,6 +118,8 @@ api_errors!(
         => "solo expiration not provided",
 
     RouteParser { #[from] source: ParseRouteError } => StatusCode::INTERNAL_SERVER_ERROR
+        => "failed to parse route: {source}",
+    RouteParserV1 { #[from] source: ParserError } => StatusCode::INTERNAL_SERVER_ERROR
         => "failed to parse route: {source}",
     RouteValidator { #[from] source: ValidatorError } => StatusCode::INTERNAL_SERVER_ERROR
         => "failed to validate route: {source}",
@@ -331,6 +334,7 @@ impl From<FlightServiceError> for ApiError {
             FlightServiceError::FlightNotFoundForCid => ApiError::FlightNotFoundForCid,
             FlightServiceError::Compat(source) => ApiError::Compat { source },
             FlightServiceError::Parser(source) => ApiError::RouteParser { source },
+            FlightServiceError::ParserV1(source) => ApiError::RouteParserV1 { source },
             FlightServiceError::Validator(source) => ApiError::RouteValidator { source },
             FlightServiceError::User(source) => source.into(),
         }
