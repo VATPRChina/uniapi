@@ -105,6 +105,13 @@ flight plans again every 30 seconds, and sends another complete snapshot only
 when the results change. This includes flights appearing and disappearing. The
 existing HTTP validation endpoints remain available for request-based checks.
 
+Every validation also runs the v2 parser and validator in a background shadow
+task. Responses continue to use v1, including v1 errors. If the results differ,
+the server logs `flight validation shadow mismatch` at WARN with the callsign,
+complete route, and both results. Comparisons include warning order, codes,
+parameters, fields, and field indices; failures are compared by error message.
+V2 failures do not affect the response.
+
 ## Testing
 
 There is E2E testing for each API endpoint. It is still missing test coverage on some endpoints.
