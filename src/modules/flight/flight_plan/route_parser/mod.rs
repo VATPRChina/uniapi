@@ -44,10 +44,8 @@ pub use resolver::{CandidateResolver, IdentCandidate, IdentWithCandidate};
 pub use solver::{CandidateWithState, SolvedIdent, Solver};
 pub use trace::RouteParseStep;
 
-use crate::modules::navdata::{
-    models::ResolvedLeg,
-    service::{InvalidNavdataError, NavdataService},
-};
+use crate::modules::flight::models::ParsedRoute;
+use crate::modules::navdata::service::{InvalidNavdataError, NavdataService};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseRouteError {
@@ -61,7 +59,7 @@ pub enum ParseRouteError {
 pub async fn parse_route(
     navdata: &NavdataService,
     route: &str,
-) -> Result<Vec<ResolvedLeg>, ParseRouteError> {
+) -> Result<ParsedRoute, ParseRouteError> {
     parse_route_with_observer(navdata, route, |_| {}).await
 }
 
@@ -71,7 +69,7 @@ pub async fn parse_route_with_observer(
     navdata: &NavdataService,
     route: &str,
     observe: impl Fn(RouteParseStep<'_, '_>),
-) -> Result<Vec<ResolvedLeg>, ParseRouteError> {
+) -> Result<ParsedRoute, ParseRouteError> {
     let tokens: Vec<_> = Lexer::new(route).parse_all().collect();
     observe(RouteParseStep::Lexed(&tokens));
     let parsed: Vec<_> = LexGrouper::new(tokens).parse().collect();
@@ -108,5 +106,5 @@ pub async fn parse_route_with_observer(
             }
         })?;
     observe(RouteParseStep::Expanded(&expanded));
-    Ok(expanded)
+    Ok(ParsedRoute { legs: expanded })
 }

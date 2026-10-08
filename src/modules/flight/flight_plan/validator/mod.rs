@@ -12,7 +12,7 @@ use crate::modules::flight::flight_plan::validator::matching_route_validator::{
     NoMatchingRouteValidator, RouteMatchValidator,
 };
 use crate::modules::flight::flight_plan::{ParseRouteError, parse_route};
-use crate::modules::flight::models::Flight;
+use crate::modules::flight::models::{Flight, ParsedRoute};
 use crate::modules::navdata::models::{AnyFix, Fix, LegKind, PreferredRoute, ResolvedLeg};
 use crate::modules::navdata::service::{InvalidNavdataError, NavdataService};
 
@@ -98,13 +98,13 @@ pub enum WarningMessageCode {
 pub async fn validate_route(
     navdata: &NavdataService,
     flight: &Flight,
-    legs: &[ResolvedLeg],
+    route: &ParsedRoute,
 ) -> Result<Vec<WarningMessage>, ValidatorError> {
     let preferred_routes = navdata
         .list_preferred_routes(&flight.departure, &flight.arrival)
         .await
         .map_err(ValidatorError::Navdata)?;
-    let matching_route = find_matching_route(navdata, legs, &preferred_routes).await?;
+    let matching_route = find_matching_route(navdata, &route.legs, &preferred_routes).await?;
 
     let messages = MessageContainer::new()
         .validate::<RvsmValidator, _>(flight)
@@ -124,7 +124,11 @@ pub async fn validate_route(
         .validate::<MinimalAltitudeValidator, _>(context_matching_route);
 
     let messages = messages.validate_over::<LegValidator, _>(
-        legs.iter().enumerate().filter(|_| matching_route.is_none()),
+        route
+            .legs
+            .iter()
+            .enumerate()
+            .filter(|_| matching_route.is_none()),
     );
 
     Ok(messages.build().into_iter().collect())
@@ -195,7 +199,7 @@ async fn find_matching_route<'a>(
             ),
         )
         .await?;
-        if route_matches_expected(legs, &parsed, preferred_route) {
+        if route_matches_expected(legs, &parsed.legs, preferred_route) {
             return Ok(Some(preferred_route));
         }
     }

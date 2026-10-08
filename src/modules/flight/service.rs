@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 use crate::adapter::compat::{CompatClient, CompatClientError};
 use crate::modules::controller::models::CompatFutureController;
 use crate::modules::flight::flight_plan::{ParseRouteError, parse_route};
+use crate::modules::flight::models::ParsedRoute;
 use crate::modules::navdata::models::ResolvedLeg;
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
@@ -127,7 +128,7 @@ impl FlightService {
     pub async fn route_by_callsign(
         &self,
         callsign: &str,
-    ) -> Result<Vec<ResolvedLeg>, FlightServiceError> {
+    ) -> Result<ParsedRoute, FlightServiceError> {
         let flight = self.find_by_callsign(callsign).await?;
         self.route(&flight).await
     }
@@ -140,12 +141,12 @@ impl FlightService {
         self.warnings(&flight).await
     }
 
-    pub async fn route(&self, flight: &Flight) -> Result<Vec<ResolvedLeg>, FlightServiceError> {
+    pub async fn route(&self, flight: &Flight) -> Result<ParsedRoute, FlightServiceError> {
         Ok(parse_route(&self.navdata, &route_string(flight)).await?)
     }
 
     /// Parse and expand a complete route using the v2 pipeline.
-    pub async fn route_v2(&self, route: &str) -> Result<Vec<ResolvedLeg>, FlightServiceError> {
+    pub async fn route_v2(&self, route: &str) -> Result<ParsedRoute, FlightServiceError> {
         parse_route(&self.navdata, route)
             .await
             .map_err(|error| match error {

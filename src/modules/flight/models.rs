@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use ulid::Ulid;
 
 use crate::modules::controller::models::CompatFutureController;
+use crate::modules::navdata::models::ResolvedLeg;
 
 pub struct CompatStatus {
     pub last_updated: DateTime<Utc>,
@@ -41,4 +42,9 @@ pub struct Flight {
     pub aircraft: String,
     pub altitude: i64,
     pub cruising_level: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ParsedRoute {
+    pub legs: Vec<ResolvedLeg>,
 }

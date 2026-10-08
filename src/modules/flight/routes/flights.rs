@@ -64,10 +64,10 @@ async fn route_v2(
     Query(query): Query<FlightRouteV2Query>,
 ) -> Result<Json<RouteDeliveryInfo>, ApiError> {
     // current_user.require_role(UserRole::SoftwareEngineer)?;
-    let legs = flight.route_v2(&query.route).await?;
-    let sid_candidates = flight.sid_candidates(&legs).await?;
+    let route = flight.route_v2(&query.route).await?;
+    let sid_candidates = flight.sid_candidates(&route.legs).await?;
     Ok(Json(RouteDeliveryInfo {
-        legs: legs.into_iter().map(Into::into).collect(),
+        legs: route.legs.into_iter().map(Into::into).collect(),
         sid_candidates,
     }))
 }
