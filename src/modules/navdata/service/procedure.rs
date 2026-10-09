@@ -8,14 +8,20 @@ use super::{InvalidNavdataError, NavdataResult, NavdataService};
 use crate::modules::navdata::models::TerminalProcedure;
 
 impl NavdataService {
-    /// Load airport-scoped procedures by identifier, skipping invalid procedures.
+    /// Load exact and abbreviated SID/STAR identifiers, skipping invalid procedures.
+    /// Exact matches precede six-character aliases for published names longer than six.
     pub async fn find_procedure_by_ident(
         &self,
         ident: &str,
         mode: FindProcedureMode,
     ) -> NavdataResult<Vec<TerminalProcedure>> {
-        self.find_procedures("procedure_identifier", ident, mode)
-            .await
+        let abbr = abbreviations(ident);
+        self.find_procedures(
+            "procedure_identifier",
+            abbr.as_deref().unwrap_or(ident),
+            mode,
+        )
+        .await
     }
 
     /// Load all valid procedures at an airport, ordered by procedure identifier.
@@ -62,6 +68,52 @@ impl NavdataService {
             })
             .collect())
     }
+}
+
+fn abbreviations(identifier: &str) -> Option<String> {
+    if identifier.len() != 7 {
+        return None;
+    }
+
+    let validity_indicator = identifier.chars().nth(5).unwrap();
+    let route_indicator = identifier.chars().nth(6).unwrap();
+
+    if !validity_indicator.is_ascii_digit() {
+        return None;
+    }
+
+    if !route_indicator.is_ascii_alphanumeric() {
+        return None;
+    }
+
+    let dedup: String = identifier
+        .chars()
+        .take(6)
+        .tuple_windows()
+        .flat_map(|(l, r)| if l == r { None } else { Some(l) })
+        .collect();
+    if dedup.len() == 4 {
+        return Some(format!(
+            "{}{}{}",
+            dedup, validity_indicator, route_indicator
+        ));
+    }
+
+    Some(format!(
+        "{}{}{}",
+        identifier.chars().take(4).collect::<String>(),
+        validity_indicator,
+        route_indicator
+    ))
+}
+
+#[cfg(test)]
+#[test]
+fn test_abbr() {
+    assert_eq!(abbreviations("SASAN1"), None);
+    assert_eq!(abbreviations("ALPHABETA"), None);
+    assert_eq!(abbreviations("SASAN1A"), Some("SASA1A".to_string()));
+    assert_eq!(abbreviations("COTTO2B"), Some("COTO2B".to_string()));
 }
 
 #[derive(Debug, Clone, Copy)]
