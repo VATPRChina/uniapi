@@ -15,7 +15,7 @@ impl Validator<(Option<&PreferredRoute>, Vec<&PreferredRoute>)> for NoMatchingRo
         (matching_route.is_none() && !preferred_routes.is_empty()).then(|| {
             let routes = preferred_routes
                 .iter()
-                .filter(|route| !route.is_public())
+                .filter(|route| route.is_public())
                 .sorted_by_key(|route| &route.name)
                 .collect::<Vec<_>>();
             WarningMessage::with_parameter(
