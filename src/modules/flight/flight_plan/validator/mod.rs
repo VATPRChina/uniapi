@@ -222,7 +222,7 @@ fn route_matches_expected(
     }
 
     // incomplete expected route for international routes
-    if !preferred_route.arrival.starts_with('Z')
+    let (expected, actual) = if !preferred_route.arrival.starts_with('Z')
         && let Some(expected_final_fix) = expected.last().and_then(|last| last.from.identifier())
     {
         let actual_pos = actual
@@ -277,7 +277,10 @@ fn route_matches_expected(
             })
             .unwrap_or_default();
     if expected_enroute_end <= expected_enroute_start {
-        info!("unable to find start and end on preferred route");
+        info!(
+            "unable to find start and end on preferred route: {}-{}",
+            expected_enroute_start, expected_enroute_end
+        );
         return false;
     }
     let expected_enroute = &expected[expected_enroute_start..expected_enroute_end];
