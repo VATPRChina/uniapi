@@ -148,7 +148,7 @@ fn abbreviations_alternative(ident: &str) -> Option<String> {
         return None;
     }
 
-    if chars[4] != 'I' && chars[4] != 'O' {
+    if chars[3] != 'I' && chars[3] != 'O' {
         return None;
     }
 
@@ -156,7 +156,7 @@ fn abbreviations_alternative(ident: &str) -> Option<String> {
         chars
             .into_iter()
             .enumerate()
-            .filter(|(idx, _)| *idx != 4)
+            .filter(|(idx, _)| *idx != 3)
             .map(|(_, c)| c)
             .collect(),
     )
