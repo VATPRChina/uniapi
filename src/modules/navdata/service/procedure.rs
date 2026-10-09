@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use arrayvec::ArrayString;
+use futures::{FutureExt, future::OptionFuture};
 use itertools::Itertools;
 use sqlx::FromRow;
 
@@ -15,13 +16,25 @@ impl NavdataService {
         ident: &str,
         mode: FindProcedureMode,
     ) -> NavdataResult<Vec<TerminalProcedure>> {
-        let abbr = abbreviations(ident);
-        self.find_procedures(
-            "procedure_identifier",
-            abbr.as_deref().unwrap_or(ident),
-            mode,
-        )
-        .await
+        let primary = abbreviations(ident);
+        let alternative = abbreviations_alternative(ident);
+
+        let (mut results, extra) = tokio::try_join!(
+            self.find_procedures(
+                "procedure_identifier",
+                primary.as_deref().unwrap_or(ident),
+                mode,
+            ),
+            OptionFuture::from(
+                alternative
+                    .as_deref()
+                    .map(|ident| { self.find_procedures("procedure_identifier", ident, mode) })
+            )
+            .map(Option::transpose),
+        )?;
+
+        results.extend(extra.into_iter().flatten());
+        Ok(results)
     }
 
     /// Load all valid procedures at an airport, ordered by procedure identifier.
@@ -70,13 +83,13 @@ impl NavdataService {
     }
 }
 
-fn abbreviations(identifier: &str) -> Option<String> {
-    if identifier.len() != 7 {
+fn abbreviations(ident: &str) -> Option<String> {
+    if ident.len() != 7 {
         return None;
     }
 
-    let validity_indicator = identifier.chars().nth(5).unwrap();
-    let route_indicator = identifier.chars().nth(6).unwrap();
+    let validity_indicator = ident.chars().nth(5).unwrap();
+    let route_indicator = ident.chars().nth(6).unwrap();
 
     if !validity_indicator.is_ascii_digit() {
         return None;
@@ -86,7 +99,7 @@ fn abbreviations(identifier: &str) -> Option<String> {
         return None;
     }
 
-    let dedup: String = identifier
+    let dedup: String = ident
         .chars()
         .take(6)
         .tuple_windows()
@@ -101,7 +114,7 @@ fn abbreviations(identifier: &str) -> Option<String> {
 
     Some(format!(
         "{}{}{}",
-        identifier.chars().take(4).collect::<String>(),
+        ident.chars().take(4).collect::<String>(),
         validity_indicator,
         route_indicator
     ))
@@ -114,6 +127,49 @@ fn test_abbr() {
     assert_eq!(abbreviations("ALPHABETA"), None);
     assert_eq!(abbreviations("SASAN1A"), Some("SASA1A".to_string()));
     assert_eq!(abbreviations("COTTO2B"), Some("COTO2B".to_string()));
+    assert_eq!(abbreviations("AKDIK6K"), Some("AKDI6K".to_string()));
+}
+
+fn abbreviations_alternative(ident: &str) -> Option<String> {
+    if ident.len() != 7 {
+        return None;
+    }
+
+    let chars: Vec<char> = ident.chars().collect();
+
+    let validity_indicator = chars[5];
+    let route_indicator = chars[6];
+
+    if !validity_indicator.is_ascii_digit() {
+        return None;
+    }
+
+    if !route_indicator.is_ascii_alphanumeric() {
+        return None;
+    }
+
+    if chars[4] != 'I' && chars[4] != 'O' {
+        return None;
+    }
+
+    Some(
+        chars
+            .into_iter()
+            .enumerate()
+            .filter(|(idx, _)| *idx != 4)
+            .map(|(_, c)| c)
+            .collect(),
+    )
+}
+
+#[cfg(test)]
+#[test]
+fn test_abbr_altn() {
+    assert_eq!(abbreviations_alternative("SASAN1A"), None);
+    assert_eq!(
+        abbreviations_alternative("AKDIK6K"),
+        Some("AKDK6K".to_string())
+    );
 }
 
 #[derive(Debug, Clone, Copy)]
