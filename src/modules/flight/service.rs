@@ -10,6 +10,7 @@ use crate::modules::navdata::models::ResolvedLeg;
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 use regex::Regex;
+use tracing::Instrument;
 
 use super::dto::SidCandidate;
 use super::flight_plan::validator::{self, ValidatorError, WarningMessage};
@@ -211,23 +212,31 @@ impl FlightService {
         let v1_result = validation_snapshot(&result);
         let service = self.clone();
         let flight = flight.clone();
-        tokio::spawn(async move {
-            let result = async {
-                let route = service.route_v2(&route_string(&flight)).await?;
-                Ok(validator::validate_route(&service.navdata, &flight, &route).await?)
+        let span = tracing::info_span!(
+            "flight_validation_shadow",
+            callsign = %flight.callsign,
+            route = %route_string(&flight)
+        );
+        tokio::spawn(
+            async move {
+                let result = async {
+                    let route = service.route_v2(&route_string(&flight)).await?;
+                    Ok(validator::validate_route(&service.navdata, &flight, &route).await?)
+                }
+                .await;
+                let v2_result = validation_snapshot(&result);
+                if v1_result != v2_result {
+                    tracing::warn!(
+                        callsign = %flight.callsign,
+                        route = %route_string(&flight),
+                        ?v1_result,
+                        ?v2_result,
+                        "flight validation shadow mismatch"
+                    );
+                }
             }
-            .await;
-            let v2_result = validation_snapshot(&result);
-            if v1_result != v2_result {
-                tracing::warn!(
-                    callsign = %flight.callsign,
-                    route = %route_string(&flight),
-                    ?v1_result,
-                    ?v2_result,
-                    "flight validation shadow mismatch"
-                );
-            }
-        });
+            .instrument(span),
+        );
 
         result
     }
