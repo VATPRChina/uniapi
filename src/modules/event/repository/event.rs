@@ -33,7 +33,8 @@ where
             r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
-               community_link, vatsim_link, description
+               community_link, vatsim_link, description, (SELECT to_jsonb(message) FROM public.event_discord_message message
+                   WHERE message.event_id = event.id) AS discord_message
         FROM public.event
         WHERE (is_approved = TRUE OR is_approved IS NULL)
           AND now() < end_at
@@ -52,7 +53,8 @@ where
             r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
-               community_link, vatsim_link, description
+               community_link, vatsim_link, description, (SELECT to_jsonb(message) FROM public.event_discord_message message
+                   WHERE message.event_id = event.id) AS discord_message
         FROM public.event
         WHERE (is_approved = TRUE OR is_approved IS NULL)
           AND start_at < now()
@@ -71,7 +73,8 @@ where
             r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
-               community_link, vatsim_link, description
+               community_link, vatsim_link, description, (SELECT to_jsonb(message) FROM public.event_discord_message message
+                   WHERE message.event_id = event.id) AS discord_message
         FROM public.event
         WHERE id = $1
         "#,
@@ -110,7 +113,8 @@ where
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id, created_at, updated_at, title, title_en, start_at, end_at,
                   start_booking_at, end_booking_at, start_atc_booking_at, image_url,
-                  community_link, vatsim_link, description
+                  community_link, vatsim_link, description, (SELECT to_jsonb(message) FROM public.event_discord_message message
+                   WHERE message.event_id = event.id) AS discord_message
         "#,
         )
         .bind(Uuid::from(Ulid::new()))
@@ -133,7 +137,8 @@ where
             r#"
         SELECT id, created_at, updated_at, title, title_en, start_at, end_at,
                start_booking_at, end_booking_at, start_atc_booking_at, image_url,
-               community_link, vatsim_link, description
+               community_link, vatsim_link, description, (SELECT to_jsonb(message) FROM public.event_discord_message message
+                   WHERE message.event_id = event.id) AS discord_message
         FROM public.event
         WHERE id = $1
         FOR UPDATE
@@ -168,7 +173,8 @@ where
         WHERE id = $1
         RETURNING id, created_at, updated_at, title, title_en, start_at, end_at,
                   start_booking_at, end_booking_at, start_atc_booking_at, image_url,
-                  community_link, vatsim_link, description
+                  community_link, vatsim_link, description, (SELECT to_jsonb(message) FROM public.event_discord_message message
+                   WHERE message.event_id = event.id) AS discord_message
         "#,
         )
         .bind(id)
