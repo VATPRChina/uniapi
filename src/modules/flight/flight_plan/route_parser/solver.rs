@@ -203,9 +203,13 @@ impl CandidateSortPruneState {
             .into_group_map_by(|c| c.candidate.priority())
             .into_values()
             .flat_map(|g| {
+                let min_dist = g
+                    .iter()
+                    .map(|c| OrderedFloat(c.state.distance))
+                    .min()
+                    .unwrap_or_default();
                 g.into_iter()
-                    .sorted_by_key(|c| OrderedFloat(c.state.distance))
-                    .next()
+                    .filter(move |c| OrderedFloat(c.distance()) == min_dist)
             })
             .filter(|c| match &c.candidate {
                 IdentCandidate::Fix(fix_candidate) => !fix_candidate.is_unknown() || !has_known_fix,

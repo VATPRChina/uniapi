@@ -19,7 +19,8 @@ impl Expander {
 
     /// Expand named legs into connected published segments, in route order.
     /// Direct legs and legs without a matching path retain their original form.
-    /// Airways allow reverse traversal, flipping the direction restrictions.
+    /// Airways match named fixes by identifier and allow reverse traversal,
+    /// flipping the direction restrictions.
     /// SID/STAR common legs retain their published direction.
     /// Procedures use fixed endpoints only; runway selection and vector geometry
     /// are not represented by the constructed route.
@@ -37,10 +38,14 @@ fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, Expansio
     let Some(procedure) = &constructed.procedure else {
         return Ok(vec![leg.clone()]);
     };
+    let fix_matches: fn(&AnyFix, &AnyFix) -> bool = match procedure {
+        NavProc::Airway(_) => same_airway_fix,
+        _ => same_fix,
+    };
     if leg.is_unknown
         || leg.from.is_unknown()
         || leg.to.is_unknown()
-        || same_fix(&leg.from, &leg.to)
+        || fix_matches(&leg.from, &leg.to)
     {
         return Ok(vec![leg.clone()]);
     }
@@ -61,7 +66,7 @@ fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, Expansio
         ),
         _ => Cow::Borrowed(edges),
     };
-    Ok(find_path(&edges, &leg.from, &leg.to)
+    Ok(find_path(&edges, &leg.from, &leg.to, fix_matches)
         .filter(|path| !path.is_empty())
         .map(|path| {
             path.iter()
@@ -82,6 +87,13 @@ fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, Expansio
                 .collect()
         })
         .unwrap_or_else(|| vec![leg.clone()]))
+}
+
+fn same_airway_fix(left: &AnyFix, right: &AnyFix) -> bool {
+    match (left.identifier(), right.identifier()) {
+        (Some(left), Some(right)) => left.eq_ignore_ascii_case(right),
+        _ => same_fix(left, right),
+    }
 }
 
 fn same_fix(left: &AnyFix, right: &AnyFix) -> bool {
@@ -116,8 +128,13 @@ struct Search {
 }
 
 /// Breadth-first search picks the fewest published segments, with navigation
-/// record order breaking ties. Visited physical fixes prevent loops.
-fn find_path(edges: &[ResolvedLeg], from: &AnyFix, to: &AnyFix) -> Option<Vec<ResolvedLeg>> {
+/// record order breaking ties. Visited fixes use the same matching rule as edges.
+fn find_path(
+    edges: &[ResolvedLeg],
+    from: &AnyFix,
+    to: &AnyFix,
+    fix_matches: fn(&AnyFix, &AnyFix) -> bool,
+) -> Option<Vec<ResolvedLeg>> {
     let first = Search {
         frontier: vec![Path {
             point: from.clone(),
@@ -126,7 +143,11 @@ fn find_path(edges: &[ResolvedLeg], from: &AnyFix, to: &AnyFix) -> Option<Vec<Re
         visited: vec![from.clone()],
     };
     std::iter::successors(Some(first), |search| {
-        if search.frontier.iter().any(|path| same_fix(&path.point, to)) {
+        if search
+            .frontier
+            .iter()
+            .any(|path| fix_matches(&path.point, to))
+        {
             return None;
         }
         let frontier = search
@@ -136,8 +157,11 @@ fn find_path(edges: &[ResolvedLeg], from: &AnyFix, to: &AnyFix) -> Option<Vec<Re
                 edges
                     .iter()
                     .filter(|edge| {
-                        same_fix(&path.point, &edge.from)
-                            && !search.visited.iter().any(|point| same_fix(point, &edge.to))
+                        fix_matches(&path.point, &edge.from)
+                            && !search
+                                .visited
+                                .iter()
+                                .any(|point| fix_matches(point, &edge.to))
                     })
                     .map(|edge| Path {
                         point: edge.to.clone(),
@@ -145,7 +169,10 @@ fn find_path(edges: &[ResolvedLeg], from: &AnyFix, to: &AnyFix) -> Option<Vec<Re
                     })
             })
             .fold(Vec::<Path>::new(), |paths, next| {
-                if paths.iter().any(|path| same_fix(&path.point, &next.point)) {
+                if paths
+                    .iter()
+                    .any(|path| fix_matches(&path.point, &next.point))
+                {
                     paths
                 } else {
                     paths.into_iter().chain([next]).collect()
@@ -165,7 +192,7 @@ fn find_path(edges: &[ResolvedLeg], from: &AnyFix, to: &AnyFix) -> Option<Vec<Re
         search
             .frontier
             .into_iter()
-            .find(|path| same_fix(&path.point, to))
+            .find(|path| fix_matches(&path.point, to))
             .map(|path| path.legs)
     })
 }
