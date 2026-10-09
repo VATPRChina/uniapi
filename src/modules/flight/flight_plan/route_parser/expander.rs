@@ -1,3 +1,5 @@
+use tracing::warn;
+
 use super::ConstructedLeg;
 use crate::modules::navdata::models::{AnyFix, Fix, NavProc, ResolvedLeg};
 use std::borrow::Cow;
@@ -86,7 +88,13 @@ fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, Expansio
                 })
                 .collect()
         })
-        .unwrap_or_else(|| vec![leg.clone()]))
+        .unwrap_or_else(|| {
+            warn!(
+                "failed to find a route on {:?} from {:?} to {:?}",
+                leg.identifier, leg.from, leg.to
+            );
+            vec![leg.clone()]
+        }))
 }
 
 fn same_airway_fix(left: &AnyFix, right: &AnyFix) -> bool {
