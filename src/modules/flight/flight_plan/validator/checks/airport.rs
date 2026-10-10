@@ -57,7 +57,7 @@ fn validate_airport<V: Validator>(identifier: &str, endpoint: Option<&AnyFix>) -
         && identifier
             .bytes()
             .all(|character| character.is_ascii_alphabetic());
-    let status = if identifier.is_empty() {
+    let status = if identifier.is_empty() || identifier == "ZZZZ" {
         ValidatorStatus::Unavailable
     } else if !valid_identifier {
         ValidatorStatus::Rejected
