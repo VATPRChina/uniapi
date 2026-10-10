@@ -74,7 +74,7 @@ impl Validator for RouteDirectLegValidator {
                 leg.kind == LegKind::Direct
                     && !matches!(leg.from, AnyFix::Airport(_))
                     && !matches!(leg.to, AnyFix::Airport(_))
-                    && (leg.from.is_china() || leg.to.is_china())
+                    && (leg.from.is_china() && leg.to.is_china())
             },
         )
     }
