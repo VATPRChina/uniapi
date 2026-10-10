@@ -92,6 +92,8 @@ pub enum WarningMessageField {
 #[serde(rename_all = "kebab-case")]
 pub enum WarningMessageCode {
     InvalidAirport,
+    InvalidAircraftType,
+    WakeCategoryMismatch,
     NoRvsm,
     NoRnav1,
     RnpAr,

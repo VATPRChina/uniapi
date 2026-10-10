@@ -41,6 +41,8 @@ pub struct Flight {
     pub transponder: String,
     pub raw_route: String,
     pub aircraft: String,
+    pub flight_rules: String,
+    pub wake_category: String,
     pub altitude: i64,
     pub cruising_level: i64,
 }

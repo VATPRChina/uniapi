@@ -48,6 +48,8 @@ fn map_pilot(pilot: Pilot) -> Option<Flight> {
         transponder: aircraft.transponder,
         raw_route: flight_plan.route.unwrap_or_default(),
         aircraft: aircraft.code,
+        flight_rules: flight_plan.flight_rules.unwrap_or_default(),
+        wake_category: aircraft.wake_category,
         altitude: pilot.altitude.unwrap_or_default(),
         cruising_level: flight_plan
             .altitude
@@ -79,6 +81,7 @@ fn parse_flight_altitude(altitude: &str) -> Option<i64> {
 
 struct AircraftParts {
     code: String,
+    wake_category: String,
     equipment: String,
     transponder: String,
     navigation_performance: String,
@@ -95,6 +98,11 @@ fn parse_aircraft(flight_plan: &FlightPlan) -> AircraftParts {
 
     AircraftParts {
         code: segments.first().copied().unwrap_or_default().to_owned(),
+        wake_category: tail_segments
+            .first()
+            .copied()
+            .unwrap_or_default()
+            .to_owned(),
         equipment: tail_segments.get(1).copied().unwrap_or_default().to_owned(),
         transponder: segments.get(2).copied().unwrap_or_default().to_owned(),
         navigation_performance: pbn(flight_plan.remarks.as_deref().unwrap_or_default()),
@@ -110,4 +118,48 @@ fn pbn(remarks: &str) -> String {
         .map(|index| start + index)
         .unwrap_or(remarks.len());
     remarks[start..end].to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maps_vatsim_flight_rules_and_declared_wake_category() {
+        let pilot: Pilot = serde_json::from_value(serde_json::json!({
+            "cid": 1234567, "callsign": "CCA123", "name": "Test Pilot",
+            "last_updated": "2026-10-10T00:00:00Z",
+            "flight_plan": { "flight_rules": "I", "departure": "ZBAA", "arrival": "ZSPD",
+                "aircraft": "A320/M-SDE2E3FGHIRWY/LB1", "altitude": "FL331" }
+        }))
+        .unwrap();
+        let flight = map_pilot(pilot).unwrap();
+        assert_eq!(flight.flight_rules, "I");
+        assert_eq!(flight.wake_category, "M");
+        assert_eq!(flight.aircraft, "A320");
+        assert_eq!(flight.equipment, "SDE2E3FGHIRWY");
+        assert_eq!(flight.transponder, "LB1");
+        let dto =
+            serde_json::to_value(crate::modules::flight::dto::FlightDto::from(flight)).unwrap();
+        assert_eq!(dto["flight_rules"], "I");
+        assert_eq!(dto["wake_category"], "M");
+    }
+
+    #[test]
+    fn temporary_flight_accepts_new_fields_and_defaults_missing_fields() {
+        let query = serde_json::json!({"departure":"ZBAA", "arrival":"ZSPD", "flight_rules":"V", "wake_category":"L"});
+        let flight = Flight::from(
+            serde_json::from_value::<crate::modules::flight::dto::TemporaryFlightQuery>(query)
+                .unwrap(),
+        );
+        assert_eq!(flight.flight_rules, "V");
+        assert_eq!(flight.wake_category, "L");
+        let query = serde_json::json!({"departure":"ZBAA", "arrival":"ZSPD"});
+        let flight = Flight::from(
+            serde_json::from_value::<crate::modules::flight::dto::TemporaryFlightQuery>(query)
+                .unwrap(),
+        );
+        assert!(flight.flight_rules.is_empty());
+        assert!(flight.wake_category.is_empty());
+    }
 }

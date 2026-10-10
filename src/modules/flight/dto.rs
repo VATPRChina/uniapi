@@ -114,6 +114,10 @@ pub struct TemporaryFlightQuery {
     #[serde(default)]
     pub aircraft: String,
     #[serde(default)]
+    pub flight_rules: String,
+    #[serde(default)]
+    pub wake_category: String,
+    #[serde(default)]
     pub equipment: String,
     #[serde(default)]
     pub navigation_performance: String,
@@ -139,6 +143,8 @@ impl From<TemporaryFlightQuery> for Flight {
             transponder: query.transponder,
             raw_route: query.raw_route,
             aircraft: query.aircraft,
+            flight_rules: query.flight_rules,
+            wake_category: query.wake_category,
             altitude: 0,
             cruising_level: query.cruising_level,
         }
@@ -158,6 +164,8 @@ pub struct FlightDto {
     pub transponder: String,
     pub raw_route: String,
     pub aircraft: String,
+    pub flight_rules: String,
+    pub wake_category: String,
     pub altitude: i64,
     pub cruising_level: i64,
 }
@@ -176,6 +184,8 @@ impl From<Flight> for FlightDto {
             transponder: flight.transponder,
             raw_route: flight.raw_route,
             aircraft: flight.aircraft,
+            flight_rules: flight.flight_rules,
+            wake_category: flight.wake_category,
             altitude: flight.altitude,
             cruising_level: flight.cruising_level,
         }

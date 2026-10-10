@@ -24,6 +24,8 @@ fn flight() -> Flight {
         transponder: "S".into(),
         raw_route: String::new(),
         aircraft: "A320".into(),
+        flight_rules: "I".into(),
+        wake_category: "M".into(),
         altitude: 0,
         cruising_level: 33100,
     }
@@ -195,7 +197,7 @@ async fn rnav1_requires_equipment_r_and_accepts_all_rnav1_pbn_codes() {
 }
 
 #[tokio::test]
-async fn direct_legs_flag_china_and_cross_border_segments_but_skip_airports_and_procedures() {
+async fn direct_legs_flag_domestic_segments_but_skip_cross_border_airports_and_procedures() {
     let navdata = navdata().await;
     let flight = flight();
     let mut airport = leg(LegKind::Direct);
@@ -208,15 +210,26 @@ async fn direct_legs_flag_china_and_cross_border_segments_but_skip_airports_and_
     foreign.to = fix("RJ");
     let mut sid = leg(LegKind::Sid);
     sid.identifier = None;
+    let mut inbound = leg(LegKind::Direct);
+    inbound.from = fix("RJ");
+    let cross_border = validate::<RouteDirectLegValidator>(
+        &navdata,
+        &flight,
+        vec![foreign.clone(), inbound],
+        None,
+    );
+    assert_eq!(cross_border.status, ValidatorStatus::Pass);
+    assert!(cross_border.warnings.is_empty());
     let legs = vec![airport, foreign, sid, leg(LegKind::Direct)];
     let result = validate::<RouteDirectLegValidator>(&navdata, &flight, legs.clone(), None);
     assert_eq!(result.status, ValidatorStatus::Rejected);
     assert_eq!(
         result.warnings,
-        vec![
-            expected_route_warning(1, WarningMessageCode::RouteDirectSegment, &legs[1]),
-            expected_route_warning(3, WarningMessageCode::RouteDirectSegment, &legs[3]),
-        ]
+        vec![expected_route_warning(
+            3,
+            WarningMessageCode::RouteDirectSegment,
+            &legs[3]
+        )]
     );
     let mut geo = leg(LegKind::Direct);
     geo.to = AnyFix::GeoPoint(GeoPoint::new(30., 111.));
@@ -583,5 +596,88 @@ fn expected_route_warning(
         field: WarningMessageField::Route,
         field_index: Some(index),
         parameter: Some(format!("{leg:?}")),
+    }
+}
+
+#[tokio::test]
+async fn aircraft_type_and_wake_category_use_aircraft_database() {
+    let navdata = navdata().await;
+    for (aircraft, wake, type_status, wake_status) in [
+        ("A320", "M", ValidatorStatus::Pass, ValidatorStatus::Pass),
+        ("a388", "j", ValidatorStatus::Pass, ValidatorStatus::Pass),
+        ("C172", "L", ValidatorStatus::Pass, ValidatorStatus::Pass),
+        ("BE20", "L", ValidatorStatus::Pass, ValidatorStatus::Pass),
+        ("BE20", "M", ValidatorStatus::Pass, ValidatorStatus::Pass),
+        (
+            "A320",
+            "H",
+            ValidatorStatus::Pass,
+            ValidatorStatus::Rejected,
+        ),
+        (
+            "A320",
+            "X",
+            ValidatorStatus::Pass,
+            ValidatorStatus::Rejected,
+        ),
+        (
+            "A320",
+            "",
+            ValidatorStatus::Pass,
+            ValidatorStatus::Unavailable,
+        ),
+        (
+            "INVALID",
+            "M",
+            ValidatorStatus::Rejected,
+            ValidatorStatus::Unavailable,
+        ),
+        (
+            "",
+            "M",
+            ValidatorStatus::Unavailable,
+            ValidatorStatus::Unavailable,
+        ),
+    ] {
+        let mut flight = flight();
+        flight.aircraft = aircraft.into();
+        flight.wake_category = wake.into();
+        let result = validate::<AircraftTypeValidator>(&navdata, &flight, vec![], None);
+        assert_eq!(result.status, type_status, "{aircraft}");
+        if type_status == ValidatorStatus::Rejected {
+            assert_eq!(
+                result.warnings[0].message_code,
+                WarningMessageCode::InvalidAircraftType
+            );
+        }
+        let result = validate::<WakeCategoryValidator>(&navdata, &flight, vec![], None);
+        assert_eq!(result.status, wake_status, "{aircraft}/{wake}");
+        if wake_status == ValidatorStatus::Rejected {
+            assert_eq!(
+                result.warnings,
+                vec![WarningMessage::with_parameter(
+                    WarningMessageField::WakeCategory,
+                    WarningMessageCode::WakeCategoryMismatch,
+                    "M"
+                )]
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn flight_rule_weather_is_suppressed_for_ifr() {
+    let navdata = navdata().await;
+    for (rules, status) in [
+        ("I", ValidatorStatus::Suppressed),
+        (" i ", ValidatorStatus::Suppressed),
+        ("V", ValidatorStatus::Unavailable),
+        ("", ValidatorStatus::Unavailable),
+    ] {
+        let mut flight = flight();
+        flight.flight_rules = rules.into();
+        let result = validate::<FlightRuleWeatherValidator>(&navdata, &flight, vec![], None);
+        assert_eq!(result.status, status);
+        assert!(result.warnings.is_empty());
     }
 }
