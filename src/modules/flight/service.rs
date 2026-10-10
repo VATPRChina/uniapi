@@ -160,6 +160,7 @@ impl FlightService {
             flight: &flight,
             route: &route,
             preferred_route,
+            preferred_routes: &preferred_routes,
         };
         Ok(validator::validate_all(&context, &self.navdata)?)
     }

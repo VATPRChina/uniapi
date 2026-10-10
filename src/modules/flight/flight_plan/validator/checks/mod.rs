@@ -18,9 +18,7 @@ pub use airport::{
     DepartureAirportValidator,
 };
 pub use cruising_level::{ChinaRvsmLevelValidator, CruisingLevelRestrictionValidator};
-pub use equipment::{
-    EquipmentRnav1Validator, EquipmentRnpArValidator, EquipmentRnpValidator, EquipmentRvsmValidator,
-};
+pub use equipment::{EquipmentRnav1Validator, EquipmentRnpArValidator, EquipmentRvsmValidator};
 pub use flight::{
     AircraftTypeValidator, CallsignValidator, FlightRuleWeatherValidator, WakeCategoryValidator,
 };
@@ -35,6 +33,8 @@ pub struct ValidationContext<'a> {
     pub flight: &'a Flight,
     pub route: &'a ParsedRoute,
     pub preferred_route: Option<&'a PreferredRoute>,
+    /// Candidates for the departure/arrival pair, including private routes.
+    pub preferred_routes: &'a [&'a PreferredRoute],
 }
 
 pub trait Validator {
@@ -54,3 +54,6 @@ pub trait Validator {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

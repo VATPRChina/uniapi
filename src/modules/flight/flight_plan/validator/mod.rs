@@ -80,12 +80,14 @@ pub enum WarningMessageField {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum WarningMessageCode {
+    InvalidAirport,
     NoRvsm,
     NoRnav1,
     RnpAr,
     RnpArWithoutRf,
     NoTransponder,
     RouteDirectSegment,
+    RouteUnknownLegOrFix,
     RouteLegDirection,
     AirwayRequireApproval,
     NotPreferredRoute,
@@ -114,7 +116,6 @@ pub fn validate_all(
         EquipmentRvsmValidator::validate(context, navdata),
         EquipmentRnav1Validator::validate(context, navdata),
         EquipmentRnpArValidator::validate(context, navdata),
-        EquipmentRnpValidator::validate(context, navdata),
         PreferredRouteValidator::validate(context, navdata),
         RouteDirectLegValidator::validate(context, navdata),
         RouteUnknownLegOrFixValidator::validate(context, navdata),

@@ -96,6 +96,13 @@ impl AnyFix {
         }
     }
 
+    pub fn is_china(&self) -> bool {
+        // TODO: geo point check within China
+        self.icao_code().is_none_or(|icao| {
+            icao.starts_with("Z") && !icao.starts_with("ZM") && !icao.starts_with("ZK")
+        })
+    }
+
     pub fn identifier(&self) -> Option<&str> {
         match self {
             AnyFix::Airport(airport) => Some(airport.identifier()),
