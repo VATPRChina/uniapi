@@ -58,6 +58,17 @@ impl WarningMessage {
             ..Self::new(WarningMessageField::Route, code)
         }
     }
+
+    pub fn route_indexed_with_param(
+        index: usize,
+        code: WarningMessageCode,
+        param: impl Into<String>,
+    ) -> Self {
+        Self {
+            field_index: Some(index),
+            ..Self::with_parameter(WarningMessageField::Route, code, param)
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, utoipa::ToSchema)]

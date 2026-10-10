@@ -159,7 +159,9 @@ fn validate_legs<V: Validator>(
             .iter()
             .enumerate()
             .filter(|(_, leg)| is_invalid(leg))
-            .map(|(index, _)| WarningMessage::route_indexed(index, code))
+            .map(|(index, leg)| {
+                WarningMessage::route_indexed_with_param(index, code, format!("{:?}", leg))
+            })
             .collect::<Vec<_>>();
         (
             if warnings.is_empty() {
