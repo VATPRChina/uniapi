@@ -64,14 +64,17 @@ pub struct SidCandidate {
     pub enroute_transition: String,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+// TODO: add a separate DTO
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
 pub struct ValidatorResult {
     pub validator_ident: String,
     pub status: ValidatorStatus,
     pub warnings: Vec<WarningMessage>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+// TODO: add a separate DTO
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
 pub enum ValidatorStatus {
     /// Executed and passed
     Validated,

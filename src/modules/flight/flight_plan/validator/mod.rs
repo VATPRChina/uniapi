@@ -9,7 +9,7 @@ use crate::modules::navdata::service::NavdataService;
 use self::checks::*;
 
 pub mod checks;
-mod matcher;
+pub(crate) mod matcher;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidatorError {

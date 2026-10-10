@@ -1,6 +1,6 @@
 //! The new validation checks, independent of the legacy warning pipeline.
 //! Each placeholder reports `NotImplemented` until its validator overrides
-//! `Validator::validate`; no checks are wired into existing endpoints yet.
+//! `Validator::validate`. All checks are exposed through the validations endpoint.
 
 use crate::modules::flight::models::{Flight, ParsedRoute, ValidatorResult, ValidatorStatus};
 use crate::modules::navdata::models::PreferredRoute;

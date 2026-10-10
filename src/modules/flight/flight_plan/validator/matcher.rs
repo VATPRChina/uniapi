@@ -6,7 +6,7 @@ use crate::modules::flight::flight_plan::validator::ValidatorError;
 use crate::modules::navdata::models::{AnyFix, Fix, LegKind, PreferredRoute, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
 
-async fn find_matching_route<'a>(
+pub(crate) async fn find_matching_route<'a>(
     navdata: &NavdataService,
     legs: &[ResolvedLeg],
     preferred_routes: &[&'a PreferredRoute],

@@ -13,7 +13,7 @@ use crate::modules::flight::dto::{
     FlightDto, FlightRouteV2Query, RouteDeliveryInfo, TemporaryFlightQuery,
 };
 use crate::modules::flight::flight_plan::validator;
-use crate::modules::flight::models::Flight;
+use crate::modules::flight::models::{Flight, ValidatorResult};
 use crate::modules::flight::service::FlightService;
 use crate::modules::user::middleware::CurrentUser;
 use crate::modules::user::models::UserRole;
@@ -26,6 +26,7 @@ const VALIDATION_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
     active_flights,
     flight_by_callsign,
     warnings_by_callsign,
+    validations_by_callsign,
     my_flight,
     temporary_warnings,
     route_v2
@@ -40,6 +41,10 @@ pub fn build_flight_routes() -> Router<Services> {
         .route(
             "/by-callsign/{callsign}/warnings",
             get(warnings_by_callsign),
+        )
+        .route(
+            "/by-callsign/{callsign}/validations",
+            get(validations_by_callsign),
         )
         .route("/mine", get(my_flight))
         .route("/temporary/by-plan/warnings", get(temporary_warnings))
@@ -104,6 +109,20 @@ async fn warnings_by_callsign(
 ) -> Result<Json<Vec<validator::WarningMessage>>, ApiError> {
     Ok(Json(
         services.flight().warnings_by_callsign(&callsign).await?,
+    ))
+}
+
+#[utoipa::path(
+    get, path = "api/flights/by-callsign/{callsign}/validations", tag = "Flights",
+    params(("callsign" = String, Path, description = "Callsign")),
+    responses((status = 200, description = "Results of all flight-plan validators", body = Vec<ValidatorResult>))
+)]
+async fn validations_by_callsign(
+    State(services): State<Services>,
+    Path(callsign): Path<String>,
+) -> Result<Json<Vec<ValidatorResult>>, ApiError> {
+    Ok(Json(
+        services.flight().validations_by_callsign(&callsign).await?,
     ))
 }
 

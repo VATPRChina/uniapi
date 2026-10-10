@@ -10,11 +10,10 @@ use crate::modules::navdata::models::ResolvedLeg;
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 use regex::Regex;
-use tracing::Instrument;
 
 use super::dto::SidCandidate;
 use super::flight_plan::validator::{self, ValidatorError, WarningMessage};
-use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
+use super::models::{CompatController, CompatPilot, CompatStatus, Flight, ValidatorResult};
 use super::repository::flight::FlightRepository;
 
 static VATPRC_CONTROLLER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
@@ -141,6 +140,28 @@ impl FlightService {
     ) -> Result<Vec<WarningMessage>, FlightServiceError> {
         let flight = self.find_by_callsign(callsign).await?;
         self.warnings(&flight).await
+    }
+
+    pub async fn validations_by_callsign(
+        &self,
+        callsign: &str,
+    ) -> Result<Vec<ValidatorResult>, FlightServiceError> {
+        let flight = self.find_by_callsign(callsign).await?;
+        let route = self.route_v2(&route_string(&flight)).await?;
+        let preferred_routes = self
+            .navdata
+            .list_preferred_routes(&flight.departure, &flight.arrival)
+            .await
+            .map_err(ValidatorError::Navdata)?;
+        let preferred_route =
+            validator::matcher::find_matching_route(&self.navdata, &route.legs, &preferred_routes)
+                .await?;
+        let context = validator::checks::ValidationContext {
+            flight: &flight,
+            route: &route,
+            preferred_route,
+        };
+        Ok(validator::validate_all(&context, &self.navdata)?)
     }
 
     pub async fn route_v1(&self, flight: &Flight) -> Result<ParsedRoute, FlightServiceError> {
