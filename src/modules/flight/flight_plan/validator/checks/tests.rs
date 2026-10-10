@@ -132,11 +132,11 @@ async fn rvsm_checks_capability_only_in_the_rvsm_band() {
 }
 
 #[tokio::test]
-async fn rnav1_requires_equipment_r_and_domestic_pbn_codes() {
+async fn rnav1_requires_equipment_r_and_accepts_all_rnav1_pbn_codes() {
     let navdata = navdata().await;
     let mut flight = flight();
     flight.equipment = "r".into();
-    for pbn in ["D1", "D2", " b1d2s1 "] {
+    for pbn in ["D1", "D2", "D3", "D4", " b1d2s1 ", " b1d3s1 ", "b1d4s1"] {
         flight.navigation_performance = pbn.into();
         assert_eq!(
             validate::<EquipmentRnav1Validator>(&navdata, &flight, vec![], None).status,
@@ -149,7 +149,7 @@ async fn rnav1_requires_equipment_r_and_domestic_pbn_codes() {
     assert_eq!(result.status, ValidatorStatus::Rejected);
     assert_eq!(result.warnings[0].field, WarningMessageField::Equipment);
     flight.equipment = "R".into();
-    for pbn in ["", "B1", "XD1X", "D10"] {
+    for pbn in ["", "B1", "C1", "D5", "D"] {
         flight.navigation_performance = pbn.into();
         let result = validate::<EquipmentRnav1Validator>(&navdata, &flight, vec![], None);
         assert_eq!(result.status, ValidatorStatus::Rejected);
@@ -169,9 +169,28 @@ async fn rnav1_requires_equipment_r_and_domestic_pbn_codes() {
         2
     );
     flight.equipment.clear();
+    flight.navigation_performance = "D4".into();
+    let result = validate::<EquipmentRnav1Validator>(&navdata, &flight, vec![], None);
+    assert_eq!(result.status, ValidatorStatus::Rejected);
     assert_eq!(
-        validate::<EquipmentRnav1Validator>(&navdata, &flight, vec![], None).status,
-        ValidatorStatus::Unavailable
+        result.warnings,
+        vec![WarningMessage::new(
+            WarningMessageField::Equipment,
+            WarningMessageCode::NoRnav1,
+        )]
+    );
+    flight.navigation_performance.clear();
+    let result = validate::<EquipmentRnav1Validator>(&navdata, &flight, vec![], None);
+    assert_eq!(result.status, ValidatorStatus::Rejected);
+    assert_eq!(
+        result.warnings,
+        vec![
+            WarningMessage::new(WarningMessageField::Equipment, WarningMessageCode::NoRnav1),
+            WarningMessage::new(
+                WarningMessageField::NavigationPerformance,
+                WarningMessageCode::NoRnav1
+            ),
+        ]
     );
 }
 
@@ -189,18 +208,14 @@ async fn direct_legs_flag_china_and_cross_border_segments_but_skip_airports_and_
     foreign.to = fix("RJ");
     let mut sid = leg(LegKind::Sid);
     sid.identifier = None;
-    let result = validate::<RouteDirectLegValidator>(
-        &navdata,
-        &flight,
-        vec![airport, foreign, sid, leg(LegKind::Direct)],
-        None,
-    );
+    let legs = vec![airport, foreign, sid, leg(LegKind::Direct)];
+    let result = validate::<RouteDirectLegValidator>(&navdata, &flight, legs.clone(), None);
     assert_eq!(result.status, ValidatorStatus::Rejected);
     assert_eq!(
         result.warnings,
         vec![
-            WarningMessage::route_indexed(1, WarningMessageCode::RouteDirectSegment),
-            WarningMessage::route_indexed(3, WarningMessageCode::RouteDirectSegment),
+            expected_route_warning(1, WarningMessageCode::RouteDirectSegment, &legs[1]),
+            expected_route_warning(3, WarningMessageCode::RouteDirectSegment, &legs[3]),
         ]
     );
     let mut geo = leg(LegKind::Direct);
@@ -221,13 +236,21 @@ async fn unknown_check_reports_unknown_connections_and_both_endpoints() {
     from.from = AnyFix::Unknown("MISSING".into());
     let mut to = leg(LegKind::Airway);
     to.to = AnyFix::Unknown("MISSING".into());
-    let result = validate::<RouteUnknownLegOrFixValidator>(
-        &navdata,
-        &flight,
-        vec![leg(LegKind::Airway), connection, from, to],
-        None,
-    );
+    let legs = vec![leg(LegKind::Airway), connection, from, to];
+    let result = validate::<RouteUnknownLegOrFixValidator>(&navdata, &flight, legs.clone(), None);
     assert_eq!(result.status, ValidatorStatus::Rejected);
+    assert_eq!(
+        result.warnings,
+        (1..=3)
+            .map(|index| {
+                expected_route_warning(
+                    index,
+                    WarningMessageCode::RouteUnknownLegOrFix,
+                    &legs[index],
+                )
+            })
+            .collect::<Vec<_>>()
+    );
     assert_eq!(
         result
             .warnings
@@ -261,14 +284,14 @@ async fn approval_flags_v_and_x_airways_touching_china() {
     let mut sid = leg(LegKind::Sid);
     sid.identifier = Some("V1".into());
     legs.push(sid);
-    let result = validate::<AirwayApprovalValidator>(&navdata, &flight, legs, None);
+    let result = validate::<AirwayApprovalValidator>(&navdata, &flight, legs.clone(), None);
     assert_eq!(result.status, ValidatorStatus::Rejected);
     assert_eq!(
         result.warnings,
         vec![
-            WarningMessage::route_indexed(1, WarningMessageCode::AirwayRequireApproval),
-            WarningMessage::route_indexed(2, WarningMessageCode::AirwayRequireApproval),
-            WarningMessage::route_indexed(3, WarningMessageCode::AirwayRequireApproval),
+            expected_route_warning(1, WarningMessageCode::AirwayRequireApproval, &legs[1]),
+            expected_route_warning(2, WarningMessageCode::AirwayRequireApproval, &legs[2]),
+            expected_route_warning(3, WarningMessageCode::AirwayRequireApproval, &legs[3]),
         ]
     );
 }
@@ -290,9 +313,10 @@ async fn direction_flags_backward_airways_and_clears_after_reversal() {
     assert_eq!(result.status, ValidatorStatus::Rejected);
     assert_eq!(
         result.warnings,
-        vec![WarningMessage::route_indexed(
+        vec![expected_route_warning(
             1,
-            WarningMessageCode::RouteLegDirection
+            WarningMessageCode::RouteLegDirection,
+            &backward
         )]
     );
     assert_eq!(
@@ -547,4 +571,17 @@ async fn preferred_route_distinguishes_missing_routes_from_unmatched_candidates(
     let result = validate::<PreferredRouteValidator>(&navdata, &flight, vec![], Some(&first));
     assert_eq!(result.status, ValidatorStatus::Unavailable);
     assert!(result.warnings.is_empty());
+}
+
+fn expected_route_warning(
+    index: usize,
+    code: WarningMessageCode,
+    leg: &ResolvedLeg,
+) -> WarningMessage {
+    WarningMessage {
+        message_code: code,
+        field: WarningMessageField::Route,
+        field_index: Some(index),
+        parameter: Some(format!("{leg:?}")),
+    }
 }
