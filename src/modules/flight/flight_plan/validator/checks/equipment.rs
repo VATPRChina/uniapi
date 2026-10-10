@@ -49,33 +49,24 @@ impl Validator for EquipmentRnav1Validator {
             .navigation_performance
             .trim()
             .to_ascii_uppercase();
+
         let mut warnings = Vec::new();
-        if equipment.is_empty() {
-            return ValidatorResult {
-                validator_ident: Self::IDENT.to_owned(),
-                field: Self::FIELD,
-                status: ValidatorStatus::Unavailable,
-                warnings,
-            };
-        }
+
         if !equipment.contains('R') {
             warnings.push(WarningMessage::new(
                 Self::FIELD,
                 WarningMessageCode::NoRnav1,
             ));
         }
-        // Preserve the domestic RNAV 1 requirement for D1 or D2.
-        if !pbn
-            .as_bytes()
-            .chunks_exact(2)
-            .any(|code| code == b"D1" || code == b"D2")
-            || !pbn.len().is_multiple_of(2)
+
+        if !pbn.contains("D1") && !pbn.contains("D2") && !pbn.contains("D3") && !pbn.contains("D4")
         {
             warnings.push(WarningMessage::new(
                 WarningMessageField::NavigationPerformance,
                 WarningMessageCode::NoRnav1,
             ));
         }
+
         ValidatorResult {
             validator_ident: Self::IDENT.to_owned(),
             field: Self::FIELD,
