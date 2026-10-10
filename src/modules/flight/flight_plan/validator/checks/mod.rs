@@ -1,7 +1,8 @@
 //! The new validation checks, independent of the legacy warning pipeline.
-//! Each placeholder reports `NotImplemented` until its validator overrides
+//! Each placeholder reports `Unavailable` until its validator overrides
 //! `Validator::validate`. All checks are exposed through the validations endpoint.
 
+use crate::modules::flight::flight_plan::validator::WarningMessageField;
 use crate::modules::flight::models::{Flight, ParsedRoute, ValidatorResult, ValidatorStatus};
 use crate::modules::navdata::models::PreferredRoute;
 use crate::modules::navdata::service::NavdataService;
@@ -40,11 +41,15 @@ pub trait Validator {
     /// Stable identifier used by `ValidatorResult::validator_ident`.
     const IDENT: &'static str;
 
+    /// Flight-plan field this check validates.
+    const FIELD: WarningMessageField;
+
     /// Override this placeholder when implementing a check.
     fn validate(_context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
         ValidatorResult {
             validator_ident: Self::IDENT.to_owned(),
-            status: ValidatorStatus::NotImplemented,
+            field: Self::FIELD,
+            status: ValidatorStatus::Unavailable,
             warnings: Vec::new(),
         }
     }

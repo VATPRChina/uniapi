@@ -54,3 +54,32 @@ test("Tech Director Assistant can assume roles for one request", async () => {
     "operation-director-assistant",
   );
 });
+
+test("Division Director inherits AFV Facility Engineer across session and user responses", async () => {
+  const client = await getClient(["division-director"]);
+  const session = await client.GET("/api/session");
+
+  expect(session.error).toBeFalsy();
+  expect(session.data.user.direct_roles).toEqual(["division-director"]);
+  expect(session.data.user.roles).toEqual(
+    expect.arrayContaining([
+      "division-director",
+      "tech-director",
+      "tech-director-assistant",
+      "tech-afv-facility-engineer",
+      "software-engineer",
+      "volunteer",
+    ]),
+  );
+
+  const me = await client.GET("/api/users/me");
+  expect(me.error).toBeFalsy();
+  expect(me.data.direct_roles).toEqual(["division-director"]);
+  expect(me.data.roles).toContain("tech-afv-facility-engineer");
+
+  const audit = await client.GET("/api/atc/positions/{callsign}/audit", {
+    params: { path: { callsign: "ZBAA_TWR" } },
+  });
+  expect(audit.error).toBeFalsy();
+  expect(audit.response.status).toBe(200);
+});

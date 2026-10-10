@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use ulid::Ulid;
 
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::flight::flight_plan::validator::WarningMessage;
+use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageField};
 use crate::modules::navdata::models::ResolvedLeg;
 
 pub struct CompatStatus {
@@ -68,6 +68,7 @@ pub struct SidCandidate {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
 pub struct ValidatorResult {
     pub validator_ident: String,
+    pub field: WarningMessageField,
     pub status: ValidatorStatus,
     pub warnings: Vec<WarningMessage>,
 }
@@ -76,14 +77,8 @@ pub struct ValidatorResult {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ValidatorStatus {
-    /// Executed and passed
-    Validated,
-    /// No need to execute as intended
+    Pass,
     Suppressed,
-    /// Cannot execute on the current value
+    Rejected,
     Unavailable,
-    /// Not implemented and need manual check
-    NotImplemented,
-    /// Executed and encounter error/warning
-    Failed,
 }

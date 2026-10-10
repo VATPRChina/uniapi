@@ -248,6 +248,28 @@ mod tests {
     }
 
     #[test]
+    fn division_director_can_access_afv_facility_engineer_routes() {
+        let user = current_user([UserRole::DivisionDirector]);
+
+        assert!(user.has_role(UserRole::TechDirector));
+        assert!(user.require_role(UserRole::TechAfvFacilityEngineer).is_ok());
+        assert!(user.require_role(UserRole::SoftwareEngineer).is_ok());
+        assert!(user.has_role(UserRole::Volunteer));
+    }
+
+    #[test]
+    fn assuming_division_director_cascades_to_afv_facility_engineer() {
+        let mut user = current_user([UserRole::SoftwareEngineer]);
+        let mut headers = HeaderMap::new();
+        headers.insert(ROLE_ASSUME_HEADER, "division-director".parse().unwrap());
+
+        assume_roles(&mut user, &headers);
+
+        assert!(user.require_role(UserRole::TechAfvFacilityEngineer).is_ok());
+        assert!(user.has_role(UserRole::Volunteer));
+    }
+
+    #[test]
     fn software_engineer_can_assume_comma_separated_roles() {
         let mut user = current_user([UserRole::SoftwareEngineer]);
         let mut headers = HeaderMap::new();
