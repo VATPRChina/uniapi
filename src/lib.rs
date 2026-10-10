@@ -9,3 +9,4 @@ pub mod repository;
 pub mod services;
 pub mod settings;
 pub mod telemetry;
+pub mod utils;

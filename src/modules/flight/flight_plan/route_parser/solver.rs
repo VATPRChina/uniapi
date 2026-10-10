@@ -5,12 +5,13 @@ use crate::modules::flight::flight_plan::route_parser::{
     Ident, IdentCandidate, IdentWithCandidate,
 };
 use crate::modules::navdata::models::{AnyFix, Fix, NavProc, Ndb, NdbKind, Waypoint, WaypointKind};
+use crate::utils::geo::{Latitude, Longitude};
 
 pub struct Solver<'s> {
     idents: Vec<IdentWithCandidate<'s>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 struct State {
     last_token: StateToken,
     /// Recovery interpretations anywhere in the predecessor path.
@@ -18,6 +19,18 @@ struct State {
     distance: f64,
     position_lat: f64,
     position_lon: f64,
+}
+
+impl std::fmt::Debug for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("State")
+            .field("last_token", &self.last_token)
+            .field("fallbacks", &self.fallbacks)
+            .field("distance", &self.distance)
+            .field("position_lat", &Latitude(self.position_lat))
+            .field("position_lon", &Longitude(self.position_lon))
+            .finish()
+    }
 }
 
 #[derive(Debug, PartialEq)]

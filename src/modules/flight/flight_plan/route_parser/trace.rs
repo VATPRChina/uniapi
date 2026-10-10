@@ -34,15 +34,7 @@ impl Display for RouteParseStep<'_, '_> {
             Self::Candidates(idents) => {
                 writeln!(f, "=== 3. Candidate resolver: {} entries ===", idents.len())?;
                 for (index, ident) in idents.iter().enumerate() {
-                    writeln!(
-                        f,
-                        "  [{index}] {}: {} candidates",
-                        ident.ident.identifier(),
-                        ident.candidates.len()
-                    )?;
-                    for (candidate_index, candidate) in ident.candidates.iter().enumerate() {
-                        writeln!(f, "      [{index}:{candidate_index}] {candidate:?}")?;
-                    }
+                    writeln!(f, "  [{index}] {:#?}", ident)?;
                 }
             }
             Self::Solved(idents) => {

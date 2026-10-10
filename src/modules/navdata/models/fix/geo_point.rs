@@ -1,6 +1,7 @@
 use crate::modules::navdata::models::{AnyFix, Fix};
+use crate::utils::geo::{Latitude, Longitude};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct GeoPoint {
     pub latitude: f64,
     pub longitude: f64,
@@ -43,6 +44,15 @@ impl Fix for GeoPoint {
 
     fn longitude(&self) -> f64 {
         self.longitude
+    }
+}
+
+impl std::fmt::Debug for GeoPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GeoPoint")
+            .field("latitude", &Latitude(self.latitude))
+            .field("longitude", &Longitude(self.longitude))
+            .finish()
     }
 }
 

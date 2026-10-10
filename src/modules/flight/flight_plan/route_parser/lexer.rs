@@ -86,7 +86,7 @@ impl<'r> LexerToken<'r> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum LexerTokenValue<'s> {
     SpeedAndAltitude {
         speed: Speed,

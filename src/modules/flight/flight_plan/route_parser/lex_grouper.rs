@@ -30,10 +30,15 @@ impl<'s> Ident<'s> {
 
 impl<'s> std::fmt::Debug for Ident<'s> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{}/{:?}/E={:?}",
-            self.ident, self.amendments, self.errors
-        ))
+        write!(f, "Ident({}", self.ident)?;
+        if !self.amendments.is_empty() {
+            write!(f, ", amend={:?}", self.amendments)?;
+        }
+        if !self.errors.is_empty() {
+            write!(f, ", err={:?}", self.errors)?;
+        }
+        write!(f, ")")?;
+        Ok(())
     }
 }
 

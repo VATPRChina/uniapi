@@ -7,17 +7,34 @@ use crate::modules::navdata::service::{InvalidNavdataError, NavdataResult, Navda
 pub struct CandidateResolver<'s> {
     idents: Vec<Ident<'s>>,
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct IdentWithCandidate<'s> {
     pub(super) ident: Ident<'s>,
     pub(super) candidates: Vec<IdentCandidate>,
 }
 
+impl<'s> std::fmt::Debug for IdentWithCandidate<'s> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} = ", self.ident)?;
+        f.debug_list().entries(self.candidates.iter()).finish()?;
+        Ok(())
+    }
+}
+
 /// An identifier can denote either a physical fix or a connecting leg.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum IdentCandidate {
     Fix(AnyFix),
     Leg(NavProc),
+}
+
+impl std::fmt::Debug for IdentCandidate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Fix(fix) => write!(f, "Fix/{:?}", fix),
+            Self::Leg(leg) => write!(f, "Leg/{:?}", leg),
+        }
+    }
 }
 
 impl IdentCandidate {

@@ -1,7 +1,7 @@
 use tracing::warn;
 
 use super::ConstructedLeg;
-use crate::modules::navdata::models::{AnyFix, Fix, NavProc, ResolvedLeg};
+use crate::modules::navdata::models::{AnyFix, Fix, LegKind, NavProc, ResolvedLeg};
 use std::borrow::Cow;
 
 #[derive(Debug, thiserror::Error)]
@@ -89,10 +89,12 @@ fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, Expansio
                 .collect()
         })
         .unwrap_or_else(|| {
-            warn!(
-                "failed to find a route on {:?} from {:?} to {:?}",
-                leg.identifier, leg.from, leg.to
-            );
+            if leg.kind == LegKind::Airway {
+                warn!(
+                    "failed to find a route on {:?} from {:?} to {:?}",
+                    leg.identifier, leg.from, leg.to
+                );
+            }
             vec![leg.clone()]
         }))
 }
