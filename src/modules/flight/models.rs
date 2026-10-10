@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use ulid::Ulid;
 
 use crate::modules::controller::models::CompatFutureController;
+use crate::modules::flight::flight_plan::validator::WarningMessage;
 use crate::modules::navdata::models::ResolvedLeg;
 
 pub struct CompatStatus {
@@ -44,7 +45,42 @@ pub struct Flight {
     pub cruising_level: i64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ParsedRoute {
     pub legs: Vec<ResolvedLeg>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FlightDeliveryData {
+    pub parsed_route: ParsedRoute,
+    pub sid_candidates: Vec<SidCandidate>,
+    pub validations: Vec<ValidatorResult>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SidCandidate {
+    pub identifier: String,
+    pub runway: String,
+    pub enroute_transition: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ValidatorResult {
+    pub validator_ident: String,
+    pub status: ValidatorStatus,
+    pub warnings: Vec<WarningMessage>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ValidatorStatus {
+    /// Executed and passed
+    Validated,
+    /// No need to execute as intended
+    Suppressed,
+    /// Cannot execute on the current value
+    Unavailable,
+    /// Not implemented and need manual check
+    NotImplemented,
+    /// Executed and encounter error/warning
+    Failed,
 }

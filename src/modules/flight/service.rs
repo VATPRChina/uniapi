@@ -201,44 +201,10 @@ impl FlightService {
         &self,
         flight: &Flight,
     ) -> Result<Vec<WarningMessage>, FlightServiceError> {
-        let result = async {
-            let legs = self.route_v1(flight).await?;
-            Ok(v1::validator::validate_route(&self.navdata, flight, &legs.legs).await?)
-        }
-        .await;
-
-        // Keep v1 authoritative, including failures. Shadow work must not delay
-        // the response or turn a v2 failure into a user-facing error.
-        let v1_result = validation_snapshot(&result);
-        let service = self.clone();
-        let flight = flight.clone();
-        let span = tracing::info_span!(
-            "flight_validation_shadow",
-            callsign = %flight.callsign,
-            route = %route_string(&flight)
-        );
-        tokio::spawn(
-            async move {
-                let result = async {
-                    let route = service.route_v2(&route_string(&flight)).await?;
-                    Ok(validator::validate_route(&service.navdata, &flight, &route).await?)
-                }
-                .await;
-                let v2_result = validation_snapshot(&result);
-                if v1_result != v2_result {
-                    tracing::warn!(
-                        callsign = %flight.callsign,
-                        route = %route_string(&flight),
-                        ?v1_result,
-                        ?v2_result,
-                        "flight validation shadow mismatch"
-                    );
-                }
-            }
-            .instrument(span),
-        );
-
-        result
+        let legs = self.route_v1(flight).await?;
+        v1::validator::validate_route(&self.navdata, flight, &legs.legs)
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn warnings_for_all(
@@ -255,14 +221,6 @@ impl FlightService {
 
         validations.into_iter().collect()
     }
-}
-
-// Compare every response field and warning order; errors use their rendered
-// messages because the two pipelines have distinct parser error types.
-fn validation_snapshot(
-    result: &Result<Vec<WarningMessage>, FlightServiceError>,
-) -> Result<Vec<WarningMessage>, String> {
-    result.as_ref().cloned().map_err(ToString::to_string)
 }
 
 fn route_string(flight: &Flight) -> String {

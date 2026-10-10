@@ -2,7 +2,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct PreferredRoute {
     pub name: String,
     pub departure: String,
@@ -18,7 +17,6 @@ pub struct PreferredRoute {
 }
 
 impl PreferredRoute {
-    #[allow(unused)]
     pub fn is_public(&self) -> bool {
         !self.remarks.to_ascii_lowercase().contains("aip route")
     }
