@@ -14,15 +14,19 @@ impl<'r> Lexer<'r> {
             .split([' ', '\t', '\n', '\r'])
             .filter(|seg| !seg.is_empty())
             .map(|seg| {
-                let seg = seg.split('/').next().unwrap_or_default();
-                SpeedAndAltitudeTokenHandler::handle_segment(seg)
+                let (seg, suffix) = seg
+                    .split_once('/')
+                    .map_or((seg, None), |(ident, suffix)| (ident, Some(suffix)));
+                let mut token = SpeedAndAltitudeTokenHandler::handle_segment(seg)
                     .or_else(|| DctTokenHandler::handle_segment(seg))
                     .or_else(|| VfrTokenHandler::handle_segment(seg))
                     .or_else(|| IfrTokenHandler::handle_segment(seg))
                     .or_else(|| Geo11TokenHandler::handle_segment(seg))
                     .or_else(|| Geo7TokenHandler::handle_segment(seg))
                     .or_else(|| IdentifierReferenceTokenHandler::handle_segment(seg))
-                    .unwrap_or_else(|| LexerToken::new(seg, LexerTokenValue::Ident))
+                    .unwrap_or_else(|| LexerToken::new(seg, LexerTokenValue::Ident));
+                token.amend = suffix.map(LexerTokenAmend::parse);
+                token
             })
     }
 }
@@ -31,7 +35,7 @@ impl<'r> Lexer<'r> {
 pub struct LexerToken<'r> {
     pub(super) str: &'r str,
     pub(super) value: LexerTokenValue<'r>,
-    amend: Option<LexerTokenAmend>,
+    pub(super) amend: Option<LexerTokenAmend>,
 }
 
 impl<'r> std::fmt::Debug for LexerToken<'r> {
@@ -63,6 +67,9 @@ impl<'r> std::fmt::Debug for LexerToken<'r> {
         } = &self.value
         {
             write!(f, "({}, {}, {})", ident, heading, distance)?;
+        }
+        if let Some(amend) = &self.amend {
+            write!(f, "/{:?}", amend)?;
         }
         Ok(())
     }
@@ -108,7 +115,37 @@ pub enum LexerTokenValue<'s> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum LexerTokenAmend {}
+pub enum LexerTokenAmend {
+    SpeedAndAltitude {
+        speed: Speed,
+        altitude: CruisingLevel,
+    },
+    Runway(String),
+    Invalid(String),
+}
+
+impl LexerTokenAmend {
+    fn parse(suffix: &str) -> Self {
+        if let Some(LexerToken {
+            value: LexerTokenValue::SpeedAndAltitude { speed, altitude },
+            ..
+        }) = SpeedAndAltitudeTokenHandler::handle_segment(suffix)
+        {
+            return Self::SpeedAndAltitude { speed, altitude };
+        }
+        let bytes = suffix.as_bytes();
+        if matches!(bytes.len(), 2 | 3)
+            && bytes[..2].iter().all(u8::is_ascii_digit)
+            && (bytes.len() == 2 || matches!(bytes[2], b'L' | b'C' | b'R'))
+            && suffix[..2]
+                .parse::<u8>()
+                .is_ok_and(|number| (1..=36).contains(&number))
+        {
+            return Self::Runway(suffix.to_owned());
+        }
+        Self::Invalid(suffix.to_owned())
+    }
+}
 
 trait TokenHandler {
     fn handle_segment<'r>(token: &'r str) -> Option<LexerToken<'r>>;

@@ -8,7 +8,7 @@
 //! ```
 
 use crate::modules::flight::flight_plan::route_parser::{
-    CruisingLevel, LexerToken, LexerTokenValue, Speed,
+    CruisingLevel, LexerToken, LexerTokenAmend, LexerTokenValue, Speed,
 };
 
 pub struct LexGrouper<'s> {
@@ -48,6 +48,7 @@ pub enum IdentAmend {
         speed: Speed,
         altitude: CruisingLevel,
     },
+    Runway(String),
     FlightRuleVfr,
     FlightRuleIfr,
 }
@@ -59,12 +60,16 @@ impl std::fmt::Debug for IdentAmend {
             "{}",
             match self {
                 Self::SpeedAndAltitude { .. } => "SpeedAndAltitude",
+                Self::Runway(_) => "Runway",
                 Self::FlightRuleVfr => "FlightRuleVfr",
                 Self::FlightRuleIfr => "FlightRuleIfr",
             }
         )?;
         if let Self::SpeedAndAltitude { speed, altitude } = self {
             write!(f, "({:?}, {:?})", speed, altitude)?;
+        }
+        if let Self::Runway(runway) = self {
+            write!(f, "({runway})")?;
         }
         Ok(())
     }
@@ -77,6 +82,7 @@ pub enum ParserIdentError {
     UnexpectedSpeedAndAltitude,
     UnexpectedFlightRule,
     MissingArr,
+    InvalidAmendment,
 }
 
 impl<'s> LexGrouper<'s> {
@@ -146,10 +152,13 @@ impl<'t, 's> Input<'t, 's> {
         Some((
             Ident {
                 ident: token.str,
-                amendments: amendment.into_iter().collect(),
-                errors: (!valid)
-                    .then_some(ParserIdentError::ExpectedDepIdent)
+                amendments: inline_amendment(token)
                     .into_iter()
+                    .chain(amendment)
+                    .collect(),
+                errors: amendment_error(token)
+                    .into_iter()
+                    .chain((!valid).then_some(ParserIdentError::ExpectedDepIdent))
                     .collect(),
             },
             input,
@@ -180,10 +189,13 @@ impl<'t, 's> Input<'t, 's> {
         let (token, _) = self.advance()?;
         Some(Ident {
             ident: token.str,
-            amendments: Vec::new(),
-            errors: (!matches!(token.value, LexerTokenValue::Ident))
-                .then_some(ParserIdentError::ExpectedArrIdent)
+            amendments: inline_amendment(token).into_iter().collect(),
+            errors: amendment_error(token)
                 .into_iter()
+                .chain(
+                    (!matches!(token.value, LexerTokenValue::Ident))
+                        .then_some(ParserIdentError::ExpectedArrIdent),
+                )
                 .collect(),
         })
     }
@@ -210,8 +222,11 @@ impl<'t, 's> Input<'t, 's> {
         Some((
             Ident {
                 ident: token.str,
-                amendments: amendment.into_iter().collect(),
-                errors: error.into_iter().collect(),
+                amendments: inline_amendment(token)
+                    .into_iter()
+                    .chain(amendment)
+                    .collect(),
+                errors: amendment_error(token).into_iter().chain(error).collect(),
             },
             input,
         ))
@@ -240,6 +255,24 @@ impl<'t, 's> Input<'t, 's> {
         let (_, input) = self.advance().expect("lookahead is not EOF");
         (Some(amendment), input)
     }
+}
+
+fn inline_amendment(token: &LexerToken<'_>) -> Option<IdentAmend> {
+    match token.amend.as_ref()? {
+        LexerTokenAmend::SpeedAndAltitude { speed, altitude } => {
+            Some(IdentAmend::SpeedAndAltitude {
+                speed: speed.clone(),
+                altitude: altitude.clone(),
+            })
+        }
+        LexerTokenAmend::Runway(runway) => Some(IdentAmend::Runway(runway.clone())),
+        LexerTokenAmend::Invalid(_) => None,
+    }
+}
+
+fn amendment_error(token: &LexerToken<'_>) -> Option<ParserIdentError> {
+    matches!(token.amend, Some(LexerTokenAmend::Invalid(_)))
+        .then_some(ParserIdentError::InvalidAmendment)
 }
 
 #[cfg(test)]
@@ -415,6 +448,64 @@ mod tests {
             let route = parse(input);
             assert_eq!(route.len(), 1);
             assert_eq!(route[0].errors, [ParserIdentError::MissingArr]);
+        }
+    }
+    #[test]
+    fn parses_inline_speed_level_and_runway_amendments() {
+        let route = parse("ZBAA PIKAS1/36L AGAVO/K0745S0660 VFR XAC/M082F350 ZSPD");
+        assert_eq!(
+            route.iter().map(Ident::identifier).collect::<Vec<_>>(),
+            ["ZBAA", "PIKAS1", "AGAVO", "XAC", "ZSPD"]
+        );
+        assert_eq!(route[1].amendments, [IdentAmend::Runway("36L".into())]);
+        assert_eq!(
+            route[2].amendments,
+            [
+                IdentAmend::SpeedAndAltitude {
+                    speed: Speed::KmH(745),
+                    altitude: CruisingLevel::MeterLevel(660)
+                },
+                IdentAmend::FlightRuleVfr,
+            ]
+        );
+        assert_eq!(
+            route[3].amendments,
+            [IdentAmend::SpeedAndAltitude {
+                speed: Speed::Mach(82),
+                altitude: CruisingLevel::FeetLevel(350),
+            }]
+        );
+        assert!(route.iter().all(|ident| ident.errors.is_empty()));
+        let tokens = Lexer::new("PIKAS1/36L AGAVO/K0745S0660")
+            .parse_all()
+            .collect::<Vec<_>>();
+        assert!(format!("{tokens:?}").contains("Runway"));
+        assert!(format!("{tokens:?}").contains("MeterLevel(660)"));
+    }
+
+    #[test]
+    fn parses_runway_variants_and_rejects_malformed_suffixes() {
+        for runway in ["01", "09C", "18R", "36L"] {
+            let input = format!("ZBAA PIKAS1/{runway} ZSPD");
+            let route = parse(&input);
+            assert_eq!(route[1].amendments, [IdentAmend::Runway(runway.into())]);
+            assert!(route[1].errors.is_empty());
+        }
+        for suffix in [
+            "",
+            "00",
+            "37L",
+            "36X",
+            "K0745",
+            "K0745S0660EXTRA",
+            "36L/OTHER",
+            "中文",
+        ] {
+            let input = format!("ZBAA AGAVO/{suffix} ZSPD");
+            let route = parse(&input);
+            assert_eq!(route[1].identifier(), "AGAVO");
+            assert!(route[1].amendments.is_empty());
+            assert_eq!(route[1].errors, [ParserIdentError::InvalidAmendment]);
         }
     }
 }
