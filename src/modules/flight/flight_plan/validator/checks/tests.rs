@@ -699,7 +699,7 @@ async fn cruise_altitude_uses_first_leg_direction_at_all_altitudes() {
         let mut flight = flight();
         flight.cruising_level = level;
         assert_eq!(
-            validate::<CruiseAltitudeValidator>(
+            validate::<DirectionalCruiseAltitudeValidator>(
                 &navdata,
                 &flight,
                 vec![east.clone(), west.clone()],
@@ -708,7 +708,7 @@ async fn cruise_altitude_uses_first_leg_direction_at_all_altitudes() {
             .status,
             ValidatorStatus::Pass
         );
-        let result = validate::<CruiseAltitudeValidator>(
+        let result = validate::<DirectionalCruiseAltitudeValidator>(
             &navdata,
             &flight,
             vec![west.clone(), east.clone()],
@@ -728,11 +728,23 @@ async fn cruise_altitude_uses_first_leg_direction_at_all_altitudes() {
         let mut flight = flight();
         flight.cruising_level = level;
         assert_eq!(
-            validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![west.clone()], None).status,
+            validate::<DirectionalCruiseAltitudeValidator>(
+                &navdata,
+                &flight,
+                vec![west.clone()],
+                None
+            )
+            .status,
             ValidatorStatus::Pass
         );
         assert_eq!(
-            validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![east.clone()], None).status,
+            validate::<DirectionalCruiseAltitudeValidator>(
+                &navdata,
+                &flight,
+                vec![east.clone()],
+                None
+            )
+            .status,
             ValidatorStatus::Rejected
         );
     }
@@ -741,8 +753,13 @@ async fn cruise_altitude_uses_first_leg_direction_at_all_altitudes() {
         flight.cruising_level = level;
         for leg in [&east, &west] {
             assert_eq!(
-                validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![leg.clone()], None)
-                    .status,
+                validate::<DirectionalCruiseAltitudeValidator>(
+                    &navdata,
+                    &flight,
+                    vec![leg.clone()],
+                    None
+                )
+                .status,
                 ValidatorStatus::Rejected
             );
         }
@@ -757,12 +774,19 @@ async fn cruise_altitude_prefers_route_restrictions_over_direction() {
     let mut route = preferred();
     route.cruising_level_restriction = LevelRestrictionType::StandardOdd;
     assert_eq!(
-        validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![west], Some(&route)).status,
+        validate::<PreferredRouteCruiseAltitudeValidator>(
+            &navdata,
+            &flight,
+            vec![west],
+            Some(&route)
+        )
+        .status,
         ValidatorStatus::Pass
     );
     route.allowed_altitudes = vec![35100, 37100];
     route.minimal_altitude = 35100;
-    let result = validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&route));
+    let result =
+        validate::<PreferredRouteCruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&route));
     assert_eq!(result.status, ValidatorStatus::Rejected);
     assert_eq!(
         result.warnings,
@@ -781,7 +805,8 @@ async fn cruise_altitude_prefers_route_restrictions_over_direction() {
     );
     flight.cruising_level = 35100;
     assert_eq!(
-        validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&route)).status,
+        validate::<PreferredRouteCruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&route))
+            .status,
         ValidatorStatus::Pass
     );
     route.allowed_altitudes.clear();
@@ -794,14 +819,21 @@ async fn cruise_altitude_prefers_route_restrictions_over_direction() {
         route.cruising_level_restriction = restriction;
         flight.cruising_level = level;
         assert_eq!(
-            validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&route)).status,
+            validate::<PreferredRouteCruiseAltitudeValidator>(
+                &navdata,
+                &flight,
+                vec![],
+                Some(&route)
+            )
+            .status,
             ValidatorStatus::Pass
         );
     }
     route.cruising_level_restriction = LevelRestrictionType::Standard;
     flight.cruising_level = 30500;
     assert_eq!(
-        validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&route)).status,
+        validate::<PreferredRouteCruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&route))
+            .status,
         ValidatorStatus::Rejected
     );
 }
@@ -820,7 +852,7 @@ async fn cruise_altitude_handles_missing_direction_and_bearing_boundaries() {
         }],
     ] {
         assert_eq!(
-            validate::<CruiseAltitudeValidator>(&navdata, &flight, legs, None).status,
+            validate::<DirectionalCruiseAltitudeValidator>(&navdata, &flight, legs, None).status,
             ValidatorStatus::Unavailable
         );
     }
@@ -832,7 +864,7 @@ async fn cruise_altitude_handles_missing_direction_and_bearing_boundaries() {
     ] {
         flight.cruising_level = level;
         assert_eq!(
-            validate::<CruiseAltitudeValidator>(
+            validate::<DirectionalCruiseAltitudeValidator>(
                 &navdata,
                 &flight,
                 vec![directional_leg(from, to)],
@@ -845,8 +877,7 @@ async fn cruise_altitude_handles_missing_direction_and_bearing_boundaries() {
     for level in [0, -1, i64::MAX] {
         flight.cruising_level = level;
         assert_eq!(
-            validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&preferred()))
-                .status,
+            validate::<DirectionalCruiseAltitudeValidator>(&navdata, &flight, vec![], None).status,
             ValidatorStatus::Unavailable
         );
     }
@@ -874,8 +905,12 @@ async fn cruise_altitude_checks_imperial_parity_including_metric_overlaps() {
         for level in accepted {
             let mut flight = flight();
             flight.cruising_level = level;
-            let result =
-                validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&route));
+            let result = validate::<PreferredRouteCruiseAltitudeValidator>(
+                &navdata,
+                &flight,
+                vec![],
+                Some(&route),
+            );
             assert_eq!(
                 result.status,
                 ValidatorStatus::Pass,
@@ -886,8 +921,12 @@ async fn cruise_altitude_checks_imperial_parity_including_metric_overlaps() {
         for level in rejected {
             let mut flight = flight();
             flight.cruising_level = level;
-            let result =
-                validate::<CruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&route));
+            let result = validate::<PreferredRouteCruiseAltitudeValidator>(
+                &navdata,
+                &flight,
+                vec![],
+                Some(&route),
+            );
             assert_eq!(
                 result.status,
                 ValidatorStatus::Rejected,
@@ -903,4 +942,86 @@ async fn cruise_altitude_checks_imperial_parity_including_metric_overlaps() {
             );
         }
     }
+}
+
+#[tokio::test]
+async fn altitude_checks_are_mutually_exclusive_and_skip_foreign_departure_direction() {
+    let navdata = navdata().await;
+    let east = directional_leg((30., 110.), (30., 111.));
+    let mut flight = flight();
+    let route = preferred();
+    let suppressed = validate::<PreferredRouteCruiseAltitudeValidator>(
+        &navdata,
+        &flight,
+        vec![east.clone()],
+        None,
+    );
+    assert_eq!(suppressed.status, ValidatorStatus::Suppressed);
+    assert!(suppressed.warnings.is_empty());
+    let suppressed = validate::<DirectionalCruiseAltitudeValidator>(
+        &navdata,
+        &flight,
+        vec![east.clone()],
+        Some(&route),
+    );
+    assert_eq!(suppressed.status, ValidatorStatus::Suppressed);
+    assert!(suppressed.warnings.is_empty());
+    // Foreign departures suppress directional validation even without a usable level or route.
+    flight.cruising_level = 0;
+    for departure in ["RJAA", "VHHH", "RCTP", "ZMUB", "ZKPY"] {
+        flight.departure = departure.into();
+        let result =
+            validate::<DirectionalCruiseAltitudeValidator>(&navdata, &flight, vec![], None);
+        assert_eq!(result.status, ValidatorStatus::Suppressed, "{departure}");
+        assert!(result.warnings.is_empty());
+    }
+    flight.departure = "RJAA".into();
+    flight.cruising_level = 30500;
+    assert_eq!(
+        validate::<PreferredRouteCruiseAltitudeValidator>(&navdata, &flight, vec![], Some(&route))
+            .status,
+        ValidatorStatus::Rejected
+    );
+    for departure in ["", "ZZZZ", "Z", "1234"] {
+        flight.departure = departure.into();
+        assert_eq!(
+            validate::<DirectionalCruiseAltitudeValidator>(
+                &navdata,
+                &flight,
+                vec![east.clone()],
+                None
+            )
+            .status,
+            ValidatorStatus::Unavailable
+        );
+    }
+    flight.departure = " zbaa ".into();
+    flight.cruising_level = 33100;
+    let parsed_route = ParsedRoute { legs: vec![east] };
+    let results = crate::modules::flight::flight_plan::validator::validate_all(
+        &ValidationContext {
+            flight: &flight,
+            route: &parsed_route,
+            preferred_route: None,
+            preferred_routes: &[],
+        },
+        &navdata,
+    )
+    .unwrap();
+    assert_eq!(
+        results
+            .iter()
+            .find(|result| result.validator_ident == PreferredRouteCruiseAltitudeValidator::IDENT)
+            .unwrap()
+            .status,
+        ValidatorStatus::Suppressed
+    );
+    assert_eq!(
+        results
+            .iter()
+            .find(|result| result.validator_ident == DirectionalCruiseAltitudeValidator::IDENT)
+            .unwrap()
+            .status,
+        ValidatorStatus::Pass
+    );
 }

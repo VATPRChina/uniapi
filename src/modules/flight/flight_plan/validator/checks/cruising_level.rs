@@ -8,87 +8,123 @@ use crate::modules::flight::models::{ValidatorResult, ValidatorStatus};
 use crate::modules::navdata::models::{Fix, LevelRestrictionType, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
 
-/// Cruising altitude must meet metric or imperial preferred-route restrictions,
-/// falling back to China metric directional levels when no route matches.
-pub struct CruiseAltitudeValidator;
+/// Validate metric or imperial altitude restrictions on a matched preferred route.
+pub struct PreferredRouteCruiseAltitudeValidator;
 
-impl Validator for CruiseAltitudeValidator {
-    const IDENT: &'static str = "cruise-altitude";
+impl Validator for PreferredRouteCruiseAltitudeValidator {
+    const IDENT: &'static str = "cruise-altitude-preferred-route";
     const FIELD: WarningMessageField = WarningMessageField::CruisingLevel;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
-        let Some(level) = i32::try_from(context.flight.cruising_level)
-            .ok()
-            .filter(|level| *level > 0)
-        else {
-            return result(ValidatorStatus::Unavailable, Vec::new());
+        let Some(route) = context.preferred_route else {
+            return result::<Self>(ValidatorStatus::Suppressed, Vec::new());
         };
-        let restriction = if let Some(route) = context.preferred_route {
-            route.cruising_level_restriction
-        } else {
-            let Some(westbound) = context.route.legs.first().and_then(is_westbound) else {
-                return result(ValidatorStatus::Unavailable, Vec::new());
-            };
-            if westbound {
-                LevelRestrictionType::StandardEven
-            } else {
-                LevelRestrictionType::StandardOdd
-            }
+        let Some(level) = cruising_level(context) else {
+            return result::<Self>(ValidatorStatus::Unavailable, Vec::new());
         };
-        // Imperial requirements use feet directly: some imperial levels also occur
-        // in the China metric conversion table, so classify against the requirement.
-        let matches_restriction = match restriction {
-            LevelRestrictionType::FlightLevelEven => level % 2000 == 0,
-            LevelRestrictionType::FlightLevelOdd => level % 2000 == 1000,
-            _ => {
-                standard_altitude_from_flight_level(level).is_some()
-                    && level_restriction_matches(level_restriction_type(level), restriction)
-            }
-        };
-        let mut warnings = Vec::new();
-        if !matches_restriction {
+        let mut warnings = restriction_warnings(level, route.cruising_level_restriction);
+        if !route.allowed_altitudes.is_empty() && !route.allowed_altitudes.contains(&level) {
             warnings.push(WarningMessage::with_parameter(
                 Self::FIELD,
-                WarningMessageCode::CruisingLevelMismatch,
-                level_restriction_param(restriction),
+                WarningMessageCode::CruisingLevelNotAllowed,
+                route
+                    .allowed_altitudes
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(","),
             ));
         }
-        if let Some(route) = context.preferred_route {
-            if !route.allowed_altitudes.is_empty() && !route.allowed_altitudes.contains(&level) {
-                warnings.push(WarningMessage::with_parameter(
-                    Self::FIELD,
-                    WarningMessageCode::CruisingLevelNotAllowed,
-                    route
-                        .allowed_altitudes
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join(","),
-                ));
-            }
-            if route.minimal_altitude > 0 && level < route.minimal_altitude {
-                warnings.push(WarningMessage::with_parameter(
-                    Self::FIELD,
-                    WarningMessageCode::CruisingLevelTooLow,
-                    route.minimal_altitude.to_string(),
-                ));
-            }
+        if route.minimal_altitude > 0 && level < route.minimal_altitude {
+            warnings.push(WarningMessage::with_parameter(
+                Self::FIELD,
+                WarningMessageCode::CruisingLevelTooLow,
+                route.minimal_altitude.to_string(),
+            ));
         }
-        result(
-            if warnings.is_empty() {
-                ValidatorStatus::Pass
-            } else {
-                ValidatorStatus::Rejected
-            },
-            warnings,
-        )
+        checked_result::<Self>(warnings)
     }
 }
 
-fn result(status: ValidatorStatus, warnings: Vec<WarningMessage>) -> ValidatorResult {
+/// For unmatched routes departing China, use the first leg's metric altitude direction.
+pub struct DirectionalCruiseAltitudeValidator;
+
+impl Validator for DirectionalCruiseAltitudeValidator {
+    const IDENT: &'static str = "cruise-altitude-directional";
+    const FIELD: WarningMessageField = WarningMessageField::CruisingLevel;
+
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+        if context.preferred_route.is_some() {
+            return result::<Self>(ValidatorStatus::Suppressed, Vec::new());
+        }
+        let departure = context.flight.departure.trim().to_ascii_uppercase();
+        if departure.len() != 4
+            || !departure.bytes().all(|byte| byte.is_ascii_alphabetic())
+            || departure == "ZZZZ"
+        {
+            return result::<Self>(ValidatorStatus::Unavailable, Vec::new());
+        }
+        if !departure.starts_with('Z') || departure.starts_with("ZM") || departure.starts_with("ZK")
+        {
+            return result::<Self>(ValidatorStatus::Suppressed, Vec::new());
+        }
+        let Some(level) = cruising_level(context) else {
+            return result::<Self>(ValidatorStatus::Unavailable, Vec::new());
+        };
+        let Some(westbound) = context.route.legs.first().and_then(is_westbound) else {
+            return result::<Self>(ValidatorStatus::Unavailable, Vec::new());
+        };
+        let restriction = if westbound {
+            LevelRestrictionType::StandardEven
+        } else {
+            LevelRestrictionType::StandardOdd
+        };
+        checked_result::<Self>(restriction_warnings(level, restriction))
+    }
+}
+
+fn cruising_level(context: &ValidationContext<'_>) -> Option<i32> {
+    i32::try_from(context.flight.cruising_level)
+        .ok()
+        .filter(|level| *level > 0)
+}
+
+fn restriction_warnings(level: i32, restriction: LevelRestrictionType) -> Vec<WarningMessage> {
+    // Imperial requirements use feet directly, including levels also in the metric table.
+    let matches_restriction = match restriction {
+        LevelRestrictionType::FlightLevelEven => level % 2000 == 0,
+        LevelRestrictionType::FlightLevelOdd => level % 2000 == 1000,
+        _ => {
+            standard_altitude_from_flight_level(level).is_some()
+                && level_restriction_matches(level_restriction_type(level), restriction)
+        }
+    };
+    if matches_restriction {
+        Vec::new()
+    } else {
+        vec![WarningMessage::with_parameter(
+            WarningMessageField::CruisingLevel,
+            WarningMessageCode::CruisingLevelMismatch,
+            level_restriction_param(restriction),
+        )]
+    }
+}
+
+fn checked_result<V: Validator>(warnings: Vec<WarningMessage>) -> ValidatorResult {
+    result::<V>(
+        if warnings.is_empty() {
+            ValidatorStatus::Pass
+        } else {
+            ValidatorStatus::Rejected
+        },
+        warnings,
+    )
+}
+
+fn result<V: Validator>(status: ValidatorStatus, warnings: Vec<WarningMessage>) -> ValidatorResult {
     ValidatorResult {
-        validator_ident: CruiseAltitudeValidator::IDENT.to_owned(),
-        field: CruiseAltitudeValidator::FIELD,
+        validator_ident: V::IDENT.to_owned(),
+        field: V::FIELD,
         status,
         warnings,
     }
