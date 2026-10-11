@@ -227,10 +227,13 @@ mod tests {
             .iter()
             .filter(|candidate| candidate.permitted_by(&idents[2].amendments))
             .collect();
-        assert_eq!(sids, vec![&all[2], &all[5]]);
+        assert_eq!(sids, vec![&all[2], &all[3], &all[5], &all[6]]);
         for candidate in &all {
             assert!(candidate.permitted_by(&[]));
-            assert!(candidate.permitted_by(&[IdentAmend::FlightRuleIfr]));
+            assert_eq!(
+                candidate.permitted_by(&[IdentAmend::FlightRuleIfr]),
+                matches!(candidate, IdentCandidate::Fix(_))
+            );
             assert!(!candidate.permitted_by(&[
                 IdentAmend::Runway("36L".into()),
                 IdentAmend::SpeedAndAltitude {

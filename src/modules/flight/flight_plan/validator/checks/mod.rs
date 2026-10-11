@@ -17,7 +17,7 @@ pub use airport::{
     ArrivalAircraftTypeValidator, ArrivalAirportValidator, DepartureAircraftTypeValidator,
     DepartureAirportValidator,
 };
-pub use cruising_level::{ChinaRvsmLevelValidator, CruisingLevelRestrictionValidator};
+pub use cruising_level::CruiseAltitudeValidator;
 pub use equipment::{EquipmentRnav1Validator, EquipmentRnpArValidator, EquipmentRvsmValidator};
 pub use flight::{
     AircraftTypeValidator, CallsignValidator, FlightRuleWeatherValidator, WakeCategoryValidator,
