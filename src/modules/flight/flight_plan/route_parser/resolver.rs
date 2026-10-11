@@ -1,6 +1,8 @@
 use futures::{StreamExt, TryStreamExt, stream};
 
-use crate::modules::flight::flight_plan::route_parser::{Ident, Lexer, LexerTokenValue};
+use crate::modules::flight::flight_plan::route_parser::{
+    Ident, IdentAmend, Lexer, LexerTokenValue,
+};
 use crate::modules::navdata::models::{AnyFix, GeoPoint, NavProc};
 use crate::modules::navdata::service::{InvalidNavdataError, NavdataResult, NavdataService};
 
@@ -38,6 +40,24 @@ impl std::fmt::Debug for IdentCandidate {
 }
 
 impl IdentCandidate {
+    fn permitted_by(&self, amendments: &[IdentAmend]) -> bool {
+        amendments.iter().all(|amendment| match amendment {
+            IdentAmend::SpeedAndAltitude { .. } => matches!(self, Self::Fix(_)),
+            IdentAmend::Runway(_) => {
+                matches!(
+                    self,
+                    Self::Leg(
+                        NavProc::Sid(_)
+                            | NavProc::UnknownSid(_)
+                            | NavProc::Star(_)
+                            | NavProc::UnknownStar(_)
+                    )
+                )
+            }
+            IdentAmend::FlightRuleVfr | IdentAmend::FlightRuleIfr => matches!(self, Self::Fix(_)),
+        })
+    }
+
     pub fn is_unknown(&self) -> bool {
         match self {
             IdentCandidate::Fix(fix_candidate) => fix_candidate.is_unknown(),
@@ -53,6 +73,7 @@ impl<'s> CandidateResolver<'s> {
 
     /// Resolve all candidates in route order without choosing between ambiguous matches.
     /// Plain identifiers always include unknown route/point fallbacks.
+    /// Speed/level amendments restrict candidates to fixes; runway suffixes restrict them to SIDs.
     /// Database failures propagate instead of being treated as unknown identifiers.
     ///
     /// # Panics
@@ -63,7 +84,8 @@ impl<'s> CandidateResolver<'s> {
     ) -> NavdataResult<impl Iterator<Item = IdentWithCandidate<'s>>> {
         let resolved: Vec<_> = stream::iter(self.idents)
             .then(|ident| async move {
-                let candidates = resolve_ident(navdata, ident.identifier()).await?;
+                let mut candidates = resolve_ident(navdata, ident.identifier()).await?;
+                candidates.retain(|candidate| candidate.permitted_by(&ident.amendments));
                 Ok::<_, InvalidNavdataError>(IdentWithCandidate { ident, candidates })
             })
             .try_collect()
@@ -152,4 +174,70 @@ async fn find_fix_candidates(navdata: &NavdataService, ident: &str) -> NavdataRe
         .chain(enroute_waypoint.into_iter().map(AnyFix::Waypoint))
         .chain(terminal_waypoint.into_iter().map(AnyFix::Waypoint))
         .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::modules::flight::flight_plan::route_parser::{CruisingLevel, LexGrouper, Speed};
+    use crate::modules::navdata::models::{Airway, Sid, Star, TerminalProcedure};
+
+    fn candidates() -> Vec<IdentCandidate> {
+        let procedure = TerminalProcedure {
+            airport: "ZBAA".try_into().unwrap(),
+            identifier: "PIKAS1".try_into().unwrap(),
+            runway_transitions: ["36L".try_into().unwrap()].into(),
+            enroute_transitions: ["PIKAS".try_into().unwrap()].into(),
+            is_rnav: true,
+        };
+        vec![
+            IdentCandidate::Fix(AnyFix::GeoPoint(GeoPoint::new(30., 110.))),
+            IdentCandidate::Fix(AnyFix::Unknown("PIKAS1".into())),
+            IdentCandidate::Leg(NavProc::Sid(Sid {
+                proc: procedure.clone(),
+            })),
+            IdentCandidate::Leg(NavProc::Star(Star { proc: procedure })),
+            IdentCandidate::Leg(NavProc::Airway(Airway {
+                identifier: "PIKAS1".try_into().unwrap(),
+                legs: vec![],
+            })),
+            IdentCandidate::Leg(NavProc::UnknownSid("PIKAS1".into())),
+            IdentCandidate::Leg(NavProc::UnknownStar("PIKAS1".into())),
+            IdentCandidate::Leg(NavProc::UnknownAirway("PIKAS1".into())),
+            IdentCandidate::Leg(NavProc::Direct),
+        ]
+    }
+
+    #[test]
+    fn amendments_constrain_ambiguous_candidates_and_unknown_fallbacks() {
+        let all = candidates();
+        let idents: Vec<_> = LexGrouper::new(
+            Lexer::new("ZBAA AGAVO/K0745S0660 PIKAS1/36L ZSPD")
+                .parse_all()
+                .collect(),
+        )
+        .parse()
+        .collect();
+        let fixes: Vec<_> = all
+            .iter()
+            .filter(|candidate| candidate.permitted_by(&idents[1].amendments))
+            .collect();
+        assert_eq!(fixes, vec![&all[0], &all[1]]);
+        let sids: Vec<_> = all
+            .iter()
+            .filter(|candidate| candidate.permitted_by(&idents[2].amendments))
+            .collect();
+        assert_eq!(sids, vec![&all[2], &all[5]]);
+        for candidate in &all {
+            assert!(candidate.permitted_by(&[]));
+            assert!(candidate.permitted_by(&[IdentAmend::FlightRuleIfr]));
+            assert!(!candidate.permitted_by(&[
+                IdentAmend::Runway("36L".into()),
+                IdentAmend::SpeedAndAltitude {
+                    speed: Speed::KmH(745),
+                    altitude: CruisingLevel::MeterLevel(660)
+                },
+            ]));
+        }
+    }
 }
