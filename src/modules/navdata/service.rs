@@ -28,6 +28,8 @@ pub enum InvalidNavdataError {
     DatabaseError(#[from] sqlx::Error),
     #[error("invalid navaid: latitude/longitude is null")]
     InvalidNavaidNullLatLong,
+    #[error("invalid coordinate: {0}")]
+    InvalidCoordinate(#[from] crate::utils::geo::NonFiniteCoordinateError),
     #[error("failed to compute distance ordering: {0}")]
     GeoDistanceOrderingError(#[from] ordered_float::FloatIsNan),
     #[error("preferred route data error: {0}")]
@@ -114,8 +116,8 @@ mod test {
         assert!(airport.is_some());
         let airport = airport.unwrap();
         assert_eq!(&airport.identifier, "MBAC");
-        approx::assert_relative_eq!(airport.latitude, 21.3006333333333, max_relative = 1e-6);
-        approx::assert_relative_eq!(airport.longitude, -71.64115, max_relative = 1e-6);
+        approx::assert_relative_eq!(*airport.latitude, 21.3006333333333, max_relative = 1e-6);
+        approx::assert_relative_eq!(*airport.longitude, -71.64115, max_relative = 1e-6);
     }
 
     #[tokio::test]

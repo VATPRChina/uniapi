@@ -1,6 +1,7 @@
 use crate::modules::navdata::models::{Airport, AnyFix, Fix, GeoPoint, Ndb, Vhf, Waypoint};
+use crate::utils::geo::{Latitude, Longitude};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FixReference {
     fix: FixReferenceBase,
     heading: u16,
@@ -16,27 +17,31 @@ impl FixReference {
         }
     }
 
-    fn destination(&self) -> (f64, f64) {
+    fn destination(&self) -> Option<(Latitude, Longitude)> {
         let fix: &dyn Fix = match &self.fix {
             FixReferenceBase::Airport(fix) => fix,
             FixReferenceBase::Ndb(fix) => fix,
             FixReferenceBase::Vhf(fix) => fix,
             FixReferenceBase::Waypoint(fix) => fix,
-            FixReferenceBase::Unknown(_) => return (0., 0.),
+            FixReferenceBase::Unknown(_) => return None,
         };
-        let point =
-            GeoPoint::new(fix.latitude(), fix.longitude()).destination(self.heading, self.distance);
-        (point.latitude, point.longitude)
+        let point = GeoPoint {
+            latitude: fix.latitude()?,
+            longitude: fix.longitude()?,
+        }
+        .destination(self.heading, self.distance)
+        .ok()?;
+        Some((point.latitude, point.longitude))
     }
 }
 
 impl Fix for FixReference {
-    fn latitude(&self) -> f64 {
-        self.destination().0
+    fn latitude(&self) -> Option<Latitude> {
+        self.destination().map(|point| point.0)
     }
 
-    fn longitude(&self) -> f64 {
-        self.destination().1
+    fn longitude(&self) -> Option<Longitude> {
+        self.destination().map(|point| point.1)
     }
 }
 
@@ -46,7 +51,7 @@ impl From<FixReference> for AnyFix {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FixReferenceBase {
     Airport(Airport),
     Ndb(Ndb),

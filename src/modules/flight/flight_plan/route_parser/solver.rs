@@ -27,8 +27,8 @@ impl std::fmt::Debug for State {
             .field("last_token", &self.last_token)
             .field("fallbacks", &self.fallbacks)
             .field("distance", &self.distance)
-            .field("position_lat", &Latitude(self.position_lat))
-            .field("position_lon", &Longitude(self.position_lon))
+            .field("position_lat", &Latitude::new(self.position_lat).ok())
+            .field("position_lon", &Longitude::new(self.position_lon).ok())
             .finish()
     }
 }

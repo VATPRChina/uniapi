@@ -79,22 +79,22 @@ impl EnrouteAirwayRecord {
             "EA" => AnyFix::Waypoint(Waypoint {
                 icao_code: ArrayString::from(&self.icao_code)?,
                 identifier: ArrayString::from(&self.waypoint_identifier)?,
-                latitude: self.waypoint_latitude,
-                longitude: self.waypoint_longitude,
+                latitude: self.waypoint_latitude.try_into()?,
+                longitude: self.waypoint_longitude.try_into()?,
                 kind: WaypointKind::Enroute,
             }),
             "DB" => AnyFix::Ndb(Ndb {
                 icao_code: ArrayString::from(&self.icao_code)?,
                 identifier: ArrayString::from(&self.waypoint_identifier)?,
-                latitude: self.waypoint_latitude,
-                longitude: self.waypoint_longitude,
+                latitude: self.waypoint_latitude.try_into()?,
+                longitude: self.waypoint_longitude.try_into()?,
                 kind: NdbKind::Enroute,
             }),
             "D" => AnyFix::Vhf(Vhf {
                 icao_code: ArrayString::from(&self.icao_code)?,
                 identifier: ArrayString::from(&self.waypoint_identifier)?,
-                latitude: self.waypoint_latitude,
-                longitude: self.waypoint_longitude,
+                latitude: self.waypoint_latitude.try_into()?,
+                longitude: self.waypoint_longitude.try_into()?,
             }),
             _ => {
                 return Err(InvalidNavdataError::InternalError(

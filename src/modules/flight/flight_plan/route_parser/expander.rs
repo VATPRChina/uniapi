@@ -122,8 +122,10 @@ fn same_fix(left: &AnyFix, right: &AnyFix) -> bool {
             .icao_code()
             .zip(right.icao_code())
             .is_some_and(|(left, right)| !left.is_empty() && !right.is_empty() && left != right)
-        && (left.latitude() - right.latitude()).abs() <= 1. / 3600.
-        && (left.longitude() - right.longitude()).abs() <= 1. / 3600.
+        && left.position().is_some()
+        && right.position().is_some()
+        && left.latitude() == right.latitude()
+        && left.longitude() == right.longitude()
 }
 
 #[derive(Clone)]
@@ -205,4 +207,30 @@ fn find_path(
             .find(|path| fix_matches(&path.point, to))
             .map(|path| path.legs)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::same_fix;
+    use crate::modules::navdata::models::{AnyFix, GeoPoint};
+
+    #[test]
+    fn fix_matching_uses_coordinate_equality_and_requires_positions() {
+        let point = AnyFix::GeoPoint(GeoPoint::new(30., 110.).unwrap());
+        assert!(same_fix(
+            &point,
+            &AnyFix::GeoPoint(GeoPoint::new(30. + 0.004 / 3600., 110.).unwrap())
+        ));
+        assert!(!same_fix(
+            &point,
+            &AnyFix::GeoPoint(GeoPoint::new(30. + 0.02 / 3600., 110.).unwrap())
+        ));
+        assert!(!same_fix(
+            &point,
+            &AnyFix::GeoPoint(GeoPoint::new(30., 110. + 0.02 / 3600.).unwrap())
+        ));
+        let unknown = AnyFix::Unknown("UNKNOWN".to_owned());
+        assert!(!same_fix(&point, &unknown));
+        assert!(!same_fix(&unknown, &unknown));
+    }
 }

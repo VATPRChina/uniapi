@@ -255,12 +255,9 @@ pub struct FlightRouteFix {
 
 impl From<&AnyFix> for FlightRouteFix {
     fn from(fix: &AnyFix) -> Self {
-        let position = (!matches!(fix, AnyFix::Unknown(_))
-            && fix.latitude().is_finite()
-            && fix.longitude().is_finite()
-            && (-90.0..=90.0).contains(&fix.latitude())
-            && (-180.0..=180.0).contains(&fix.longitude()))
-        .then(|| (fix.latitude(), fix.longitude()));
+        let position = fix.position().filter(|(latitude, longitude)| {
+            (-90.0..=90.0).contains(latitude) && (-180.0..=180.0).contains(longitude)
+        });
         Self {
             identifier: FlightFix::from(fix).identifier,
             latitude: position.map(|point| point.0),
@@ -303,10 +300,10 @@ impl From<&AnyFix> for FlightFix {
                         "{:02}{:02}{}{:03}{:02}{}",
                         latitude_minutes / 60,
                         latitude_minutes % 60,
-                        if geo_point.latitude < 0.0 { "S" } else { "N" },
+                        if *geo_point.latitude < 0.0 { "S" } else { "N" },
                         longitude_minutes / 60,
                         longitude_minutes % 60,
-                        if geo_point.longitude < 0.0 { "W" } else { "E" },
+                        if *geo_point.longitude < 0.0 { "W" } else { "E" },
                     )
                 }
                 _ => fix.identifier().unwrap_or_default().to_owned(),
@@ -322,14 +319,14 @@ mod tests {
 
     #[test]
     fn generates_geo_point_identifier_for_flight_fix() {
-        let fix = GeoPoint::new(-7.5, 8.25).into();
+        let fix = GeoPoint::new(-7.5, 8.25).unwrap().into();
 
         assert_eq!(FlightFix::from(&fix).identifier, "0730S00815E");
     }
 
     #[test]
     fn route_coordinates_preserve_real_origin_and_omit_unknown_positions() {
-        let origin = FlightRouteFix::from(&AnyFix::GeoPoint(GeoPoint::new(0., 0.)));
+        let origin = FlightRouteFix::from(&AnyFix::GeoPoint(GeoPoint::new(0., 0.).unwrap()));
         assert_eq!(origin.latitude, Some(0.));
         assert_eq!(origin.longitude, Some(0.));
         assert!(!origin.is_unknown);
@@ -339,8 +336,10 @@ mod tests {
         assert_eq!(unknown.longitude, None);
         assert!(unknown.is_unknown);
         assert_eq!(
-            serde_json::to_value(FlightFix::from(&AnyFix::GeoPoint(GeoPoint::new(0., 0.))))
-                .unwrap(),
+            serde_json::to_value(FlightFix::from(&AnyFix::GeoPoint(
+                GeoPoint::new(0., 0.).unwrap()
+            )))
+            .unwrap(),
             serde_json::json!({"identifier": "0000N00000E"})
         );
     }

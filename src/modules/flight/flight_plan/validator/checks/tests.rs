@@ -35,8 +35,8 @@ fn fix(icao: &str) -> AnyFix {
     AnyFix::Waypoint(Waypoint {
         icao_code: icao.try_into().unwrap(),
         identifier: "FIX".try_into().unwrap(),
-        latitude: 30.,
-        longitude: 110.,
+        latitude: 30.0.try_into().unwrap(),
+        longitude: 110.0.try_into().unwrap(),
         kind: WaypointKind::Enroute,
     })
 }
@@ -203,8 +203,8 @@ async fn direct_legs_flag_domestic_segments_but_skip_cross_border_airports_and_p
     let mut airport = leg(LegKind::Direct);
     airport.from = AnyFix::Airport(Airport {
         identifier: "ZBAA".try_into().unwrap(),
-        latitude: 40.,
-        longitude: 116.,
+        latitude: 40.0.try_into().unwrap(),
+        longitude: 116.0.try_into().unwrap(),
     });
     let mut foreign = leg(LegKind::Direct);
     foreign.to = fix("RJ");
@@ -232,7 +232,7 @@ async fn direct_legs_flag_domestic_segments_but_skip_cross_border_airports_and_p
         )]
     );
     let mut geo = leg(LegKind::Direct);
-    geo.to = AnyFix::GeoPoint(GeoPoint::new(30., 111.));
+    geo.to = AnyFix::GeoPoint(GeoPoint::new(30., 111.).unwrap());
     assert_eq!(
         validate::<RouteDirectLegValidator>(&navdata, &flight, vec![geo], None).status,
         ValidatorStatus::Rejected
@@ -390,8 +390,8 @@ async fn route_checks_handle_empty_clean_and_preferred_routes() {
 fn airport(identifier: &str) -> AnyFix {
     AnyFix::Airport(Airport {
         identifier: identifier.try_into().unwrap(),
-        latitude: 40.,
-        longitude: 116.,
+        latitude: 40.0.try_into().unwrap(),
+        longitude: 116.0.try_into().unwrap(),
     })
 }
 
@@ -684,8 +684,8 @@ async fn flight_rule_weather_is_suppressed_for_ifr() {
 
 fn directional_leg(from: (f64, f64), to: (f64, f64)) -> ResolvedLeg {
     ResolvedLeg {
-        from: GeoPoint::new(from.0, from.1).into(),
-        to: GeoPoint::new(to.0, to.1).into(),
+        from: GeoPoint::new(from.0, from.1).unwrap().into(),
+        to: GeoPoint::new(to.0, to.1).unwrap().into(),
         ..leg(LegKind::Direct)
     }
 }

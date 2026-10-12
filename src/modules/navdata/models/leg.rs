@@ -58,8 +58,8 @@ mod tests {
         ] {
             for is_unknown in [false, true] {
                 let leg = ResolvedLeg {
-                    from: GeoPoint::new(30., 110.).into(),
-                    to: GeoPoint::new(30., 111.).into(),
+                    from: GeoPoint::new(30., 110.).unwrap().into(),
+                    to: GeoPoint::new(30., 111.).unwrap().into(),
                     identifier: Some("A1".to_owned()),
                     is_unknown,
                     kind,

@@ -1,24 +1,28 @@
 use crate::modules::navdata::models::{AnyFix, Fix};
-use crate::utils::geo::{Latitude, Longitude};
+use crate::utils::geo::{Latitude, Longitude, NonFiniteCoordinateError};
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GeoPoint {
-    pub latitude: f64,
-    pub longitude: f64,
+    pub latitude: Latitude,
+    pub longitude: Longitude,
 }
 
 impl GeoPoint {
-    pub fn new(latitude: f64, longitude: f64) -> Self {
-        Self {
-            latitude,
-            longitude,
-        }
+    pub fn new(latitude: f64, longitude: f64) -> Result<Self, NonFiniteCoordinateError> {
+        Ok(Self {
+            latitude: latitude.try_into()?,
+            longitude: longitude.try_into()?,
+        })
     }
 
     /// Destination at a bearing in degrees and a distance in nautical miles.
-    pub fn destination(&self, heading: u16, distance: u16) -> Self {
+    pub fn destination(
+        &self,
+        heading: u16,
+        distance: u16,
+    ) -> Result<Self, NonFiniteCoordinateError> {
         if distance == 0 {
-            return self.clone();
+            return Ok(self.clone());
         }
         let latitude = self.latitude.to_radians();
         let longitude = self.longitude.to_radians();
@@ -38,21 +42,12 @@ impl GeoPoint {
 }
 
 impl Fix for GeoPoint {
-    fn latitude(&self) -> f64 {
-        self.latitude
+    fn latitude(&self) -> Option<Latitude> {
+        Some(self.latitude)
     }
 
-    fn longitude(&self) -> f64 {
-        self.longitude
-    }
-}
-
-impl std::fmt::Debug for GeoPoint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GeoPoint")
-            .field("latitude", &Latitude(self.latitude))
-            .field("longitude", &Longitude(self.longitude))
-            .finish()
+    fn longitude(&self) -> Option<Longitude> {
+        Some(self.longitude)
     }
 }
 

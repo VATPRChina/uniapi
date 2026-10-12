@@ -141,12 +141,10 @@ fn fix_matches(actual: &AnyFix, expected: &AnyFix) -> bool {
     match (actual.identifier(), expected.identifier()) {
         (Some(actual), Some(expected)) => actual.eq_ignore_ascii_case(expected),
         (None, None) => {
-            approx::relative_eq!(actual.latitude(), expected.latitude(), max_relative = 1e-6)
-                && approx::relative_eq!(
-                    actual.longitude(),
-                    expected.longitude(),
-                    max_relative = 1e-6
-                )
+            actual.position().is_some()
+                && expected.position().is_some()
+                && actual.latitude() == expected.latitude()
+                && actual.longitude() == expected.longitude()
         }
         _ => false,
     }

@@ -77,11 +77,13 @@ impl NavdataService {
                     latitude: record
                         .navaid_latitude
                         .or(record.dme_latitude)
-                        .ok_or(InvalidNavdataError::InvalidNavaidNullLatLong)?,
+                        .ok_or(InvalidNavdataError::InvalidNavaidNullLatLong)?
+                        .try_into()?,
                     longitude: record
                         .navaid_longitude
                         .or(record.dme_longitude)
-                        .ok_or(InvalidNavdataError::InvalidNavaidNullLatLong)?,
+                        .ok_or(InvalidNavdataError::InvalidNavaidNullLatLong)?
+                        .try_into()?,
                 })
             },
             latitude,
@@ -117,8 +119,8 @@ impl NavdataService {
                 Ok(Ndb {
                     icao_code: ArrayString::from(&record.icao_code)?,
                     identifier: ArrayString::from(&record.navaid_identifier)?,
-                    latitude: record.navaid_latitude,
-                    longitude: record.navaid_longitude,
+                    latitude: record.navaid_latitude.try_into()?,
+                    longitude: record.navaid_longitude.try_into()?,
                     kind: NdbKind::Enroute,
                 })
             },
@@ -155,8 +157,8 @@ impl NavdataService {
                 Ok(Waypoint {
                     icao_code: ArrayString::from(&record.icao_code)?,
                     identifier: ArrayString::from(&record.waypoint_identifier)?,
-                    latitude: record.waypoint_latitude,
-                    longitude: record.waypoint_longitude,
+                    latitude: record.waypoint_latitude.try_into()?,
+                    longitude: record.waypoint_longitude.try_into()?,
                     kind: WaypointKind::Enroute,
                 })
             },
@@ -298,12 +300,15 @@ where
     items
         .map(|item| {
             map(item).and_then(|fix| {
+                let (fix_latitude, fix_longitude) = fix
+                    .position()
+                    .ok_or(InvalidNavdataError::InvalidNavaidNullLatLong)?;
                 Ok((
                     NotNan::new(geo_distance_ordering(
                         latitude,
                         longitude,
-                        fix.latitude(),
-                        fix.longitude(),
+                        fix_latitude,
+                        fix_longitude,
                     ))?,
                     fix,
                 ))
@@ -328,50 +333,52 @@ struct FindFixRecord {
     longitude: f64,
 }
 
-impl From<FindFixRecord> for AnyFix {
-    fn from(val: FindFixRecord) -> Self {
-        match val.kind.as_str() {
+impl TryFrom<FindFixRecord> for AnyFix {
+    type Error = InvalidNavdataError;
+
+    fn try_from(val: FindFixRecord) -> NavdataResult<Self> {
+        Ok(match val.kind.as_str() {
             "tbl_pa_airports" => AnyFix::Airport(Airport {
                 identifier: val.identifier.as_str().try_into().unwrap(),
-                latitude: val.latitude,
-                longitude: val.longitude,
+                latitude: val.latitude.try_into()?,
+                longitude: val.longitude.try_into()?,
             }),
             "tbl_d_vhfnavaids" => AnyFix::Vhf(Vhf {
                 icao_code: val.icao_code.as_str().try_into().unwrap(),
                 identifier: val.identifier.as_str().try_into().unwrap(),
-                latitude: val.latitude,
-                longitude: val.longitude,
+                latitude: val.latitude.try_into()?,
+                longitude: val.longitude.try_into()?,
             }),
             "tbl_db_enroute_ndbnavaids" => AnyFix::Ndb(Ndb {
                 icao_code: val.icao_code.as_str().try_into().unwrap(),
                 identifier: val.identifier.as_str().try_into().unwrap(),
-                latitude: val.latitude,
-                longitude: val.longitude,
+                latitude: val.latitude.try_into()?,
+                longitude: val.longitude.try_into()?,
                 kind: NdbKind::Enroute,
             }),
             "tbl_pn_terminal_ndbnavaids" => AnyFix::Ndb(Ndb {
                 icao_code: val.icao_code.as_str().try_into().unwrap(),
                 identifier: val.identifier.as_str().try_into().unwrap(),
-                latitude: val.latitude,
-                longitude: val.longitude,
+                latitude: val.latitude.try_into()?,
+                longitude: val.longitude.try_into()?,
                 kind: NdbKind::Terminal,
             }),
             "tbl_ea_enroute_waypoints" => AnyFix::Waypoint(Waypoint {
                 icao_code: val.icao_code.as_str().try_into().unwrap(),
                 identifier: val.identifier.as_str().try_into().unwrap(),
-                latitude: val.latitude,
-                longitude: val.longitude,
+                latitude: val.latitude.try_into()?,
+                longitude: val.longitude.try_into()?,
                 kind: WaypointKind::Enroute,
             }),
             "tbl_pc_terminal_waypoints" => AnyFix::Waypoint(Waypoint {
                 icao_code: val.icao_code.as_str().try_into().unwrap(),
                 identifier: val.identifier.as_str().try_into().unwrap(),
-                latitude: val.latitude,
-                longitude: val.longitude,
+                latitude: val.latitude.try_into()?,
+                longitude: val.longitude.try_into()?,
                 kind: WaypointKind::Terminal,
             }),
             k => unreachable!("unexpected kind: {}", k),
-        }
+        })
     }
 }
 
@@ -459,22 +466,22 @@ impl EnrouteAirwayRecord {
             "EA" => AnyFix::Waypoint(Waypoint {
                 icao_code: ArrayString::from(&self.icao_code)?,
                 identifier: ArrayString::from(&self.waypoint_identifier)?,
-                latitude: self.waypoint_latitude,
-                longitude: self.waypoint_longitude,
+                latitude: self.waypoint_latitude.try_into()?,
+                longitude: self.waypoint_longitude.try_into()?,
                 kind: WaypointKind::Enroute,
             }),
             "DB" => AnyFix::Ndb(Ndb {
                 icao_code: ArrayString::from(&self.icao_code)?,
                 identifier: ArrayString::from(&self.waypoint_identifier)?,
-                latitude: self.waypoint_latitude,
-                longitude: self.waypoint_longitude,
+                latitude: self.waypoint_latitude.try_into()?,
+                longitude: self.waypoint_longitude.try_into()?,
                 kind: NdbKind::Enroute,
             }),
             "D" => AnyFix::Vhf(Vhf {
                 icao_code: ArrayString::from(&self.icao_code)?,
                 identifier: ArrayString::from(&self.waypoint_identifier)?,
-                latitude: self.waypoint_latitude,
-                longitude: self.waypoint_longitude,
+                latitude: self.waypoint_latitude.try_into()?,
+                longitude: self.waypoint_longitude.try_into()?,
             }),
             _ => {
                 return Err(InvalidNavdataError::InternalError(

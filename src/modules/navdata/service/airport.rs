@@ -22,8 +22,8 @@ impl NavdataService {
             .map(|record| -> NavdataResult<Airport> {
                 Ok(Airport {
                     identifier: ArrayString::from(&record.airport_identifier)?,
-                    latitude: record.airport_ref_latitude,
-                    longitude: record.airport_ref_longitude,
+                    latitude: record.airport_ref_latitude.try_into()?,
+                    longitude: record.airport_ref_longitude.try_into()?,
                 })
             })
             .transpose()?;

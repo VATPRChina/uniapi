@@ -105,8 +105,8 @@ async fn resolve_ident(
         LexerTokenValue::Direct => Ok(vec![IdentCandidate::Leg(NavProc::Direct)]),
         LexerTokenValue::Geo { lat, lon } => {
             Ok(vec![IdentCandidate::Fix(AnyFix::GeoPoint(GeoPoint {
-                latitude: lat,
-                longitude: lon,
+                latitude: lat.try_into()?,
+                longitude: lon.try_into()?,
             }))])
         }
         LexerTokenValue::IdentRef { ident, .. } => {
@@ -191,7 +191,7 @@ mod tests {
             is_rnav: true,
         };
         vec![
-            IdentCandidate::Fix(AnyFix::GeoPoint(GeoPoint::new(30., 110.))),
+            IdentCandidate::Fix(AnyFix::GeoPoint(GeoPoint::new(30., 110.).unwrap())),
             IdentCandidate::Fix(AnyFix::Unknown("PIKAS1".into())),
             IdentCandidate::Leg(NavProc::Sid(Sid {
                 proc: procedure.clone(),

@@ -141,8 +141,8 @@ impl<'a> RouteLexer<'a> {
         let Some(airport) = self.navdata.find_airport(self.value(index)).await? else {
             return Ok(false);
         };
-        self.current_lat = airport.latitude;
-        self.current_lon = airport.longitude;
+        self.current_lat = *airport.latitude;
+        self.current_lon = *airport.longitude;
         self.tokens[index] = RouteToken::Fix {
             value: airport.identifier.as_str().to_owned(),
             fix: AnyFix::Airport(airport),
@@ -232,8 +232,8 @@ impl<'a> RouteLexer<'a> {
             return Ok(false);
         };
 
-        self.current_lat = fix.latitude();
-        self.current_lon = fix.longitude();
+        self.current_lat = fix.valid_latitude_or(self.current_lat);
+        self.current_lon = fix.valid_longitude_or(self.current_lon);
         self.tokens[index] = RouteToken::Fix {
             value: fix.identifier().unwrap_or("").to_owned(),
             fix,
@@ -256,8 +256,7 @@ impl<'a> RouteLexer<'a> {
         let Ok(lon) = token[3..6].parse::<f64>() else {
             return false;
         };
-        self.set_geo(index, lat, bytes[2], lon, bytes[6]);
-        true
+        self.set_geo(index, lat, bytes[2], lon, bytes[6])
     }
 
     fn resolve_geo11(&mut self, index: usize) -> bool {
@@ -287,19 +286,22 @@ impl<'a> RouteLexer<'a> {
             bytes[4],
             lon_deg + lon_min / 60.0,
             bytes[10],
-        );
-        true
+        )
     }
 
-    fn set_geo(&mut self, index: usize, lat: f64, lat_sign: u8, lon: f64, lon_sign: u8) {
+    fn set_geo(&mut self, index: usize, lat: f64, lat_sign: u8, lon: f64, lon_sign: u8) -> bool {
         let lat = lat * if lat_sign == b'N' { 1.0 } else { -1.0 };
         let lon = lon * if lon_sign == b'E' { 1.0 } else { -1.0 };
+        let Ok(point) = GeoPoint::new(lat, lon) else {
+            return false;
+        };
         self.current_lat = lat;
         self.current_lon = lon;
         self.tokens[index] = RouteToken::Fix {
             value: self.value(index).to_owned(),
-            fix: GeoPoint::new(lat, lon).into(),
+            fix: point.into(),
         };
+        true
     }
 
     fn resolve_airport_fallback(&mut self, index: usize) -> bool {
@@ -310,8 +312,8 @@ impl<'a> RouteLexer<'a> {
             value: self.value(index).to_owned(),
             fix: AnyFix::Airport(Airport {
                 identifier: ArrayString::from(self.value(index)).unwrap_or_default(),
-                latitude: 0.,
-                longitude: 0.,
+                latitude: 0.0.try_into().unwrap(),
+                longitude: 0.0.try_into().unwrap(),
             }),
         };
         true

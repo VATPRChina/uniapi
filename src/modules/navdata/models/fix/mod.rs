@@ -13,39 +13,28 @@ pub use vhf::Vhf;
 pub use waypoint::{Waypoint, WaypointKind};
 
 use crate::modules::navdata::models::Identifiable;
+use crate::utils::geo::{Latitude, Longitude};
 
 pub trait Fix {
-    fn latitude(&self) -> f64;
-    fn longitude(&self) -> f64;
+    fn latitude(&self) -> Option<Latitude>;
+    fn longitude(&self) -> Option<Longitude>;
 
     fn valid_latitude_or(&self, default: f64) -> f64 {
-        if self.latitude().is_finite() {
-            self.latitude()
-        } else {
-            default
-        }
+        self.latitude().map_or(default, |latitude| *latitude)
     }
 
     fn valid_longitude_or(&self, default: f64) -> f64 {
-        if self.longitude().is_finite() {
-            self.longitude()
-        } else {
-            default
-        }
+        self.longitude().map_or(default, |longitude| *longitude)
     }
 
     fn position(&self) -> Option<(f64, f64)> {
-        if !self.latitude().is_finite() {
-            return None;
-        }
-        if !self.longitude().is_finite() {
-            return None;
-        }
-        Some((self.latitude(), self.longitude()))
+        let latitude = self.latitude()?;
+        let longitude = self.longitude()?;
+        Some((*latitude, *longitude))
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum AnyFix {
     Airport(Airport),
     GeoPoint(GeoPoint),
@@ -57,7 +46,7 @@ pub enum AnyFix {
 }
 
 impl Fix for AnyFix {
-    fn latitude(&self) -> f64 {
+    fn latitude(&self) -> Option<Latitude> {
         match self {
             AnyFix::Airport(airport) => airport.latitude(),
             AnyFix::GeoPoint(geo_point) => geo_point.latitude(),
@@ -65,11 +54,11 @@ impl Fix for AnyFix {
             AnyFix::Vhf(vhf) => vhf.latitude(),
             AnyFix::Waypoint(waypoint) => waypoint.latitude(),
             AnyFix::FixReference(fix_ref) => fix_ref.latitude(),
-            AnyFix::Unknown(_) => f64::NAN,
+            AnyFix::Unknown(_) => None,
         }
     }
 
-    fn longitude(&self) -> f64 {
+    fn longitude(&self) -> Option<Longitude> {
         match self {
             AnyFix::Airport(airport) => airport.longitude(),
             AnyFix::GeoPoint(geo_point) => geo_point.longitude(),
@@ -77,7 +66,7 @@ impl Fix for AnyFix {
             AnyFix::Vhf(vhf) => vhf.longitude(),
             AnyFix::Waypoint(waypoint) => waypoint.longitude(),
             AnyFix::FixReference(fix_ref) => fix_ref.longitude(),
-            AnyFix::Unknown(_) => f64::NAN,
+            AnyFix::Unknown(_) => None,
         }
     }
 }
@@ -117,5 +106,58 @@ impl AnyFix {
 
     pub fn is_unknown(&self) -> bool {
         matches!(self, AnyFix::Unknown(_))
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::{AnyFix, GeoPoint, Waypoint, WaypointKind};
+    use crate::utils::geo::{Latitude, Longitude};
+
+    #[test]
+    fn unknown_fixes_have_no_coordinates() {
+        use super::Fix;
+        use super::fix_reference::{FixReference, FixReferenceBase};
+
+        let unknown = AnyFix::Unknown("UNKNOWN".to_owned());
+        let reference = AnyFix::FixReference(FixReference::new(
+            FixReferenceBase::Unknown("UNKNOWN".to_owned()),
+            90,
+            10,
+        ));
+        for fix in [unknown, reference] {
+            assert_eq!(fix.latitude(), None);
+            assert_eq!(fix.longitude(), None);
+            assert_eq!(fix.position(), None);
+            assert_eq!(fix.valid_latitude_or(30.), 30.);
+            assert_eq!(fix.valid_longitude_or(110.), 110.);
+        }
+    }
+
+    #[test]
+    fn fix_equality_uses_coordinate_precision() {
+        let waypoint = Waypoint {
+            icao_code: "ZG".try_into().unwrap(),
+            identifier: "TEST".try_into().unwrap(),
+            latitude: Latitude::new(30.).unwrap(),
+            longitude: Longitude::new(110.).unwrap(),
+            kind: WaypointKind::Enroute,
+        };
+        let mut same = waypoint.clone();
+        same.latitude = Latitude::new(*same.latitude + 0.004 / 3600.).unwrap();
+        same.longitude = Longitude::new(*same.longitude + 0.004 / 3600.).unwrap();
+        assert_eq!(AnyFix::Waypoint(waypoint.clone()), AnyFix::Waypoint(same));
+        let mut different = waypoint.clone();
+        different.longitude = Longitude::new(*different.longitude + 0.006 / 3600.).unwrap();
+        assert_ne!(AnyFix::Waypoint(waypoint), AnyFix::Waypoint(different));
+
+        let point = AnyFix::GeoPoint(GeoPoint::new(30., 110.).unwrap());
+        assert_eq!(
+            point,
+            AnyFix::GeoPoint(GeoPoint::new(30. + 0.004 / 3600., 110.).unwrap())
+        );
+        assert_ne!(
+            point,
+            AnyFix::GeoPoint(GeoPoint::new(30., 110. + 0.006 / 3600.).unwrap())
+        );
     }
 }
