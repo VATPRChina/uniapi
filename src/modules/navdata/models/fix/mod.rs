@@ -34,7 +34,7 @@ pub trait Fix {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AnyFix {
     Airport(Airport),
     GeoPoint(GeoPoint),
@@ -108,10 +108,150 @@ impl AnyFix {
         matches!(self, AnyFix::Unknown(_))
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::{AnyFix, GeoPoint, Waypoint, WaypointKind};
     use crate::utils::geo::{Latitude, Longitude};
+
+    fn airport(identifier: &str, latitude: f64, longitude: f64) -> super::Airport {
+        super::Airport {
+            identifier: identifier.try_into().unwrap(),
+            latitude: Latitude::new(latitude).unwrap(),
+            longitude: Longitude::new(longitude).unwrap(),
+        }
+    }
+
+    #[test]
+    fn airports_compare_only_identifiers() {
+        let original = airport("ZBAA", 40., 116.);
+        let moved = airport("ZBAA", 30., 110.);
+        assert_eq!(original, moved);
+        assert_eq!(AnyFix::Airport(original.clone()), AnyFix::Airport(moved));
+        assert_ne!(original, airport("ZSPD", 40., 116.));
+    }
+
+    #[test]
+    fn named_fixes_ignore_icao_but_require_identifier_position_and_kind() {
+        use super::{Ndb, NdbKind, Vhf};
+
+        let ndb = Ndb {
+            icao_code: "ZG".try_into().unwrap(),
+            identifier: "TEST".try_into().unwrap(),
+            latitude: Latitude::new(30.).unwrap(),
+            longitude: Longitude::new(110.).unwrap(),
+            kind: NdbKind::Enroute,
+        };
+        let vhf = Vhf {
+            icao_code: ndb.icao_code,
+            identifier: ndb.identifier,
+            latitude: ndb.latitude,
+            longitude: ndb.longitude,
+        };
+        let waypoint = Waypoint {
+            icao_code: ndb.icao_code,
+            identifier: "TEST".try_into().unwrap(),
+            latitude: ndb.latitude,
+            longitude: ndb.longitude,
+            kind: WaypointKind::Enroute,
+        };
+        let cases = [
+            (
+                AnyFix::Ndb(ndb.clone()),
+                AnyFix::Ndb(Ndb {
+                    icao_code: "RJ".try_into().unwrap(),
+                    ..ndb
+                }),
+            ),
+            (
+                AnyFix::Vhf(vhf.clone()),
+                AnyFix::Vhf(Vhf {
+                    icao_code: "RJ".try_into().unwrap(),
+                    ..vhf
+                }),
+            ),
+            (
+                AnyFix::Waypoint(waypoint.clone()),
+                AnyFix::Waypoint(Waypoint {
+                    icao_code: "RJ".try_into().unwrap(),
+                    ..waypoint
+                }),
+            ),
+        ];
+        for (original, same) in cases {
+            assert_eq!(original, same);
+            assert_eq!(same, original);
+            let mut different = original.clone();
+            match &mut different {
+                AnyFix::Ndb(fix) => fix.identifier = "NEXT".try_into().unwrap(),
+                AnyFix::Vhf(fix) => fix.identifier = "NEXT".try_into().unwrap(),
+                AnyFix::Waypoint(fix) => fix.identifier = "NEXT".try_into().unwrap(),
+                _ => unreachable!(),
+            }
+            assert_ne!(original, different);
+            let mut different_kind = original.clone();
+            match &mut different_kind {
+                AnyFix::Ndb(fix) => fix.kind = NdbKind::Terminal,
+                AnyFix::Waypoint(fix) => fix.kind = WaypointKind::Terminal,
+                _ => {}
+            }
+            if !matches!(original, AnyFix::Vhf(_)) {
+                assert_ne!(original, different_kind);
+            }
+            for change_latitude in [true, false] {
+                let mut different = original.clone();
+                let (latitude, longitude) = match &mut different {
+                    AnyFix::Ndb(fix) => (&mut fix.latitude, &mut fix.longitude),
+                    AnyFix::Vhf(fix) => (&mut fix.latitude, &mut fix.longitude),
+                    AnyFix::Waypoint(fix) => (&mut fix.latitude, &mut fix.longitude),
+                    _ => unreachable!(),
+                };
+                if change_latitude {
+                    *latitude = Latitude::new(31.).unwrap();
+                } else {
+                    *longitude = Longitude::new(111.).unwrap();
+                }
+                assert_ne!(original, different);
+            }
+        }
+    }
+
+    #[test]
+    fn references_compare_base_fix_heading_and_distance() {
+        use super::fix_reference::{FixReference, FixReferenceBase};
+
+        let original = FixReference::new(airport("ZBAA", 40., 116.), 90, 10);
+        let moved = FixReference::new(airport("ZBAA", 30., 110.), 90, 10);
+        assert_eq!(original, moved);
+        assert_eq!(
+            AnyFix::FixReference(original.clone()),
+            AnyFix::FixReference(moved)
+        );
+        assert_ne!(
+            original,
+            FixReference::new(airport("ZSPD", 40., 116.), 90, 10)
+        );
+        assert_ne!(
+            original,
+            FixReference::new(airport("ZBAA", 40., 116.), 91, 10)
+        );
+        assert_ne!(
+            original,
+            FixReference::new(airport("ZBAA", 40., 116.), 90, 11)
+        );
+        assert_ne!(
+            FixReferenceBase::Airport(airport("ZBAA", 40., 116.)),
+            FixReferenceBase::Unknown("ZBAA".to_owned())
+        );
+    }
+
+    #[test]
+    fn unknowns_compare_identifiers_and_variants_must_match() {
+        let unknown = AnyFix::Unknown("ZBAA".to_owned());
+        assert_eq!(unknown, AnyFix::Unknown("ZBAA".to_owned()));
+        assert_ne!(unknown, AnyFix::Unknown("ZSPD".to_owned()));
+        assert_ne!(unknown, AnyFix::Airport(airport("ZBAA", 40., 116.)));
+    }
 
     #[test]
     fn unknown_fixes_have_no_coordinates() {

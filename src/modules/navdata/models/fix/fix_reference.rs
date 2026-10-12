@@ -3,9 +3,9 @@ use crate::utils::geo::{Latitude, Longitude};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FixReference {
-    fix: FixReferenceBase,
-    heading: u16,
-    distance: u16,
+    pub fix: FixReferenceBase,
+    pub heading: u16,
+    pub distance: u16,
 }
 
 impl FixReference {

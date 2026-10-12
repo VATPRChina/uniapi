@@ -279,10 +279,10 @@ impl State {
             }
         }
         if let NavProc::Airway(airway) = cur
-            && !airway.legs.iter().any(|leg| {
-                leg.from.identifier() == last.identifier()
-                    || leg.to.identifier() == last.identifier()
-            })
+            && !airway
+                .legs
+                .iter()
+                .any(|leg| &leg.from == last || &leg.to == last)
         {
             return None;
         }
@@ -314,9 +314,10 @@ impl State {
             }
         }
         if let NavProc::Airway(airway) = last
-            && !airway.legs.iter().any(|leg| {
-                leg.from.identifier() == cur.identifier() || leg.to.identifier() == cur.identifier()
-            })
+            && !airway
+                .legs
+                .iter()
+                .any(|leg| &leg.from == cur || &leg.to == cur)
         {
             return None;
         }

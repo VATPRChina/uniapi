@@ -1,6 +1,6 @@
 use crate::modules::flight::flight_plan::RouteToken;
 use crate::modules::flight::flight_plan::v1::lexer::{LexerError, lex_route};
-use crate::modules::navdata::models::{AnyFix, DirectionRestriction, Fix, LegKind, ResolvedLeg};
+use crate::modules::navdata::models::{AnyFix, DirectionRestriction, LegKind, ResolvedLeg};
 use crate::modules::navdata::service::{InvalidNavdataError, NavdataService};
 
 #[derive(Debug, thiserror::Error)]
@@ -85,16 +85,11 @@ impl<'a> RouteParser<'a> {
             .list_airway_legs_between(ident, from_value, to_value)
             .await?;
 
-        if airway_legs.is_empty() {
+        let (Some(first), Some(last)) = (airway_legs.first(), airway_legs.last()) else {
             return Ok(());
-        }
-
-        let match_direction = airway_legs.first().and_then(|leg| leg.from.identifier())
-            == from_fix.identifier()
-            && airway_legs.last().and_then(|leg| leg.to.identifier()) == to_fix.identifier();
-        let match_reverse_direction = airway_legs.first().and_then(|leg| leg.from.identifier())
-            == to_fix.identifier()
-            && airway_legs.last().and_then(|leg| leg.to.identifier()) == from_fix.identifier();
+        };
+        let match_direction = &first.from == from_fix && &last.to == to_fix;
+        let match_reverse_direction = &first.from == to_fix && &last.to == from_fix;
 
         let airway_legs = if match_direction {
             airway_legs
@@ -120,15 +115,7 @@ impl<'a> RouteParser<'a> {
 
     fn handle_waypoint(&mut self, _value: &str, fix: AnyFix) -> Result<(), ParserError> {
         let last_fix = self.last_fix()?;
-        let positions_match = last_fix.position().is_some()
-            && fix.position().is_some()
-            && last_fix.latitude() == fix.latitude()
-            && last_fix.longitude() == fix.longitude();
-        let identifiers_match = last_fix
-            .identifier()
-            .zip(fix.identifier())
-            .is_some_and(|(left, right)| left == right);
-        if positions_match || identifiers_match {
+        if last_fix == fix {
             return Ok(());
         }
         self.legs.push(ResolvedLeg {

@@ -1,7 +1,7 @@
 use tracing::warn;
 
 use super::ConstructedLeg;
-use crate::modules::navdata::models::{AnyFix, Fix, LegKind, NavProc, ResolvedLeg};
+use crate::modules::navdata::models::{AnyFix, LegKind, NavProc, ResolvedLeg};
 use std::borrow::Cow;
 
 #[derive(Debug, thiserror::Error)]
@@ -21,8 +21,8 @@ impl Expander {
 
     /// Expand named legs into connected published segments, in route order.
     /// Direct legs and legs without a matching path retain their original form.
-    /// Airways match named fixes by identifier and allow reverse traversal,
-    /// flipping the direction restrictions.
+    /// Fix endpoints use their equality implementations. Airways allow reverse
+    /// traversal, flipping the direction restrictions.
     /// SID/STAR common legs retain their published direction.
     /// Procedures use fixed endpoints only; runway selection and vector geometry
     /// are not represented by the constructed route.
@@ -40,15 +40,7 @@ fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, Expansio
     let Some(procedure) = &constructed.procedure else {
         return Ok(vec![leg.clone()]);
     };
-    let fix_matches: fn(&AnyFix, &AnyFix) -> bool = match procedure {
-        NavProc::Airway(_) => same_airway_fix,
-        _ => same_fix,
-    };
-    if leg.is_unknown
-        || leg.from.is_unknown()
-        || leg.to.is_unknown()
-        || fix_matches(&leg.from, &leg.to)
-    {
+    if leg.is_unknown || leg.from.is_unknown() || leg.to.is_unknown() || leg.from == leg.to {
         return Ok(vec![leg.clone()]);
     }
     let edges = procedure.legs();
@@ -68,7 +60,7 @@ fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, Expansio
         ),
         _ => Cow::Borrowed(edges),
     };
-    Ok(find_path(&edges, &leg.from, &leg.to, fix_matches)
+    Ok(find_path(&edges, &leg.from, &leg.to)
         .filter(|path| !path.is_empty())
         .map(|path| {
             path.iter()
@@ -99,35 +91,6 @@ fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, Expansio
         }))
 }
 
-fn same_airway_fix(left: &AnyFix, right: &AnyFix) -> bool {
-    match (left.identifier(), right.identifier()) {
-        (Some(left), Some(right)) => left.eq_ignore_ascii_case(right),
-        _ => same_fix(left, right),
-    }
-}
-
-fn same_fix(left: &AnyFix, right: &AnyFix) -> bool {
-    let family = matches!(
-        (left, right),
-        (AnyFix::Airport(_), AnyFix::Airport(_))
-            | (AnyFix::Waypoint(_), AnyFix::Waypoint(_))
-            | (AnyFix::Vhf(_), AnyFix::Vhf(_))
-            | (AnyFix::Ndb(_), AnyFix::Ndb(_))
-            | (AnyFix::GeoPoint(_), AnyFix::GeoPoint(_))
-            | (AnyFix::FixReference(_), AnyFix::FixReference(_))
-    );
-    family
-        && left.identifier() == right.identifier()
-        && !left
-            .icao_code()
-            .zip(right.icao_code())
-            .is_some_and(|(left, right)| !left.is_empty() && !right.is_empty() && left != right)
-        && left.position().is_some()
-        && right.position().is_some()
-        && left.latitude() == right.latitude()
-        && left.longitude() == right.longitude()
-}
-
 #[derive(Clone)]
 struct Path {
     point: AnyFix,
@@ -141,12 +104,7 @@ struct Search {
 
 /// Breadth-first search picks the fewest published segments, with navigation
 /// record order breaking ties. Visited fixes use the same matching rule as edges.
-fn find_path(
-    edges: &[ResolvedLeg],
-    from: &AnyFix,
-    to: &AnyFix,
-    fix_matches: fn(&AnyFix, &AnyFix) -> bool,
-) -> Option<Vec<ResolvedLeg>> {
+fn find_path(edges: &[ResolvedLeg], from: &AnyFix, to: &AnyFix) -> Option<Vec<ResolvedLeg>> {
     let first = Search {
         frontier: vec![Path {
             point: from.clone(),
@@ -155,11 +113,7 @@ fn find_path(
         visited: vec![from.clone()],
     };
     std::iter::successors(Some(first), |search| {
-        if search
-            .frontier
-            .iter()
-            .any(|path| fix_matches(&path.point, to))
-        {
+        if search.frontier.iter().any(|path| &path.point == to) {
             return None;
         }
         let frontier = search
@@ -169,11 +123,8 @@ fn find_path(
                 edges
                     .iter()
                     .filter(|edge| {
-                        fix_matches(&path.point, &edge.from)
-                            && !search
-                                .visited
-                                .iter()
-                                .any(|point| fix_matches(point, &edge.to))
+                        path.point == edge.from
+                            && !search.visited.iter().any(|point| point == &edge.to)
                     })
                     .map(|edge| Path {
                         point: edge.to.clone(),
@@ -181,10 +132,7 @@ fn find_path(
                     })
             })
             .fold(Vec::<Path>::new(), |paths, next| {
-                if paths
-                    .iter()
-                    .any(|path| fix_matches(&path.point, &next.point))
-                {
+                if paths.iter().any(|path| path.point == next.point) {
                     paths
                 } else {
                     paths.into_iter().chain([next]).collect()
@@ -204,33 +152,48 @@ fn find_path(
         search
             .frontier
             .into_iter()
-            .find(|path| fix_matches(&path.point, to))
+            .find(|path| &path.point == to)
             .map(|path| path.legs)
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::same_fix;
-    use crate::modules::navdata::models::{AnyFix, GeoPoint};
+    use super::find_path;
+    use crate::modules::navdata::models::{
+        AnyFix, DirectionRestriction, GeoPoint, LegKind, ResolvedLeg, Waypoint, WaypointKind,
+    };
 
     #[test]
-    fn fix_matching_uses_coordinate_equality_and_requires_positions() {
-        let point = AnyFix::GeoPoint(GeoPoint::new(30., 110.).unwrap());
-        assert!(same_fix(
-            &point,
-            &AnyFix::GeoPoint(GeoPoint::new(30. + 0.004 / 3600., 110.).unwrap())
-        ));
-        assert!(!same_fix(
-            &point,
-            &AnyFix::GeoPoint(GeoPoint::new(30. + 0.02 / 3600., 110.).unwrap())
-        ));
-        assert!(!same_fix(
-            &point,
-            &AnyFix::GeoPoint(GeoPoint::new(30., 110. + 0.02 / 3600.).unwrap())
-        ));
-        let unknown = AnyFix::Unknown("UNKNOWN".to_owned());
-        assert!(!same_fix(&point, &unknown));
-        assert!(!same_fix(&unknown, &unknown));
+    fn path_search_matches_fix_identity_instead_of_identifier_or_metadata() {
+        let from = Waypoint {
+            icao_code: "ZG".try_into().unwrap(),
+            identifier: "START".try_into().unwrap(),
+            latitude: 30.0.try_into().unwrap(),
+            longitude: 110.0.try_into().unwrap(),
+            kind: WaypointKind::Enroute,
+        };
+        let to = AnyFix::GeoPoint(GeoPoint::new(31., 111.).unwrap());
+        let edge = ResolvedLeg {
+            from: AnyFix::Waypoint(from.clone()),
+            to: to.clone(),
+            identifier: Some("A1".to_owned()),
+            is_unknown: false,
+            kind: LegKind::Airway,
+            direction_restriction: DirectionRestriction::Forward,
+        };
+        let edges = [edge.clone()];
+        let same = AnyFix::Waypoint(Waypoint {
+            icao_code: "RJ".try_into().unwrap(),
+            ..from.clone()
+        });
+        assert_eq!(find_path(&edges, &same, &to), Some(vec![edge]));
+        let different_position = AnyFix::Waypoint(Waypoint {
+            longitude: 111.0.try_into().unwrap(),
+            ..from
+        });
+        assert!(find_path(&edges, &different_position, &to).is_none());
+        let different_variant = AnyFix::GeoPoint(GeoPoint::new(30., 110.).unwrap());
+        assert!(find_path(&edges, &different_variant, &to).is_none());
     }
 }

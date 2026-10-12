@@ -3,7 +3,7 @@ use tracing::info;
 
 use crate::modules::flight::flight_plan::parse_route;
 use crate::modules::flight::flight_plan::validator::ValidatorError;
-use crate::modules::navdata::models::{AnyFix, Fix, LegKind, PreferredRoute, ResolvedLeg};
+use crate::modules::navdata::models::{LegKind, PreferredRoute, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
 
 pub(crate) async fn find_matching_route<'a>(
@@ -51,14 +51,14 @@ fn route_matches_expected(
     let (expected, actual) = if (!preferred_route.arrival.starts_with('Z')
         || preferred_route.arrival.starts_with("ZM")
         || preferred_route.arrival.starts_with("ZK"))
-        && let Some(expected_final_fix) = expected.last().and_then(|last| last.from.identifier())
+        && let Some(expected_final_fix) = expected.last().map(|last| &last.from)
     {
         let actual_pos = actual
             .iter()
-            .take_while(|leg| leg.from.identifier() != Some(expected_final_fix))
+            .take_while(|leg| &leg.from != expected_final_fix)
             .count();
         info!(
-            "incomplete route end at {}, truncate actual to [0..{}/{}]",
+            "incomplete route end at {:?}, truncate actual to [0..{}/{}]",
             expected_final_fix,
             actual_pos,
             actual.len()
@@ -90,7 +90,7 @@ fn route_matches_expected(
         .map(|sid_exit| {
             expected
                 .iter()
-                .take_while(|leg| !fix_matches(&leg.from, sid_exit))
+                .take_while(|leg| &leg.from != sid_exit)
                 .count()
         })
         .unwrap_or_default();
@@ -100,7 +100,7 @@ fn route_matches_expected(
                 expected
                     .iter()
                     .rev()
-                    .take_while(|leg| !fix_matches(&leg.to, star_enter))
+                    .take_while(|leg| &leg.to != star_enter)
                     .count()
             })
             .unwrap_or_default();
@@ -129,19 +129,46 @@ fn route_matches_expected(
 
 fn leg_matches(actual: &ResolvedLeg, expected: &ResolvedLeg) -> bool {
     actual.identifier == expected.identifier
-        && fix_matches(&actual.from, &expected.from)
-        && fix_matches(&actual.to, &expected.to)
+        && actual.from == expected.from
+        && actual.to == expected.to
 }
 
-fn fix_matches(actual: &AnyFix, expected: &AnyFix) -> bool {
-    match (actual.identifier(), expected.identifier()) {
-        (Some(actual), Some(expected)) => actual.eq_ignore_ascii_case(expected),
-        (None, None) => {
-            actual.position().is_some()
-                && expected.position().is_some()
-                && actual.latitude() == expected.latitude()
-                && actual.longitude() == expected.longitude()
-        }
-        _ => false,
+#[cfg(test)]
+mod tests {
+    use super::leg_matches;
+    use crate::modules::navdata::models::{
+        AnyFix, DirectionRestriction, GeoPoint, LegKind, ResolvedLeg, Waypoint, WaypointKind,
+    };
+
+    #[test]
+    fn preferred_route_endpoints_require_fix_equality() {
+        let waypoint = Waypoint {
+            icao_code: "ZG".try_into().unwrap(),
+            identifier: "START".try_into().unwrap(),
+            latitude: 30.0.try_into().unwrap(),
+            longitude: 110.0.try_into().unwrap(),
+            kind: WaypointKind::Enroute,
+        };
+        let expected = ResolvedLeg {
+            from: AnyFix::Waypoint(waypoint.clone()),
+            to: AnyFix::GeoPoint(GeoPoint::new(31., 111.).unwrap()),
+            identifier: Some("A1".to_owned()),
+            is_unknown: false,
+            kind: LegKind::Airway,
+            direction_restriction: DirectionRestriction::Forward,
+        };
+        let mut actual = expected.clone();
+        actual.from = AnyFix::Waypoint(Waypoint {
+            icao_code: "RJ".try_into().unwrap(),
+            ..waypoint.clone()
+        });
+        assert!(leg_matches(&actual, &expected));
+        actual.from = AnyFix::Waypoint(Waypoint {
+            latitude: 31.0.try_into().unwrap(),
+            ..waypoint
+        });
+        assert!(!leg_matches(&actual, &expected));
+        actual.from = AnyFix::GeoPoint(GeoPoint::new(30., 110.).unwrap());
+        assert!(!leg_matches(&actual, &expected));
     }
 }

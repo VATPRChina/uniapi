@@ -3,7 +3,7 @@ use arrayvec::ArrayString;
 use crate::modules::navdata::models::{Fix, Identifiable};
 use crate::utils::geo::{Latitude, Longitude};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Ndb {
     pub icao_code: ArrayString<4>,
     pub identifier: ArrayString<4>,
@@ -37,3 +37,14 @@ impl Fix for Ndb {
         Some(self.longitude)
     }
 }
+
+impl PartialEq for Ndb {
+    fn eq(&self, other: &Self) -> bool {
+        self.identifier == other.identifier
+            && self.latitude == other.latitude
+            && self.longitude == other.longitude
+            && self.kind == other.kind
+    }
+}
+
+impl Eq for Ndb {}

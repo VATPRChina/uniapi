@@ -3,7 +3,7 @@ use arrayvec::ArrayString;
 use crate::modules::navdata::models::{Fix, Identifiable};
 use crate::utils::geo::{Latitude, Longitude};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Airport {
     pub identifier: ArrayString<4>,
     pub latitude: Latitude,
@@ -29,3 +29,11 @@ impl Fix for Airport {
         Some(self.longitude)
     }
 }
+
+impl PartialEq for Airport {
+    fn eq(&self, other: &Self) -> bool {
+        self.identifier == other.identifier
+    }
+}
+
+impl Eq for Airport {}

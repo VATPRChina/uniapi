@@ -3,7 +3,7 @@ use arrayvec::ArrayString;
 use crate::modules::navdata::models::{Fix, Identifiable};
 use crate::utils::geo::{Latitude, Longitude};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Vhf {
     pub icao_code: ArrayString<4>,
     pub identifier: ArrayString<4>,
@@ -30,3 +30,13 @@ impl Fix for Vhf {
         Some(self.longitude)
     }
 }
+
+impl PartialEq for Vhf {
+    fn eq(&self, other: &Self) -> bool {
+        self.identifier == other.identifier
+            && self.latitude == other.latitude
+            && self.longitude == other.longitude
+    }
+}
+
+impl Eq for Vhf {}

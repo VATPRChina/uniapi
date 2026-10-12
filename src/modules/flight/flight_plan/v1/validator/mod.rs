@@ -14,7 +14,7 @@ use crate::modules::flight::flight_plan::validator::{
     ValidatorError, WarningMessage, WarningMessageCode, WarningMessageField,
 };
 use crate::modules::flight::models::Flight;
-use crate::modules::navdata::models::{AnyFix, Fix, PreferredRoute, ResolvedLeg};
+use crate::modules::navdata::models::{PreferredRoute, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
 
 mod flight_validator;
@@ -133,19 +133,6 @@ fn route_matches_expected(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> b
 
 fn leg_matches(actual: &ResolvedLeg, expected: &ResolvedLeg) -> bool {
     actual.identifier == expected.identifier
-        && fix_matches(&actual.from, &expected.from)
-        && fix_matches(&actual.to, &expected.to)
-}
-
-fn fix_matches(actual: &AnyFix, expected: &AnyFix) -> bool {
-    match (actual.identifier(), expected.identifier()) {
-        (Some(actual), Some(expected)) => actual.eq_ignore_ascii_case(expected),
-        (None, None) => {
-            actual.position().is_some()
-                && expected.position().is_some()
-                && actual.latitude() == expected.latitude()
-                && actual.longitude() == expected.longitude()
-        }
-        _ => false,
-    }
+        && actual.from == expected.from
+        && actual.to == expected.to
 }
