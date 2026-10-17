@@ -3,7 +3,7 @@ use std::path::Path;
 
 use clap::Parser;
 use vatprc_uniapi::discord::DiscordBot;
-use vatprc_uniapi::modules::flight::flight_plan::parse_route_with_observer;
+use vatprc_uniapi::modules::flight::flight_plan::{RouteParseStep, parse_route_with_observer};
 use vatprc_uniapi::modules::navdata::service::NavdataService;
 use vatprc_uniapi::services::Services;
 use vatprc_uniapi::{app, command, openapi, repository, settings, telemetry};
@@ -98,7 +98,9 @@ async fn route_v2(
     )
     .await?;
     println!("Route: {route}\n");
-    parse_route_with_observer(&navdata, route, |step| print!("{step}")).await?;
+    let route = parse_route_with_observer(&navdata, route, |step| print!("{step}")).await?;
+    let boundaries = navdata.mainland_fir_boundaries().await?;
+    print!("{}", RouteParseStep::Mainland(&route.legs, &boundaries));
     Ok(())
 }
 

@@ -1,8 +1,10 @@
+mod fir;
 mod fix;
 mod leg;
 mod nav_proc;
 mod preferred_route;
 
+pub use fir::MainlandFirBoundaries;
 pub use fix::{
     Airport, AnyFix, Fix, FixReference, GeoPoint, Ndb, NdbKind, Vhf, Waypoint, WaypointKind,
 };

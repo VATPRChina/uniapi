@@ -9,6 +9,7 @@ mod airport;
 mod airway;
 mod deprecated;
 mod fix_record;
+mod fir;
 mod ndb;
 mod procedure;
 mod sid;
@@ -22,6 +23,8 @@ pub type NavdataResult<T> = Result<T, InvalidNavdataError>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum InvalidNavdataError {
+    #[error("invalid FIR boundary data: {0}")]
+    InvalidFirBoundary(String),
     #[error("string in navdata is too long")]
     StringTooLong,
     #[error("database error: {0}")]

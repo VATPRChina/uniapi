@@ -1,0 +1,1502 @@
+Route: APITO A326 SANKO B332 TOMUK
+
+=== 1. Lexer: 5 tokens ===
+  [0] Identifier<APITO>
+  [1] Identifier<A326>
+  [2] Identifier<SANKO>
+  [3] Identifier<B332>
+  [4] Identifier<TOMUK>
+
+=== 2. Parser: 5 entries ===
+  [0] Ident(APITO)
+  [1] Ident(A326)
+  [2] Ident(SANKO)
+  [3] Ident(B332)
+  [4] Ident(TOMUK)
+
+=== 3. Candidate resolver: 5 entries ===
+  [0] Ident(APITO) = [
+    Fix/Waypoint(Waypoint { icao_code: "ZS", identifier: "APITO", latitude: N 29°35'00.00", longitude: E 124°00'00.00", kind: Enroute }),
+    Leg/UnknownSid("APITO"),
+    Leg/UnknownStar("APITO"),
+    Leg/UnknownAirway("APITO"),
+    Fix/Unknown("APITO"),
+]
+  [1] Ident(A326) = [
+    Leg/Airway(Airway { identifier: "A326", legs: [ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "ANRAT", latitude: N 38°39'30.00", longitude: E 119°57'24.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "UNSEK", latitude: N 38°36'46.00", longitude: E 120°14'08.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "UNSEK", latitude: N 38°36'46.00", longitude: E 120°14'08.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "ALARA", latitude: N 38°33'40.00", longitude: E 120°33'06.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "ALARA", latitude: N 38°33'40.00", longitude: E 120°33'06.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "MAKNO", latitude: N 38°27'48.00", longitude: E 121°08'54.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "MAKNO", latitude: N 38°27'48.00", longitude: E 121°08'54.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "NUNDU", latitude: N 38°26'51.00", longitude: E 121°14'45.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "NUNDU", latitude: N 38°26'51.00", longitude: E 121°14'45.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "DOBGA", latitude: N 38°24'47.00", longitude: E 121°27'31.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "DOBGA", latitude: N 38°24'47.00", longitude: E 121°27'31.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "POVAG", latitude: N 38°16'44.00", longitude: E 122°15'04.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "POVAG", latitude: N 38°16'44.00", longitude: E 122°15'04.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "SANKO", latitude: N 38°15'00.00", longitude: E 122°27'12.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "SANKO", latitude: N 38°15'00.00", longitude: E 122°27'12.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "OBDIS", latitude: N 38°05'52.00", longitude: E 122°38'58.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "OBDIS", latitude: N 38°05'52.00", longitude: E 122°38'58.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "DONVO", latitude: N 37°34'00.00", longitude: E 123°20'00.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "DONVO", latitude: N 37°34'00.00", longitude: E 123°20'00.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "IKEKA", latitude: N 36°49'53.00", longitude: E 123°21'15.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "IKEKA", latitude: N 36°49'53.00", longitude: E 123°21'15.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "OMLIB", latitude: N 36°24'40.00", longitude: E 123°21'57.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "OMLIB", latitude: N 36°24'40.00", longitude: E 123°21'57.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "LUDVU", latitude: N 35°09'01.00", longitude: E 123°24'04.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "LUDVU", latitude: N 35°09'01.00", longitude: E 123°24'04.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "DOPNO", latitude: N 35°00'00.00", longitude: E 123°24'19.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "DOPNO", latitude: N 35°00'00.00", longitude: E 123°24'19.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "IVPIP", latitude: N 34°49'13.00", longitude: E 123°25'14.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "IVPIP", latitude: N 34°49'13.00", longitude: E 123°25'14.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "IKADI", latitude: N 34°05'30.00", longitude: E 123°29'00.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "IKADI", latitude: N 34°05'30.00", longitude: E 123°29'00.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "SURAK", latitude: N 31°46'24.00", longitude: E 123°29'30.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "SURAK", latitude: N 31°46'24.00", longitude: E 123°29'30.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "AKARA", latitude: N 31°30'00.00", longitude: E 123°30'00.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "AKARA", latitude: N 31°30'00.00", longitude: E 123°30'00.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "TONIX", latitude: N 31°19'56.00", longitude: E 123°32'38.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "TONIX", latitude: N 31°19'56.00", longitude: E 123°32'38.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "MIGOL", latitude: N 30°45'46.00", longitude: E 123°41'39.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "MIGOL", latitude: N 30°45'46.00", longitude: E 123°41'39.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "APITO", latitude: N 29°35'00.00", longitude: E 124°00'00.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }] }),
+    Leg/UnknownSid("A326"),
+    Leg/UnknownStar("A326"),
+    Leg/UnknownAirway("A326"),
+    Fix/Unknown("A326"),
+]
+  [2] Ident(SANKO) = [
+    Fix/Waypoint(Waypoint { icao_code: "ZY", identifier: "SANKO", latitude: N 38°15'00.00", longitude: E 122°27'12.00", kind: Enroute }),
+    Fix/Waypoint(Waypoint { icao_code: "RJFZ", identifier: "SANKO", latitude: N 33°33'34.43", longitude: E 131°16'17.23", kind: Terminal }),
+    Leg/UnknownSid("SANKO"),
+    Leg/UnknownStar("SANKO"),
+    Leg/UnknownAirway("SANKO"),
+    Fix/Unknown("SANKO"),
+]
+  [3] Ident(B332) = [
+    Leg/Airway(Airway { identifier: "B332", legs: [ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "SANKO", latitude: N 38°15'00.00", longitude: E 122°27'12.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "BIGBU", latitude: N 38°41'03.00", longitude: E 123°53'22.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "BIGBU", latitude: N 38°41'03.00", longitude: E 123°53'22.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "TOMUK", latitude: N 38°43'00.00", longitude: E 124°00'00.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "TOMUK", latitude: N 38°43'00.00", longitude: E 124°00'00.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "PONIL", latitude: N 38°51'00.00", longitude: E 124°14'48.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "PONIL", latitude: N 38°51'00.00", longitude: E 124°14'48.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "BODOK", latitude: N 39°29'03.00", longitude: E 125°25'47.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "BODOK", latitude: N 39°29'03.00", longitude: E 125°25'47.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "SOKGE", latitude: N 39°43'54.06", longitude: E 125°40'59.92", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "SOKGE", latitude: N 39°43'54.06", longitude: E 125°40'59.92", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "JENAM", latitude: N 39°43'48.00", longitude: E 126°17'58.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "JENAM", latitude: N 39°43'48.00", longitude: E 126°17'58.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "WASAN", latitude: N 39°43'42.00", longitude: E 127°05'02.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "WASAN", latitude: N 39°43'42.00", longitude: E 127°05'02.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "SONDO", latitude: N 39°43'22.00", longitude: E 127°28'14.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "SONDO", latitude: N 39°43'22.00", longitude: E 127°28'14.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "GOSIM", latitude: N 39°02'44.00", longitude: E 130°43'01.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "GOSIM", latitude: N 39°02'44.00", longitude: E 130°43'01.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "BIROB", latitude: N 38°59'00.00", longitude: E 130°59'33.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "BIROB", latitude: N 38°59'00.00", longitude: E 130°59'33.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "GAZIN", latitude: N 38°52'00.00", longitude: E 131°30'00.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "GAZIN", latitude: N 38°52'00.00", longitude: E 131°30'00.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "KANSU", latitude: N 38°38'00.00", longitude: E 132°28'30.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "KANSU", latitude: N 38°38'00.00", longitude: E 132°28'30.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "RK", identifier: "PALDU", latitude: N 37°58'13.00", longitude: E 132°36'25.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "RK", identifier: "PALDU", latitude: N 37°58'13.00", longitude: E 132°36'25.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "RK", identifier: "SABET", latitude: N 37°38'29.00", longitude: E 132°40'19.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "RK", identifier: "SABET", latitude: N 37°38'29.00", longitude: E 132°40'19.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "RJ", identifier: "IGRAS", latitude: N 37°18'45.35", longitude: E 132°44'10.38", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "RJ", identifier: "IGRAS", latitude: N 37°18'45.35", longitude: E 132°44'10.38", kind: Enroute }), to: Vhf(Vhf { icao_code: "RJ", identifier: "XZE", latitude: N 35°25'02.06", longitude: E 132°53'32.54" }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }] }),
+    Leg/UnknownSid("B332"),
+    Leg/UnknownStar("B332"),
+    Leg/UnknownAirway("B332"),
+    Fix/Unknown("B332"),
+]
+  [4] Ident(TOMUK) = [
+    Fix/Waypoint(Waypoint { icao_code: "ZY", identifier: "TOMUK", latitude: N 38°43'00.00", longitude: E 124°00'00.00", kind: Enroute }),
+    Leg/UnknownSid("TOMUK"),
+    Leg/UnknownStar("TOMUK"),
+    Leg/UnknownAirway("TOMUK"),
+    Fix/Unknown("TOMUK"),
+]
+
+=== 4. Solver: 5 entries ===
+  Distances are in NM; positions are latitude/longitude; indices are zero-based.
+  [0] APITO: 1 surviving states
+      [0:0]
+        CandidateWithState {
+            candidate: Fix/Waypoint(Waypoint { icao_code: "ZS", identifier: "APITO", latitude: N 29°35'00.00", longitude: E 124°00'00.00", kind: Enroute }),
+            state: State {
+                last_token: Fix(
+                    Waypoint(
+                        Waypoint {
+                            icao_code: "ZS",
+                            identifier: "APITO",
+                            latitude: N 29°35'00.00",
+                            longitude: E 124°00'00.00",
+                            kind: Enroute,
+                        },
+                    ),
+                ),
+                fallbacks: 0,
+                distance: 0.0,
+                position_lat: Some(
+                    N 29°35'00.00",
+                ),
+                position_lon: Some(
+                    E 124°00'00.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=none (departure)
+  [1] A326: 4 surviving states
+      [1:0]
+        CandidateWithState {
+            candidate: Leg/Airway(Airway { identifier: "A326", legs: [ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "ANRAT", latitude: N 38°39'30.00", longitude: E 119°57'24.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "UNSEK", latitude: N 38°36'46.00", longitude: E 120°14'08.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "UNSEK", latitude: N 38°36'46.00", longitude: E 120°14'08.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "ALARA", latitude: N 38°33'40.00", longitude: E 120°33'06.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "ALARA", latitude: N 38°33'40.00", longitude: E 120°33'06.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "MAKNO", latitude: N 38°27'48.00", longitude: E 121°08'54.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "MAKNO", latitude: N 38°27'48.00", longitude: E 121°08'54.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "NUNDU", latitude: N 38°26'51.00", longitude: E 121°14'45.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "NUNDU", latitude: N 38°26'51.00", longitude: E 121°14'45.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "DOBGA", latitude: N 38°24'47.00", longitude: E 121°27'31.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "DOBGA", latitude: N 38°24'47.00", longitude: E 121°27'31.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "POVAG", latitude: N 38°16'44.00", longitude: E 122°15'04.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "POVAG", latitude: N 38°16'44.00", longitude: E 122°15'04.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "SANKO", latitude: N 38°15'00.00", longitude: E 122°27'12.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "SANKO", latitude: N 38°15'00.00", longitude: E 122°27'12.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "OBDIS", latitude: N 38°05'52.00", longitude: E 122°38'58.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "OBDIS", latitude: N 38°05'52.00", longitude: E 122°38'58.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "DONVO", latitude: N 37°34'00.00", longitude: E 123°20'00.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "DONVO", latitude: N 37°34'00.00", longitude: E 123°20'00.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "IKEKA", latitude: N 36°49'53.00", longitude: E 123°21'15.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "IKEKA", latitude: N 36°49'53.00", longitude: E 123°21'15.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "OMLIB", latitude: N 36°24'40.00", longitude: E 123°21'57.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "OMLIB", latitude: N 36°24'40.00", longitude: E 123°21'57.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "LUDVU", latitude: N 35°09'01.00", longitude: E 123°24'04.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "LUDVU", latitude: N 35°09'01.00", longitude: E 123°24'04.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "DOPNO", latitude: N 35°00'00.00", longitude: E 123°24'19.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "DOPNO", latitude: N 35°00'00.00", longitude: E 123°24'19.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "IVPIP", latitude: N 34°49'13.00", longitude: E 123°25'14.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "IVPIP", latitude: N 34°49'13.00", longitude: E 123°25'14.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "IKADI", latitude: N 34°05'30.00", longitude: E 123°29'00.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "IKADI", latitude: N 34°05'30.00", longitude: E 123°29'00.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "SURAK", latitude: N 31°46'24.00", longitude: E 123°29'30.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "SURAK", latitude: N 31°46'24.00", longitude: E 123°29'30.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "AKARA", latitude: N 31°30'00.00", longitude: E 123°30'00.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "AKARA", latitude: N 31°30'00.00", longitude: E 123°30'00.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "TONIX", latitude: N 31°19'56.00", longitude: E 123°32'38.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "TONIX", latitude: N 31°19'56.00", longitude: E 123°32'38.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "MIGOL", latitude: N 30°45'46.00", longitude: E 123°41'39.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZS", identifier: "MIGOL", latitude: N 30°45'46.00", longitude: E 123°41'39.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZS", identifier: "APITO", latitude: N 29°35'00.00", longitude: E 124°00'00.00", kind: Enroute }), identifier: Some("A326"), is_unknown: false, kind: Airway, direction_restriction: None }] }),
+            state: State {
+                last_token: Leg(
+                    Waypoint(
+                        Waypoint {
+                            icao_code: "ZS",
+                            identifier: "APITO",
+                            latitude: N 29°35'00.00",
+                            longitude: E 124°00'00.00",
+                            kind: Enroute,
+                        },
+                    ),
+                    Airway(
+                        Airway {
+                            identifier: "A326",
+                            legs: [
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "ANRAT",
+                                            latitude: N 38°39'30.00",
+                                            longitude: E 119°57'24.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "UNSEK",
+                                            latitude: N 38°36'46.00",
+                                            longitude: E 120°14'08.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "UNSEK",
+                                            latitude: N 38°36'46.00",
+                                            longitude: E 120°14'08.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "ALARA",
+                                            latitude: N 38°33'40.00",
+                                            longitude: E 120°33'06.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "ALARA",
+                                            latitude: N 38°33'40.00",
+                                            longitude: E 120°33'06.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "MAKNO",
+                                            latitude: N 38°27'48.00",
+                                            longitude: E 121°08'54.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "MAKNO",
+                                            latitude: N 38°27'48.00",
+                                            longitude: E 121°08'54.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "NUNDU",
+                                            latitude: N 38°26'51.00",
+                                            longitude: E 121°14'45.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "NUNDU",
+                                            latitude: N 38°26'51.00",
+                                            longitude: E 121°14'45.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "DOBGA",
+                                            latitude: N 38°24'47.00",
+                                            longitude: E 121°27'31.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "DOBGA",
+                                            latitude: N 38°24'47.00",
+                                            longitude: E 121°27'31.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "POVAG",
+                                            latitude: N 38°16'44.00",
+                                            longitude: E 122°15'04.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "POVAG",
+                                            latitude: N 38°16'44.00",
+                                            longitude: E 122°15'04.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "SANKO",
+                                            latitude: N 38°15'00.00",
+                                            longitude: E 122°27'12.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "SANKO",
+                                            latitude: N 38°15'00.00",
+                                            longitude: E 122°27'12.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "OBDIS",
+                                            latitude: N 38°05'52.00",
+                                            longitude: E 122°38'58.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "OBDIS",
+                                            latitude: N 38°05'52.00",
+                                            longitude: E 122°38'58.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "DONVO",
+                                            latitude: N 37°34'00.00",
+                                            longitude: E 123°20'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "DONVO",
+                                            latitude: N 37°34'00.00",
+                                            longitude: E 123°20'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "IKEKA",
+                                            latitude: N 36°49'53.00",
+                                            longitude: E 123°21'15.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "IKEKA",
+                                            latitude: N 36°49'53.00",
+                                            longitude: E 123°21'15.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "OMLIB",
+                                            latitude: N 36°24'40.00",
+                                            longitude: E 123°21'57.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "OMLIB",
+                                            latitude: N 36°24'40.00",
+                                            longitude: E 123°21'57.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "LUDVU",
+                                            latitude: N 35°09'01.00",
+                                            longitude: E 123°24'04.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "LUDVU",
+                                            latitude: N 35°09'01.00",
+                                            longitude: E 123°24'04.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "DOPNO",
+                                            latitude: N 35°00'00.00",
+                                            longitude: E 123°24'19.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "DOPNO",
+                                            latitude: N 35°00'00.00",
+                                            longitude: E 123°24'19.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "IVPIP",
+                                            latitude: N 34°49'13.00",
+                                            longitude: E 123°25'14.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "IVPIP",
+                                            latitude: N 34°49'13.00",
+                                            longitude: E 123°25'14.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "IKADI",
+                                            latitude: N 34°05'30.00",
+                                            longitude: E 123°29'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "IKADI",
+                                            latitude: N 34°05'30.00",
+                                            longitude: E 123°29'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "SURAK",
+                                            latitude: N 31°46'24.00",
+                                            longitude: E 123°29'30.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "SURAK",
+                                            latitude: N 31°46'24.00",
+                                            longitude: E 123°29'30.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "AKARA",
+                                            latitude: N 31°30'00.00",
+                                            longitude: E 123°30'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "AKARA",
+                                            latitude: N 31°30'00.00",
+                                            longitude: E 123°30'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "TONIX",
+                                            latitude: N 31°19'56.00",
+                                            longitude: E 123°32'38.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "TONIX",
+                                            latitude: N 31°19'56.00",
+                                            longitude: E 123°32'38.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "MIGOL",
+                                            latitude: N 30°45'46.00",
+                                            longitude: E 123°41'39.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "MIGOL",
+                                            latitude: N 30°45'46.00",
+                                            longitude: E 123°41'39.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZS",
+                                            identifier: "APITO",
+                                            latitude: N 29°35'00.00",
+                                            longitude: E 124°00'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "A326",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                            ],
+                        },
+                    ),
+                ),
+                fallbacks: 0,
+                distance: 0.0,
+                position_lat: Some(
+                    N 29°35'00.00",
+                ),
+                position_lon: Some(
+                    E 124°00'00.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=[0:0]
+      [1:1]
+        CandidateWithState {
+            candidate: Leg/UnknownStar("A326"),
+            state: State {
+                last_token: Leg(
+                    Waypoint(
+                        Waypoint {
+                            icao_code: "ZS",
+                            identifier: "APITO",
+                            latitude: N 29°35'00.00",
+                            longitude: E 124°00'00.00",
+                            kind: Enroute,
+                        },
+                    ),
+                    UnknownStar(
+                        "A326",
+                    ),
+                ),
+                fallbacks: 1,
+                distance: 500.0,
+                position_lat: Some(
+                    N 29°35'00.00",
+                ),
+                position_lon: Some(
+                    E 124°00'00.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=[0:0]
+      [1:2]
+        CandidateWithState {
+            candidate: Leg/UnknownAirway("A326"),
+            state: State {
+                last_token: Leg(
+                    Waypoint(
+                        Waypoint {
+                            icao_code: "ZS",
+                            identifier: "APITO",
+                            latitude: N 29°35'00.00",
+                            longitude: E 124°00'00.00",
+                            kind: Enroute,
+                        },
+                    ),
+                    UnknownAirway(
+                        "A326",
+                    ),
+                ),
+                fallbacks: 1,
+                distance: 500.0,
+                position_lat: Some(
+                    N 29°35'00.00",
+                ),
+                position_lon: Some(
+                    E 124°00'00.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=[0:0]
+      [1:3]
+        CandidateWithState {
+            candidate: Fix/Unknown("A326"),
+            state: State {
+                last_token: Fix(
+                    Unknown(
+                        "A326",
+                    ),
+                ),
+                fallbacks: 1,
+                distance: 1000.0,
+                position_lat: Some(
+                    N 29°35'00.00",
+                ),
+                position_lon: Some(
+                    E 124°00'00.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=[0:0]
+  [2] SANKO: 4 surviving states
+      [2:0]
+        CandidateWithState {
+            candidate: Fix/Waypoint(Waypoint { icao_code: "ZY", identifier: "SANKO", latitude: N 38°15'00.00", longitude: E 122°27'12.00", kind: Enroute }),
+            state: State {
+                last_token: Fix(
+                    Waypoint(
+                        Waypoint {
+                            icao_code: "ZY",
+                            identifier: "SANKO",
+                            latitude: N 38°15'00.00",
+                            longitude: E 122°27'12.00",
+                            kind: Enroute,
+                        },
+                    ),
+                ),
+                fallbacks: 0,
+                distance: 526.0005094061502,
+                position_lat: Some(
+                    N 38°15'00.00",
+                ),
+                position_lon: Some(
+                    E 122°27'12.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=[1:0]
+      [2:1]
+        CandidateWithState {
+            candidate: Fix/Waypoint(Waypoint { icao_code: "RJFZ", identifier: "SANKO", latitude: N 33°33'34.43", longitude: E 131°16'17.23", kind: Terminal }),
+            state: State {
+                last_token: Fix(
+                    Waypoint(
+                        Waypoint {
+                            icao_code: "RJFZ",
+                            identifier: "SANKO",
+                            latitude: N 33°33'34.43",
+                            longitude: E 131°16'17.23",
+                            kind: Terminal,
+                        },
+                    ),
+                ),
+                fallbacks: 1,
+                distance: 941.79247679027,
+                position_lat: Some(
+                    N 33°33'34.43",
+                ),
+                position_lon: Some(
+                    E 131°16'17.23",
+                ),
+            },
+            last_candidate_idx: 2,
+        }
+        predecessor=[1:2]
+      [2:2]
+        CandidateWithState {
+            candidate: Leg/UnknownStar("SANKO"),
+            state: State {
+                last_token: Leg(
+                    Unknown(
+                        "A326",
+                    ),
+                    UnknownStar(
+                        "SANKO",
+                    ),
+                ),
+                fallbacks: 2,
+                distance: 1500.0,
+                position_lat: Some(
+                    N 29°35'00.00",
+                ),
+                position_lon: Some(
+                    E 124°00'00.00",
+                ),
+            },
+            last_candidate_idx: 3,
+        }
+        predecessor=[1:3]
+      [2:3]
+        CandidateWithState {
+            candidate: Leg/UnknownAirway("SANKO"),
+            state: State {
+                last_token: Leg(
+                    Unknown(
+                        "A326",
+                    ),
+                    UnknownAirway(
+                        "SANKO",
+                    ),
+                ),
+                fallbacks: 2,
+                distance: 1500.0,
+                position_lat: Some(
+                    N 29°35'00.00",
+                ),
+                position_lon: Some(
+                    E 124°00'00.00",
+                ),
+            },
+            last_candidate_idx: 3,
+        }
+        predecessor=[1:3]
+  [3] B332: 4 surviving states
+      [3:0]
+        CandidateWithState {
+            candidate: Leg/Airway(Airway { identifier: "B332", legs: [ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "SANKO", latitude: N 38°15'00.00", longitude: E 122°27'12.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "BIGBU", latitude: N 38°41'03.00", longitude: E 123°53'22.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "BIGBU", latitude: N 38°41'03.00", longitude: E 123°53'22.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZY", identifier: "TOMUK", latitude: N 38°43'00.00", longitude: E 124°00'00.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZY", identifier: "TOMUK", latitude: N 38°43'00.00", longitude: E 124°00'00.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "PONIL", latitude: N 38°51'00.00", longitude: E 124°14'48.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "PONIL", latitude: N 38°51'00.00", longitude: E 124°14'48.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "BODOK", latitude: N 39°29'03.00", longitude: E 125°25'47.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "BODOK", latitude: N 39°29'03.00", longitude: E 125°25'47.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "SOKGE", latitude: N 39°43'54.06", longitude: E 125°40'59.92", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "SOKGE", latitude: N 39°43'54.06", longitude: E 125°40'59.92", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "JENAM", latitude: N 39°43'48.00", longitude: E 126°17'58.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "JENAM", latitude: N 39°43'48.00", longitude: E 126°17'58.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "WASAN", latitude: N 39°43'42.00", longitude: E 127°05'02.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "WASAN", latitude: N 39°43'42.00", longitude: E 127°05'02.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "SONDO", latitude: N 39°43'22.00", longitude: E 127°28'14.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "SONDO", latitude: N 39°43'22.00", longitude: E 127°28'14.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "GOSIM", latitude: N 39°02'44.00", longitude: E 130°43'01.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "GOSIM", latitude: N 39°02'44.00", longitude: E 130°43'01.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "BIROB", latitude: N 38°59'00.00", longitude: E 130°59'33.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "BIROB", latitude: N 38°59'00.00", longitude: E 130°59'33.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "GAZIN", latitude: N 38°52'00.00", longitude: E 131°30'00.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "GAZIN", latitude: N 38°52'00.00", longitude: E 131°30'00.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "ZK", identifier: "KANSU", latitude: N 38°38'00.00", longitude: E 132°28'30.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "ZK", identifier: "KANSU", latitude: N 38°38'00.00", longitude: E 132°28'30.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "RK", identifier: "PALDU", latitude: N 37°58'13.00", longitude: E 132°36'25.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "RK", identifier: "PALDU", latitude: N 37°58'13.00", longitude: E 132°36'25.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "RK", identifier: "SABET", latitude: N 37°38'29.00", longitude: E 132°40'19.00", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "RK", identifier: "SABET", latitude: N 37°38'29.00", longitude: E 132°40'19.00", kind: Enroute }), to: Waypoint(Waypoint { icao_code: "RJ", identifier: "IGRAS", latitude: N 37°18'45.35", longitude: E 132°44'10.38", kind: Enroute }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }, ResolvedLeg { from: Waypoint(Waypoint { icao_code: "RJ", identifier: "IGRAS", latitude: N 37°18'45.35", longitude: E 132°44'10.38", kind: Enroute }), to: Vhf(Vhf { icao_code: "RJ", identifier: "XZE", latitude: N 35°25'02.06", longitude: E 132°53'32.54" }), identifier: Some("B332"), is_unknown: false, kind: Airway, direction_restriction: None }] }),
+            state: State {
+                last_token: Leg(
+                    Waypoint(
+                        Waypoint {
+                            icao_code: "ZY",
+                            identifier: "SANKO",
+                            latitude: N 38°15'00.00",
+                            longitude: E 122°27'12.00",
+                            kind: Enroute,
+                        },
+                    ),
+                    Airway(
+                        Airway {
+                            identifier: "B332",
+                            legs: [
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "SANKO",
+                                            latitude: N 38°15'00.00",
+                                            longitude: E 122°27'12.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "BIGBU",
+                                            latitude: N 38°41'03.00",
+                                            longitude: E 123°53'22.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "BIGBU",
+                                            latitude: N 38°41'03.00",
+                                            longitude: E 123°53'22.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "TOMUK",
+                                            latitude: N 38°43'00.00",
+                                            longitude: E 124°00'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZY",
+                                            identifier: "TOMUK",
+                                            latitude: N 38°43'00.00",
+                                            longitude: E 124°00'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "PONIL",
+                                            latitude: N 38°51'00.00",
+                                            longitude: E 124°14'48.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "PONIL",
+                                            latitude: N 38°51'00.00",
+                                            longitude: E 124°14'48.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "BODOK",
+                                            latitude: N 39°29'03.00",
+                                            longitude: E 125°25'47.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "BODOK",
+                                            latitude: N 39°29'03.00",
+                                            longitude: E 125°25'47.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "SOKGE",
+                                            latitude: N 39°43'54.06",
+                                            longitude: E 125°40'59.92",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "SOKGE",
+                                            latitude: N 39°43'54.06",
+                                            longitude: E 125°40'59.92",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "JENAM",
+                                            latitude: N 39°43'48.00",
+                                            longitude: E 126°17'58.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "JENAM",
+                                            latitude: N 39°43'48.00",
+                                            longitude: E 126°17'58.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "WASAN",
+                                            latitude: N 39°43'42.00",
+                                            longitude: E 127°05'02.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "WASAN",
+                                            latitude: N 39°43'42.00",
+                                            longitude: E 127°05'02.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "SONDO",
+                                            latitude: N 39°43'22.00",
+                                            longitude: E 127°28'14.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "SONDO",
+                                            latitude: N 39°43'22.00",
+                                            longitude: E 127°28'14.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "GOSIM",
+                                            latitude: N 39°02'44.00",
+                                            longitude: E 130°43'01.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "GOSIM",
+                                            latitude: N 39°02'44.00",
+                                            longitude: E 130°43'01.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "BIROB",
+                                            latitude: N 38°59'00.00",
+                                            longitude: E 130°59'33.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "BIROB",
+                                            latitude: N 38°59'00.00",
+                                            longitude: E 130°59'33.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "GAZIN",
+                                            latitude: N 38°52'00.00",
+                                            longitude: E 131°30'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "GAZIN",
+                                            latitude: N 38°52'00.00",
+                                            longitude: E 131°30'00.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "KANSU",
+                                            latitude: N 38°38'00.00",
+                                            longitude: E 132°28'30.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "ZK",
+                                            identifier: "KANSU",
+                                            latitude: N 38°38'00.00",
+                                            longitude: E 132°28'30.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "RK",
+                                            identifier: "PALDU",
+                                            latitude: N 37°58'13.00",
+                                            longitude: E 132°36'25.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "RK",
+                                            identifier: "PALDU",
+                                            latitude: N 37°58'13.00",
+                                            longitude: E 132°36'25.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "RK",
+                                            identifier: "SABET",
+                                            latitude: N 37°38'29.00",
+                                            longitude: E 132°40'19.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "RK",
+                                            identifier: "SABET",
+                                            latitude: N 37°38'29.00",
+                                            longitude: E 132°40'19.00",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Waypoint(
+                                        Waypoint {
+                                            icao_code: "RJ",
+                                            identifier: "IGRAS",
+                                            latitude: N 37°18'45.35",
+                                            longitude: E 132°44'10.38",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                                ResolvedLeg {
+                                    from: Waypoint(
+                                        Waypoint {
+                                            icao_code: "RJ",
+                                            identifier: "IGRAS",
+                                            latitude: N 37°18'45.35",
+                                            longitude: E 132°44'10.38",
+                                            kind: Enroute,
+                                        },
+                                    ),
+                                    to: Vhf(
+                                        Vhf {
+                                            icao_code: "RJ",
+                                            identifier: "XZE",
+                                            latitude: N 35°25'02.06",
+                                            longitude: E 132°53'32.54",
+                                        },
+                                    ),
+                                    identifier: Some(
+                                        "B332",
+                                    ),
+                                    is_unknown: false,
+                                    kind: Airway,
+                                    direction_restriction: None,
+                                },
+                            ],
+                        },
+                    ),
+                ),
+                fallbacks: 0,
+                distance: 526.0005094061502,
+                position_lat: Some(
+                    N 38°15'00.00",
+                ),
+                position_lon: Some(
+                    E 122°27'12.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=[2:0]
+      [3:1]
+        CandidateWithState {
+            candidate: Leg/UnknownStar("B332"),
+            state: State {
+                last_token: Leg(
+                    Waypoint(
+                        Waypoint {
+                            icao_code: "ZY",
+                            identifier: "SANKO",
+                            latitude: N 38°15'00.00",
+                            longitude: E 122°27'12.00",
+                            kind: Enroute,
+                        },
+                    ),
+                    UnknownStar(
+                        "B332",
+                    ),
+                ),
+                fallbacks: 1,
+                distance: 1026.0005094061503,
+                position_lat: Some(
+                    N 38°15'00.00",
+                ),
+                position_lon: Some(
+                    E 122°27'12.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=[2:0]
+      [3:2]
+        CandidateWithState {
+            candidate: Leg/UnknownAirway("B332"),
+            state: State {
+                last_token: Leg(
+                    Waypoint(
+                        Waypoint {
+                            icao_code: "ZY",
+                            identifier: "SANKO",
+                            latitude: N 38°15'00.00",
+                            longitude: E 122°27'12.00",
+                            kind: Enroute,
+                        },
+                    ),
+                    UnknownAirway(
+                        "B332",
+                    ),
+                ),
+                fallbacks: 1,
+                distance: 1026.0005094061503,
+                position_lat: Some(
+                    N 38°15'00.00",
+                ),
+                position_lon: Some(
+                    E 122°27'12.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=[2:0]
+      [3:3]
+        CandidateWithState {
+            candidate: Fix/Unknown("B332"),
+            state: State {
+                last_token: Fix(
+                    Unknown(
+                        "B332",
+                    ),
+                ),
+                fallbacks: 1,
+                distance: 1526.0005094061503,
+                position_lat: Some(
+                    N 38°15'00.00",
+                ),
+                position_lon: Some(
+                    E 122°27'12.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=[2:0]
+  [4] TOMUK: 3 surviving states
+      [4:0]
+        CandidateWithState {
+            candidate: Fix/Waypoint(Waypoint { icao_code: "ZY", identifier: "TOMUK", latitude: N 38°43'00.00", longitude: E 124°00'00.00", kind: Enroute }),
+            state: State {
+                last_token: Fix(
+                    Waypoint(
+                        Waypoint {
+                            icao_code: "ZY",
+                            identifier: "TOMUK",
+                            latitude: N 38°43'00.00",
+                            longitude: E 124°00'00.00",
+                            kind: Enroute,
+                        },
+                    ),
+                ),
+                fallbacks: 0,
+                distance: 603.9039769173255,
+                position_lat: Some(
+                    N 38°43'00.00",
+                ),
+                position_lon: Some(
+                    E 124°00'00.00",
+                ),
+            },
+            last_candidate_idx: 0,
+        }
+        predecessor=[3:0]
+      [4:1]
+        CandidateWithState {
+            candidate: Leg/UnknownStar("TOMUK"),
+            state: State {
+                last_token: Leg(
+                    Unknown(
+                        "B332",
+                    ),
+                    UnknownStar(
+                        "TOMUK",
+                    ),
+                ),
+                fallbacks: 2,
+                distance: 2026.0005094061503,
+                position_lat: Some(
+                    N 38°15'00.00",
+                ),
+                position_lon: Some(
+                    E 122°27'12.00",
+                ),
+            },
+            last_candidate_idx: 3,
+        }
+        predecessor=[3:3]
+      [4:2]
+        CandidateWithState {
+            candidate: Leg/UnknownAirway("TOMUK"),
+            state: State {
+                last_token: Leg(
+                    Unknown(
+                        "B332",
+                    ),
+                    UnknownAirway(
+                        "TOMUK",
+                    ),
+                ),
+                fallbacks: 2,
+                distance: 2026.0005094061503,
+                position_lat: Some(
+                    N 38°15'00.00",
+                ),
+                position_lon: Some(
+                    E 122°27'12.00",
+                ),
+            },
+            last_candidate_idx: 3,
+        }
+        predecessor=[3:3]
+
+=== 5. Constructor: 2 legs ===
+  [0] APITO (29.583333, 124.000000) --A326--> SANKO (38.250000, 122.453333)
+      kind=Airway, direction_restriction=None
+  [1] SANKO (38.250000, 122.453333) --B332--> TOMUK (38.716667, 124.000000)
+      kind=Airway, direction_restriction=None
+
+=== 6. Expander: 15 legs ===
+  [0] APITO (29.583333, 124.000000) --A326--> MIGOL (30.762778, 123.694167)
+      kind=Airway, direction_restriction=None
+  [1] MIGOL (30.762778, 123.694167) --A326--> TONIX (31.332222, 123.543889)
+      kind=Airway, direction_restriction=None
+  [2] TONIX (31.332222, 123.543889) --A326--> AKARA (31.500000, 123.500000)
+      kind=Airway, direction_restriction=None
+  [3] AKARA (31.500000, 123.500000) --A326--> SURAK (31.773333, 123.491667)
+      kind=Airway, direction_restriction=None
+  [4] SURAK (31.773333, 123.491667) --A326--> IKADI (34.091667, 123.483333)
+      kind=Airway, direction_restriction=None
+  [5] IKADI (34.091667, 123.483333) --A326--> IVPIP (34.820278, 123.420556)
+      kind=Airway, direction_restriction=None
+  [6] IVPIP (34.820278, 123.420556) --A326--> DOPNO (35.000000, 123.405278)
+      kind=Airway, direction_restriction=None
+  [7] DOPNO (35.000000, 123.405278) --A326--> LUDVU (35.150278, 123.401111)
+      kind=Airway, direction_restriction=None
+  [8] LUDVU (35.150278, 123.401111) --A326--> OMLIB (36.411111, 123.365833)
+      kind=Airway, direction_restriction=None
+  [9] OMLIB (36.411111, 123.365833) --A326--> IKEKA (36.831389, 123.354167)
+      kind=Airway, direction_restriction=None
+  [10] IKEKA (36.831389, 123.354167) --A326--> DONVO (37.566667, 123.333333)
+      kind=Airway, direction_restriction=None
+  [11] DONVO (37.566667, 123.333333) --A326--> OBDIS (38.097778, 122.649444)
+      kind=Airway, direction_restriction=None
+  [12] OBDIS (38.097778, 122.649444) --A326--> SANKO (38.250000, 122.453333)
+      kind=Airway, direction_restriction=None
+  [13] SANKO (38.250000, 122.453333) --B332--> BIGBU (38.684167, 123.889444)
+      kind=Airway, direction_restriction=None
+  [14] BIGBU (38.684167, 123.889444) --B332--> TOMUK (38.716667, 124.000000)
+      kind=Airway, direction_restriction=None
+
+=== 7. Mainland FIR portions: 15 legs (either endpoint inside) ===
+  Part 1:
+  [0] APITO (29.583333, 124.000000) --A326--> MIGOL (30.762778, 123.694167)
+      kind=Airway, direction_restriction=None
+  [1] MIGOL (30.762778, 123.694167) --A326--> TONIX (31.332222, 123.543889)
+      kind=Airway, direction_restriction=None
+  [2] TONIX (31.332222, 123.543889) --A326--> AKARA (31.500000, 123.500000)
+      kind=Airway, direction_restriction=None
+  [3] AKARA (31.500000, 123.500000) --A326--> SURAK (31.773333, 123.491667)
+      kind=Airway, direction_restriction=None
+  [4] SURAK (31.773333, 123.491667) --A326--> IKADI (34.091667, 123.483333)
+      kind=Airway, direction_restriction=None
+  [5] IKADI (34.091667, 123.483333) --A326--> IVPIP (34.820278, 123.420556)
+      kind=Airway, direction_restriction=None
+  [6] IVPIP (34.820278, 123.420556) --A326--> DOPNO (35.000000, 123.405278)
+      kind=Airway, direction_restriction=None
+  [7] DOPNO (35.000000, 123.405278) --A326--> LUDVU (35.150278, 123.401111)
+      kind=Airway, direction_restriction=None
+  [8] LUDVU (35.150278, 123.401111) --A326--> OMLIB (36.411111, 123.365833)
+      kind=Airway, direction_restriction=None
+  [9] OMLIB (36.411111, 123.365833) --A326--> IKEKA (36.831389, 123.354167)
+      kind=Airway, direction_restriction=None
+  [10] IKEKA (36.831389, 123.354167) --A326--> DONVO (37.566667, 123.333333)
+      kind=Airway, direction_restriction=None
+  [11] DONVO (37.566667, 123.333333) --A326--> OBDIS (38.097778, 122.649444)
+      kind=Airway, direction_restriction=None
+  [12] OBDIS (38.097778, 122.649444) --A326--> SANKO (38.250000, 122.453333)
+      kind=Airway, direction_restriction=None
+  [13] SANKO (38.250000, 122.453333) --B332--> BIGBU (38.684167, 123.889444)
+      kind=Airway, direction_restriction=None
+  [14] BIGBU (38.684167, 123.889444) --B332--> TOMUK (38.716667, 124.000000)
+      kind=Airway, direction_restriction=None
+

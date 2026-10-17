@@ -69,12 +69,7 @@ async fn route_v2(
     Query(query): Query<FlightRouteV2Query>,
 ) -> Result<Json<RouteDeliveryInfo>, ApiError> {
     // current_user.require_role(UserRole::SoftwareEngineer)?;
-    let route = flight.route_v2(&query.route).await?;
-    let sid_candidates = flight.sid_candidates(&route.legs).await?;
-    Ok(Json(RouteDeliveryInfo {
-        legs: route.legs.into_iter().map(Into::into).collect(),
-        sid_candidates,
-    }))
+    Ok(Json(flight.route_delivery_v2(&query.route).await?))
 }
 
 #[utoipa::path(get, path = "api/flights/active", tag = "Flights", responses((status = 200, description = "Successful response", body = Vec<FlightDto>)))]

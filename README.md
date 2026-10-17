@@ -31,6 +31,12 @@ Unknown fixes and legs are explicitly marked. It uses the configured navdata
 paths and requires no running HTTP server or PostgreSQL connection. Invalid
 routes exit with an error after printing the completed stages.
 
+The final CLI stage lists mainland FIR portions with original leg indices.
+A leg is included when either endpoint is inside/on a mainland FIR, including
+crossing legs and procedures. The route-v2 API exposes the same classification
+as `legs[].is_mainland`; the GUI draws these legs solid and outside legs dashed.
+This display requires the mainland FIR records in the configured ARINC database.
+
 To use other local navigation data files:
 
 ```sh
@@ -40,6 +46,21 @@ cargo run -- route-v2 "ZBAA ELKUR W40 YQG ZSPD" \
 ```
 
 ### Database
+
+Preferred-route segment selection reads the nine mainland FIR boundaries from
+the configured navigation database's ARINC 424 `tbl_uf_fir_uir` records.
+International flights require ZBPE, ZGZU, ZHWH, ZJSA, ZLHW, ZPKM, ZSHA,
+ZWUQ and ZYSH; regional/sample databases may not contain all nine. FIR and
+combined FIR/UIR records are included; delegated airspace and UIR-only records
+are excluded. Great-circle and rhumb-line boundaries are supported; missing,
+malformed or unsupported boundary data returns a navigation-data error.
+
+`PreferredRouteSegmentService::new(&navdata, departure, arrival).await?` loads
+the boundaries for a flight. Its `select(&route.legs)` method returns each
+mainland portion as a borrowed subslice in route order. Leading SID and trailing
+STAR legs are removed. Domestic flights retain the whole remaining route and
+need no FIR query. International selection includes legs with both endpoints
+inside/on a mainland FIR and omits crossing legs with an outside endpoint.
 
 This server requires a local PostgreSQL server. Please start one and specify the
 following in `settings.local.toml`.

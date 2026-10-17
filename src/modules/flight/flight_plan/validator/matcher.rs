@@ -1,7 +1,7 @@
 use itertools::Itertools;
-use tracing::info;
 
 use crate::modules::flight::flight_plan::parse_route;
+use crate::modules::flight::flight_plan::preferred_route_segment::PreferredRouteSegmentService;
 use crate::modules::flight::flight_plan::validator::ValidatorError;
 use crate::modules::navdata::models::{LegKind, PreferredRoute, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
@@ -11,6 +11,12 @@ pub(crate) async fn find_matching_route<'a>(
     legs: &[ResolvedLeg],
     preferred_routes: &[&'a PreferredRoute],
 ) -> Result<Option<&'a PreferredRoute>, ValidatorError> {
+    let Some(first) = preferred_routes.first() else {
+        return Ok(None);
+    };
+    let selector = PreferredRouteSegmentService::new(navdata, &first.departure, &first.arrival)
+        .await
+        .map_err(ValidatorError::Navdata)?;
     for &preferred_route in preferred_routes
         .iter()
         .sorted_by_key(|route| if route.is_public { 0 } else { 1 })
@@ -28,103 +34,79 @@ pub(crate) async fn find_matching_route<'a>(
             ),
         )
         .await?;
-        if route_matches_expected(legs, &parsed.legs, preferred_route) {
+        if route_matches_expected(legs, &parsed.legs, &selector) {
             return Ok(Some(preferred_route));
         }
     }
     Ok(None)
 }
 
-/// Match the actual enroute span between its leading SID and trailing STAR.
-/// Procedure boundaries must occur in expected; absent procedures anchor that
-/// end of the comparison to the corresponding route edge.
+/// Compare the selected mainland enroute spans, aligning published procedures
+/// with their entry/exit fixes in the preferred route.
 fn route_matches_expected(
     actual: &[ResolvedLeg],
     expected: &[ResolvedLeg],
-    preferred_route: &PreferredRoute,
+    selector: &PreferredRouteSegmentService,
 ) -> bool {
-    if actual.is_empty() || expected.is_empty() {
+    let Ok(enroute) = selector.select(actual) else {
+        // Malformed routes still need to reach the route/fix validators.
         return false;
-    }
-
-    // incomplete expected route for international routes
-    let (expected, actual) = if (!preferred_route.arrival.starts_with('Z')
-        || preferred_route.arrival.starts_with("ZM")
-        || preferred_route.arrival.starts_with("ZK"))
-        && let Some(expected_final_fix) = expected.last().map(|last| &last.from)
-    {
-        let actual_pos = actual
-            .iter()
-            .take_while(|leg| &leg.from != expected_final_fix)
-            .count();
-        info!(
-            "incomplete route end at {:?}, truncate actual to [0..{}/{}]",
-            expected_final_fix,
-            actual_pos,
-            actual.len()
-        );
-        (&expected[0..(expected.len() - 1)], &actual[0..actual_pos])
-    } else {
-        (expected, actual)
     };
-
-    let enroute_start = actual
-        .iter()
-        .take_while(|leg| leg.kind == LegKind::Sid)
-        .count();
-    let enroute_end = actual.len()
-        - actual
-            .iter()
-            .rev()
-            .take_while(|leg| leg.kind == LegKind::Star)
-            .count();
-    let enroute = &actual[enroute_start..enroute_end];
-    let sid_exit = enroute_start.checked_sub(1).map(|index| &actual[index].to);
-    let star_enter = actual.get(enroute_end).map(|leg| &leg.from);
-    info!(
-        "actual enroute={:?}[{}:{}], sid_exit={:?}, star_enter={:?}",
-        enroute, enroute_start, enroute_end, sid_exit, star_enter
-    );
-
-    let expected_enroute_start = sid_exit
-        .map(|sid_exit| {
-            expected
-                .iter()
-                .take_while(|leg| &leg.from != sid_exit)
-                .count()
-        })
-        .unwrap_or_default();
-    let expected_enroute_end = expected.len()
-        - star_enter
-            .map(|star_enter| {
-                expected
-                    .iter()
-                    .rev()
-                    .take_while(|leg| &leg.to != star_enter)
-                    .count()
-            })
-            .unwrap_or_default();
-    if expected_enroute_end <= expected_enroute_start {
-        info!(
-            "unable to find start and end on preferred route: {}-{}",
-            expected_enroute_start, expected_enroute_end
-        );
+    let Ok(expected) = selector.select(expected) else {
+        return false;
+    };
+    if enroute.is_empty() || enroute.len() != expected.len() {
         return false;
     }
-    let expected_enroute = &expected[expected_enroute_start..expected_enroute_end];
-    info!(
-        "expected enroute={:?}[{}:{}]",
-        expected_enroute, expected_enroute_start, expected_enroute_end
-    );
-
-    if enroute.len() != expected_enroute.len() {
-        return false;
-    }
-
     enroute
         .iter()
-        .zip(expected_enroute.iter())
-        .all(|(expected, actual)| leg_matches(actual, expected))
+        .zip(&expected)
+        .enumerate()
+        .all(|(index, (segment, expected))| {
+            enroute_matches_expected(
+                segment,
+                expected,
+                index == 0 && actual.first().is_some_and(|leg| leg.kind == LegKind::Sid),
+                index + 1 == enroute.len()
+                    && actual.last().is_some_and(|leg| leg.kind == LegKind::Star),
+            )
+        })
+}
+
+fn enroute_matches_expected(
+    enroute: &[ResolvedLeg],
+    expected: &[ResolvedLeg],
+    has_sid: bool,
+    has_star: bool,
+) -> bool {
+    let (Some(first), Some(last)) = (enroute.first(), enroute.last()) else {
+        return false;
+    };
+    // Expected routes generally omit procedures and include airport connections.
+    // Only procedure ends may move the expected anchors; FIR selection has
+    // already removed the foreign portion of both routes independently.
+    let start = if has_sid {
+        expected.iter().position(|leg| leg.from == first.from)
+    } else {
+        Some(0)
+    };
+    let end = if has_star {
+        expected
+            .iter()
+            .rposition(|leg| leg.to == last.to)
+            .map(|i| i + 1)
+    } else {
+        Some(expected.len())
+    };
+    let (Some(start), Some(end)) = (start, end) else {
+        return false;
+    };
+    start < end
+        && enroute.len() == end - start
+        && enroute
+            .iter()
+            .zip(&expected[start..end])
+            .all(|(actual, expected)| leg_matches(actual, expected))
 }
 
 fn leg_matches(actual: &ResolvedLeg, expected: &ResolvedLeg) -> bool {
@@ -136,9 +118,163 @@ fn leg_matches(actual: &ResolvedLeg, expected: &ResolvedLeg) -> bool {
 #[cfg(test)]
 mod tests {
     use super::leg_matches;
+
+    fn route_matches_expected(
+        actual: &[ResolvedLeg],
+        expected: &[ResolvedLeg],
+        preferred: &PreferredRoute,
+    ) -> bool {
+        let selector = crate::modules::flight::flight_plan::preferred_route_segment::tests::fixture(
+            &preferred.departure,
+            &preferred.arrival,
+        );
+        super::route_matches_expected(actual, expected, &selector)
+    }
     use crate::modules::navdata::models::{
-        AnyFix, DirectionRestriction, GeoPoint, LegKind, ResolvedLeg, Waypoint, WaypointKind,
+        AnyFix, DirectionRestriction, GeoPoint, LegKind, LevelRestrictionType, PreferredRoute,
+        ResolvedLeg, Waypoint, WaypointKind,
     };
+
+    fn preferred(departure: &str, arrival: &str) -> PreferredRoute {
+        PreferredRoute {
+            name: "test".into(),
+            departure: departure.into(),
+            arrival: arrival.into(),
+            raw_route: String::new(),
+            cruising_level_restriction: LevelRestrictionType::Standard,
+            allowed_altitudes: vec![],
+            minimal_altitude: 0,
+            remarks: String::new(),
+            valid_from: None,
+            valid_until: None,
+            is_public: true,
+        }
+    }
+
+    fn leg(from: (f64, f64), to: (f64, f64), kind: LegKind) -> ResolvedLeg {
+        ResolvedLeg {
+            from: GeoPoint::new(from.0, from.1).unwrap().into(),
+            to: GeoPoint::new(to.0, to.1).unwrap().into(),
+            identifier: Some("A1".into()),
+            is_unknown: false,
+            kind,
+            direction_restriction: DirectionRestriction::None,
+        }
+    }
+
+    #[test]
+    fn domestic_procedure_boundaries_must_match_expected_fixes() {
+        let expected = vec![
+            leg((30., 110.), (31., 111.), LegKind::Direct),
+            leg((31., 111.), (32., 112.), LegKind::Airway),
+            leg((32., 112.), (33., 113.), LegKind::Direct),
+        ];
+        let mut actual = expected.clone();
+        actual[0].kind = LegKind::Sid;
+        actual[2].kind = LegKind::Star;
+        let preferred = preferred("ZBAA", "ZSPD");
+        assert!(route_matches_expected(&actual, &expected, &preferred));
+        actual[1].identifier = Some("A2".into());
+        assert!(!route_matches_expected(&actual, &expected, &preferred));
+        assert!(!route_matches_expected(&actual[..1], &expected, &preferred));
+    }
+
+    #[test]
+    fn international_matching_ignores_foreign_route_in_both_directions() {
+        let expected = vec![
+            leg((30., 110.), (31., 111.), LegKind::Airway),
+            leg((31., 111.), (32., 112.), LegKind::Airway),
+            leg((32., 112.), (35., 140.), LegKind::Direct),
+        ];
+        let mut actual = expected.clone();
+        actual[2].to = GeoPoint::new(37., 127.).unwrap().into();
+        actual.push(leg((37., 127.), (35., 140.), LegKind::Airway));
+        assert!(route_matches_expected(
+            &actual,
+            &expected,
+            &preferred("ZBAA", "RJTT")
+        ));
+        let reversed = |legs: Vec<ResolvedLeg>| {
+            legs.into_iter()
+                .rev()
+                .map(ResolvedLeg::into_reversed)
+                .collect::<Vec<_>>()
+        };
+        assert!(route_matches_expected(
+            &reversed(actual.clone()),
+            &reversed(expected.clone()),
+            &preferred("RJTT", "ZBAA")
+        ));
+        actual[1].identifier = Some("A2".into());
+        assert!(!route_matches_expected(
+            &actual,
+            &expected,
+            &preferred("ZBAA", "RJTT")
+        ));
+    }
+
+    #[test]
+    fn international_matching_compares_every_child_segment_in_order() {
+        let expected = vec![
+            leg((30., 110.), (31., 111.), LegKind::Sid),
+            leg((31., 111.), (32., 112.), LegKind::Airway),
+            leg((32., 112.), (35., 140.), LegKind::Direct),
+            leg((35., 140.), (33., 113.), LegKind::Direct),
+            leg((33., 113.), (34., 114.), LegKind::Airway),
+            leg((34., 114.), (35., 115.), LegKind::Airway),
+            leg((35., 115.), (36., 140.), LegKind::Direct),
+        ];
+        let preferred = preferred("ZBAA", "RJTT");
+        let mut actual = expected.clone();
+        // The preferred route has no published SID.
+        let mut published = expected.clone();
+        published[0].kind = LegKind::Direct;
+        // Changes wholly outside the selected portions do not affect matching.
+        actual[2].to = GeoPoint::new(37., 127.).unwrap().into();
+        actual[3].from = actual[2].to.clone();
+        assert!(route_matches_expected(&actual, &published, &preferred));
+        // A mismatch in the second child must still reject the route.
+        actual[5].identifier = Some("A2".into());
+        assert!(!route_matches_expected(&actual, &published, &preferred));
+        actual[5] = expected[5].clone();
+        // Missing and reordered children cannot match.
+        assert!(!route_matches_expected(
+            &actual[..3],
+            &published,
+            &preferred
+        ));
+        let reordered: Vec<_> = actual[3..].iter().chain(&actual[..3]).cloned().collect();
+        assert!(!route_matches_expected(&reordered, &published, &preferred));
+        // Arrivals align the STAR only on the last child.
+        let reverse = |legs: Vec<ResolvedLeg>| {
+            legs.into_iter()
+                .rev()
+                .map(|leg| {
+                    let mut leg = leg.into_reversed();
+                    if leg.kind == LegKind::Sid {
+                        leg.kind = LegKind::Star;
+                    }
+                    leg
+                })
+                .collect::<Vec<_>>()
+        };
+        assert!(route_matches_expected(
+            &reverse(actual),
+            &reverse(published),
+            &self::preferred("RJTT", "ZBAA")
+        ));
+    }
+
+    #[test]
+    fn routes_without_a_comparable_segment_do_not_match() {
+        let route = vec![leg((35., 140.), (36., 140.), LegKind::Airway)];
+        let preferred = preferred("ZBAA", "RJTT");
+        assert!(!route_matches_expected(&route, &route, &preferred));
+        assert!(!route_matches_expected(&[], &route, &preferred));
+        let mut unknown = route.clone();
+        unknown[0].to = AnyFix::Unknown("UNKNOWN".into());
+        assert!(!route_matches_expected(&unknown, &route, &preferred));
+    }
 
     #[test]
     fn preferred_route_endpoints_require_fix_equality() {

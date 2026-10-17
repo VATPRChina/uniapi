@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::navdata::models::{AnyFix, Fix, LegKind, ResolvedLeg, Sid};
+use crate::modules::navdata::models::{
+    AnyFix, Fix, LegKind, MainlandFirBoundaries, ResolvedLeg, Sid,
+};
 
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
 
@@ -229,11 +231,14 @@ pub struct FlightRouteLeg {
     pub is_unknown: bool,
     pub is_sid: bool,
     pub is_star: bool,
+    /// At least one endpoint is inside/on a mainland China FIR in ARINC navdata.
+    pub is_mainland: bool,
 }
 
-impl From<ResolvedLeg> for FlightRouteLeg {
-    fn from(leg: ResolvedLeg) -> Self {
+impl FlightRouteLeg {
+    pub fn from_leg(leg: ResolvedLeg, boundaries: &MainlandFirBoundaries) -> Self {
         Self {
+            is_mainland: boundaries.contains_either_endpoint(&leg),
             from: FlightRouteFix::from(&leg.from),
             to: FlightRouteFix::from(&leg.to),
             leg_identifier: leg.identifier.unwrap_or_default(),
@@ -342,5 +347,41 @@ mod tests {
             .unwrap(),
             serde_json::json!({"identifier": "0000N00000E"})
         );
+    }
+
+    #[test]
+    fn mainland_indicator_includes_either_endpoint_and_preserves_unknown_status() {
+        use crate::modules::navdata::models::DirectionRestriction;
+        let boundaries = MainlandFirBoundaries::fixture();
+        let inside: AnyFix = GeoPoint::new(30., 110.).unwrap().into();
+        let outside: AnyFix = GeoPoint::new(35., 140.).unwrap().into();
+        let boundary: AnyFix = GeoPoint::new(20., 110.).unwrap().into();
+        let unknown = AnyFix::Unknown("MISSING".into());
+        for (from, to, expected) in [
+            (inside.clone(), outside.clone(), true),
+            (outside.clone(), inside.clone(), true),
+            (inside.clone(), inside.clone(), true),
+            (outside.clone(), outside.clone(), false),
+            (boundary, outside.clone(), true),
+            (inside, unknown.clone(), true),
+            (unknown.clone(), outside, false),
+            (unknown.clone(), unknown, false),
+        ] {
+            let leg = FlightRouteLeg::from_leg(
+                ResolvedLeg {
+                    from,
+                    to,
+                    identifier: None,
+                    is_unknown: true,
+                    kind: LegKind::Sid,
+                    direction_restriction: DirectionRestriction::None,
+                },
+                &boundaries,
+            );
+            let json = serde_json::to_value(leg).unwrap();
+            assert_eq!(json["is_mainland"], expected);
+            assert_eq!(json["is_unknown"], true);
+            assert_eq!(json["is_sid"], true);
+        }
     }
 }

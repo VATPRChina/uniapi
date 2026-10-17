@@ -1,11 +1,12 @@
 use crate::modules::navdata::models::AnyFix;
 
 pub(crate) mod altitude;
+pub mod preferred_route_segment;
 mod route_parser;
 pub mod v1;
 pub mod validator;
 
-pub use route_parser::{ParseRouteError, parse_route, parse_route_with_observer};
+pub use route_parser::{ParseRouteError, RouteParseStep, parse_route, parse_route_with_observer};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RouteToken {

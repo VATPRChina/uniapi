@@ -11,7 +11,7 @@ use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 use regex::Regex;
 
-use super::dto::SidCandidate;
+use super::dto::{FlightRouteLeg, RouteDeliveryInfo, SidCandidate};
 use super::flight_plan::validator::{self, ValidatorError, WarningMessage};
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight, ValidatorResult};
 use super::repository::flight::FlightRepository;
@@ -180,6 +180,28 @@ impl FlightService {
                     FlightServiceError::Parser(ParseRouteError::Navdata(source))
                 }
             })
+    }
+
+    /// Developer route output with FIR-based mainland indicators on every leg.
+    pub async fn route_delivery_v2(
+        &self,
+        route: &str,
+    ) -> Result<RouteDeliveryInfo, FlightServiceError> {
+        let route = self.route_v2(route).await?;
+        let boundaries = self
+            .navdata
+            .mainland_fir_boundaries()
+            .await
+            .map_err(ParseRouteError::from)?;
+        let sid_candidates = self.sid_candidates(&route.legs).await?;
+        Ok(RouteDeliveryInfo {
+            legs: route
+                .legs
+                .into_iter()
+                .map(|leg| FlightRouteLeg::from_leg(leg, &boundaries))
+                .collect(),
+            sid_candidates,
+        })
     }
 
     /// Procedures matching the first route fix with a SID at the departure airport.
