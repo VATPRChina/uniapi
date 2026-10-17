@@ -12,6 +12,7 @@ use crate::modules::navdata::service::NavdataService;
 impl NavdataService {
     #[deprecated]
     #[instrument(skip(self))]
+    #[allow(deprecated)]
     pub async fn find_nearest_fix(
         &self,
         latitude: f64,

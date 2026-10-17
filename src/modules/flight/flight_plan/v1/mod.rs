@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::modules::navdata::models::AnyFix;
 
 pub mod lexer;
