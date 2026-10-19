@@ -131,18 +131,45 @@ impl<'s> PreferredRouteMatcher<'s> {
     }
 }
 
+/// Airport endpoints allow the preferred path to extend into the filed SID or
+/// STAR. Compare only the window between the filed enroute endpoints; border
+/// endpoints must still coincide with the preferred path's endpoints.
 fn routes_match(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {
+    let trim_start = actual
+        .first()
+        .is_some_and(|leg| matches!(leg.from, AnyFix::Airport(_)));
+    let trim_end = actual
+        .last()
+        .is_some_and(|leg| matches!(leg.to, AnyFix::Airport(_)));
     let (Some((from, actual, to)), Some((expected_from, expected, expected_to))) =
         (enroute(actual), enroute(expected))
     else {
         return false;
     };
-    !from.is_unknown()
-        && !to.is_unknown()
-        && from == expected_from
-        && to == expected_to
-        && actual.len() == expected.len()
-        && actual.iter().zip(expected).all(|(actual, expected)| {
+    if from.is_unknown() || to.is_unknown() || actual.len() > expected.len() {
+        return false;
+    }
+    (0..=expected.len() - actual.len()).any(|start| {
+        let end = start + actual.len();
+        if (!trim_start && start != 0) || (!trim_end && end != expected.len()) {
+            return false;
+        }
+        let window_from = if start == 0 {
+            expected_from
+        } else {
+            &expected[start - 1].to
+        };
+        let window_to = if end == expected.len() {
+            expected_to
+        } else {
+            &expected[end].from
+        };
+        from == window_from
+            && to == window_to
+            && actual
+                .iter()
+                .zip(&expected[start..end])
+                .all(|(actual, expected)| {
             !actual.is_unknown
                 && !expected.is_unknown
                 && !actual.from.is_unknown()
@@ -151,5 +178,6 @@ fn routes_match(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {
                 && actual.identifier == expected.identifier
                 && actual.from == expected.from
                 && actual.to == expected.to
+                })
         })
 }
