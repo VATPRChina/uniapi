@@ -1,4 +1,4 @@
-use crate::modules::navdata::models::AnyFix;
+use crate::modules::navdata::models::{AnyFix, ChinaMainlandBoundary};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolvedLeg {
@@ -40,6 +40,10 @@ impl ResolvedLeg {
                 DirectionRestriction::Backward => DirectionRestriction::Forward,
             },
         }
+    }
+
+    pub fn is_china(&self, china_boundary: &ChinaMainlandBoundary) -> bool {
+        self.from.is_china_or_unknown(china_boundary) || self.to.is_china_or_unknown(china_boundary)
     }
 }
 

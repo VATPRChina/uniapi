@@ -31,11 +31,10 @@ Unknown fixes and legs are explicitly marked. It uses the configured navdata
 paths and requires no running HTTP server or PostgreSQL connection. Invalid
 routes exit with an error after printing the completed stages.
 
-The final CLI stage lists mainland FIR portions with original leg indices.
-A leg is included when either endpoint is inside/on a mainland FIR, including
-crossing legs and procedures. The route-v2 API exposes the same classification
-as `legs[].is_mainland`; the GUI draws these legs solid and outside legs dashed.
-This display requires the mainland FIR records in the configured ARINC database.
+The final CLI stage lists mainland route portions, matched preferred-route names,
+and original leg indices. Border crossings are checked with both mainland and
+foreign endpoints; unmatched portions are explicitly marked. This stage uses
+the mainland FIR records and preferred-route CSV configured below.
 
 To use other local navigation data files:
 
@@ -55,12 +54,27 @@ combined FIR/UIR records are included; delegated airspace and UIR-only records
 are excluded. Great-circle and rhumb-line boundaries are supported; missing,
 malformed or unsupported boundary data returns a navigation-data error.
 
-`PreferredRouteSegmentService::new(&navdata, departure, arrival).await?` loads
-the boundaries for a flight. Its `select(&route.legs)` method returns each
-mainland portion as a borrowed subslice in route order. Leading SID and trailing
-STAR legs are removed. Domestic flights retain the whole remaining route and
-need no FIR query. International selection includes legs with both endpoints
-inside/on a mainland FIR and omits crossing legs with an outside endpoint.
+`RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs)` returns
+one `Segment` per connected mainland visit, borrowing the original legs and
+retaining their indices. Each segment exposes airport, enroute, and border
+entry/exit endpoints. Unknown fix chains stay in the path; crossing endpoints
+are the known fixes on either side of the chain. The first and last visits
+retain their respective departure and arrival airports, when present.
+
+`PreferredRouteMatcher::new(&navdata).match_segment(&segment).await?` returns
+an optional preferred route. An airport-to-airport match takes priority. If
+that fails, the matcher tries departure airport or either entry endpoint
+against arrival airport or either exit endpoint. Routes that start/end at an
+enroute fix retain that endpoint. Public routes precede private routes within
+each priority tier. CSV `Waypoint1`/`Waypoint2` supply endpoints when `Dep`/`Arr`
+are empty. Matching compares the complete expanded enroute path, from the first
+fix after SID to the last fix before STAR, ignoring airport connections.
+Unknown legs cannot match a designated path. The batch `find_matching_route`
+method also returns the exact covered leg range for segment validation.
+
+The validations endpoint checks each matched portion's altitude restrictions
+and suppresses route warnings only on its covered legs. Foreign and unmatched
+portions keep their own warnings, with indices referring to the original route.
 
 This server requires a local PostgreSQL server. Please start one and specify the
 following in `settings.local.toml`.

@@ -4,7 +4,7 @@ mod leg;
 mod nav_proc;
 mod preferred_route;
 
-pub use fir::MainlandFirBoundaries;
+pub use fir::ChinaMainlandBoundary;
 pub use fix::{
     Airport, AnyFix, Fix, FixReference, GeoPoint, Ndb, NdbKind, Vhf, Waypoint, WaypointKind,
 };

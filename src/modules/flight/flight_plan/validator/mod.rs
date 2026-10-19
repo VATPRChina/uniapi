@@ -9,7 +9,9 @@ use crate::modules::navdata::service::NavdataService;
 use self::checks::*;
 
 pub mod checks;
-pub(crate) mod matcher;
+mod segments;
+
+pub use segments::validate_route;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidatorError {

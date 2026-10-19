@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use sqlx::{FromRow, SqlitePool};
 
 use super::{InvalidNavdataError, NavdataResult, NavdataService};
-use crate::modules::navdata::models::MainlandFirBoundaries;
+use crate::modules::navdata::models::ChinaMainlandBoundary;
 
 const MAINLAND_FIRS: [&str; 9] = [
     "ZBPE", "ZGZU", "ZHWH", "ZJSA", "ZLHW", "ZPKM", "ZSHA", "ZWUQ", "ZYSH",
@@ -13,7 +13,7 @@ impl NavdataService {
     /// Read ARINC 424 UF boundaries from the configured DFD v2 database.
     /// F = FIR, B = combined FIR/UIR. C (delegated airspace) and UIR-only
     /// records are deliberately excluded from horizontal FIR coverage.
-    pub async fn mainland_fir_boundaries(db: &SqlitePool) -> NavdataResult<MainlandFirBoundaries> {
+    pub async fn mainland_fir_boundaries(db: &SqlitePool) -> NavdataResult<ChinaMainlandBoundary> {
         let records = sqlx::query_as::<_, FirRecord>(
             "SELECT area_code, fir_uir_identifier, fir_uir_indicator, seqno,
                     boundary_via, fir_uir_latitude AS latitude, fir_uir_longitude AS longitude
@@ -44,7 +44,7 @@ fn invalid(message: impl Into<String>) -> InvalidNavdataError {
     InvalidNavdataError::InvalidFirBoundary(message.into())
 }
 
-fn build_boundaries(records: Vec<FirRecord>) -> NavdataResult<MainlandFirBoundaries> {
+fn build_boundaries(records: Vec<FirRecord>) -> NavdataResult<ChinaMainlandBoundary> {
     let found: BTreeSet<_> = records
         .iter()
         .map(|r| r.fir_uir_identifier.as_str())
@@ -121,7 +121,7 @@ fn build_boundaries(records: Vec<FirRecord>) -> NavdataResult<MainlandFirBoundar
             )));
         }
     }
-    MainlandFirBoundaries::from_rings(rings).map_err(invalid)
+    ChinaMainlandBoundary::from_rings(rings).map_err(invalid)
 }
 
 // DFD v2 boundary_via describes the edge FROM this record TO the next.

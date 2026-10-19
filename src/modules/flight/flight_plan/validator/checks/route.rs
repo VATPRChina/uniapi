@@ -74,8 +74,8 @@ impl Validator for RouteDirectLegValidator {
                 leg.kind == LegKind::Direct
                     && !matches!(leg.from, AnyFix::Airport(_))
                     && !matches!(leg.to, AnyFix::Airport(_))
-                    && (leg.from.is_china(navdata.china_boundaries())
-                        && leg.to.is_china(navdata.china_boundaries()))
+                    && (leg.from.is_china_or_unknown(navdata.china_boundaries())
+                        && leg.to.is_china_or_unknown(navdata.china_boundaries()))
             },
         )
     }
@@ -115,8 +115,8 @@ impl Validator for AirwayApprovalValidator {
                     && leg.identifier.as_deref().is_some_and(|ident| {
                         let ident = ident.to_ascii_uppercase();
                         (ident.starts_with('V') || ident.starts_with('X'))
-                            && (leg.from.is_china(navdata.china_boundaries())
-                                || leg.to.is_china(navdata.china_boundaries()))
+                            && (leg.from.is_china_or_unknown(navdata.china_boundaries())
+                                || leg.to.is_china_or_unknown(navdata.china_boundaries()))
                     })
             },
         )

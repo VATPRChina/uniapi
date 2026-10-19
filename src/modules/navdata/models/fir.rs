@@ -9,14 +9,14 @@ use geo::{
 const BOUNDARY_TOLERANCE: f64 = 0.01 / 3600.;
 
 #[derive(Debug, Clone)]
-pub struct MainlandFirBoundaries {
+pub struct ChinaMainlandBoundary {
     /// One closed outer loop; internal FIR seam gaps are included in the airspace.
     boundary: Vec<(f64, f64)>,
     bbox: Rect<f64>,
     inner_bbox: Option<Rect<f64>>,
 }
 
-impl MainlandFirBoundaries {
+impl ChinaMainlandBoundary {
     pub fn from_rings(rings: Vec<Vec<(f64, f64)>>) -> Result<Self, &'static str> {
         let polygons: Vec<_> = rings
             .into_iter()

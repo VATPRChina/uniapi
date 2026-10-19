@@ -12,7 +12,7 @@ pub use ndb::{Ndb, NdbKind};
 pub use vhf::Vhf;
 pub use waypoint::{Waypoint, WaypointKind};
 
-use crate::modules::navdata::models::{Identifiable, MainlandFirBoundaries};
+use crate::modules::navdata::models::{ChinaMainlandBoundary, Identifiable};
 use crate::utils::geo::{Latitude, Longitude};
 
 pub trait Fix {
@@ -84,13 +84,14 @@ impl AnyFix {
         }
     }
 
-    pub fn is_china(&self, boundary: &MainlandFirBoundaries) -> bool {
+    pub fn is_china_or_unknown(&self, boundary: &ChinaMainlandBoundary) -> bool {
         self.icao_code().is_some_and(|icao| {
             icao.starts_with("Z") && !icao.starts_with("ZM") && !icao.starts_with("ZK")
         }) || self
             .latitude()
             .and_then(|lat| self.longitude().map(|lon| (*lat, *lon)))
             .is_some_and(|coord| boundary.contains(coord))
+            || self.is_unknown()
     }
 
     pub fn identifier(&self) -> Option<&str> {

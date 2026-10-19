@@ -2,7 +2,7 @@ use arrayvec::CapacityError;
 use sqlx::SqlitePool;
 
 use crate::modules::navdata::{
-    models::MainlandFirBoundaries,
+    models::ChinaMainlandBoundary,
     repository::{PreferredRouteRepository, PreferredRouteRepositoryError},
 };
 
@@ -67,7 +67,7 @@ impl From<arrayvec::CapacityError<&str>> for InvalidNavdataError {
 pub struct NavdataService {
     db: SqlitePool,
     preferred_routes: PreferredRouteRepository,
-    china_boundaries: MainlandFirBoundaries,
+    china_boundaries: ChinaMainlandBoundary,
 }
 
 impl NavdataService {
@@ -96,7 +96,7 @@ impl NavdataService {
             .list_preferred_routes(departure, arrival))
     }
 
-    pub fn china_boundaries(&self) -> &MainlandFirBoundaries {
+    pub fn china_boundaries(&self) -> &ChinaMainlandBoundary {
         &self.china_boundaries
     }
 }

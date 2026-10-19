@@ -2,7 +2,8 @@ use std::fmt::{self, Display};
 
 use super::{ConstructedLeg, Ident, IdentWithCandidate, LexerToken, SolvedIdent};
 use crate::modules::flight::dto::FlightRouteFix;
-use crate::modules::navdata::models::{AnyFix, LegKind, ResolvedLeg};
+use crate::modules::flight::flight_plan::RouteSegment;
+use crate::modules::navdata::models::{AnyFix, LegKind, PreferredRoute, ResolvedLeg};
 
 /// Borrowed snapshots of the shared parser pipeline, in execution order.
 pub enum RouteParseStep<'a, 's> {
@@ -12,6 +13,7 @@ pub enum RouteParseStep<'a, 's> {
     Solved(&'a [SolvedIdent<'s>]),
     Constructed(&'a [ConstructedLeg]),
     Expanded(&'a [ResolvedLeg]),
+    PreferredRoutes(&'a [(RouteSegment<'a>, Option<PreferredRoute>)]),
 }
 
 impl Display for RouteParseStep<'_, '_> {
@@ -69,6 +71,24 @@ impl Display for RouteParseStep<'_, '_> {
                 write_legs(f, "5. Constructor", legs.iter().map(|entry| &entry.leg))?
             }
             Self::Expanded(legs) => write_legs(f, "6. Expander", legs.iter())?,
+            Self::PreferredRoutes(matches) => {
+                writeln!(f, "=== 7. Preferred routes: {} segments ===", matches.len())?;
+                for (index, (segment, preferred)) in matches.iter().enumerate() {
+                    writeln!(
+                        f,
+                        "  Segment {}: legs [{}..{}), {}",
+                        index + 1,
+                        segment.start_index,
+                        segment.end_index(),
+                        preferred
+                            .as_ref()
+                            .map_or("no matching preferred route", |route| route.name.as_str())
+                    )?;
+                    for (offset, leg) in segment.legs.iter().enumerate() {
+                        write_leg(f, segment.start_index + offset, leg)?;
+                    }
+                }
+            }
         }
         writeln!(f)
     }

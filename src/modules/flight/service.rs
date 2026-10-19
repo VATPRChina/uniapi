@@ -148,21 +148,7 @@ impl FlightService {
     ) -> Result<Vec<ValidatorResult>, FlightServiceError> {
         let flight = self.find_by_callsign(callsign).await?;
         let route = self.route_v2(&route_string(&flight)).await?;
-        let preferred_routes = self
-            .navdata
-            .list_preferred_routes(&flight.departure, &flight.arrival)
-            .await
-            .map_err(ValidatorError::Navdata)?;
-        let preferred_route =
-            validator::matcher::find_matching_route(&self.navdata, &route.legs, &preferred_routes)
-                .await?;
-        let context = validator::checks::ValidationContext {
-            flight: &flight,
-            route: &route,
-            preferred_route,
-            preferred_routes: &preferred_routes,
-        };
-        Ok(validator::validate_all(&context, &self.navdata)?)
+        Ok(validator::validate_route(&flight, &route, &self.navdata).await?)
     }
 
     pub async fn route_v1(&self, flight: &Flight) -> Result<ParsedRoute, FlightServiceError> {

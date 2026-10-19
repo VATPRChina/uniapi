@@ -1,9 +1,14 @@
 use crate::modules::navdata::models::AnyFix;
 
 pub(crate) mod altitude;
+mod matcher;
 mod route_parser;
+mod segmenter;
 pub mod v1;
 pub mod validator;
+
+pub use matcher::PreferredRouteMatcher;
+pub use segmenter::{RouteSegment, RouteSegmenter, Segment};
 
 pub use route_parser::{ParseRouteError, RouteParseStep, parse_route, parse_route_with_observer};
 

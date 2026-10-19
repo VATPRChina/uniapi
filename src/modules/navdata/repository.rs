@@ -48,6 +48,10 @@ impl PreferredRouteRepository {
 struct PreferredRouteCsvRecord {
     dep: String,
     arr: String,
+    #[serde(default)]
+    waypoint1: String,
+    #[serde(default)]
+    waypoint2: String,
     name: String,
     even_odd: String,
     alt_list: String,
@@ -67,8 +71,8 @@ impl TryFrom<PreferredRouteCsvRecord> for PreferredRoute {
 
         Ok(Self {
             name: record.name.trim().to_owned(),
-            departure: record.dep.trim().to_ascii_uppercase(),
-            arrival: record.arr.trim().to_ascii_uppercase(),
+            departure: endpoint(&record.dep, &record.waypoint1),
+            arrival: endpoint(&record.arr, &record.waypoint2),
             raw_route: record.route.trim().to_owned(),
             cruising_level_restriction,
             allowed_altitudes: parse_altitude_list(&record.alt_list)?,
@@ -79,6 +83,16 @@ impl TryFrom<PreferredRouteCsvRecord> for PreferredRoute {
             is_public: !record.remarks.to_ascii_lowercase().contains("aip route"),
         })
     }
+}
+
+fn endpoint(airport: &str, waypoint: &str) -> String {
+    if airport.trim().is_empty() {
+        waypoint
+    } else {
+        airport
+    }
+    .trim()
+    .to_ascii_uppercase()
 }
 
 fn parse_altitude_list(value: &str) -> Result<Vec<i32>, PreferredRouteRepositoryError> {
@@ -203,5 +217,25 @@ mod tests {
         assert!(!routes.is_empty());
         assert!(routes.iter().all(|route| route.departure == "ZBAA"));
         assert!(routes.iter().all(|route| route.arrival == "ZSPD"));
+    }
+
+    #[test]
+    fn uses_waypoint_endpoints_when_airport_columns_are_empty() {
+        let routes =
+            PreferredRouteRepository::from_csv_path("assets/test/preferred_route_matcher.csv")
+                .unwrap();
+        assert_eq!(routes.list_preferred_routes("cnone", "cntwo").len(), 2);
+        assert_eq!(
+            routes.list_preferred_routes("ZAAA", "CNTWO")[0].name,
+            "DEPARTURE"
+        );
+        assert_eq!(
+            routes.list_preferred_routes("CNTWO", "ZBBB")[0].name,
+            "SINGLE-FIX"
+        );
+        assert_eq!(
+            routes.list_preferred_routes("ZAAA", "ZBBB")[0].name,
+            "DOMESTIC"
+        );
     }
 }
