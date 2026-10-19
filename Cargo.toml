@@ -82,3 +82,4 @@ sea-query-binder = { version = "0.7.0", default-features = false, features = [
   "with-chrono",
   "postgres-array",
 ] }
+geo = { version = "0.33.1", default-features = false }

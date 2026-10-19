@@ -121,7 +121,7 @@ fn build_boundaries(records: Vec<FirRecord>) -> NavdataResult<MainlandFirBoundar
             )));
         }
     }
-    Ok(MainlandFirBoundaries::from_rings(rings))
+    MainlandFirBoundaries::from_rings(rings).map_err(invalid)
 }
 
 // DFD v2 boundary_via describes the edge FROM this record TO the next.
