@@ -65,7 +65,7 @@ impl Validator for RouteDirectLegValidator {
     const IDENT: &'static str = "route-direct-leg";
     const FIELD: WarningMessageField = WarningMessageField::Route;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, navdata: &NavdataService) -> ValidatorResult {
         validate_legs::<Self>(
             context,
             true,
@@ -74,7 +74,8 @@ impl Validator for RouteDirectLegValidator {
                 leg.kind == LegKind::Direct
                     && !matches!(leg.from, AnyFix::Airport(_))
                     && !matches!(leg.to, AnyFix::Airport(_))
-                    && (leg.from.is_china() && leg.to.is_china())
+                    && (leg.from.is_china(navdata.china_boundaries())
+                        && leg.to.is_china(navdata.china_boundaries()))
             },
         )
     }
@@ -104,7 +105,7 @@ impl Validator for AirwayApprovalValidator {
     const IDENT: &'static str = "route-airway-approval";
     const FIELD: WarningMessageField = WarningMessageField::Route;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, navdata: &NavdataService) -> ValidatorResult {
         validate_legs::<Self>(
             context,
             true,
@@ -114,7 +115,8 @@ impl Validator for AirwayApprovalValidator {
                     && leg.identifier.as_deref().is_some_and(|ident| {
                         let ident = ident.to_ascii_uppercase();
                         (ident.starts_with('V') || ident.starts_with('X'))
-                            && (leg.from.is_china() || leg.to.is_china())
+                            && (leg.from.is_china(navdata.china_boundaries())
+                                || leg.to.is_china(navdata.china_boundaries()))
                     })
             },
         )

@@ -1,7 +1,6 @@
 use crate::modules::navdata::models::AnyFix;
 
 pub(crate) mod altitude;
-pub mod preferred_route_segment;
 mod route_parser;
 pub mod v1;
 pub mod validator;

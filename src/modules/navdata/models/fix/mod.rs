@@ -12,7 +12,7 @@ pub use ndb::{Ndb, NdbKind};
 pub use vhf::Vhf;
 pub use waypoint::{Waypoint, WaypointKind};
 
-use crate::modules::navdata::models::Identifiable;
+use crate::modules::navdata::models::{Identifiable, MainlandFirBoundaries};
 use crate::utils::geo::{Latitude, Longitude};
 
 pub trait Fix {
@@ -72,7 +72,6 @@ impl Fix for AnyFix {
 }
 
 impl AnyFix {
-    #[allow(unused)]
     pub fn icao_code(&self) -> Option<&str> {
         match self {
             AnyFix::Airport(airport) => Some(airport.icao_code()),
@@ -85,11 +84,13 @@ impl AnyFix {
         }
     }
 
-    pub fn is_china(&self) -> bool {
-        // TODO: geo point check within China
-        self.icao_code().is_none_or(|icao| {
+    pub fn is_china(&self, boundary: &MainlandFirBoundaries) -> bool {
+        self.icao_code().is_some_and(|icao| {
             icao.starts_with("Z") && !icao.starts_with("ZM") && !icao.starts_with("ZK")
-        })
+        }) || self
+            .latitude()
+            .and_then(|lat| self.longitude().map(|lon| (*lat, *lon)))
+            .is_some_and(|coord| boundary.contains(coord))
     }
 
     pub fn identifier(&self) -> Option<&str> {
