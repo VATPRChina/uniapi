@@ -453,7 +453,8 @@ impl EnrouteAirwayRecord {
             to: self.to_fix()?,
             is_unknown: false,
             kind: LegKind::Airway,
-            direction_restriction: match self.direction_restriction.as_str() {
+            // Direction restrictions describe the segment leaving the origin record.
+            direction_restriction: match prev.direction_restriction.as_str() {
                 "F" => DirectionRestriction::Forward,
                 "B" => DirectionRestriction::Backward,
                 _ => DirectionRestriction::None,
