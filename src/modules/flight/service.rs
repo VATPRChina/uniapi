@@ -4,14 +4,14 @@ use std::sync::LazyLock;
 use crate::adapter::compat::{CompatClient, CompatClientError};
 use crate::modules::controller::models::CompatFutureController;
 use crate::modules::flight::flight_plan::v1::parser::ParserError;
-use crate::modules::flight::flight_plan::{ParseRouteError, parse_route, v1};
+use crate::modules::flight::flight_plan::{ParseRouteError, RouteSegmenter, parse_route, v1};
 use crate::modules::flight::models::ParsedRoute;
 use crate::modules::navdata::models::ResolvedLeg;
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 use regex::Regex;
 
-use super::dto::{RouteDeliveryInfo, SidCandidate};
+use super::dto::{FlightRouteSegment, RouteDeliveryInfo, SidCandidate};
 use super::flight_plan::validator::{self, ValidatorError, WarningMessage};
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight, ValidatorResult};
 use super::repository::flight::FlightRepository;
@@ -168,14 +168,24 @@ impl FlightService {
             })
     }
 
-    /// Developer route output with FIR-based mainland indicators on every leg.
+    /// Developer route output with expanded legs and mainland visits.
     pub async fn route_delivery_v2(
         &self,
         route: &str,
     ) -> Result<RouteDeliveryInfo, FlightServiceError> {
         let route = self.route_v2(route).await?;
         let sid_candidates = self.sid_candidates(&route.legs).await?;
-        Ok(RouteDeliveryInfo::new(route.legs, sid_candidates))
+        let segments = RouteSegmenter::new(self.navdata.china_boundaries())
+            .segment(&route.legs)
+            .iter()
+            .map(FlightRouteSegment::from)
+            .collect();
+        Ok(RouteDeliveryInfo::new(
+            route.legs,
+            sid_candidates,
+            segments,
+            self.navdata.china_boundaries(),
+        ))
     }
 
     /// Procedures matching the first route fix with a SID at the departure airport.

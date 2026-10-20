@@ -44,6 +44,13 @@ cargo run -- route-v2 "ZBAA ELKUR W40 YQG ZSPD" \
   --preferred-routes data/Route-Server.csv
 ```
 
+The developer-only `GET /api/flights/route/v2?route=...` response includes
+`legs`, `sid_candidates`, and `segments`. Each segment describes one mainland
+visit with a name, a half-open `[start_index, end_index)` range into `legs`,
+airport endpoints, enroute endpoints, and both known endpoints of border
+crossings. Missing airport or crossing endpoints are `null`. Unknown fixes
+between known border endpoints remain in the referenced legs.
+
 ### Database
 
 Preferred-route segment selection reads the nine mainland FIR boundaries from

@@ -51,13 +51,13 @@ pub fn build_flight_routes() -> Router<Services> {
         .route("/route/v2", get(route_v2))
 }
 
-/// Parse a complete route with v2 and return expanded legs and matching SIDs.
+/// Parse a complete route with v2 and return expanded legs, mainland segments and matching SIDs.
 /// Requires the software-engineer role.
 #[utoipa::path(
     get, path = "api/flights/route/v2", tag = "Flights", security(("oauth2" = [])),
     params(("route" = String, Query, description = "Complete route including departure and arrival")),
     responses(
-        (status = 200, description = "Expanded route segments and SID candidates", body = RouteDeliveryInfo),
+        (status = 200, description = "Expanded legs, mainland segments and SID candidates", body = RouteDeliveryInfo),
         (status = 400, description = "Invalid or incomplete route"),
         (status = 401, description = "Authentication required"),
         (status = 403, description = "Software engineer role required")
