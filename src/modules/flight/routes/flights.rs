@@ -64,11 +64,11 @@ pub fn build_flight_routes() -> Router<Services> {
     )
 )]
 async fn route_v2(
-    // current_user: CurrentUser,
+    current_user: CurrentUser,
     State(flight): State<FlightService>,
     Query(query): Query<FlightRouteV2Query>,
 ) -> Result<Json<RouteDeliveryInfo>, ApiError> {
-    // current_user.require_role(UserRole::SoftwareEngineer)?;
+    current_user.require_role(UserRole::SoftwareEngineer)?;
     Ok(Json(flight.route_delivery_v2(&query.route).await?))
 }
 
