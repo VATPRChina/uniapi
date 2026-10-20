@@ -1,5 +1,5 @@
 use super::segmenter::enroute;
-use super::{ParseRouteError, RouteSegment, Segment, parse_route};
+use super::{ParseRouteError, RouteSegment, Segment, SegmentKind, parse_route};
 use crate::modules::flight::flight_plan::validator::ValidatorError;
 use crate::modules::navdata::models::{AnyFix, PreferredRoute, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
@@ -67,6 +67,9 @@ impl<'s> PreferredRouteMatcher<'s> {
         &self,
         segment: Segment<'l>,
     ) -> Result<Vec<(RouteSegment<'l>, &'s PreferredRoute)>, ValidatorError> {
+        if segment.kind != SegmentKind::Mainland {
+            return Ok(Vec::new());
+        }
         let mut candidates = Vec::new();
         for (airport_pair, variant) in segment.endpoint_variants() {
             let Some(from) = variant.legs.first().and_then(|leg| leg.from.identifier()) else {
@@ -170,14 +173,14 @@ fn routes_match(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {
                 .iter()
                 .zip(&expected[start..end])
                 .all(|(actual, expected)| {
-            !actual.is_unknown
-                && !expected.is_unknown
-                && !actual.from.is_unknown()
-                && !actual.to.is_unknown()
-                && actual.kind == expected.kind
-                && actual.identifier == expected.identifier
-                && actual.from == expected.from
-                && actual.to == expected.to
+                    !actual.is_unknown
+                        && !expected.is_unknown
+                        && !actual.from.is_unknown()
+                        && !actual.to.is_unknown()
+                        && actual.kind == expected.kind
+                        && actual.identifier == expected.identifier
+                        && actual.from == expected.from
+                        && actual.to == expected.to
                 })
-        })
+    })
 }

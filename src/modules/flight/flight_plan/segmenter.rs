@@ -13,10 +13,18 @@ impl RouteSegment<'_> {
     }
 }
 
-/// One mainland visit, including its border crossings and terminal airports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SegmentKind {
+    Mainland,
+    International,
+}
+
+/// A mainland visit (including its crossings), or an international portion.
 /// Fix offsets refer to vertices in `route`: vertex n is the end of leg n - 1.
 #[derive(Debug, Clone, Copy)]
 pub struct Segment<'l> {
+    pub kind: SegmentKind,
     pub route: RouteSegment<'l>,
     enter: Option<(usize, usize)>,
     exit: Option<(usize, usize)>,
@@ -144,9 +152,8 @@ impl<'b> RouteSegmenter<'b> {
             .filter(|(_, fix)| !fix.is_unknown())
             .map(|(index, fix)| (index, fix.is_china_or_unknown(self.boundary)))
             .collect();
-        let first_inside = known.iter().position(|(_, inside)| *inside);
-        let last_inside = known.iter().rposition(|(_, inside)| *inside);
         let mut cursor = 0;
+        let mut covered = 0;
         while cursor < known.len() {
             if !known[cursor].1 {
                 cursor += 1;
@@ -159,30 +166,44 @@ impl<'b> RouteSegmenter<'b> {
             let last = cursor;
             let enter = (first > 0).then(|| (known[first - 1].0, known[first].0));
             let exit = (last + 1 < known.len()).then(|| (known[last].0, known[last + 1].0));
-            let start = if Some(first) == first_inside && matches!(legs[0].from, AnyFix::Airport(_))
-            {
-                0
-            } else {
-                enter.map_or(0, |(start, _)| start)
-            };
-            let end = if Some(last) == last_inside
-                && matches!(legs.last().unwrap().to, AnyFix::Airport(_))
-            {
-                legs.len()
-            } else {
-                exit.map_or(legs.len(), |(_, end)| end)
-            };
-            if start < end {
+            // A crossing spans every unresolved fix between known endpoints.
+            // It belongs to the mainland visit, without extending to a remote
+            // airport through unrelated international legs.
+            let start = enter.map_or(0, |(start, _)| start);
+            let end = exit.map_or(legs.len(), |(_, end)| end);
+            if covered < start {
                 segments.push(Segment {
+                    kind: SegmentKind::International,
                     route: RouteSegment {
-                        legs: &legs[start..end],
-                        start_index: offset + start,
+                        legs: &legs[covered..start],
+                        start_index: offset + covered,
                     },
-                    enter: enter.map(|(a, b)| (a - start, b - start)),
-                    exit: exit.map(|(a, b)| (a - start, b - start)),
+                    enter: None,
+                    exit: None,
                 });
             }
+            segments.push(Segment {
+                kind: SegmentKind::Mainland,
+                route: RouteSegment {
+                    legs: &legs[start..end],
+                    start_index: offset + start,
+                },
+                enter: enter.map(|(a, b)| (a - start, b - start)),
+                exit: exit.map(|(a, b)| (a - start, b - start)),
+            });
+            covered = end;
             cursor += 1;
+        }
+        if covered < legs.len() {
+            segments.push(Segment {
+                kind: SegmentKind::International,
+                route: RouteSegment {
+                    legs: &legs[covered..],
+                    start_index: offset + covered,
+                },
+                enter: None,
+                exit: None,
+            });
         }
     }
 }
@@ -207,3 +228,6 @@ pub(super) fn enroute(legs: &[ResolvedLeg]) -> Option<(&AnyFix, &[ResolvedLeg], 
     }
     Some((from, &legs[start..end], to))
 }
+
+#[cfg(test)]
+mod tests;

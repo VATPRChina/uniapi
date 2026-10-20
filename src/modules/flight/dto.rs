@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::flight::flight_plan::Segment;
+use crate::modules::flight::flight_plan::{Segment, SegmentKind};
 use crate::modules::navdata::models::{
     AnyFix, ChinaMainlandBoundary, Fix, LegKind, ResolvedLeg, Sid,
 };
@@ -198,7 +198,7 @@ impl From<Flight> for FlightDto {
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct RouteDeliveryInfo {
     pub legs: Vec<FlightRouteLeg>,
-    /// Mainland visits produced by the route segmenter, in route order.
+    /// Mainland and international portions, partitioning the expanded legs in order.
     pub segments: Vec<FlightRouteSegment>,
     pub sid_candidates: Vec<SidCandidate>,
 }
@@ -222,9 +222,10 @@ impl RouteDeliveryInfo {
     }
 }
 
-/// A mainland visit. Leg ranges refer to the top-level expanded legs array.
+/// A mainland or international portion. Leg ranges refer to the expanded legs array.
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct FlightRouteSegment {
+    pub kind: SegmentKind,
     pub identifier: String,
     /// Inclusive zero-based leg index.
     pub start_index: usize,
@@ -245,6 +246,7 @@ impl From<&Segment<'_>> for FlightRouteSegment {
         let from = FlightFix::from(&segment.route.legs.first().unwrap().from);
         let to = FlightFix::from(&segment.route.legs.last().unwrap().to);
         Self {
+            kind: segment.kind,
             identifier: format!("{}-{}", from.identifier, to.identifier),
             start_index: segment.route.start_index,
             end_index: segment.route.end_index(),
@@ -439,22 +441,27 @@ mod route_segment_tests {
         assert_eq!(json["legs"][0]["is_mainland"], false);
         assert_eq!(json["legs"][1]["is_mainland"], true);
         let segments = json["segments"].as_array().unwrap();
-        assert_eq!(segments.len(), 2);
+        assert_eq!(segments.len(), 3);
         assert_eq!(segments[0]["start_index"], 0);
-        assert_eq!(segments[0]["end_index"], 5);
-        assert_eq!(segments[1]["start_index"], 5);
-        assert_eq!(segments[1]["end_index"], 7);
+        assert_eq!(segments[0]["end_index"], 1);
+        assert_eq!(segments[1]["start_index"], 1);
+        assert_eq!(segments[1]["end_index"], 5);
+        assert_eq!(segments[2]["start_index"], 5);
+        assert_eq!(segments[2]["end_index"], 7);
+        assert_eq!(segments[0]["kind"], "international");
+        assert_eq!(segments[1]["kind"], "mainland");
+        assert_eq!(segments[2]["kind"], "mainland");
         assert_eq!(segments[0]["route_start_airport"]["identifier"], "RJAA");
         assert!(segments[0]["route_end_airport"].is_null());
         assert_eq!(
-            segments[0]["cross_border_enter_start_fix"]["identifier"],
+            segments[1]["cross_border_enter_start_fix"]["identifier"],
             FlightFix::from(&outside).identifier
         );
         assert_eq!(
-            segments[0]["cross_border_enter_end_fix"]["identifier"],
+            segments[1]["cross_border_enter_end_fix"]["identifier"],
             FlightFix::from(&inside).identifier
         );
-        assert_eq!(segments[1]["route_end_airport"]["identifier"], "ZAAA");
-        assert!(segments[1]["cross_border_exit_start_fix"].is_null());
+        assert_eq!(segments[2]["route_end_airport"]["identifier"], "ZAAA");
+        assert!(segments[2]["cross_border_exit_start_fix"].is_null());
     }
 }

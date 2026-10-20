@@ -45,8 +45,9 @@ cargo run -- route-v2 "ZBAA ELKUR W40 YQG ZSPD" \
 ```
 
 The developer-only `GET /api/flights/route/v2?route=...` response includes
-`legs`, `sid_candidates`, and `segments`. Each segment describes one mainland
-visit with a name, a half-open `[start_index, end_index)` range into `legs`,
+`legs`, `sid_candidates`, and `segments`. Each segment has a `kind` of
+`mainland` or `international` and describes one contiguous portion with a name,
+a half-open `[start_index, end_index)` range into `legs`,
 airport endpoints, enroute endpoints, and both known endpoints of border
 crossings. Missing airport or crossing endpoints are `null`. Unknown fixes
 between known border endpoints remain in the referenced legs.
@@ -62,14 +63,18 @@ are excluded. Great-circle and rhumb-line boundaries are supported; missing,
 malformed or unsupported boundary data returns a navigation-data error.
 
 `RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs)` returns
-one `Segment` per connected mainland visit, borrowing the original legs and
-retaining their indices. Each segment exposes airport, enroute, and border
-entry/exit endpoints. Unknown fix chains stay in the path; crossing endpoints
-are the known fixes on either side of the chain. The first and last visits
-retain their respective departure and arrival airports, when present.
+a complete partition into `mainland` and `international` segments, borrowing
+the original legs and retaining their indices. Ranges do not overlap and every
+leg is included exactly once. Mainland segments include their entry and exit
+crossings; international segments contain the wholly foreign legs between
+visits. Airports are retained only when actually at a segment endpoint.
+Unknown fix chains stay in the path, with crossings bounded by their known
+fixes. Chains without mainland evidence belong to an international portion.
+Disconnected paths always start a separate segment.
 
 `PreferredRouteMatcher::new(&navdata).match_segment(&segment).await?` returns
-an optional preferred route. An airport-to-airport match takes priority. If
+an optional preferred route for mainland segments; international segments are
+not matched. An airport-to-airport match takes priority. If
 that fails, the matcher tries departure airport or either entry endpoint
 against arrival airport or either exit endpoint. Routes that start/end at an
 enroute fix retain that endpoint. Public routes precede private routes within

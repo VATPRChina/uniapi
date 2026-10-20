@@ -8,7 +8,7 @@ pub mod v1;
 pub mod validator;
 
 pub use matcher::PreferredRouteMatcher;
-pub use segmenter::{RouteSegment, RouteSegmenter, Segment};
+pub use segmenter::{RouteSegment, RouteSegmenter, Segment, SegmentKind};
 
 pub use route_parser::{ParseRouteError, RouteParseStep, parse_route, parse_route_with_observer};
 

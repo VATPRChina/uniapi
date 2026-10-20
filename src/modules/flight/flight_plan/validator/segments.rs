@@ -18,9 +18,7 @@ pub async fn validate_route(
     let context = ValidationContext {
         flight,
         route,
-        preferred_route: matches
-            .first()
-            .and_then(|(_, preferred)| preferred.as_ref()),
+        preferred_route: matches.iter().find_map(|(_, preferred)| preferred.as_ref()),
         preferred_routes: &[],
     };
     let mut results = validate_all(&context, navdata)?;
