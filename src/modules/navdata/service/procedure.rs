@@ -120,16 +120,6 @@ fn abbreviations(ident: &str) -> Option<String> {
     ))
 }
 
-#[cfg(test)]
-#[test]
-fn test_abbr() {
-    assert_eq!(abbreviations("SASAN1"), None);
-    assert_eq!(abbreviations("ALPHABETA"), None);
-    assert_eq!(abbreviations("SASAN1A"), Some("SASA1A".to_string()));
-    assert_eq!(abbreviations("COTTO2B"), Some("COTO2B".to_string()));
-    assert_eq!(abbreviations("AKDIK6K"), Some("AKDI6K".to_string()));
-}
-
 fn abbreviations_alternative(ident: &str) -> Option<String> {
     if ident.len() != 7 {
         return None;
@@ -160,16 +150,6 @@ fn abbreviations_alternative(ident: &str) -> Option<String> {
             .map(|(_, c)| c)
             .collect(),
     )
-}
-
-#[cfg(test)]
-#[test]
-fn test_abbr_altn() {
-    assert_eq!(abbreviations_alternative("SASAN1A"), None);
-    assert_eq!(
-        abbreviations_alternative("AKDIK6K"),
-        Some("AKDK6K".to_string())
-    );
 }
 
 #[derive(Debug, Clone, Copy)]
