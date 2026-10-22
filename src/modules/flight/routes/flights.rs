@@ -68,7 +68,7 @@ async fn route_v2(
     State(flight): State<FlightService>,
     Query(query): Query<FlightRouteV2Query>,
 ) -> Result<Json<RouteDeliveryInfo>, ApiError> {
-    current_user.require_role(UserRole::SoftwareEngineer)?;
+    current_user.require_any_role(&[UserRole::SoftwareEngineer, UserRole::ApiClient])?;
     Ok(Json(flight.route_delivery_v2(&query.route).await?))
 }
 
