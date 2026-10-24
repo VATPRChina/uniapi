@@ -3,7 +3,9 @@
 //! `Validator::validate`. All checks are exposed through the validations endpoint.
 
 use crate::modules::flight::flight_plan::validator::WarningMessageField;
-use crate::modules::flight::models::{Flight, ParsedRoute, ValidatorResult, ValidatorStatus};
+use crate::modules::flight::models::{
+    Flight, ParsedRoute, ValidationScope, ValidatorResult, ValidatorStatus,
+};
 use crate::modules::navdata::models::PreferredRoute;
 use crate::modules::navdata::service::NavdataService;
 
@@ -39,7 +41,50 @@ pub struct ValidationContext<'a> {
     pub preferred_routes: &'a [&'a PreferredRoute],
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValidationLevel {
+    Flight,
+    Segment,
+    Leg,
+}
+
+/// A check outcome becomes an API result only when attached to its execution scope.
+pub struct CheckResult {
+    pub validator_ident: String,
+    pub field: WarningMessageField,
+    pub status: ValidatorStatus,
+    pub warnings: Vec<super::WarningMessage>,
+}
+
+impl CheckResult {
+    pub fn scoped(self, scope: ValidationScope) -> ValidatorResult {
+        ValidatorResult {
+            scope,
+            validator_ident: self.validator_ident,
+            field: self.field,
+            status: self.status,
+            warnings: self.warnings,
+        }
+    }
+}
+
 pub trait Validator {
+    const LEVEL: ValidationLevel = ValidationLevel::Flight;
+
+    fn execute(
+        context: &ValidationContext<'_>,
+        navdata: &NavdataService,
+        scope: ValidationScope,
+    ) -> ValidatorResult {
+        let level = match scope {
+            ValidationScope::Flight => ValidationLevel::Flight,
+            ValidationScope::Segment { .. } => ValidationLevel::Segment,
+            ValidationScope::Leg { .. } => ValidationLevel::Leg,
+        };
+        assert_eq!(Self::LEVEL, level, "validator executed at the wrong level");
+        Self::validate(context, navdata).scoped(scope)
+    }
+
     /// Stable identifier used by `ValidatorResult::validator_ident`.
     const IDENT: &'static str;
 
@@ -47,8 +92,8 @@ pub trait Validator {
     const FIELD: WarningMessageField;
 
     /// Override this placeholder when implementing a check.
-    fn validate(_context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
-        ValidatorResult {
+    fn validate(_context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
+        CheckResult {
             validator_ident: Self::IDENT.to_owned(),
             field: Self::FIELD,
             status: ValidatorStatus::Unavailable,

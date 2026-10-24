@@ -85,7 +85,13 @@ impl AnyFix {
     }
 
     pub fn is_china_or_unknown(&self, boundary: &ChinaMainlandBoundary) -> bool {
-        self.icao_code().is_some_and(|icao| {
+        // Airports have no separate ICAO region code in navdata. Their airport
+        // identifier still provides country classification without FIR geometry.
+        let icao = match self {
+            Self::Airport(airport) => Some(airport.identifier()),
+            _ => self.icao_code(),
+        };
+        icao.is_some_and(|icao| {
             icao.starts_with("Z") && !icao.starts_with("ZM") && !icao.starts_with("ZK")
         }) || self
             .latitude()

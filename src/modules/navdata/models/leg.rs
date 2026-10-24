@@ -11,14 +11,16 @@ pub struct ResolvedLeg {
     pub direction_restriction: DirectionRestriction,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
 pub enum DirectionRestriction {
     None,
     Forward,
     Backward,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
 pub enum LegKind {
     Airway,
     Sid,

@@ -10,9 +10,53 @@ pub struct PreferredRouteMatcher<'s> {
     navdata: &'s NavdataService,
 }
 
+/// Candidates are in the same priority order used to select a preferred route.
+pub(crate) struct SegmentMatchReport<'l> {
+    pub candidates: Vec<RouteMatchAttempt<'l>>,
+    pub selected_candidate_index: Option<usize>,
+    pub preferred_routes: Vec<PreferredRoute>,
+}
+
+pub(crate) struct RouteMatchAttempt<'l> {
+    pub coverage: RouteSegment<'l>,
+    pub preferred: PreferredRoute,
+    pub matched: bool,
+    pub error: Option<String>,
+}
+
+impl<'l> SegmentMatchReport<'l> {
+    pub fn selected(&self) -> Option<&RouteMatchAttempt<'l>> {
+        self.selected_candidate_index
+            .map(|index| &self.candidates[index])
+    }
+}
+
 impl<'s> PreferredRouteMatcher<'s> {
     pub fn new(navdata: &'s NavdataService) -> Self {
         Self { navdata }
+    }
+
+    pub(crate) async fn inspect_segment<'l>(
+        &self,
+        segment: &Segment<'l>,
+    ) -> Result<SegmentMatchReport<'l>, ValidatorError> {
+        let preferred_routes = self.preferred_routes(segment).await?;
+        let mut candidates = Vec::new();
+        for (coverage, preferred) in self.candidates(*segment).await? {
+            let (matched, error) = self.match_outcome(coverage, &preferred).await?;
+            candidates.push(RouteMatchAttempt {
+                coverage,
+                preferred,
+                matched,
+                error,
+            });
+        }
+        let selected_candidate_index = candidates.iter().position(|candidate| candidate.matched);
+        Ok(SegmentMatchReport {
+            candidates,
+            selected_candidate_index,
+            preferred_routes,
+        })
     }
 
     /// Match one visit, trying airport pairs before all border alternatives.
@@ -114,11 +158,19 @@ impl<'s> PreferredRouteMatcher<'s> {
         segment: RouteSegment<'_>,
         preferred: &PreferredRoute,
     ) -> Result<bool, ValidatorError> {
+        Ok(self.match_outcome(segment, preferred).await?.0)
+    }
+
+    async fn match_outcome(
+        &self,
+        segment: RouteSegment<'_>,
+        preferred: &PreferredRoute,
+    ) -> Result<(bool, Option<String>), ValidatorError> {
         // Preferred routes omit departure/arrival airports. Add only those anchors so
         // the parser can also represent designated routes containing one fix.
         let mut route = preferred.raw_route.trim().to_owned();
         if route.is_empty() {
-            return Ok(false);
+            return Ok((false, Some("Preferred route is empty".into())));
         }
         if let Some(AnyFix::Airport(airport)) = segment.legs.first().map(|leg| &leg.from)
             && !route
@@ -140,11 +192,11 @@ impl<'s> PreferredRouteMatcher<'s> {
             Ok(route) => route,
             Err(ParseRouteError::InvalidRoute(error)) => {
                 tracing::warn!(route = preferred.name, %error, "ignoring invalid preferred route");
-                return Ok(false);
+                return Ok((false, Some(error)));
             }
             Err(error) => return Err(error.into()),
         };
-        Ok(routes_match(segment.legs, &expected.legs))
+        Ok((routes_match(segment.legs, &expected.legs), None))
     }
 }
 

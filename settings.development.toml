@@ -18,11 +18,11 @@ QeYNjZey7rJGUQ/rhlVrnY2R3dFozDMNZSIHG1QJFUJMeLfgoqpY3FD9Dw==
 
 [[authentication.jwt.clients]]
 client_id = "01J2ED6BDX9J9BTYS2RVW83ME7"
-redirect_uri = ["http://localhost:3000/auth/callback"]
+redirect_uri = ["http://localhost:5173/auth/callback"]
 
 [[authentication.jwt.clients]]
 client_id = "01K7XDHJGMYQWZ029T85BGDZ28"
-redirect_uri = ["http://localhost:3000/docs"]
+redirect_uri = ["http://localhost:5173/docs"]
 
 [[authentication.jwt.clients]]
 client_id = "01K7X723S04R1F5P2P8NJV5QT5"

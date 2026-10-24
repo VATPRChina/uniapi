@@ -8,11 +8,13 @@ use geo::{
 // Coordinate equality elsewhere in navdata is at 0.01 arcsecond.
 const BOUNDARY_TOLERANCE: f64 = 0.01 / 3600.;
 
-#[derive(Debug, Clone)]
+/// An empty/default boundary has no geographic coverage. ICAO-code and
+/// unknown-fix classification can still be used by callers.
+#[derive(Debug, Clone, Default)]
 pub struct ChinaMainlandBoundary {
     /// One closed outer loop; internal FIR seam gaps are included in the airspace.
     boundary: Vec<(f64, f64)>,
-    bbox: Rect<f64>,
+    bbox: Option<Rect<f64>>,
     inner_bbox: Option<Rect<f64>>,
 }
 
@@ -37,7 +39,7 @@ impl ChinaMainlandBoundary {
             .collect();
         Ok(Self {
             boundary,
-            bbox,
+            bbox: Some(bbox),
             inner_bbox,
         })
     }
@@ -53,7 +55,9 @@ impl ChinaMainlandBoundary {
             return true;
         }
 
-        let bbox = self.bbox;
+        let Some(bbox) = self.bbox else {
+            return false;
+        };
         if longitude < bbox.min().x - BOUNDARY_TOLERANCE
             || longitude > bbox.max().x + BOUNDARY_TOLERANCE
             || latitude < bbox.min().y - BOUNDARY_TOLERANCE

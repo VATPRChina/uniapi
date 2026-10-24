@@ -142,6 +142,14 @@ impl FlightService {
         self.warnings(&flight).await
     }
 
+    pub async fn v2_by_callsign(
+        &self,
+        callsign: &str,
+    ) -> Result<super::dto::FlightV2Dto, FlightServiceError> {
+        let flight = self.find_by_callsign(callsign).await?;
+        Ok(super::flight_plan::diagnostics::analyze_flight(flight, &self.navdata).await)
+    }
+
     pub async fn validations_by_callsign(
         &self,
         callsign: &str,

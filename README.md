@@ -19,83 +19,7 @@ vatprc-uniapi migrate      # apply pending database migrations
 vatprc-uniapi route-v2 "ZBAA ELKUR W40 YQG ZSPD" # print the complete parser trace
 ```
 
-`route-v2` accepts a complete route including departure and arrival. It runs the
-same v2 pipeline as `GET /api/flights/route/v2` and prints a plain-text trace of
-the lexer, parser, candidate resolver, solver, constructor, and expander.
-The trace includes every token, amendment, parser error, resolved candidate,
-surviving solver state (distance, recovery count, position, and predecessor),
-and constructed/expanded leg with coordinates and direction restrictions.
-Existing v2 diagnostic logs (such as rejected transitions) are also printed;
-`RUST_LOG` can override the default v2 trace filter.
-Unknown fixes and legs are explicitly marked. It uses the configured navdata
-paths and requires no running HTTP server or PostgreSQL connection. Invalid
-routes exit with an error after printing the completed stages.
-
-The final CLI stage lists mainland route portions, matched preferred-route names,
-and original leg indices. Border crossings are checked with both mainland and
-foreign endpoints; unmatched portions are explicitly marked. This stage uses
-the mainland FIR records and preferred-route SQLite database configured below.
-
-To use other local navigation data files:
-
-```sh
-cargo run -- route-v2 "ZBAA ELKUR W40 YQG ZSPD" \
-  --navdata "data/NavigraphDFDv2-2604.1.0.db?mode=ro" \
-  --preferred-routes data/routes.db
-```
-
-The developer-only `GET /api/flights/route/v2?route=...` response includes
-`legs`, `sid_candidates`, and `segments`. Each segment has a `kind` of
-`mainland` or `international` and describes one contiguous portion with a name,
-a half-open `[start_index, end_index)` range into `legs`,
-airport endpoints, enroute endpoints, and both known endpoints of border
-crossings. Missing airport or crossing endpoints are `null`. Unknown fixes
-between known border endpoints remain in the referenced legs.
-
 ### Database
-
-Preferred routes are queried on demand from the SQLite database at
-`navdata.preferred_routes_path` (default: `data/routes.db`). The database is
-opened read-only and uses the `Routes` table from the `Route.db3` release asset
-in `VATPRChina/prc-route`. Each lookup filters by departure and arrival in SQL
-and sees committed route changes without restarting the server.
-Data preparation adds the `uniapi_routes_endpoints` index on the normalized,
-case-insensitive endpoint pair for these lookups.
-
-Preferred-route segment selection reads the nine mainland FIR boundaries from
-the configured navigation database's ARINC 424 `tbl_uf_fir_uir` records.
-International flights require ZBPE, ZGZU, ZHWH, ZJSA, ZLHW, ZPKM, ZSHA,
-ZWUQ and ZYSH; regional/sample databases may not contain all nine. FIR and
-combined FIR/UIR records are included; delegated airspace and UIR-only records
-are excluded. Great-circle and rhumb-line boundaries are supported; missing,
-malformed or unsupported boundary data returns a navigation-data error.
-
-`RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs)` returns
-a complete partition into `mainland` and `international` segments, borrowing
-the original legs and retaining their indices. Ranges do not overlap and every
-leg is included exactly once. Mainland segments include their entry and exit
-crossings; international segments contain the wholly foreign legs between
-visits. Airports are retained only when actually at a segment endpoint.
-Unknown fix chains stay in the path, with crossings bounded by their known
-fixes. Chains without mainland evidence belong to an international portion.
-Disconnected paths always start a separate segment.
-
-`PreferredRouteMatcher::new(&navdata).match_segment(&segment).await?` returns
-an optional preferred route for mainland segments; international segments are
-not matched. An airport-to-airport match takes priority. If
-that fails, the matcher tries departure airport or either entry endpoint
-against arrival airport or either exit endpoint. Routes that start/end at an
-enroute fix retain that endpoint. Public routes precede private routes within
-each priority tier. The `Routes` table's `Waypoint1`/`Waypoint2` columns supply
-endpoints when `Dep`/`Arr` are empty. Matching compares the complete expanded
-enroute path, from the first fix after SID to the last fix before STAR, ignoring
-airport connections.
-Unknown legs cannot match a designated path. The batch `find_matching_route`
-method also returns the exact covered leg range for segment validation.
-
-The validations endpoint checks each matched portion's altitude restrictions
-and suppresses route warnings only on its covered legs. Foreign and unmatched
-portions keep their own warnings, with indices referring to the original route.
 
 This server requires a local PostgreSQL server. Please start one and specify the
 following in `settings.local.toml`.
@@ -151,22 +75,6 @@ from = "VATPRC <no-reply@example.com>"
 ```
 
 The SMTP connection uses STARTTLS.
-
-### Flight plan validation updates
-
-Connect to `ws(s)://<host>/api/flights/warnings/streaming` to receive flight
-plan validation results for all active flights. The server sends the current
-results as a JSON object keyed by callsign in the first text message, checks all
-flight plans again every 30 seconds, and sends another complete snapshot only
-when the results change. This includes flights appearing and disappearing. The
-existing HTTP validation endpoints remain available for request-based checks.
-
-Every validation also runs the v2 parser and validator in a background shadow
-task. Responses continue to use v1, including v1 errors. If the results differ,
-the server logs `flight validation shadow mismatch` at WARN with the callsign,
-complete route, and both results. Comparisons include warning order, codes,
-parameters, fields, and field indices; failures are compared by error message.
-V2 failures do not affect the response.
 
 ## Testing
 

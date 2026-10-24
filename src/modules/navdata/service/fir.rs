@@ -13,7 +13,21 @@ impl NavdataService {
     /// Read ARINC 424 UF boundaries from the configured DFD v2 database.
     /// F = FIR, B = combined FIR/UIR. C (delegated airspace) and UIR-only
     /// records are deliberately excluded from horizontal FIR coverage.
+    /// Missing tables or incomplete mainland coverage disable geographic
+    /// classification, while malformed data and database failures remain errors.
     pub async fn mainland_fir_boundaries(db: &SqlitePool) -> NavdataResult<ChinaMainlandBoundary> {
+        let has_table: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master
+             WHERE name = 'tbl_uf_fir_uir' COLLATE NOCASE AND type IN ('table', 'view'))",
+        )
+        .fetch_one(db)
+        .await?;
+        if !has_table {
+            tracing::warn!(
+                "FIR boundary table is missing; continuing without geographic China classification"
+            );
+            return Ok(ChinaMainlandBoundary::default());
+        }
         let records = sqlx::query_as::<_, FirRecord>(
             "SELECT area_code, fir_uir_identifier, fir_uir_indicator, seqno,
                     boundary_via, fir_uir_latitude AS latitude, fir_uir_longitude AS longitude
@@ -54,10 +68,11 @@ fn build_boundaries(records: Vec<FirRecord>) -> NavdataResult<ChinaMainlandBound
         .filter(|id| !found.contains(id))
         .collect();
     if !missing.is_empty() {
-        return Err(invalid(format!(
-            "missing mainland FIRs: {}",
-            missing.join(", ")
-        )));
+        tracing::warn!(
+            missing_firs = %missing.join(", "),
+            "mainland FIR boundaries are incomplete; continuing without geographic China classification"
+        );
+        return Ok(ChinaMainlandBoundary::default());
     }
     let mut groups = BTreeMap::<_, Vec<FirRecord>>::new();
     for record in records {
@@ -161,5 +176,153 @@ fn append_edge(ring: &mut Vec<(f64, f64)>, from: &FirRecord, to: &FirRecord) {
                 (2. * y.exp().atan() - std::f64::consts::FRAC_PI_2).to_degrees(),
             ));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::modules::navdata::models::{Airport, AnyFix, GeoPoint};
+
+    async fn database() -> SqlitePool {
+        sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap()
+    }
+
+    async fn create_table(db: &SqlitePool) {
+        sqlx::query(
+            "CREATE TABLE tbl_uf_fir_uir (
+                area_code TEXT, fir_uir_identifier TEXT, fir_uir_indicator TEXT,
+                seqno INTEGER, boundary_via TEXT, fir_uir_latitude REAL,
+                fir_uir_longitude REAL)",
+        )
+        .execute(db)
+        .await
+        .unwrap();
+    }
+
+    fn records(identifiers: &[&str]) -> Vec<FirRecord> {
+        identifiers
+            .iter()
+            .flat_map(|identifier| {
+                [(100., 20., "H "), (120., 20., "H "), (110., 40., "HE")]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (longitude, latitude, via))| FirRecord {
+                        area_code: "PAC".into(),
+                        fir_uir_identifier: (*identifier).into(),
+                        fir_uir_indicator: "F".into(),
+                        seqno: index as i64,
+                        boundary_via: via.into(),
+                        latitude,
+                        longitude,
+                    })
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn missing_table_disables_geographic_coverage_but_keeps_icao_classification() {
+        let boundary = NavdataService::mainland_fir_boundaries(&database().await)
+            .await
+            .unwrap();
+        assert!(!boundary.contains((30., 110.)));
+        assert!(!boundary.contains((0., 0.)));
+        let airport = AnyFix::Airport(Airport {
+            identifier: "ZBAA".try_into().unwrap(),
+            latitude: 40.0.try_into().unwrap(),
+            longitude: 116.0.try_into().unwrap(),
+        });
+        assert!(airport.is_china_or_unknown(&boundary));
+        for identifier in ["ZMUB", "ZKPY", "RJAA"] {
+            let foreign = AnyFix::Airport(Airport {
+                identifier: identifier.try_into().unwrap(),
+                latitude: 30.0.try_into().unwrap(),
+                longitude: 110.0.try_into().unwrap(),
+            });
+            assert!(!foreign.is_china_or_unknown(&boundary));
+        }
+        assert!(!AnyFix::from(GeoPoint::new(30., 110.).unwrap()).is_china_or_unknown(&boundary));
+        assert!(AnyFix::Unknown("UNKNOWN".into()).is_china_or_unknown(&boundary));
+    }
+
+    #[tokio::test]
+    async fn empty_or_partial_mainland_tables_disable_geographic_coverage() {
+        let db = database().await;
+        create_table(&db).await;
+        let empty = NavdataService::mainland_fir_boundaries(&db).await.unwrap();
+        assert!(!empty.contains((30., 110.)));
+        for record in records(&["ZBPE"]) {
+            sqlx::query("INSERT INTO tbl_uf_fir_uir VALUES (?, ?, ?, ?, ?, ?, ?)")
+                .bind(record.area_code)
+                .bind(record.fir_uir_identifier)
+                .bind(record.fir_uir_indicator)
+                .bind(record.seqno)
+                .bind(record.boundary_via)
+                .bind(record.latitude)
+                .bind(record.longitude)
+                .execute(&db)
+                .await
+                .unwrap();
+        }
+        let partial = NavdataService::mainland_fir_boundaries(&db).await.unwrap();
+        assert!(!partial.contains((30., 110.)));
+    }
+
+    #[test]
+    fn complete_boundaries_still_classify_positions() {
+        let boundary = build_boundaries(records(&MAINLAND_FIRS)).unwrap();
+        assert!(boundary.contains((30., 110.)));
+        assert!(!boundary.contains((30., 130.)));
+    }
+
+    #[test]
+    fn malformed_complete_boundaries_remain_errors() {
+        let mut records = records(&MAINLAND_FIRS);
+        records[0].boundary_via = "C ".into();
+        assert!(matches!(
+            build_boundaries(records),
+            Err(InvalidNavdataError::InvalidFirBoundary(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn schema_and_connection_errors_are_not_treated_as_missing_boundaries() {
+        let db = database().await;
+        sqlx::query("CREATE TABLE tbl_uf_fir_uir (wrong_column TEXT)")
+            .execute(&db)
+            .await
+            .unwrap();
+        assert!(matches!(
+            NavdataService::mainland_fir_boundaries(&db).await,
+            Err(InvalidNavdataError::DatabaseError(_))
+        ));
+        db.close().await;
+        assert!(matches!(
+            NavdataService::mainland_fir_boundaries(&db).await,
+            Err(InvalidNavdataError::DatabaseError(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn navdata_service_initializes_without_a_fir_table() {
+        let path = std::env::temp_dir().join(format!("vatprc-no-firs-{}.db", ulid::Ulid::new()));
+        let db = SqlitePool::connect_with(
+            sqlx::sqlite::SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+        db.close().await;
+        let service = NavdataService::with_preferred_routes_path(path.to_str().unwrap(), &path)
+            .await
+            .unwrap();
+        assert!(!service.china_boundaries().contains((30., 110.)));
+        drop(service);
+        std::fs::remove_file(path).unwrap();
     }
 }

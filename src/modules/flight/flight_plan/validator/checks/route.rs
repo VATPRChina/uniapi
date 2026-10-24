@@ -1,6 +1,7 @@
+use super::CheckResult;
 use super::{ValidationContext, Validator, WarningMessageField};
 use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageCode};
-use crate::modules::flight::models::{ValidatorResult, ValidatorStatus};
+use crate::modules::flight::models::ValidatorStatus;
 use crate::modules::navdata::models::{AnyFix, DirectionRestriction, LegKind, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
 
@@ -8,10 +9,11 @@ use crate::modules::navdata::service::NavdataService;
 pub struct PreferredRouteValidator;
 
 impl Validator for PreferredRouteValidator {
+    const LEVEL: super::ValidationLevel = super::ValidationLevel::Segment;
     const IDENT: &'static str = "route-preferred";
     const FIELD: WarningMessageField = WarningMessageField::Route;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         let (status, warnings) = if context.route.legs.is_empty() {
             (ValidatorStatus::Unavailable, Vec::new())
         } else if let Some(preferred) = context.preferred_route {
@@ -49,7 +51,7 @@ impl Validator for PreferredRouteValidator {
                 )],
             )
         };
-        ValidatorResult {
+        CheckResult {
             validator_ident: Self::IDENT.to_owned(),
             field: Self::FIELD,
             status,
@@ -62,10 +64,11 @@ impl Validator for PreferredRouteValidator {
 pub struct RouteDirectLegValidator;
 
 impl Validator for RouteDirectLegValidator {
+    const LEVEL: super::ValidationLevel = super::ValidationLevel::Leg;
     const IDENT: &'static str = "route-direct-leg";
     const FIELD: WarningMessageField = WarningMessageField::Route;
 
-    fn validate(context: &ValidationContext<'_>, navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, navdata: &NavdataService) -> CheckResult {
         validate_legs::<Self>(
             context,
             true,
@@ -85,10 +88,11 @@ impl Validator for RouteDirectLegValidator {
 pub struct RouteUnknownLegOrFixValidator;
 
 impl Validator for RouteUnknownLegOrFixValidator {
+    const LEVEL: super::ValidationLevel = super::ValidationLevel::Leg;
     const IDENT: &'static str = "route-unknown-leg-or-fix";
     const FIELD: WarningMessageField = WarningMessageField::Route;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         validate_legs::<Self>(
             context,
             true,
@@ -102,10 +106,11 @@ impl Validator for RouteUnknownLegOrFixValidator {
 pub struct AirwayApprovalValidator;
 
 impl Validator for AirwayApprovalValidator {
+    const LEVEL: super::ValidationLevel = super::ValidationLevel::Leg;
     const IDENT: &'static str = "route-airway-approval";
     const FIELD: WarningMessageField = WarningMessageField::Route;
 
-    fn validate(context: &ValidationContext<'_>, navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, navdata: &NavdataService) -> CheckResult {
         validate_legs::<Self>(
             context,
             true,
@@ -127,10 +132,11 @@ impl Validator for AirwayApprovalValidator {
 pub struct AirwayDirectionValidator;
 
 impl Validator for AirwayDirectionValidator {
+    const LEVEL: super::ValidationLevel = super::ValidationLevel::Leg;
     const IDENT: &'static str = "route-airway-direction";
     const FIELD: WarningMessageField = WarningMessageField::Route;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         validate_legs::<Self>(
             context,
             true,
@@ -149,7 +155,7 @@ fn validate_legs<V: Validator>(
     suppress_preferred: bool,
     code: WarningMessageCode,
     is_invalid: impl Fn(&ResolvedLeg) -> bool,
-) -> ValidatorResult {
+) -> CheckResult {
     let (status, warnings) = if context.route.legs.is_empty() {
         (ValidatorStatus::Unavailable, Vec::new())
     } else if suppress_preferred && context.preferred_route.is_some() {
@@ -174,7 +180,7 @@ fn validate_legs<V: Validator>(
             warnings,
         )
     };
-    ValidatorResult {
+    CheckResult {
         validator_ident: V::IDENT.to_owned(),
         field: V::FIELD,
         status,

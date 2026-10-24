@@ -1,12 +1,14 @@
-use super::{ValidatorError, checks::*, validate_all};
-use crate::modules::flight::flight_plan::{PreferredRouteMatcher, RouteSegment, RouteSegmenter};
-use crate::modules::flight::models::{Flight, ParsedRoute, ValidatorResult, ValidatorStatus};
+use super::{ValidatorError, checks::*, validate_flight};
+use crate::modules::flight::flight_plan::matcher::SegmentMatchReport;
+use crate::modules::flight::flight_plan::{
+    PreferredRouteMatcher, RouteSegment, RouteSegmenter, Segment,
+};
+use crate::modules::flight::models::{Flight, ParsedRoute, ValidationScope, ValidatorResult};
 use crate::modules::navdata::models::PreferredRoute;
 use crate::modules::navdata::service::NavdataService;
 
-/// Match each mainland portion independently, preserving the full-flight checks
-/// and original leg indices. A preferred route suppresses checks only on the
-/// legs it covers; foreign and unmatched portions are still checked normally.
+/// Preserve every execution, including passing and suppressed checks. Segment
+/// indices refer to the segmenter's output; leg indices refer to the full route.
 pub async fn validate_route(
     flight: &Flight,
     route: &ParsedRoute,
@@ -14,68 +16,51 @@ pub async fn validate_route(
 ) -> Result<Vec<ValidatorResult>, ValidatorError> {
     let matcher = PreferredRouteMatcher::new(navdata);
     let segments = RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs);
-    let matches = matcher.find_matching_route(segments.clone()).await?;
+    let mut reports = Vec::new();
+    for segment in &segments {
+        reports.push(matcher.inspect_segment(segment).await?);
+    }
+    Ok(validate_analyzed_route(
+        flight, route, &segments, &reports, navdata,
+    ))
+}
+
+pub(crate) fn validate_analyzed_route(
+    flight: &Flight,
+    route: &ParsedRoute,
+    segments: &[Segment<'_>],
+    reports: &[SegmentMatchReport<'_>],
+    navdata: &NavdataService,
+) -> Vec<ValidatorResult> {
     let context = ValidationContext {
         flight,
         route,
-        preferred_route: matches.iter().find_map(|(_, preferred)| preferred.as_ref()),
+        preferred_route: reports
+            .iter()
+            .find_map(|report| report.selected().map(|candidate| &candidate.preferred)),
         preferred_routes: &[],
     };
-    let mut results = validate_all(&context, navdata)?;
-    let mut combined = Vec::new();
-    let mut cursor = 0;
-    for (original, (segment, preferred)) in segments.iter().zip(&matches) {
-        if cursor < segment.start_index {
-            merge_part(
-                &mut combined,
-                validate_part(
-                    flight,
-                    RouteSegment {
-                        legs: &route.legs[cursor..segment.start_index],
-                        start_index: cursor,
-                    },
-                    None,
-                    &[],
-                    navdata,
-                ),
-            );
-        }
-        let candidates = matcher.preferred_routes(original).await?;
-        merge_part(
-            &mut combined,
-            validate_part(flight, *segment, preferred.as_ref(), &candidates, navdata),
-        );
-        cursor = segment.end_index();
+    let mut results = validate_flight(&context, navdata);
+    for (segment_index, (original, report)) in segments.iter().zip(reports).enumerate() {
+        let selected = report.selected();
+        results.extend(validate_segment(
+            flight,
+            original.route,
+            segment_index,
+            selected.map_or(original.route, |candidate| candidate.coverage),
+            selected.map(|candidate| &candidate.preferred),
+            &report.preferred_routes,
+            navdata,
+        ));
     }
-    if cursor < route.legs.len() {
-        merge_part(
-            &mut combined,
-            validate_part(
-                flight,
-                RouteSegment {
-                    legs: &route.legs[cursor..],
-                    start_index: cursor,
-                },
-                None,
-                &[],
-                navdata,
-            ),
-        );
-    }
-    for result in combined {
-        if let Some(original) = results
-            .iter_mut()
-            .find(|original| original.validator_ident == result.validator_ident)
-        {
-            *original = result;
-        }
-    }
-    Ok(results)
+    results
 }
 
-fn validate_part(
+fn validate_segment(
     flight: &Flight,
     segment: RouteSegment<'_>,
+    segment_index: usize,
+    coverage: RouteSegment<'_>,
     preferred_route: Option<&PreferredRoute>,
     preferred_routes: &[PreferredRoute],
     navdata: &NavdataService,
@@ -90,49 +75,45 @@ fn validate_part(
         preferred_route,
         preferred_routes: &preferred_routes,
     };
+    let scope = ValidationScope::Segment {
+        segment_index,
+        start_leg_index: segment.start_index,
+        end_leg_index: segment.end_index(),
+    };
     let mut results = vec![
-        PreferredRouteValidator::validate(&context, navdata),
-        PreferredRouteCruiseAltitudeValidator::validate(&context, navdata),
-        RouteDirectLegValidator::validate(&context, navdata),
-        RouteUnknownLegOrFixValidator::validate(&context, navdata),
-        AirwayApprovalValidator::validate(&context, navdata),
-        AirwayDirectionValidator::validate(&context, navdata),
+        PreferredRouteValidator::execute(&context, navdata, scope.clone()),
+        PreferredRouteCruiseAltitudeValidator::execute(&context, navdata, scope),
     ];
-    for result in &mut results {
-        for warning in &mut result.warnings {
-            if let Some(index) = warning.field_index.as_mut() {
-                *index += segment.start_index;
-            }
-        }
-    }
-    results
-}
-
-fn merge_part(combined: &mut Vec<ValidatorResult>, results: Vec<ValidatorResult>) {
-    for result in results {
-        if let Some(current) = combined
-            .iter_mut()
-            .find(|current| current.validator_ident == result.validator_ident)
-        {
-            if status_priority(&result.status) > status_priority(&current.status) {
-                current.status = result.status;
-            }
-            for warning in result.warnings {
-                if !current.warnings.contains(&warning) {
-                    current.warnings.push(warning);
+    for (offset, leg) in segment.legs.iter().enumerate() {
+        let leg_index = segment.start_index + offset;
+        let route = ParsedRoute {
+            legs: vec![leg.clone()],
+        };
+        let context = ValidationContext {
+            route: &route,
+            // Matching a border alternative may cover only part of a segment.
+            preferred_route: preferred_route
+                .filter(|_| (coverage.start_index..coverage.end_index()).contains(&leg_index)),
+            ..context
+        };
+        let scope = ValidationScope::Leg {
+            segment_index,
+            leg_index,
+        };
+        let mut leg_results = vec![
+            RouteDirectLegValidator::execute(&context, navdata, scope.clone()),
+            RouteUnknownLegOrFixValidator::execute(&context, navdata, scope.clone()),
+            AirwayApprovalValidator::execute(&context, navdata, scope.clone()),
+            AirwayDirectionValidator::execute(&context, navdata, scope),
+        ];
+        for result in &mut leg_results {
+            for warning in &mut result.warnings {
+                if let Some(index) = warning.field_index.as_mut() {
+                    *index += leg_index;
                 }
             }
-        } else {
-            combined.push(result);
         }
+        results.extend(leg_results);
     }
-}
-
-fn status_priority(status: &ValidatorStatus) -> u8 {
-    match status {
-        ValidatorStatus::Suppressed => 0,
-        ValidatorStatus::Pass => 1,
-        ValidatorStatus::Unavailable => 2,
-        ValidatorStatus::Rejected => 3,
-    }
+    results
 }

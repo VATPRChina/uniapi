@@ -1,6 +1,7 @@
+use super::CheckResult;
 use super::{ValidationContext, Validator, WarningMessageField};
 use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageCode};
-use crate::modules::flight::models::{ValidatorResult, ValidatorStatus};
+use crate::modules::flight::models::ValidatorStatus;
 use crate::modules::navdata::models::AnyFix;
 use crate::modules::navdata::service::NavdataService;
 
@@ -19,7 +20,7 @@ impl Validator for DepartureAirportValidator {
     const IDENT: &'static str = "departure-airport";
     const FIELD: WarningMessageField = WarningMessageField::Departure;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         validate_airport::<Self>(
             &context.flight.departure,
             context.route.legs.first().map(|leg| &leg.from),
@@ -42,7 +43,7 @@ impl Validator for ArrivalAirportValidator {
     const IDENT: &'static str = "arrival-airport";
     const FIELD: WarningMessageField = WarningMessageField::Arrival;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         validate_airport::<Self>(
             &context.flight.arrival,
             context.route.legs.last().map(|leg| &leg.to),
@@ -51,7 +52,7 @@ impl Validator for ArrivalAirportValidator {
 }
 
 /// The route parser has already resolved these endpoints against navdata.
-fn validate_airport<V: Validator>(identifier: &str, endpoint: Option<&AnyFix>) -> ValidatorResult {
+fn validate_airport<V: Validator>(identifier: &str, endpoint: Option<&AnyFix>) -> CheckResult {
     let identifier = identifier.trim();
     let valid_identifier = identifier.len() == 4
         && identifier
@@ -81,7 +82,7 @@ fn validate_airport<V: Validator>(identifier: &str, endpoint: Option<&AnyFix>) -
     } else {
         Vec::new()
     };
-    ValidatorResult {
+    CheckResult {
         validator_ident: V::IDENT.to_owned(),
         field: V::FIELD,
         status,

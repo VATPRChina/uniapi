@@ -1,6 +1,7 @@
+use super::CheckResult;
 use super::{ValidationContext, Validator, WarningMessageField};
 use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageCode};
-use crate::modules::flight::models::{ValidatorResult, ValidatorStatus};
+use crate::modules::flight::models::ValidatorStatus;
 use crate::modules::navdata::service::NavdataService;
 
 /// Equipment must permit RVSM when cruising at a China metric RVSM flight level.
@@ -10,7 +11,7 @@ impl Validator for EquipmentRvsmValidator {
     const IDENT: &'static str = "equipment-rvsm";
     const FIELD: WarningMessageField = WarningMessageField::Equipment;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         let level = context.flight.cruising_level;
         let (status, warnings) = if level <= 0 {
             (ValidatorStatus::Unavailable, Vec::new())
@@ -26,7 +27,7 @@ impl Validator for EquipmentRvsmValidator {
                 vec![WarningMessage::new(Self::FIELD, WarningMessageCode::NoRvsm)],
             )
         };
-        ValidatorResult {
+        CheckResult {
             validator_ident: Self::IDENT.to_owned(),
             field: Self::FIELD,
             status,
@@ -42,7 +43,7 @@ impl Validator for EquipmentRnav1Validator {
     const IDENT: &'static str = "equipment-rnav1";
     const FIELD: WarningMessageField = WarningMessageField::Equipment;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         let equipment = context.flight.equipment.trim().to_ascii_uppercase();
         let pbn = context
             .flight
@@ -67,7 +68,7 @@ impl Validator for EquipmentRnav1Validator {
             ));
         }
 
-        ValidatorResult {
+        CheckResult {
             validator_ident: Self::IDENT.to_owned(),
             field: Self::FIELD,
             status: if warnings.is_empty() {
@@ -87,7 +88,7 @@ impl Validator for EquipmentRnpArValidator {
     const IDENT: &'static str = "equipment-rnp-ar";
     const FIELD: WarningMessageField = WarningMessageField::NavigationPerformance;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         let pbn = &context.flight.navigation_performance;
         // T1 includes RF capability; prefer it when both AR codes are declared.
         let code = if pbn.contains("T1") {
@@ -97,7 +98,7 @@ impl Validator for EquipmentRnpArValidator {
         } else {
             None
         };
-        ValidatorResult {
+        CheckResult {
             validator_ident: Self::IDENT.to_owned(),
             field: Self::FIELD,
             status: if code.is_some() {

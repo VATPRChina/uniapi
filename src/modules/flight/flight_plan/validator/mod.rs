@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::modules::flight::flight_plan::ParseRouteError;
 use crate::modules::flight::flight_plan::v1::parser::ParserError;
-use crate::modules::flight::models::ValidatorResult;
+use crate::modules::flight::models::{ValidationScope, ValidatorResult};
 use crate::modules::navdata::service::InvalidNavdataError;
 use crate::modules::navdata::service::NavdataService;
 
@@ -11,6 +11,7 @@ use self::checks::*;
 pub mod checks;
 mod segments;
 
+pub(crate) use segments::validate_analyzed_route;
 pub use segments::validate_route;
 
 #[derive(Debug, thiserror::Error)]
@@ -112,29 +113,23 @@ pub enum WarningMessageCode {
     RouteMatchPreferred,
 }
 
-/// Run every flight-plan check in a stable order.
-pub fn validate_all(
+/// Run flight-level checks once, in a stable order.
+pub fn validate_flight(
     context: &ValidationContext<'_>,
     navdata: &NavdataService,
-) -> Result<Vec<ValidatorResult>, ValidatorError> {
-    Ok(vec![
-        CallsignValidator::validate(context, navdata),
-        FlightRuleWeatherValidator::validate(context, navdata),
-        AircraftTypeValidator::validate(context, navdata),
-        WakeCategoryValidator::validate(context, navdata),
-        DepartureAircraftTypeValidator::validate(context, navdata),
-        DepartureAirportValidator::validate(context, navdata),
-        ArrivalAircraftTypeValidator::validate(context, navdata),
-        ArrivalAirportValidator::validate(context, navdata),
-        PreferredRouteCruiseAltitudeValidator::validate(context, navdata),
-        DirectionalCruiseAltitudeValidator::validate(context, navdata),
-        EquipmentRvsmValidator::validate(context, navdata),
-        EquipmentRnav1Validator::validate(context, navdata),
-        EquipmentRnpArValidator::validate(context, navdata),
-        PreferredRouteValidator::validate(context, navdata),
-        RouteDirectLegValidator::validate(context, navdata),
-        RouteUnknownLegOrFixValidator::validate(context, navdata),
-        AirwayApprovalValidator::validate(context, navdata),
-        AirwayDirectionValidator::validate(context, navdata),
-    ])
+) -> Vec<ValidatorResult> {
+    vec![
+        CallsignValidator::execute(context, navdata, ValidationScope::Flight),
+        FlightRuleWeatherValidator::execute(context, navdata, ValidationScope::Flight),
+        AircraftTypeValidator::execute(context, navdata, ValidationScope::Flight),
+        WakeCategoryValidator::execute(context, navdata, ValidationScope::Flight),
+        DepartureAircraftTypeValidator::execute(context, navdata, ValidationScope::Flight),
+        DepartureAirportValidator::execute(context, navdata, ValidationScope::Flight),
+        ArrivalAircraftTypeValidator::execute(context, navdata, ValidationScope::Flight),
+        ArrivalAirportValidator::execute(context, navdata, ValidationScope::Flight),
+        DirectionalCruiseAltitudeValidator::execute(context, navdata, ValidationScope::Flight),
+        EquipmentRvsmValidator::execute(context, navdata, ValidationScope::Flight),
+        EquipmentRnav1Validator::execute(context, navdata, ValidationScope::Flight),
+        EquipmentRnpArValidator::execute(context, navdata, ValidationScope::Flight),
+    ]
 }

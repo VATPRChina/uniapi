@@ -1,8 +1,9 @@
 use std::{collections::HashMap, sync::LazyLock};
 
+use super::CheckResult;
 use super::{ValidationContext, Validator, WarningMessageField};
 use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageCode};
-use crate::modules::flight::models::{ValidatorResult, ValidatorStatus};
+use crate::modules::flight::models::ValidatorStatus;
 use crate::modules::navdata::service::NavdataService;
 
 // Generated from data/AircraftTypes.json by scripts/generate_aircraft_types.py.
@@ -29,8 +30,8 @@ impl Validator for FlightRuleWeatherValidator {
     const IDENT: &'static str = "flight-rule-weather";
     const FIELD: WarningMessageField = WarningMessageField::FlightRules;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
-        ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
+        CheckResult {
             validator_ident: Self::IDENT.to_owned(),
             field: Self::FIELD,
             status: if context.flight.flight_rules.trim().eq_ignore_ascii_case("I") {
@@ -50,7 +51,7 @@ impl Validator for AircraftTypeValidator {
     const IDENT: &'static str = "aircraft-type";
     const FIELD: WarningMessageField = WarningMessageField::AircraftType;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         let aircraft = context.flight.aircraft.trim().to_ascii_uppercase();
         let status = if aircraft.is_empty() {
             ValidatorStatus::Unavailable
@@ -59,7 +60,7 @@ impl Validator for AircraftTypeValidator {
         } else {
             ValidatorStatus::Rejected
         };
-        ValidatorResult {
+        CheckResult {
             validator_ident: Self::IDENT.to_owned(),
             field: Self::FIELD,
             status: status.clone(),
@@ -83,7 +84,7 @@ impl Validator for WakeCategoryValidator {
     const IDENT: &'static str = "wake-category";
     const FIELD: WarningMessageField = WarningMessageField::WakeCategory;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         let aircraft = context.flight.aircraft.trim().to_ascii_uppercase();
         let wake = context.flight.wake_category.trim().to_ascii_uppercase();
         let categories = AIRCRAFT_TYPES.get(&aircraft);
@@ -95,7 +96,7 @@ impl Validator for WakeCategoryValidator {
             }
             Some(_) => ValidatorStatus::Rejected,
         };
-        ValidatorResult {
+        CheckResult {
             validator_ident: Self::IDENT.to_owned(),
             field: Self::FIELD,
             status: status.clone(),

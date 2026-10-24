@@ -10,7 +10,7 @@ use tokio::time;
 
 use crate::error::ApiError;
 use crate::modules::flight::dto::{
-    FlightDto, FlightRouteV2Query, RouteDeliveryInfo, TemporaryFlightQuery,
+    FlightDto, FlightRouteV2Query, FlightV2Dto, RouteDeliveryInfo, TemporaryFlightQuery,
 };
 use crate::modules::flight::flight_plan::validator;
 use crate::modules::flight::models::{Flight, ValidatorResult};
@@ -25,6 +25,7 @@ const VALIDATION_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
 #[openapi(paths(
     active_flights,
     flight_by_callsign,
+    flight_v2_by_callsign,
     warnings_by_callsign,
     validations_by_callsign,
     my_flight,
@@ -38,6 +39,7 @@ pub fn build_flight_routes() -> Router<Services> {
         .route("/active", get(active_flights))
         .route("/warnings/streaming", get(warnings_websocket))
         .route("/by-callsign/{callsign}", get(flight_by_callsign))
+        .route("/by-callsign/{callsign}/v2", get(flight_v2_by_callsign))
         .route(
             "/by-callsign/{callsign}/warnings",
             get(warnings_by_callsign),
@@ -51,10 +53,33 @@ pub fn build_flight_routes() -> Router<Services> {
         .route("/route/v2", get(route_v2))
 }
 
+/// Complete v2 flight diagnostics from one flight-plan snapshot.
+/// Parser and matching errors retain earlier completed stages in the response.
+#[utoipa::path(
+    get, path = "api/flights/by-callsign/{callsign}/v2", tag = "Flights", security(("oauth2" = [])),
+    params(("callsign" = String, Path, description = "Callsign")),
+    responses(
+        (status = 200, description = "Flight plan, parser stages, segments, preferred-route matching and validators", body = FlightV2Dto),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Software engineer role required"),
+        (status = 404, description = "Flight not found")
+    )
+)]
+async fn flight_v2_by_callsign(
+    current_user: CurrentUser,
+    State(flight): State<FlightService>,
+    Path(callsign): Path<String>,
+) -> Result<Json<FlightV2Dto>, ApiError> {
+    current_user.require_role(UserRole::SoftwareEngineer)?;
+    Ok(Json(flight.v2_by_callsign(&callsign).await?))
+}
+
+/// Superseded for flight diagnostics by `/api/flights/by-callsign/{callsign}/v2`.
 /// Parse a complete route with v2 and return expanded legs, mainland segments and matching SIDs.
 /// Requires the software-engineer role.
 #[utoipa::path(
-    get, path = "api/flights/route/v2", tag = "Flights", security(("oauth2" = [])),
+    get, path = "api/flights/route/v2", tag = "Flights",
+    description = "Superseded for flight diagnostics by /api/flights/by-callsign/{callsign}/v2.", security(("oauth2" = [])),
     params(("route" = String, Query, description = "Complete route including departure and arrival")),
     responses(
         (status = 200, description = "Expanded legs, mainland segments and SID candidates", body = RouteDeliveryInfo),
@@ -109,6 +134,7 @@ async fn warnings_by_callsign(
 
 #[utoipa::path(
     get, path = "api/flights/by-callsign/{callsign}/validations", tag = "Flights",
+    description = "Superseded for flight diagnostics by /api/flights/by-callsign/{callsign}/v2.",
     params(("callsign" = String, Path, description = "Callsign")),
     responses((status = 200, description = "Results of all flight-plan validators", body = Vec<ValidatorResult>))
 )]

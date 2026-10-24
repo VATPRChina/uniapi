@@ -1,10 +1,11 @@
+use super::CheckResult;
 use super::{ValidationContext, Validator, WarningMessageField};
 use crate::modules::flight::flight_plan::altitude::{
     level_restriction_matches, level_restriction_param, level_restriction_type,
     standard_altitude_from_flight_level,
 };
 use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageCode};
-use crate::modules::flight::models::{ValidatorResult, ValidatorStatus};
+use crate::modules::flight::models::ValidatorStatus;
 use crate::modules::navdata::models::{Fix, LevelRestrictionType, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
 
@@ -12,10 +13,11 @@ use crate::modules::navdata::service::NavdataService;
 pub struct PreferredRouteCruiseAltitudeValidator;
 
 impl Validator for PreferredRouteCruiseAltitudeValidator {
+    const LEVEL: super::ValidationLevel = super::ValidationLevel::Segment;
     const IDENT: &'static str = "cruise-altitude-preferred-route";
     const FIELD: WarningMessageField = WarningMessageField::CruisingLevel;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         let Some(route) = context.preferred_route else {
             return result::<Self>(ValidatorStatus::Suppressed, Vec::new());
         };
@@ -53,7 +55,7 @@ impl Validator for DirectionalCruiseAltitudeValidator {
     const IDENT: &'static str = "cruise-altitude-directional";
     const FIELD: WarningMessageField = WarningMessageField::CruisingLevel;
 
-    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> ValidatorResult {
+    fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         if context.preferred_route.is_some() {
             return result::<Self>(ValidatorStatus::Suppressed, Vec::new());
         }
@@ -110,7 +112,7 @@ fn restriction_warnings(level: i32, restriction: LevelRestrictionType) -> Vec<Wa
     }
 }
 
-fn checked_result<V: Validator>(warnings: Vec<WarningMessage>) -> ValidatorResult {
+fn checked_result<V: Validator>(warnings: Vec<WarningMessage>) -> CheckResult {
     result::<V>(
         if warnings.is_empty() {
             ValidatorStatus::Pass
@@ -121,8 +123,8 @@ fn checked_result<V: Validator>(warnings: Vec<WarningMessage>) -> ValidatorResul
     )
 }
 
-fn result<V: Validator>(status: ValidatorStatus, warnings: Vec<WarningMessage>) -> ValidatorResult {
-    ValidatorResult {
+fn result<V: Validator>(status: ValidatorStatus, warnings: Vec<WarningMessage>) -> CheckResult {
+    CheckResult {
         validator_ident: V::IDENT.to_owned(),
         field: V::FIELD,
         status,

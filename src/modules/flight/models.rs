@@ -69,10 +69,28 @@ pub struct SidCandidate {
 // TODO: add a separate DTO
 #[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
 pub struct ValidatorResult {
+    pub scope: ValidationScope,
     pub validator_ident: String,
     pub field: WarningMessageField,
     pub status: ValidatorStatus,
     pub warnings: Vec<WarningMessage>,
+}
+
+/// Indices are zero-based offsets into the segment list and expanded route.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
+#[serde(tag = "level", rename_all = "kebab-case")]
+pub enum ValidationScope {
+    Flight,
+    Segment {
+        segment_index: usize,
+        start_leg_index: usize,
+        /// Exclusive end of the segment in the expanded route.
+        end_leg_index: usize,
+    },
+    Leg {
+        segment_index: usize,
+        leg_index: usize,
+    },
 }
 
 // TODO: add a separate DTO

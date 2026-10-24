@@ -27,6 +27,7 @@
 //! ```
 
 mod constructor;
+mod diagnostics;
 mod expander;
 mod lex_grouper;
 mod lexer;
@@ -68,7 +69,7 @@ pub async fn parse_route(
 pub async fn parse_route_with_observer(
     navdata: &NavdataService,
     route: &str,
-    observe: impl Fn(RouteParseStep<'_, '_>),
+    mut observe: impl FnMut(RouteParseStep<'_, '_>),
 ) -> Result<ParsedRoute, ParseRouteError> {
     let tokens: Vec<_> = Lexer::new(route).parse_all().collect();
     observe(RouteParseStep::Lexed(&tokens));
