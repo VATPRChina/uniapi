@@ -3,14 +3,13 @@ use crate::modules::flight::flight_plan::matcher::SegmentMatchReport;
 use crate::modules::flight::flight_plan::{
     PreferredRouteMatcher, RouteSegment, RouteSegmenter, Segment, SegmentKind,
 };
-use crate::modules::flight::models::{
-    Flight, ParsedRoute, ValidationScope, ValidatorResult, ValidatorStatus,
-};
+use crate::modules::flight::models::{Flight, ParsedRoute, ValidationScope, ValidatorResult};
 use crate::modules::navdata::models::PreferredRoute;
 use crate::modules::navdata::service::NavdataService;
 
-/// Preserve every execution, including passing and suppressed checks. Segment
-/// indices refer to the segmenter's output; leg indices refer to the full route.
+/// Preserve every execution, including passing and suppressed checks. International
+/// segments skip segment and leg validators. Segment indices refer to the
+/// segmenter's output; leg indices refer to the full route.
 pub async fn validate_route(
     flight: &Flight,
     route: &ParsedRoute,
@@ -44,8 +43,11 @@ pub(crate) fn validate_analyzed_route(
     };
     let mut results = validate_flight(&context, navdata);
     for (segment_index, (original, report)) in segments.iter().zip(reports).enumerate() {
+        if original.kind == SegmentKind::International {
+            continue;
+        }
         let selected = report.selected();
-        let mut segment_results = validate_segment(
+        results.extend(validate_segment(
             flight,
             original.route,
             segment_index,
@@ -53,16 +55,7 @@ pub(crate) fn validate_analyzed_route(
             selected.map(|candidate| &candidate.preferred),
             &report.preferred_routes,
             navdata,
-        );
-        // International portions retain scoped entries for display, but none of
-        // their segment or leg checks should contribute validation warnings.
-        if original.kind == SegmentKind::International {
-            for result in &mut segment_results {
-                result.status = ValidatorStatus::Suppressed;
-                result.warnings.clear();
-            }
-        }
-        results.extend(segment_results);
+        ));
     }
     results
 }
@@ -133,6 +126,7 @@ fn validate_segment(
 mod tests {
     use super::*;
     use crate::modules::flight::dto::TemporaryFlightQuery;
+    use crate::modules::flight::models::ValidatorStatus;
     use crate::modules::navdata::models::{
         AnyFix, DirectionRestriction, LegKind, ResolvedLeg, Waypoint, WaypointKind,
     };
@@ -159,7 +153,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn international_segments_suppress_all_scoped_checks() {
+    async fn international_segments_skip_all_scoped_checks() {
         let directory = std::env::temp_dir().join(format!("validation-{}", ulid::Ulid::new()));
         std::fs::create_dir(&directory).unwrap();
         let path = directory.join("navdata.db");
@@ -186,12 +180,14 @@ mod tests {
                 leg("ZB", "A", "B"),
                 leg("RJ", "C", "D"),
                 leg("RJ", "D", "E"),
+                leg("ZB", "F", "G"),
             ],
         };
         let segments = RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs);
-        assert_eq!(segments.len(), 2);
+        assert_eq!(segments.len(), 3);
         assert_eq!(segments[0].kind, SegmentKind::Mainland);
         assert_eq!(segments[1].kind, SegmentKind::International);
+        assert_eq!(segments[2].kind, SegmentKind::Mainland);
         let reports = segments
             .iter()
             .map(|_| SegmentMatchReport {
@@ -213,7 +209,10 @@ mod tests {
         assert_eq!(&results[..flight_results.len()], flight_results);
         let mut offset = flight_results.len();
         for (index, segment) in segments.iter().enumerate() {
-            let mut expected = validate_segment(
+            if segment.kind == SegmentKind::International {
+                continue;
+            }
+            let expected = validate_segment(
                 &flight,
                 segment.route,
                 index,
@@ -222,16 +221,10 @@ mod tests {
                 &[],
                 &navdata,
             );
-            // Ensure the fixture exercises warnings which must be removed.
+            // Mainland warnings and original segment/leg indices remain intact.
             assert!(expected.iter().any(|result| {
                 result.status == ValidatorStatus::Rejected && !result.warnings.is_empty()
             }));
-            if segment.kind == SegmentKind::International {
-                for result in &mut expected {
-                    result.status = ValidatorStatus::Suppressed;
-                    result.warnings.clear();
-                }
-            }
             assert_eq!(results[offset..offset + expected.len()], expected);
             offset += expected.len();
         }
@@ -239,19 +232,21 @@ mod tests {
 
         // Also cover the public pipeline when the entire route is international.
         let international_route = ParsedRoute {
-            legs: route.legs[1..].to_vec(),
+            legs: route.legs[1..3].to_vec(),
         };
         let results = validate_route(&flight, &international_route, &navdata)
             .await
             .unwrap();
-        let scoped = results
-            .iter()
-            .filter(|result| result.scope != ValidationScope::Flight)
-            .collect::<Vec<_>>();
-        assert_eq!(scoped.len(), 10); // Two segment checks and four per leg.
-        assert!(scoped.iter().all(|result| {
-            result.status == ValidatorStatus::Suppressed && result.warnings.is_empty()
-        }));
+        let expected = validate_flight(
+            &ValidationContext {
+                flight: &flight,
+                route: &international_route,
+                preferred_route: None,
+                preferred_routes: &[],
+            },
+            &navdata,
+        );
+        assert_eq!(results, expected);
         drop(navdata);
         std::fs::remove_dir_all(directory).unwrap();
     }
