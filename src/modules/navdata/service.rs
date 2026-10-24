@@ -1,3 +1,6 @@
+use std::{path::Path, sync::Arc};
+
+use super::aircraft_limits::AircraftLimits;
 use arrayvec::CapacityError;
 use sqlx::SqlitePool;
 
@@ -68,6 +71,7 @@ pub struct NavdataService {
     db: SqlitePool,
     routes: PreferredRouteRepository,
     china_boundaries: ChinaMainlandBoundary,
+    aircraft_limits: Arc<AircraftLimits>,
 }
 
 impl NavdataService {
@@ -79,7 +83,12 @@ impl NavdataService {
         let db = SqlitePool::connect(&format!("sqlite:{local_data_path}")).await?;
         let routes = PreferredRouteRepository::from_db_path(preferred_routes_path).await?;
         let china_boundaries = NavdataService::mainland_fir_boundaries(&db).await?;
+        let directory = Path::new(local_data_path)
+            .parent()
+            .unwrap_or_else(|| Path::new("."));
+        let aircraft_limits = Arc::new(AircraftLimits::load(directory));
         Ok(Self {
+            aircraft_limits,
             db,
             routes,
             china_boundaries,
@@ -95,6 +104,10 @@ impl NavdataService {
             .routes
             .list_preferred_routes(departure, arrival)
             .await?)
+    }
+
+    pub(crate) fn aircraft_limits(&self) -> &AircraftLimits {
+        &self.aircraft_limits
     }
 
     pub fn china_boundaries(&self) -> &ChinaMainlandBoundary {

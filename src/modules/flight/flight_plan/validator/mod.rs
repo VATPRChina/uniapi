@@ -97,6 +97,8 @@ pub enum WarningMessageCode {
     InvalidAirport,
     InvalidAircraftType,
     WakeCategoryMismatch,
+    AircraftWingspanTooLarge,
+    AircraftWingspanManualCheck,
     NoRvsm,
     NoRnav1,
     RnpAr,
