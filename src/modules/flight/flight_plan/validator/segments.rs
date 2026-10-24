@@ -1,9 +1,11 @@
 use super::{ValidatorError, checks::*, validate_flight};
 use crate::modules::flight::flight_plan::matcher::SegmentMatchReport;
 use crate::modules::flight::flight_plan::{
-    PreferredRouteMatcher, RouteSegment, RouteSegmenter, Segment,
+    PreferredRouteMatcher, RouteSegment, RouteSegmenter, Segment, SegmentKind,
 };
-use crate::modules::flight::models::{Flight, ParsedRoute, ValidationScope, ValidatorResult};
+use crate::modules::flight::models::{
+    Flight, ParsedRoute, ValidationScope, ValidatorResult, ValidatorStatus,
+};
 use crate::modules::navdata::models::PreferredRoute;
 use crate::modules::navdata::service::NavdataService;
 
@@ -43,7 +45,7 @@ pub(crate) fn validate_analyzed_route(
     let mut results = validate_flight(&context, navdata);
     for (segment_index, (original, report)) in segments.iter().zip(reports).enumerate() {
         let selected = report.selected();
-        results.extend(validate_segment(
+        let mut segment_results = validate_segment(
             flight,
             original.route,
             segment_index,
@@ -51,7 +53,16 @@ pub(crate) fn validate_analyzed_route(
             selected.map(|candidate| &candidate.preferred),
             &report.preferred_routes,
             navdata,
-        ));
+        );
+        // International portions retain scoped entries for display, but none of
+        // their segment or leg checks should contribute validation warnings.
+        if original.kind == SegmentKind::International {
+            for result in &mut segment_results {
+                result.status = ValidatorStatus::Suppressed;
+                result.warnings.clear();
+            }
+        }
+        results.extend(segment_results);
     }
     results
 }
@@ -116,4 +127,132 @@ fn validate_segment(
         results.extend(leg_results);
     }
     results
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::modules::flight::dto::TemporaryFlightQuery;
+    use crate::modules::navdata::models::{
+        AnyFix, DirectionRestriction, LegKind, ResolvedLeg, Waypoint, WaypointKind,
+    };
+    use sqlx::{SqlitePool, sqlite::SqliteConnectOptions};
+
+    fn leg(region: &str, from: &str, to: &str) -> ResolvedLeg {
+        let fix = |identifier: &str| {
+            AnyFix::Waypoint(Waypoint {
+                icao_code: region.try_into().unwrap(),
+                identifier: identifier.try_into().unwrap(),
+                latitude: 35.0.try_into().unwrap(),
+                longitude: 140.0.try_into().unwrap(),
+                kind: WaypointKind::Enroute,
+            })
+        };
+        ResolvedLeg {
+            from: fix(from),
+            to: fix(to),
+            identifier: Some("V1".into()),
+            is_unknown: true,
+            kind: LegKind::Airway,
+            direction_restriction: DirectionRestriction::Backward,
+        }
+    }
+
+    #[tokio::test]
+    async fn international_segments_suppress_all_scoped_checks() {
+        let directory = std::env::temp_dir().join(format!("validation-{}", ulid::Ulid::new()));
+        std::fs::create_dir(&directory).unwrap();
+        let path = directory.join("navdata.db");
+        let db = SqlitePool::connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+        db.close().await;
+        let navdata = NavdataService::with_preferred_routes_path(path.to_str().unwrap(), &path)
+            .await
+            .unwrap();
+        let flight = Flight::from(
+            serde_json::from_value::<TemporaryFlightQuery>(serde_json::json!({
+                "departure": "ZBAA", "arrival": "RJTT", "aircraft": "B738",
+                "flight_rules": "I", "wake_category": "M"
+            }))
+            .unwrap(),
+        );
+        let route = ParsedRoute {
+            legs: vec![
+                leg("ZB", "A", "B"),
+                leg("RJ", "C", "D"),
+                leg("RJ", "D", "E"),
+            ],
+        };
+        let segments = RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs);
+        assert_eq!(segments.len(), 2);
+        assert_eq!(segments[0].kind, SegmentKind::Mainland);
+        assert_eq!(segments[1].kind, SegmentKind::International);
+        let reports = segments
+            .iter()
+            .map(|_| SegmentMatchReport {
+                candidates: vec![],
+                selected_candidate_index: None,
+                preferred_routes: vec![],
+            })
+            .collect::<Vec<_>>();
+        let results = validate_analyzed_route(&flight, &route, &segments, &reports, &navdata);
+        let flight_results = validate_flight(
+            &ValidationContext {
+                flight: &flight,
+                route: &route,
+                preferred_route: None,
+                preferred_routes: &[],
+            },
+            &navdata,
+        );
+        assert_eq!(&results[..flight_results.len()], flight_results);
+        let mut offset = flight_results.len();
+        for (index, segment) in segments.iter().enumerate() {
+            let mut expected = validate_segment(
+                &flight,
+                segment.route,
+                index,
+                segment.route,
+                None,
+                &[],
+                &navdata,
+            );
+            // Ensure the fixture exercises warnings which must be removed.
+            assert!(expected.iter().any(|result| {
+                result.status == ValidatorStatus::Rejected && !result.warnings.is_empty()
+            }));
+            if segment.kind == SegmentKind::International {
+                for result in &mut expected {
+                    result.status = ValidatorStatus::Suppressed;
+                    result.warnings.clear();
+                }
+            }
+            assert_eq!(results[offset..offset + expected.len()], expected);
+            offset += expected.len();
+        }
+        assert_eq!(results.len(), offset);
+
+        // Also cover the public pipeline when the entire route is international.
+        let international_route = ParsedRoute {
+            legs: route.legs[1..].to_vec(),
+        };
+        let results = validate_route(&flight, &international_route, &navdata)
+            .await
+            .unwrap();
+        let scoped = results
+            .iter()
+            .filter(|result| result.scope != ValidationScope::Flight)
+            .collect::<Vec<_>>();
+        assert_eq!(scoped.len(), 10); // Two segment checks and four per leg.
+        assert!(scoped.iter().all(|result| {
+            result.status == ValidatorStatus::Suppressed && result.warnings.is_empty()
+        }));
+        drop(navdata);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
 }
