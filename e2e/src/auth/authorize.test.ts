@@ -8,7 +8,7 @@ test("redirects to login for a valid client", async () => {
       query: {
         response_type: "code",
         client_id: "01J2ED6BDX9J9BTYS2RVW83ME7",
-        redirect_uri: "http://localhost:3000/auth/callback",
+        redirect_uri: "http://localhost:5173/auth/callback",
         state: "e2e-state",
       },
     },
@@ -30,21 +30,24 @@ test("redirects to login for a valid client", async () => {
   expect(JSON.parse(decodeURIComponent(cookieValue))).toEqual({
     auth_type: "code",
     client_id: "01J2ED6BDX9J9BTYS2RVW83ME7",
-    redirect_uri: "http://localhost:3000/auth/callback",
+    redirect_uri: "http://localhost:5173/auth/callback",
     user_code: null,
     state: "e2e-state",
   });
 });
 
 test("returns error for an invalid client", async () => {
-  const response = await fetch(authorizeUrl({
-    response_type: "code",
-    client_id: "01KR1CMM7G26J7J4HSQS7N7J8M",
-    redirect_uri: "http://localhost:3000/auth/callback",
-    state: "e2e-state",
-  }), {
-    redirect: "manual",
-  });
+  const response = await fetch(
+    authorizeUrl({
+      response_type: "code",
+      client_id: "01KR1CMM7G26J7J4HSQS7N7J8M",
+      redirect_uri: "http://localhost:5173/auth/callback",
+      state: "e2e-state",
+    }),
+    {
+      redirect: "manual",
+    },
+  );
   const body = await response.text();
 
   expect(response.status).toBe(200);
@@ -54,14 +57,17 @@ test("returns error for an invalid client", async () => {
 });
 
 test("returns error for a client with an invalid redirect uri", async () => {
-  const response = await fetch(authorizeUrl({
-    response_type: "code",
-    client_id: "01J2ED6BDX9J9BTYS2RVW83ME7",
-    redirect_uri: "http://localhost:3000/auth/callback2",
-    state: "e2e-state",
-  }), {
-    redirect: "manual",
-  });
+  const response = await fetch(
+    authorizeUrl({
+      response_type: "code",
+      client_id: "01J2ED6BDX9J9BTYS2RVW83ME7",
+      redirect_uri: "http://localhost:5173/auth/callback2",
+      state: "e2e-state",
+    }),
+    {
+      redirect: "manual",
+    },
+  );
   const body = await response.text();
 
   expect(response.status).toBe(200);
