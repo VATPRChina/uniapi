@@ -1,14 +1,16 @@
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 
-use chrono::{DateTime, Utc};
-use serde::Deserialize;
+use sqlx::{FromRow, SqlitePool, sqlite::SqliteConnectOptions};
 
 use crate::modules::navdata::models::{LevelRestrictionType, PreferredRoute};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, thiserror::Error)]
 pub enum PreferredRouteRepositoryError {
-    #[error("failed to read preferred route CSV: {0}")]
-    Csv(#[from] csv::Error),
+    #[error("failed to read preferred route database: {0}")]
+    Database(#[from] sqlx::Error),
     #[error("invalid preferred route cruising level restriction: {0}")]
     InvalidLevelRestriction(String),
     #[error("invalid preferred route altitude: {0}")]
@@ -17,40 +19,48 @@ pub enum PreferredRouteRepositoryError {
 
 #[derive(Debug, Clone)]
 pub struct PreferredRouteRepository {
-    preferred_routes: Arc<Vec<PreferredRoute>>,
+    db: SqlitePool,
 }
 
 impl PreferredRouteRepository {
-    pub fn from_csv_path(path: impl AsRef<Path>) -> Result<Self, PreferredRouteRepositoryError> {
-        let mut reader = csv::Reader::from_path(path)?;
-        let preferred_routes = reader
-            .deserialize::<PreferredRouteCsvRecord>()
-            .map(|record| PreferredRoute::try_from(record?))
-            .collect::<Result<Vec<_>, PreferredRouteRepositoryError>>()?;
-        let preferred_routes = Arc::new(preferred_routes);
-
-        Ok(Self { preferred_routes })
+    pub async fn from_db_path(
+        path: impl AsRef<Path>,
+    ) -> Result<Self, PreferredRouteRepositoryError> {
+        let options = SqliteConnectOptions::new().filename(path).read_only(true);
+        let db = SqlitePool::connect_with(options).await?;
+        Ok(Self { db })
     }
 
-    pub fn list_preferred_routes(&self, departure: &str, arrival: &str) -> Vec<&PreferredRoute> {
-        self.preferred_routes
-            .iter()
-            .filter(|route| {
-                route.departure.eq_ignore_ascii_case(departure)
-                    && route.arrival.eq_ignore_ascii_case(arrival)
-            })
-            .collect()
+    pub async fn list_preferred_routes(
+        &self,
+        departure: &str,
+        arrival: &str,
+    ) -> Result<Vec<PreferredRoute>, PreferredRouteRepositoryError> {
+        // Keep the source order: matching uses the first suitable route in each priority tier.
+        let records = sqlx::query_as::<_, PreferredRouteRecord>(
+            r#"
+            SELECT Dep AS dep, Arr AS arr, Waypoint1 AS waypoint1, Waypoint2 AS waypoint2,
+                Name AS name, EvenOdd AS even_odd, AltList AS alt_list, MinAlt AS min_alt,
+                Route AS route, Remarks AS remarks
+            FROM Routes
+            WHERE coalesce(nullif(trim(Dep), ''), trim(Waypoint1)) = ? COLLATE NOCASE
+                AND coalesce(nullif(trim(Arr), ''), trim(Waypoint2)) = ? COLLATE NOCASE
+            ORDER BY rowid
+            "#,
+        )
+        .bind(departure)
+        .bind(arrival)
+        .fetch_all(&self.db)
+        .await?;
+        records.into_iter().map(PreferredRoute::try_from).collect()
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-struct PreferredRouteCsvRecord {
+#[derive(Debug, FromRow)]
+struct PreferredRouteRecord {
     dep: String,
     arr: String,
-    #[serde(default)]
     waypoint1: String,
-    #[serde(default)]
     waypoint2: String,
     name: String,
     even_odd: String,
@@ -60,11 +70,11 @@ struct PreferredRouteCsvRecord {
     remarks: String,
 }
 
-impl TryFrom<PreferredRouteCsvRecord> for PreferredRoute {
+impl TryFrom<PreferredRouteRecord> for PreferredRoute {
     type Error = PreferredRouteRepositoryError;
 
-    fn try_from(record: PreferredRouteCsvRecord) -> Result<Self, Self::Error> {
-        let cruising_level_restriction = LevelRestrictionType::from_csv_str(&record.even_odd)
+    fn try_from(record: PreferredRouteRecord) -> Result<Self, Self::Error> {
+        let cruising_level_restriction = LevelRestrictionType::from_code(&record.even_odd)
             .map_err(|_| {
                 PreferredRouteRepositoryError::InvalidLevelRestriction(record.even_odd.clone())
             })?;
@@ -78,8 +88,8 @@ impl TryFrom<PreferredRouteCsvRecord> for PreferredRoute {
             allowed_altitudes: parse_altitude_list(&record.alt_list)?,
             minimal_altitude: parse_optional_i32(&record.min_alt)?,
             remarks: record.remarks.trim().to_owned(),
-            valid_from: None::<DateTime<Utc>>,
-            valid_until: None::<DateTime<Utc>>,
+            valid_from: None,
+            valid_until: None,
             is_public: !record.remarks.to_ascii_lowercase().contains("aip route"),
         })
     }

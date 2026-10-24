@@ -33,7 +33,7 @@ pub enum LevelRestrictionType {
 }
 
 impl LevelRestrictionType {
-    pub(crate) fn from_csv_str(value: &str) -> Result<Self, ()> {
+    pub(crate) fn from_code(value: &str) -> Result<Self, ()> {
         Ok(match value {
             "SE" => LevelRestrictionType::StandardEven,
             "SO" => LevelRestrictionType::StandardOdd,

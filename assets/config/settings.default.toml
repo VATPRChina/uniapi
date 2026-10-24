@@ -30,7 +30,7 @@ from = ""
 
 [navdata]
 local_data_path = "data/navdata.db"
-preferred_routes_path = "data/routes.csv"
+preferred_routes_path = "data/routes.db"
 
 [telemetry]
 service_name = "vatprc-uniapi"

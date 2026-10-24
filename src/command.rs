@@ -34,7 +34,7 @@ pub enum Command {
         /// Override navdata.local_data_path from settings.
         #[arg(long)]
         navdata: Option<String>,
-        /// Override navdata.preferred_routes_path from settings.
+        /// Override navdata.preferred_routes_path with a preferred-route SQLite database.
         #[arg(long)]
         preferred_routes: Option<PathBuf>,
     },
@@ -111,12 +111,12 @@ mod tests {
                 "--navdata",
                 "navdata.db?mode=ro",
                 "--preferred-routes",
-                "routes.csv"
+                "routes.db"
             ]),
             Command::RouteV2 {
                 route: "ZBAA ZSPD".to_owned(),
                 navdata: Some("navdata.db?mode=ro".to_owned()),
-                preferred_routes: Some("routes.csv".into()),
+                preferred_routes: Some("routes.db".into()),
             }
         );
     }

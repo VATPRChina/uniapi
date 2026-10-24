@@ -39,8 +39,8 @@ pub async fn validate_route(
         .validate::<RnpArWithoutRfValidator, _>(flight)
         .validate::<RnpArValidator, _>(flight);
 
-    let messages =
-        messages.validate::<NoMatchingRouteValidator, _>((matching_route, preferred_routes));
+    let messages = messages
+        .validate::<NoMatchingRouteValidator, _>((matching_route, preferred_routes.as_slice()));
 
     let context_matching_route = (flight, matching_route);
     let messages = messages
@@ -102,9 +102,9 @@ impl<T: IntoIterator<Item = WarningMessage>> MessageContainer<T> {
 async fn find_matching_route<'a>(
     navdata: &NavdataService,
     legs: &[ResolvedLeg],
-    preferred_routes: &[&'a PreferredRoute],
+    preferred_routes: &'a [PreferredRoute],
 ) -> Result<Option<&'a PreferredRoute>, ValidatorError> {
-    for &preferred_route in preferred_routes
+    for preferred_route in preferred_routes
         .iter()
         .sorted_by_key(|route| if route.is_public { 0 } else { 1 })
     {

@@ -11,9 +11,9 @@ use crate::modules::navdata::models::PreferredRoute;
 
 pub struct NoMatchingRouteValidator;
 
-impl Validator<(Option<&PreferredRoute>, Vec<&PreferredRoute>)> for NoMatchingRouteValidator {
+impl Validator<(Option<&PreferredRoute>, &[PreferredRoute])> for NoMatchingRouteValidator {
     fn validate(
-        (matching_route, preferred_routes): (Option<&PreferredRoute>, Vec<&PreferredRoute>),
+        (matching_route, preferred_routes): (Option<&PreferredRoute>, &[PreferredRoute]),
     ) -> impl IntoIterator<Item = WarningMessage> {
         (matching_route.is_none() && !preferred_routes.is_empty()).then(|| {
             let routes = preferred_routes

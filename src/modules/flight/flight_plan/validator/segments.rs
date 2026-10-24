@@ -77,17 +77,18 @@ fn validate_part(
     flight: &Flight,
     segment: RouteSegment<'_>,
     preferred_route: Option<&PreferredRoute>,
-    preferred_routes: &[&PreferredRoute],
+    preferred_routes: &[PreferredRoute],
     navdata: &NavdataService,
 ) -> Vec<ValidatorResult> {
     let route = ParsedRoute {
         legs: segment.legs.to_vec(),
     };
+    let preferred_routes = preferred_routes.iter().collect::<Vec<_>>();
     let context = ValidationContext {
         flight,
         route: &route,
         preferred_route,
-        preferred_routes,
+        preferred_routes: &preferred_routes,
     };
     let mut results = vec![
         PreferredRouteValidator::validate(&context, navdata),

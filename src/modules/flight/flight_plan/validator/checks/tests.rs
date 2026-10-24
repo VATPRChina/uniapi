@@ -6,7 +6,7 @@ use crate::modules::navdata::models::{
 };
 
 async fn navdata() -> NavdataService {
-    NavdataService::with_preferred_routes_path(":memory:", "assets/test/routes.csv")
+    NavdataService::with_preferred_routes_path(":memory:", "data/routes.db")
         .await
         .unwrap()
 }

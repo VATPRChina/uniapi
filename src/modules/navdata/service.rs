@@ -66,7 +66,7 @@ impl From<arrayvec::CapacityError<&str>> for InvalidNavdataError {
 #[derive(Clone)]
 pub struct NavdataService {
     db: SqlitePool,
-    preferred_routes: PreferredRouteRepository,
+    routes: PreferredRouteRepository,
     china_boundaries: ChinaMainlandBoundary,
 }
 
@@ -77,11 +77,11 @@ impl NavdataService {
     ) -> NavdataResult<Self> {
         let local_data_path = local_data_path.as_ref();
         let db = SqlitePool::connect(&format!("sqlite:{local_data_path}")).await?;
-        let preferred_routes = PreferredRouteRepository::from_csv_path(preferred_routes_path)?;
+        let routes = PreferredRouteRepository::from_db_path(preferred_routes_path).await?;
         let china_boundaries = NavdataService::mainland_fir_boundaries(&db).await?;
         Ok(Self {
             db,
-            preferred_routes,
+            routes,
             china_boundaries,
         })
     }
@@ -90,10 +90,11 @@ impl NavdataService {
         &self,
         departure: &str,
         arrival: &str,
-    ) -> NavdataResult<Vec<&crate::modules::navdata::models::PreferredRoute>> {
+    ) -> NavdataResult<Vec<crate::modules::navdata::models::PreferredRoute>> {
         Ok(self
-            .preferred_routes
-            .list_preferred_routes(departure, arrival))
+            .routes
+            .list_preferred_routes(departure, arrival)
+            .await?)
     }
 
     pub fn china_boundaries(&self) -> &ChinaMainlandBoundary {

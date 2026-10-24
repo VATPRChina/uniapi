@@ -34,14 +34,14 @@ routes exit with an error after printing the completed stages.
 The final CLI stage lists mainland route portions, matched preferred-route names,
 and original leg indices. Border crossings are checked with both mainland and
 foreign endpoints; unmatched portions are explicitly marked. This stage uses
-the mainland FIR records and preferred-route CSV configured below.
+the mainland FIR records and preferred-route SQLite database configured below.
 
 To use other local navigation data files:
 
 ```sh
 cargo run -- route-v2 "ZBAA ELKUR W40 YQG ZSPD" \
   --navdata "data/NavigraphDFDv2-2604.1.0.db?mode=ro" \
-  --preferred-routes data/Route-Server.csv
+  --preferred-routes data/routes.db
 ```
 
 The developer-only `GET /api/flights/route/v2?route=...` response includes
@@ -53,6 +53,14 @@ crossings. Missing airport or crossing endpoints are `null`. Unknown fixes
 between known border endpoints remain in the referenced legs.
 
 ### Database
+
+Preferred routes are queried on demand from the SQLite database at
+`navdata.preferred_routes_path` (default: `data/routes.db`). The database is
+opened read-only and uses the `Routes` table from the `Route.db3` release asset
+in `VATPRChina/prc-route`. Each lookup filters by departure and arrival in SQL
+and sees committed route changes without restarting the server.
+Data preparation adds the `uniapi_routes_endpoints` index on the normalized,
+case-insensitive endpoint pair for these lookups.
 
 Preferred-route segment selection reads the nine mainland FIR boundaries from
 the configured navigation database's ARINC 424 `tbl_uf_fir_uir` records.
@@ -78,9 +86,10 @@ not matched. An airport-to-airport match takes priority. If
 that fails, the matcher tries departure airport or either entry endpoint
 against arrival airport or either exit endpoint. Routes that start/end at an
 enroute fix retain that endpoint. Public routes precede private routes within
-each priority tier. CSV `Waypoint1`/`Waypoint2` supply endpoints when `Dep`/`Arr`
-are empty. Matching compares the complete expanded enroute path, from the first
-fix after SID to the last fix before STAR, ignoring airport connections.
+each priority tier. The `Routes` table's `Waypoint1`/`Waypoint2` columns supply
+endpoints when `Dep`/`Arr` are empty. Matching compares the complete expanded
+enroute path, from the first fix after SID to the last fix before STAR, ignoring
+airport connections.
 Unknown legs cannot match a designated path. The batch `find_matching_route`
 method also returns the exact covered leg range for segment validation.
 
@@ -160,6 +169,18 @@ parameters, fields, and field indices; failures are compared by error message.
 V2 failures do not affect the response.
 
 ## Testing
+
+Test routes are defined in `assets/test/routes.sql`. CI generates
+`data/routes.db` from this SQL for both Rust and E2E tests. For local test setup,
+create a new test database with:
+
+```sh
+mkdir -p data
+sqlite3 -bail data/routes.db < assets/test/routes.sql
+```
+
+The database must not already contain route tables. Generated databases stay
+under the ignored `data/` directory; no binary fixture is required.
 
 There is E2E testing for each API endpoint. It is still missing test coverage on some endpoints.
 

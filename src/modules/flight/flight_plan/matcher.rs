@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::segmenter::enroute;
 use super::{ParseRouteError, RouteSegment, Segment, SegmentKind, parse_route};
 use crate::modules::flight::flight_plan::validator::ValidatorError;
@@ -29,8 +31,8 @@ impl<'s> PreferredRouteMatcher<'s> {
         segment: Segment<'l>,
     ) -> Result<Option<(RouteSegment<'l>, PreferredRoute)>, ValidatorError> {
         for (variant, preferred) in self.candidates(segment).await? {
-            if self.matches(variant, preferred).await? {
-                return Ok(Some((variant, preferred.clone())));
+            if self.matches(variant, &preferred).await? {
+                return Ok(Some((variant, preferred)));
             }
         }
         Ok(None)
@@ -53,34 +55,46 @@ impl<'s> PreferredRouteMatcher<'s> {
     pub async fn preferred_routes(
         &self,
         segment: &Segment<'_>,
-    ) -> Result<Vec<&'s PreferredRoute>, ValidatorError> {
-        let mut routes: Vec<&'s PreferredRoute> = Vec::new();
-        for (_, preferred) in self.candidates(*segment).await? {
-            if !routes.iter().any(|route| std::ptr::eq(*route, preferred)) {
-                routes.push(preferred);
+    ) -> Result<Vec<PreferredRoute>, ValidatorError> {
+        if segment.kind != SegmentKind::Mainland {
+            return Ok(Vec::new());
+        }
+        let mut seen = HashSet::new();
+        let mut routes = Vec::new();
+        for (airport_pair, variant) in segment.endpoint_variants() {
+            let Some((from, to)) = endpoints(variant) else {
+                continue;
+            };
+            // Query each pair once, retaining separate database rows with identical contents.
+            if seen.insert((from.to_ascii_uppercase(), to.to_ascii_uppercase())) {
+                routes.extend(
+                    self.navdata
+                        .list_preferred_routes(from, to)
+                        .await
+                        .map_err(ValidatorError::Navdata)?
+                        .into_iter()
+                        .map(|route| (airport_pair, route)),
+                );
             }
         }
-        Ok(routes)
+        routes.sort_by_key(|(airport_pair, route)| (!airport_pair, !route.is_public));
+        Ok(routes.into_iter().map(|(_, route)| route).collect())
     }
 
     async fn candidates<'l>(
         &self,
         segment: Segment<'l>,
-    ) -> Result<Vec<(RouteSegment<'l>, &'s PreferredRoute)>, ValidatorError> {
+    ) -> Result<Vec<(RouteSegment<'l>, PreferredRoute)>, ValidatorError> {
         if segment.kind != SegmentKind::Mainland {
             return Ok(Vec::new());
         }
         let mut candidates = Vec::new();
         for (airport_pair, variant) in segment.endpoint_variants() {
-            let Some(from) = variant.legs.first().and_then(|leg| leg.from.identifier()) else {
+            let Some((from, to)) = endpoints(variant) else {
                 continue;
             };
-            let Some(to) = variant.legs.last().and_then(|leg| leg.to.identifier()) else {
-                continue;
-            };
-            let navdata: &'s NavdataService = self.navdata;
             candidates.extend(
-                navdata
+                self.navdata
                     .list_preferred_routes(from, to)
                     .await
                     .map_err(ValidatorError::Navdata)?
@@ -100,7 +114,7 @@ impl<'s> PreferredRouteMatcher<'s> {
         segment: RouteSegment<'_>,
         preferred: &PreferredRoute,
     ) -> Result<bool, ValidatorError> {
-        // CSV routes omit departure/arrival airports. Add only those anchors so
+        // Preferred routes omit departure/arrival airports. Add only those anchors so
         // the parser can also represent designated routes containing one fix.
         let mut route = preferred.raw_route.trim().to_owned();
         if route.is_empty() {
@@ -132,6 +146,13 @@ impl<'s> PreferredRouteMatcher<'s> {
         };
         Ok(routes_match(segment.legs, &expected.legs))
     }
+}
+
+fn endpoints(variant: RouteSegment<'_>) -> Option<(&str, &str)> {
+    Some((
+        variant.legs.first()?.from.identifier()?,
+        variant.legs.last()?.to.identifier()?,
+    ))
 }
 
 /// Airport endpoints allow the preferred path to extend into the filed SID or

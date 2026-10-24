@@ -23,10 +23,12 @@ jobs:
 
       - name: Prepare test data
         run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
           mkdir -p data
           curl --fail --location --output navdata.zip https://developers.navigraph.com/downloads/navigation-data/navigraph-dfd-sample-sqlite-dfdv2-2401.zip
           unzip -p navdata.zip ng_jeppesen_fwdfd_2401.s3db > data/navdata.db
-          cp assets/test/routes.csv data/routes.csv
+          sqlite3 -bail data/routes.db < assets/test/routes.sql
       - name: Run tests
         run: cargo test --release
 
@@ -92,10 +94,12 @@ jobs:
 
       - name: Prepare navdata
         run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
           mkdir -p data
           curl --fail --location --output navdata.zip https://developers.navigraph.com/downloads/navigation-data/navigraph-dfd-sample-sqlite-dfdv2-2401.zip
           unzip -p navdata.zip ng_jeppesen_fwdfd_2401.s3db > data/navdata.db
-          cp assets/test/routes.csv data/routes.csv
+          sqlite3 -bail data/routes.db < assets/test/routes.sql
 
       - name: Install E2E dependencies
         run: pnpm install --frozen-lockfile
