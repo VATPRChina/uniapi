@@ -6,7 +6,6 @@ use axum::extract::{Path, Query, State};
 use axum::response::Response;
 use axum::routing::get;
 use axum::{Json, Router};
-use itertools::Itertools;
 use tokio::time;
 
 use crate::error::ApiError;
