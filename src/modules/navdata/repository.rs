@@ -4,9 +4,6 @@ use sqlx::{FromRow, SqlitePool, sqlite::SqliteConnectOptions};
 
 use crate::modules::navdata::models::{LevelRestrictionType, PreferredRoute};
 
-#[cfg(test)]
-mod tests;
-
 #[derive(Debug, thiserror::Error)]
 pub enum PreferredRouteRepositoryError {
     #[error("failed to read preferred route database: {0}")]

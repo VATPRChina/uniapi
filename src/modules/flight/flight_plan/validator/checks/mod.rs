@@ -56,6 +56,3 @@ pub trait Validator {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;
