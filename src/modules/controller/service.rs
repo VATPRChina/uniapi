@@ -169,6 +169,12 @@ impl ControllerService {
             .map(|callsign| callsign.to_ascii_uppercase())
             .collect::<HashSet<_>>();
 
+        let context = OnlineTimeContext {
+            period_start,
+            as_of,
+            rating,
+            tier_2_callsigns: &tier_2_callsigns,
+        };
         let mut quarter = ControllerOnlineTimeSummary::default();
         let mut lifetime = ControllerOnlineTimeSummary::default();
         for session in &sessions {
@@ -176,13 +182,12 @@ impl ControllerService {
                 accumulate_session(
                     &mut quarter,
                     &mut lifetime,
-                    &session.callsign,
-                    start,
-                    end,
-                    period_start,
-                    as_of,
-                    rating,
-                    &tier_2_callsigns,
+                    OnlineTimeSession {
+                        callsign: &session.callsign,
+                        start,
+                        end,
+                    },
+                    &context,
                 );
             }
         }
@@ -197,13 +202,12 @@ impl ControllerService {
                     accumulate_session(
                         &mut quarter,
                         &mut lifetime,
-                        &controller.callsign,
-                        logon_time,
-                        as_of,
-                        period_start,
-                        as_of,
-                        rating,
-                        &tier_2_callsigns,
+                        OnlineTimeSession {
+                            callsign: &controller.callsign,
+                            start: logon_time,
+                            end: as_of,
+                        },
+                        &context,
                     );
                 }
             }
@@ -252,23 +256,37 @@ fn current_quarter_start(now: DateTime<Utc>) -> DateTime<Utc> {
         .expect("the first day of a calendar quarter is valid")
 }
 
-fn accumulate_session(
-    quarter: &mut ControllerOnlineTimeSummary,
-    lifetime: &mut ControllerOnlineTimeSummary,
-    callsign: &str,
+struct OnlineTimeSession<'a> {
+    callsign: &'a str,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
+}
+
+struct OnlineTimeContext<'a> {
     period_start: DateTime<Utc>,
     as_of: DateTime<Utc>,
     rating: VatsimRating,
-    tier_2_callsigns: &HashSet<String>,
+    tier_2_callsigns: &'a HashSet<String>,
+}
+
+fn accumulate_session(
+    quarter: &mut ControllerOnlineTimeSummary,
+    lifetime: &mut ControllerOnlineTimeSummary,
+    session: OnlineTimeSession<'_>,
+    context: &OnlineTimeContext<'_>,
 ) {
-    let Some(position) = eligible_position(callsign, rating, tier_2_callsigns) else {
+    let OnlineTimeSession {
+        callsign,
+        start,
+        end,
+    } = session;
+    let Some(position) = eligible_position(callsign, context.rating, context.tier_2_callsigns)
+    else {
         return;
     };
 
-    for (summary, since) in [(quarter, period_start), (lifetime, start)] {
-        if let Some(seconds) = overlap_seconds(start, end, since, as_of) {
+    for (summary, since) in [(quarter, context.period_start), (lifetime, start)] {
+        if let Some(seconds) = overlap_seconds(start, end, since, context.as_of) {
             summary.total_seconds += seconds;
             match position {
                 OnlineTimePosition::S1 => summary.by_position.s1 += seconds,
@@ -698,6 +716,12 @@ mod tests {
         let mut quarter = ControllerOnlineTimeSummary::default();
         let mut lifetime = ControllerOnlineTimeSummary::default();
         let tier_2_callsigns = HashSet::new();
+        let context = OnlineTimeContext {
+            period_start,
+            as_of,
+            rating: VatsimRating::S2,
+            tier_2_callsigns: &tier_2_callsigns,
+        };
         for callsign in [
             "ZBAA_GND",
             "ZBAA_DEL",
@@ -713,13 +737,12 @@ mod tests {
             accumulate_session(
                 &mut quarter,
                 &mut lifetime,
-                callsign,
-                time("2026-06-30T23:00:00Z"),
-                time("2026-07-01T02:00:00Z"),
-                period_start,
-                as_of,
-                VatsimRating::S2,
-                &tier_2_callsigns,
+                OnlineTimeSession {
+                    callsign,
+                    start: time("2026-06-30T23:00:00Z"),
+                    end: time("2026-07-01T02:00:00Z"),
+                },
+                &context,
             );
         }
         assert_eq!(quarter.total_seconds, 5 * 3600);
@@ -741,6 +764,12 @@ mod tests {
         let mut quarter = ControllerOnlineTimeSummary::default();
         let mut lifetime = ControllerOnlineTimeSummary::default();
         let tier_2_callsigns = HashSet::new();
+        let context = OnlineTimeContext {
+            period_start,
+            as_of,
+            rating: VatsimRating::S2,
+            tier_2_callsigns: &tier_2_callsigns,
+        };
         for (start, end) in [
             ("2026-06-01T00:00:00Z", "2026-06-01T01:00:00Z"),
             ("2026-07-01T00:30:00Z", "2026-07-01T01:00:00Z"),
@@ -750,13 +779,12 @@ mod tests {
             accumulate_session(
                 &mut quarter,
                 &mut lifetime,
-                "ZBAA_TWR",
-                time(start),
-                time(end),
-                period_start,
-                as_of,
-                VatsimRating::S2,
-                &tier_2_callsigns,
+                OnlineTimeSession {
+                    callsign: "ZBAA_TWR",
+                    start: time(start),
+                    end: time(end),
+                },
+                &context,
             );
         }
         assert_eq!(quarter.total_seconds, 1800);
