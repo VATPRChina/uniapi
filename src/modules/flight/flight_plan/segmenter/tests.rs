@@ -61,9 +61,9 @@ fn international_departure_is_not_attached_to_mainland_visit() {
     assert_partition(&legs, &segments);
     assert_eq!(segments.len(), 2);
     assert_eq!(segments[0].kind, SegmentKind::International);
-    assert_eq!(segments[0].route.end_index(), 2);
+    assert_eq!(segments[0].route.end_index(), 3);
     assert_eq!(segments[1].kind, SegmentKind::Mainland);
-    assert_eq!(segments[1].route.start_index, 2);
+    assert_eq!(segments[1].route.start_index, 3);
     assert!(segments[1].get_route_start_airport().is_none());
     assert_eq!(
         segments[1].get_cross_border_enter_start_fix(),
@@ -88,9 +88,11 @@ fn visits_crossings_unknown_chains_and_foreign_gaps_partition_once() {
         AnyFix::Unknown("U1".into()),
         AnyFix::Unknown("U2".into()),
         fix(110.),
+        fix(112.),
         fix(125.),
         fix(130.),
         fix(115.),
+        fix(117.),
         fix(135.),
         airport("RKAA", 140.),
     ]);
@@ -102,11 +104,11 @@ fn visits_crossings_unknown_chains_and_foreign_gaps_partition_once() {
             .map(|s| (s.kind, s.route.start_index, s.route.end_index()))
             .collect::<Vec<_>>(),
         vec![
-            (SegmentKind::International, 0, 1),
-            (SegmentKind::Mainland, 1, 4),
-            (SegmentKind::International, 4, 6),
-            (SegmentKind::Mainland, 6, 7),
-            (SegmentKind::International, 7, 9),
+            (SegmentKind::International, 0, 4),
+            (SegmentKind::Mainland, 4, 5),
+            (SegmentKind::International, 5, 8),
+            (SegmentKind::Mainland, 8, 9),
+            (SegmentKind::International, 9, 11),
         ]
     );
     assert_eq!(
@@ -119,7 +121,7 @@ fn visits_crossings_unknown_chains_and_foreign_gaps_partition_once() {
     );
     assert_eq!(
         segments[1].get_cross_border_exit_start_fix(),
-        Some(&fix(110.))
+        Some(&fix(112.))
     );
     assert_eq!(
         segments[1].get_cross_border_exit_end_fix(),
@@ -252,4 +254,49 @@ fn lone_china_departure_does_not_produce_an_empty_segment() {
     assert_partition(&legs, &segments);
     assert_eq!(segments.len(), 1);
     assert_eq!(segments[0].kind, SegmentKind::International);
+}
+
+#[test]
+fn unresolved_entry_chain_stays_international_until_first_china_fix() {
+    let b = boundary();
+    let legs = route(&[
+        fix(130.),
+        AnyFix::Unknown("U1".into()),
+        AnyFix::Unknown("U2".into()),
+        fix(110.),
+        fix(115.),
+    ]);
+    let segments = RouteSegmenter::new(&b).segment(&legs);
+    assert_partition(&legs, &segments);
+    assert_eq!(segments.len(), 2);
+    assert_eq!(segments[0].kind, SegmentKind::International);
+    assert_eq!(segments[0].route.end_index(), 3);
+    let mainland = &segments[1];
+    assert_eq!(mainland.kind, SegmentKind::Mainland);
+    assert_eq!(mainland.route.start_index, 3);
+    assert_eq!(mainland.route.legs[0].from, fix(110.));
+    assert_eq!(
+        mainland.get_cross_border_enter_start_fix(),
+        Some(&fix(130.))
+    );
+    assert_eq!(mainland.get_cross_border_enter_end_fix(), Some(&fix(110.)));
+    for (_, variant) in mainland.endpoint_variants() {
+        assert_eq!(variant.start_index, mainland.route.start_index);
+        assert!(variant.end_index() <= mainland.route.end_index());
+    }
+}
+
+#[test]
+fn isolated_china_fixes_do_not_split_international_legs() {
+    let b = boundary();
+    for fixes in [
+        vec![fix(130.), fix(110.)],
+        vec![fix(130.), fix(110.), fix(135.), fix(115.), fix(140.)],
+    ] {
+        let legs = route(&fixes);
+        let segments = RouteSegmenter::new(&b).segment(&legs);
+        assert_partition(&legs, &segments);
+        assert_eq!(segments.len(), 1);
+        assert_eq!(segments[0].kind, SegmentKind::International);
+    }
 }

@@ -20,13 +20,13 @@ pub enum SegmentKind {
     International,
 }
 
-/// A mainland visit through its last China fix, or an international portion.
+/// A mainland visit from its first to last China fix, or an international portion.
 /// Fix offsets refer to vertices in `route`: vertex n is the end of leg n - 1.
 #[derive(Debug, Clone, Copy)]
 pub struct Segment<'l> {
     pub kind: SegmentKind,
     pub route: RouteSegment<'l>,
-    enter: Option<(usize, usize)>,
+    enter: Option<(&'l AnyFix, &'l AnyFix)>,
     exit: Option<(&'l AnyFix, &'l AnyFix)>,
 }
 
@@ -56,10 +56,10 @@ impl<'l> Segment<'l> {
         enroute(self.route.legs).unwrap().2
     }
     pub fn get_cross_border_enter_start_fix(&self) -> Option<&'l AnyFix> {
-        self.enter.map(|(start, _)| self.fix(start))
+        self.enter.map(|(start, _)| start)
     }
     pub fn get_cross_border_enter_end_fix(&self) -> Option<&'l AnyFix> {
-        self.enter.map(|(_, end)| self.fix(end))
+        self.enter.map(|(_, end)| end)
     }
     pub fn get_cross_border_exit_start_fix(&self) -> Option<&'l AnyFix> {
         self.exit.map(|(start, _)| start)
@@ -81,8 +81,8 @@ impl<'l> Segment<'l> {
         if self.get_route_start_airport().is_some() {
             starts.push(0);
         }
-        if let Some((start, end)) = self.enter {
-            starts.extend([start, end]);
+        if self.enter.is_some() {
+            starts.push(0);
         }
         if starts.is_empty() {
             starts.push(0);
@@ -166,10 +166,23 @@ impl<'b> RouteSegmenter<'b> {
             let last = cursor;
             let enter = (first > 0).then(|| (known[first - 1].0, known[first].0));
             let exit = (last + 1 < known.len()).then(|| (known[last].0, known[last + 1].0));
-            // Include the inbound crossing, but cut the outbound crossing at
-            // the last China fix. Keep crossing endpoints for diagnostics.
-            let start = enter.map_or(0, |(start, _)| start);
+            // Crossings stay outside the mainland slice. Keep their endpoints
+            // for diagnostics even though they may lie outside the slice.
+            let start = enter.map_or(0, |(_, end)| end);
             let end = exit.map_or(legs.len(), |(start, _)| start);
+            // A lone China vertex has no mainland leg to validate. Leave it
+            // in the surrounding international portion without splitting it.
+            if start >= end {
+                cursor += 1;
+                continue;
+            }
+            let fix = |index: usize| {
+                if index == 0 {
+                    &legs[0].from
+                } else {
+                    &legs[index - 1].to
+                }
+            };
             if covered < start {
                 segments.push(Segment {
                     kind: SegmentKind::International,
@@ -188,17 +201,8 @@ impl<'b> RouteSegmenter<'b> {
                         legs: &legs[start..end],
                         start_index: offset + start,
                     },
-                    enter: enter.map(|(a, b)| (a - start, b - start)),
-                    exit: exit.map(|(a, b)| {
-                        let fix = |index: usize| {
-                            if index == 0 {
-                                &legs[0].from
-                            } else {
-                                &legs[index - 1].to
-                            }
-                        };
-                        (fix(a), fix(b))
-                    }),
+                    enter: enter.map(|(a, b)| (fix(a), fix(b))),
+                    exit: exit.map(|(a, b)| (fix(a), fix(b))),
                 });
             }
             covered = end;
