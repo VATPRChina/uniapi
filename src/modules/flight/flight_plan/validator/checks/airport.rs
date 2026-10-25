@@ -81,6 +81,15 @@ fn validate_wingspan<V: Validator>(
         status: ValidatorStatus::Unavailable,
         problems: Vec::new(),
     };
+    // Missing or invalid identifiers cannot establish the airport's region.
+    if airport == "ZZZZ" || airport.len() != 4 || !airport.bytes().all(|c| c.is_ascii_alphabetic())
+    {
+        return result;
+    }
+    if !airport.starts_with('Z') || airport.starts_with("ZM") || airport.starts_with("ZK") {
+        result.status = ValidatorStatus::Suppressed;
+        return result;
+    }
     if aircraft.is_empty() {
         return result;
     }
@@ -94,7 +103,7 @@ fn validate_wingspan<V: Validator>(
     }
     let (maximum, exclusive) = match &limit.maximum {
         WingspanMaximum::Unrestricted => {
-            result.status = ValidatorStatus::Suppressed;
+            result.status = ValidatorStatus::Pass;
             return result;
         }
         WingspanMaximum::Metres { value, exclusive } => (*value, *exclusive),
@@ -195,11 +204,19 @@ ZBAD 0 - 4C NaN -
             ("ZBCD", "TEST", ValidatorStatus::Rejected), // equality at an inferred upper bound
             ("ZREF", "B738", ValidatorStatus::Pass),
             ("ZREF", "A388", ValidatorStatus::Rejected),
-            ("ZBAA", "A388", ValidatorStatus::Suppressed),
+            ("ZBAA", "A388", ValidatorStatus::Pass),
             ("ZBCZ", "UNKNOWN", ValidatorStatus::Unavailable),
             ("ZUNK", "B738", ValidatorStatus::Unavailable),
             ("ZBAD", "B738", ValidatorStatus::Unavailable),
-            ("RJAA", "B738", ValidatorStatus::Unavailable),
+            ("RJAA", "B738", ValidatorStatus::Suppressed),
+            ("WSSS", "UNKNOWN", ValidatorStatus::Suppressed),
+            ("VHHH", "A388", ValidatorStatus::Suppressed),
+            ("VMMC", "A388", ValidatorStatus::Suppressed),
+            ("ZMUB", "A388", ValidatorStatus::Suppressed),
+            ("ZKPY", "A388", ValidatorStatus::Suppressed),
+            (" rjaa ", "", ValidatorStatus::Suppressed),
+            ("ZBAA", "UNKNOWN", ValidatorStatus::Pass),
+            ("ZBA", "B738", ValidatorStatus::Unavailable),
             ("", "B738", ValidatorStatus::Unavailable),
             ("ZZZZ", "B738", ValidatorStatus::Unavailable),
             ("ZBCZ", "", ValidatorStatus::Unavailable),
@@ -232,6 +249,23 @@ ZBAD 0 - 4C NaN -
                 } else {
                     assert!(result.problems.is_empty());
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn foreign_airport_limits_are_suppressed_even_if_restrictions_are_loaded() {
+        let data = AircraftLimits::parse(
+            WINGSPANS,
+            "RJAA 0 - 4C 30 -\nZMUB 0 - 4C 30 -\nZKPY 0 - 4C 30 -\n",
+        );
+        for airport in ["RJAA", "ZMUB", "ZKPY"] {
+            for result in [
+                validate_wingspan::<DepartureAircraftTypeValidator>(airport, "A388", &data),
+                validate_wingspan::<ArrivalAircraftTypeValidator>(airport, "A388", &data),
+            ] {
+                assert_eq!(result.status, ValidatorStatus::Suppressed);
+                assert!(result.problems.is_empty());
             }
         }
     }
