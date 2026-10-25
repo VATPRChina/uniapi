@@ -154,6 +154,22 @@ impl FlightService {
             .collect())
     }
 
+    pub async fn flight_route(
+        &self,
+        flight: &Flight,
+    ) -> Result<super::dto::FlightRouteDto, FlightServiceError> {
+        let plan = &flight.flight_plan;
+        let route = self
+            .route_v2(&format!(
+                "{} {} {}",
+                plan.departure, plan.raw_route, plan.arrival
+            ))
+            .await?;
+        let segments = super::flight_plan::RouteSegmenter::new(self.navdata.china_boundaries())
+            .segment(&route.legs);
+        Ok(super::dto::FlightRouteDto::from_segments(&segments))
+    }
+
     pub async fn validate(
         &self,
         flight: &Flight,

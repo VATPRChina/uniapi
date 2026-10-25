@@ -20,14 +20,14 @@ pub enum SegmentKind {
     International,
 }
 
-/// A mainland visit (including its crossings), or an international portion.
+/// A mainland visit through its last China fix, or an international portion.
 /// Fix offsets refer to vertices in `route`: vertex n is the end of leg n - 1.
 #[derive(Debug, Clone, Copy)]
 pub struct Segment<'l> {
     pub kind: SegmentKind,
     pub route: RouteSegment<'l>,
     enter: Option<(usize, usize)>,
-    exit: Option<(usize, usize)>,
+    exit: Option<(&'l AnyFix, &'l AnyFix)>,
 }
 
 impl<'l> Segment<'l> {
@@ -62,10 +62,10 @@ impl<'l> Segment<'l> {
         self.enter.map(|(_, end)| self.fix(end))
     }
     pub fn get_cross_border_exit_start_fix(&self) -> Option<&'l AnyFix> {
-        self.exit.map(|(start, _)| self.fix(start))
+        self.exit.map(|(start, _)| start)
     }
     pub fn get_cross_border_exit_end_fix(&self) -> Option<&'l AnyFix> {
-        self.exit.map(|(_, end)| self.fix(end))
+        self.exit.map(|(_, end)| end)
     }
 
     pub(crate) fn endpoint_variants(&self) -> Vec<(bool, RouteSegment<'l>)> {
@@ -90,8 +90,8 @@ impl<'l> Segment<'l> {
         if self.get_route_end_airport().is_some() {
             ends.push(len);
         }
-        if let Some((start, end)) = self.exit {
-            ends.extend([start, end]);
+        if self.exit.is_some() {
+            ends.push(len);
         }
         if ends.is_empty() {
             ends.push(len);
@@ -166,11 +166,10 @@ impl<'b> RouteSegmenter<'b> {
             let last = cursor;
             let enter = (first > 0).then(|| (known[first - 1].0, known[first].0));
             let exit = (last + 1 < known.len()).then(|| (known[last].0, known[last + 1].0));
-            // A crossing spans every unresolved fix between known endpoints.
-            // It belongs to the mainland visit, without extending to a remote
-            // airport through unrelated international legs.
+            // Include the inbound crossing, but cut the outbound crossing at
+            // the last China fix. Keep crossing endpoints for diagnostics.
             let start = enter.map_or(0, |(start, _)| start);
-            let end = exit.map_or(legs.len(), |(_, end)| end);
+            let end = exit.map_or(legs.len(), |(start, _)| start);
             if covered < start {
                 segments.push(Segment {
                     kind: SegmentKind::International,
@@ -182,15 +181,26 @@ impl<'b> RouteSegmenter<'b> {
                     exit: None,
                 });
             }
-            segments.push(Segment {
-                kind: SegmentKind::Mainland,
-                route: RouteSegment {
-                    legs: &legs[start..end],
-                    start_index: offset + start,
-                },
-                enter: enter.map(|(a, b)| (a - start, b - start)),
-                exit: exit.map(|(a, b)| (a - start, b - start)),
-            });
+            if start < end {
+                segments.push(Segment {
+                    kind: SegmentKind::Mainland,
+                    route: RouteSegment {
+                        legs: &legs[start..end],
+                        start_index: offset + start,
+                    },
+                    enter: enter.map(|(a, b)| (a - start, b - start)),
+                    exit: exit.map(|(a, b)| {
+                        let fix = |index: usize| {
+                            if index == 0 {
+                                &legs[0].from
+                            } else {
+                                &legs[index - 1].to
+                            }
+                        };
+                        (fix(a), fix(b))
+                    }),
+                });
+            }
             covered = end;
             cursor += 1;
         }

@@ -96,6 +96,90 @@ pub struct FlightPlanDto {
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct FlightRouteDto {
+    /// Segments in route order, indexed from zero.
+    pub segments: Vec<SegmentDto>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct SegmentDto {
+    pub index: usize,
+    /// Legs in route order, using the global indices in validation fields.
+    pub legs: Vec<LegDto>,
+    pub initial_fix: String,
+    pub last_fix: String,
+    pub enroute_initial_fix: String,
+    pub enroute_last_fix: String,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct LegDto {
+    pub index: usize,
+    pub from_ident: String,
+    pub to_ident: String,
+    pub route_ident: Option<String>,
+    pub leg_kind: LegKind,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum LegKind {
+    Sid,
+    Star,
+    Enroute,
+}
+
+impl FlightRouteDto {
+    pub fn from_segments(segments: &[super::flight_plan::Segment<'_>]) -> Self {
+        use crate::modules::navdata::models::LegKind as ResolvedLegKind;
+        Self {
+            segments: segments
+                .iter()
+                .enumerate()
+                .map(|(index, segment)| {
+                    let legs = segment
+                        .route
+                        .legs
+                        .iter()
+                        .enumerate()
+                        .map(|(offset, leg)| LegDto {
+                            index: segment.route.start_index + offset,
+                            from_ident: route_fix_ident(&leg.from),
+                            to_ident: route_fix_ident(&leg.to),
+                            route_ident: leg.identifier.clone(),
+                            leg_kind: match leg.kind {
+                                ResolvedLegKind::Sid => LegKind::Sid,
+                                ResolvedLegKind::Star => LegKind::Star,
+                                ResolvedLegKind::Airway | ResolvedLegKind::Direct => {
+                                    LegKind::Enroute
+                                }
+                            },
+                        })
+                        .collect();
+                    SegmentDto {
+                        index,
+                        legs,
+                        initial_fix: route_fix_ident(&segment.route.legs.first().unwrap().from),
+                        last_fix: route_fix_ident(&segment.route.legs.last().unwrap().to),
+                        enroute_initial_fix: route_fix_ident(segment.get_enroute_start_fix()),
+                        enroute_last_fix: route_fix_ident(segment.get_enroute_end_fix()),
+                    }
+                })
+                .collect(),
+        }
+    }
+}
+
+fn route_fix_ident(fix: &crate::modules::navdata::models::AnyFix) -> String {
+    use crate::modules::navdata::models::Fix;
+    fix.identifier().map(str::to_owned).unwrap_or_else(|| {
+        fix.position()
+            .map(|(lat, lon)| format!("{lat:.6},{lon:.6}"))
+            .unwrap_or_else(|| "?".into())
+    })
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct FlightValidationDto {
     pub validators: Vec<ValidatorExecutionDto>,
 }
@@ -414,13 +498,13 @@ mod tests {
             serde_json::to_value(validation).unwrap(),
             json!({
                 "validators": [{
-                    "id": "PreferredRouteCruiseAltitude",
-                    "field": { "kind": "MultipleLegs", "from": 2, "to": 5 },
+                    "id": "preferred-route-cruise-altitude",
+                    "field": { "kind": "multiple-legs", "from": 2, "to": 5 },
                     "status": "rejected",
                     "problems": [
-                        { "kind": "CruisingLevelMismatch", "expected_type": "standard-odd" },
-                        { "kind": "CruisingLevelNotAllowed", "allowlist_ft": [29100, 33100] },
-                        { "kind": "CruisingLevelTooLow", "minimum_ft": 29100 }
+                        { "kind": "cruising-level-mismatch", "expected_type": "standard-odd" },
+                        { "kind": "cruising-level-not-allowed", "allowlist_ft": [29100, 33100] },
+                        { "kind": "cruising-level-too-low", "minimum_ft": 29100 }
                     ]
                 }]
             })

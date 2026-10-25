@@ -10,7 +10,9 @@ use futures::{StreamExt, TryStreamExt};
 use tokio::time;
 
 use crate::error::ApiError;
-use crate::modules::flight::dto::{FlightDto, FlightValidationDto, TemporaryFlightQuery};
+use crate::modules::flight::dto::{
+    FlightDto, FlightRouteDto, FlightValidationDto, TemporaryFlightQuery,
+};
 use crate::modules::flight::models::Flight;
 #[allow(deprecated)]
 use crate::modules::flight::routes::flights_v1::{warnings_by_callsign, warnings_websocket};
@@ -33,6 +35,7 @@ type ValidationSnapshot = BTreeMap<String, FlightValidationDto>;
     flights_by_arrival,
     flight_by_callsign,
     flight_validation_by_callsign,
+    flight_route_by_callsign,
     departure_validations_websocket
 ))]
 pub(crate) struct ApiDoc;
@@ -54,6 +57,10 @@ pub fn build_flight_routes() -> Router<Services> {
         .route("/by-departure/{icao}", get(flights_by_departure))
         .route("/by-arrival/{icao}", get(flights_by_arrival))
         .route("/by-callsign/{callsign}", get(flight_by_callsign))
+        .route(
+            "/by-callsign/{callsign}/route",
+            get(flight_route_by_callsign),
+        )
         .route(
             "/by-callsign/{callsign}/warnings",
             #[allow(deprecated)]
@@ -211,6 +218,26 @@ async fn flight_validation_by_callsign(
 ) -> Result<Json<FlightValidationDto>, ApiError> {
     let flight = service.find_by_callsign(&callsign).await?;
     Ok(Json(service.validate(&flight).await?.into()))
+}
+
+#[utoipa::path(get, path = "api/flights/by-callsign/{callsign}/route", tag = "Flights",
+    security(("oauth2" = [])),
+    params(("callsign" = String, Path, description = "Callsign")), responses(
+        (status = 200, description = "Expanded route with globally indexed legs matching validation fields", body = FlightRouteDto),
+        (status = 400, description = "Invalid route"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Software engineer role required"),
+        (status = 404, description = "Flight not found")
+    )
+)]
+async fn flight_route_by_callsign(
+    current_user: CurrentUser,
+    State(service): State<FlightService>,
+    Path(callsign): Path<String>,
+) -> Result<Json<FlightRouteDto>, ApiError> {
+    current_user.require_role(UserRole::SoftwareEngineer)?;
+    let flight = service.find_by_callsign(&callsign).await?;
+    Ok(Json(service.flight_route(&flight).await?))
 }
 
 /// Sends a JSON object mapping callsigns to FlightValidationDto. The initial

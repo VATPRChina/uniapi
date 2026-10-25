@@ -103,10 +103,10 @@ fn visits_crossings_unknown_chains_and_foreign_gaps_partition_once() {
             .collect::<Vec<_>>(),
         vec![
             (SegmentKind::International, 0, 1),
-            (SegmentKind::Mainland, 1, 5),
-            (SegmentKind::International, 5, 6),
-            (SegmentKind::Mainland, 6, 8),
-            (SegmentKind::International, 8, 9),
+            (SegmentKind::Mainland, 1, 4),
+            (SegmentKind::International, 4, 6),
+            (SegmentKind::Mainland, 6, 7),
+            (SegmentKind::International, 7, 9),
         ]
     );
     assert_eq!(
@@ -165,7 +165,7 @@ fn single_region_empty_unresolved_and_disconnected_routes() {
 }
 
 #[test]
-fn unresolved_exit_chain_stays_with_mainland_and_foreign_arrival_is_separate() {
+fn unresolved_exit_chain_starts_after_last_china_fix() {
     let b = boundary();
     let legs = route(&[
         airport("ZSPD", 110.),
@@ -179,7 +179,8 @@ fn unresolved_exit_chain_stays_with_mainland_and_foreign_arrival_is_separate() {
     assert_partition(&legs, &segments);
     assert_eq!(segments.len(), 2);
     assert_eq!(segments[0].kind, SegmentKind::Mainland);
-    assert_eq!(segments[0].route.end_index(), 4);
+    assert_eq!(segments[0].route.end_index(), 1);
+    assert_eq!(segments[1].route.start_index, 1);
     assert_eq!(
         segments[0].get_route_start_airport().unwrap().identifier(),
         Some("ZSPD")
@@ -198,4 +199,57 @@ fn unresolved_exit_chain_stays_with_mainland_and_foreign_arrival_is_separate() {
         segments[1].get_route_end_airport().unwrap().identifier(),
         Some("RJAA")
     );
+}
+
+#[test]
+fn route_dto_preserves_global_leg_indices_and_terminal_kinds() {
+    use crate::modules::flight::dto::FlightRouteDto;
+    let b = boundary();
+    let mut legs = route(&[
+        airport("ZSPD", 110.),
+        fix(115.),
+        fix(130.),
+        airport("RJAA", 140.),
+    ]);
+    legs[0].kind = LegKind::Sid;
+    legs[1].identifier = None;
+    legs[1].kind = LegKind::Direct;
+    legs[2].kind = LegKind::Star;
+    let segments = RouteSegmenter::new(&b).segment(&legs);
+    let dto = serde_json::to_value(FlightRouteDto::from_segments(&segments)).unwrap();
+    assert_eq!(dto["segments"][0]["index"], 0);
+    assert_eq!(dto["segments"][1]["index"], 1);
+    assert_eq!(dto["segments"][0]["initial_fix"], "ZSPD");
+    assert_eq!(dto["segments"][0]["last_fix"], "30.000000,115.000000");
+    assert_eq!(
+        dto["segments"][0]["enroute_initial_fix"],
+        "30.000000,115.000000"
+    );
+    assert_eq!(dto["segments"][0]["legs"][0]["leg_kind"], "sid");
+    assert_eq!(dto["segments"][1]["legs"][0]["leg_kind"], "enroute");
+    assert!(dto["segments"][1]["legs"][0]["route_ident"].is_null());
+    assert_eq!(dto["segments"][1]["legs"][1]["leg_kind"], "star");
+    for segment in &segments {
+        for (_, variant) in segment.endpoint_variants() {
+            assert!(variant.end_index() <= segment.route.end_index());
+        }
+    }
+    let indices: Vec<_> = dto["segments"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|segment| segment["legs"].as_array().unwrap().iter())
+        .map(|leg| leg["index"].as_u64().unwrap())
+        .collect();
+    assert_eq!(indices, vec![0, 1, 2]);
+}
+
+#[test]
+fn lone_china_departure_does_not_produce_an_empty_segment() {
+    let b = boundary();
+    let legs = route(&[fix(110.), fix(130.), fix(140.)]);
+    let segments = RouteSegmenter::new(&b).segment(&legs);
+    assert_partition(&legs, &segments);
+    assert_eq!(segments.len(), 1);
+    assert_eq!(segments[0].kind, SegmentKind::International);
 }
