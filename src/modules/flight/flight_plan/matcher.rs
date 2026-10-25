@@ -106,10 +106,7 @@ impl<'s> PreferredRouteMatcher<'s> {
         }
         let mut seen = HashSet::new();
         let mut routes = Vec::new();
-        for (airport_pair, variant) in segment.endpoint_variants() {
-            let Some((from, to)) = endpoints(variant) else {
-                continue;
-            };
+        for (airport_pair, _, (from, to)) in candidate_endpoints(*segment) {
             // Query each pair once, retaining separate database rows with identical contents.
             if seen.insert((from.to_ascii_uppercase(), to.to_ascii_uppercase())) {
                 routes.extend(
@@ -134,10 +131,7 @@ impl<'s> PreferredRouteMatcher<'s> {
             return Ok(Vec::new());
         }
         let mut candidates = Vec::new();
-        for (airport_pair, variant) in segment.endpoint_variants() {
-            let Some((from, to)) = endpoints(variant) else {
-                continue;
-            };
+        for (airport_pair, variant, (from, to)) in candidate_endpoints(segment) {
             candidates.extend(
                 self.navdata
                     .list_preferred_routes(from, to)
@@ -201,6 +195,27 @@ impl<'s> PreferredRouteMatcher<'s> {
     }
 }
 
+/// Use the flight's airports for preferred-route lookup while matching only
+/// the mainland coverage. Border-keyed routes remain fallback candidates.
+fn candidate_endpoints<'l>(
+    segment: Segment<'l>,
+) -> Vec<(bool, RouteSegment<'l>, (&'l str, &'l str))> {
+    let mut variants = Vec::new();
+    let mut seen = HashSet::new();
+    if let Some((from, to)) = segment.airport_pair {
+        seen.insert((from.to_ascii_uppercase(), to.to_ascii_uppercase()));
+        variants.push((true, segment.route, (from, to)));
+    }
+    for (airport_pair, coverage) in segment.endpoint_variants() {
+        if let Some((from, to)) = endpoints(coverage)
+            && seen.insert((from.to_ascii_uppercase(), to.to_ascii_uppercase()))
+        {
+            variants.push((airport_pair, coverage, (from, to)));
+        }
+    }
+    variants
+}
+
 fn endpoints(variant: RouteSegment<'_>) -> Option<(&str, &str)> {
     Some((
         variant.legs.first()?.from.identifier()?,
@@ -258,3 +273,6 @@ fn routes_match(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {
                 })
     })
 }
+
+#[cfg(test)]
+mod tests;

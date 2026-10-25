@@ -26,6 +26,8 @@ pub enum SegmentKind {
 pub struct Segment<'l> {
     pub kind: SegmentKind,
     pub route: RouteSegment<'l>,
+    /// Airport pair of the connected route, retained across China border cuts.
+    pub(crate) airport_pair: Option<(&'l str, &'l str)>,
     enter: Option<(&'l AnyFix, &'l AnyFix)>,
     exit: Option<(&'l AnyFix, &'l AnyFix)>,
 }
@@ -144,6 +146,12 @@ impl<'b> RouteSegmenter<'b> {
         offset: usize,
         segments: &mut Vec<Segment<'l>>,
     ) {
+        let airport_pair = match (&legs[0].from, &legs[legs.len() - 1].to) {
+            (AnyFix::Airport(departure), AnyFix::Airport(arrival)) => {
+                Some((departure.identifier.as_str(), arrival.identifier.as_str()))
+            }
+            _ => None,
+        };
         // Unknown fixes are skipped only for geographical classification. They
         // stay in the borrowed path and still participate in exact matching.
         let fixes = std::iter::once(&legs[0].from).chain(legs.iter().map(|leg| &leg.to));
@@ -190,6 +198,7 @@ impl<'b> RouteSegmenter<'b> {
                         legs: &legs[covered..start],
                         start_index: offset + covered,
                     },
+                    airport_pair: None,
                     enter: None,
                     exit: None,
                 });
@@ -201,6 +210,7 @@ impl<'b> RouteSegmenter<'b> {
                         legs: &legs[start..end],
                         start_index: offset + start,
                     },
+                    airport_pair,
                     enter: enter.map(|(a, b)| (fix(a), fix(b))),
                     exit: exit.map(|(a, b)| (fix(a), fix(b))),
                 });
@@ -215,6 +225,7 @@ impl<'b> RouteSegmenter<'b> {
                     legs: &legs[covered..],
                     start_index: offset + covered,
                 },
+                airport_pair: None,
                 enter: None,
                 exit: None,
             });
