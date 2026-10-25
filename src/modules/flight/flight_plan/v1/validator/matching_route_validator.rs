@@ -39,7 +39,7 @@ impl Validator<(Option<&PreferredRoute>, &[PreferredRoute])> for NoMatchingRoute
                     .into_iter()
                     .map(|route| route.raw_route.clone())
                     .collect::<Vec<_>>()
-                    .join(","),
+                    .join("\n"),
             )
         })
     }

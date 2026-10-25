@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::{CheckResult, ValidationContext, ValidationLevel, Validator};
 use crate::modules::flight::models::{
     ValidationField, ValidationProblem, ValidatorIdentifier, ValidatorStatus,
@@ -24,16 +26,12 @@ impl Validator for PreferredRouteValidator {
         } else if context.preferred_routes.is_empty() {
             (ValidatorStatus::Suppressed, Vec::new())
         } else {
-            let mut public_routes = context
-                .preferred_routes
-                .iter()
-                .filter(|route| route.is_public)
-                .collect::<Vec<_>>();
-            public_routes.sort_by(|left, right| left.name.cmp(&right.name));
             (
                 ValidatorStatus::Rejected,
-                public_routes
-                    .into_iter()
+                context
+                    .preferred_routes
+                    .iter()
+                    .sorted_by(|left, right| left.name.cmp(&right.name))
                     .map(|route| ValidationProblem::NotPreferredRoute {
                         from: route.departure.clone(),
                         to: route.arrival.clone(),
