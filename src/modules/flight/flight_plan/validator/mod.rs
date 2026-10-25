@@ -30,7 +30,6 @@ pub fn validate_flight(
     navdata: &NavdataService,
 ) -> Vec<ValidatorExecution> {
     vec![
-        CallsignValidator::execute(context, navdata, CallsignValidator::FIELD),
         FlightRuleWeatherValidator::execute(context, navdata, FlightRuleWeatherValidator::FIELD),
         AircraftTypeValidator::execute(context, navdata, AircraftTypeValidator::FIELD),
         WakeCategoryValidator::execute(context, navdata, WakeCategoryValidator::FIELD),

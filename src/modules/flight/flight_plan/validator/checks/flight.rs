@@ -15,14 +15,6 @@ static AIRCRAFT_TYPES: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     .expect("embedded aircraft-type lookup must be valid")
 });
 
-/// Callsign must identify a valid airline flight or aircraft registration.
-pub struct CallsignValidator;
-
-impl Validator for CallsignValidator {
-    const IDENT: ValidatorIdentifier = ValidatorIdentifier::Callsign;
-    const FIELD: ValidationField = ValidationField::Callsign;
-}
-
 /// Flight rules must be permitted by the current weather conditions.
 pub struct FlightRuleWeatherValidator;
 

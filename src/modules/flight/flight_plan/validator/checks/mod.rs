@@ -19,9 +19,7 @@ pub use cruising_level::{
     DirectionalCruiseAltitudeValidator, PreferredRouteCruiseAltitudeValidator,
 };
 pub use equipment::{EquipmentRnav1Validator, EquipmentRnpArValidator, EquipmentRvsmValidator};
-pub use flight::{
-    AircraftTypeValidator, CallsignValidator, FlightRuleWeatherValidator, WakeCategoryValidator,
-};
+pub use flight::{AircraftTypeValidator, FlightRuleWeatherValidator, WakeCategoryValidator};
 pub use route::{
     AirwayApprovalValidator, AirwayDirectionValidator, PreferredRouteValidator,
     RouteDirectLegValidator, RouteUnknownLegOrFixValidator,
