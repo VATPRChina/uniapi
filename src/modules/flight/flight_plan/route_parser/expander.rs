@@ -22,7 +22,8 @@ impl Expander {
     /// Expand named legs into connected published segments, in route order.
     /// Direct legs and legs without a matching path retain their original form.
     /// Fix endpoints use their equality implementations. Airways allow reverse
-    /// traversal, flipping the direction restrictions.
+    /// traversal, flipping the direction restrictions. Published endpoint records
+    /// are preserved, including their ICAO regions when equivalent fixes differ.
     /// SID/STAR common legs retain their published direction.
     /// Procedures use fixed endpoints only; runway selection and vector geometry
     /// are not represented by the constructed route.
@@ -62,24 +63,6 @@ fn expand_leg(constructed: &ConstructedLeg) -> Result<Vec<ResolvedLeg>, Expansio
     };
     Ok(find_path(&edges, &leg.from, &leg.to)
         .filter(|path| !path.is_empty())
-        .map(|path| {
-            path.iter()
-                .enumerate()
-                .map(|(index, segment)| ResolvedLeg {
-                    from: if index == 0 {
-                        leg.from.clone()
-                    } else {
-                        path[index - 1].to.clone()
-                    },
-                    to: if index + 1 == path.len() {
-                        leg.to.clone()
-                    } else {
-                        segment.to.clone()
-                    },
-                    ..segment.clone()
-                })
-                .collect()
-        })
         .unwrap_or_else(|| {
             if leg.kind == LegKind::Airway {
                 warn!(
@@ -195,5 +178,71 @@ mod tests {
         assert!(find_path(&edges, &different_position, &to).is_none());
         let different_variant = AnyFix::GeoPoint(GeoPoint::new(30., 110.).unwrap());
         assert!(find_path(&edges, &different_variant, &to).is_none());
+    }
+    #[test]
+    fn expansion_preserves_published_tamot_region_and_mainland_cutoff() {
+        use super::{ConstructedLeg, Expander};
+        use crate::modules::flight::flight_plan::{RouteSegmenter, SegmentKind};
+        use crate::modules::navdata::models::{Airway, ChinaMainlandBoundary, NavProc};
+
+        let fix = |identifier: &str, region: &str, latitude: f64, longitude: f64| {
+            AnyFix::Waypoint(Waypoint {
+                icao_code: region.try_into().unwrap(),
+                identifier: identifier.try_into().unwrap(),
+                latitude: latitude.try_into().unwrap(),
+                longitude: longitude.try_into().unwrap(),
+                kind: WaypointKind::Enroute,
+            })
+        };
+        let wyn = fix("WYN", "ZG", 24.348611, 114.113056);
+        let nlg = fix("NLG", "ZG", 22.530556, 113.563056);
+        let tamot_zg = fix("TAMOT", "ZG", 22.358333, 113.866667);
+        let tamot_vh = fix("TAMOT", "VH", 22.358333, 113.866667);
+        let alley = fix("ALLEY", "VH", 21.086431, 113.785972);
+        let leg = |from, to| ResolvedLeg {
+            from,
+            to,
+            identifier: Some("W18".into()),
+            is_unknown: false,
+            kind: LegKind::Airway,
+            direction_restriction: DirectionRestriction::Forward,
+        };
+        let published = vec![leg(wyn.clone(), nlg.clone()), leg(nlg, tamot_zg)];
+        let expanded = Expander::new(vec![
+            ConstructedLeg {
+                leg: leg(wyn, tamot_vh.clone()),
+                procedure: Some(NavProc::Airway(Airway {
+                    identifier: "W18".try_into().unwrap(),
+                    legs: published,
+                })),
+            },
+            ConstructedLeg {
+                leg: ResolvedLeg {
+                    identifier: None,
+                    kind: LegKind::Direct,
+                    ..leg(tamot_vh, alley)
+                },
+                procedure: None,
+            },
+        ])
+        .expand()
+        .unwrap();
+        assert_eq!(expanded.len(), 3);
+        assert_eq!(expanded[1].to.identifier(), Some("TAMOT"));
+        assert_eq!(expanded[1].to.icao_code(), Some("ZG"));
+        assert_eq!(expanded[2].from.icao_code(), Some("VH"));
+        // Equivalent fix records still connect without discarding airway metadata.
+        assert_eq!(expanded[1].to, expanded[2].from);
+        let boundary = ChinaMainlandBoundary::default();
+        let segments = RouteSegmenter::new(&boundary).segment(&expanded);
+        assert_eq!(segments.len(), 2);
+        assert_eq!(segments[0].kind, SegmentKind::Mainland);
+        assert_eq!(segments[0].route.end_index(), 2);
+        assert_eq!(
+            segments[0].route.legs.last().unwrap().to.identifier(),
+            Some("TAMOT")
+        );
+        assert_eq!(segments[1].kind, SegmentKind::International);
+        assert_eq!(segments[1].route.start_index, 2);
     }
 }
