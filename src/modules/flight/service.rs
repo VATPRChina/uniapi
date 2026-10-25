@@ -3,17 +3,15 @@ use std::sync::LazyLock;
 
 use crate::adapter::compat::{CompatClient, CompatClientError};
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::flight::flight_plan::v1::parser::ParserError;
-use crate::modules::flight::flight_plan::{ParseRouteError, RouteSegmenter, parse_route, v1};
+use crate::modules::flight::flight_plan::v1::validator::WarningMessage;
+use crate::modules::flight::flight_plan::{ParseRouteError, parse_route, v1};
 use crate::modules::flight::models::ParsedRoute;
-use crate::modules::navdata::models::ResolvedLeg;
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
 use regex::Regex;
 
-use super::dto::{FlightRouteSegment, RouteDeliveryInfo, SidCandidate};
-use super::flight_plan::validator::{self, ValidatorError, WarningMessage};
-use super::models::{CompatController, CompatPilot, CompatStatus, Flight, ValidatorResult};
+use super::flight_plan::validator::{self, ValidatorError};
+use super::models::{CompatController, CompatPilot, CompatStatus, Flight, ValidatorExecution};
 use super::repository::flight::FlightRepository;
 
 static VATPRC_CONTROLLER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
@@ -109,7 +107,7 @@ impl FlightService {
         self.list()
             .await?
             .into_iter()
-            .find(|flight| flight.callsign.eq_ignore_ascii_case(callsign))
+            .find(|flight| flight.flight_plan.callsign.eq_ignore_ascii_case(callsign))
             .ok_or_else(|| FlightServiceError::CallsignNotFound(callsign.to_owned()))
     }
 
@@ -126,44 +124,6 @@ impl FlightService {
             .ok_or(FlightServiceError::FlightNotFoundForCid)
     }
 
-    pub async fn route_by_callsign(
-        &self,
-        callsign: &str,
-    ) -> Result<ParsedRoute, FlightServiceError> {
-        let flight = self.find_by_callsign(callsign).await?;
-        self.route_v1(&flight).await
-    }
-
-    pub async fn warnings_by_callsign(
-        &self,
-        callsign: &str,
-    ) -> Result<Vec<WarningMessage>, FlightServiceError> {
-        let flight = self.find_by_callsign(callsign).await?;
-        self.warnings(&flight).await
-    }
-
-    pub async fn v2_by_callsign(
-        &self,
-        callsign: &str,
-    ) -> Result<super::dto::FlightV2Dto, FlightServiceError> {
-        let flight = self.find_by_callsign(callsign).await?;
-        Ok(super::flight_plan::diagnostics::analyze_flight(flight, &self.navdata).await)
-    }
-
-    pub async fn validations_by_callsign(
-        &self,
-        callsign: &str,
-    ) -> Result<Vec<ValidatorResult>, FlightServiceError> {
-        let flight = self.find_by_callsign(callsign).await?;
-        let route = self.route_v2(&route_string(&flight)).await?;
-        Ok(validator::validate_route(&flight, &route, &self.navdata).await?)
-    }
-
-    pub async fn route_v1(&self, flight: &Flight) -> Result<ParsedRoute, FlightServiceError> {
-        let legs = v1::parser::parse_route(&self.navdata, &route_string(flight)).await?;
-        Ok(ParsedRoute { legs })
-    }
-
     /// Parse and expand a complete route using the v2 pipeline.
     pub async fn route_v2(&self, route: &str) -> Result<ParsedRoute, FlightServiceError> {
         parse_route(&self.navdata, route)
@@ -176,63 +136,69 @@ impl FlightService {
             })
     }
 
-    /// Developer route output with expanded legs and mainland visits.
-    pub async fn route_delivery_v2(
-        &self,
-        route: &str,
-    ) -> Result<RouteDeliveryInfo, FlightServiceError> {
-        let route = self.route_v2(route).await?;
-        let sid_candidates = self.sid_candidates(&route.legs).await?;
-        let segments = RouteSegmenter::new(self.navdata.china_boundaries())
-            .segment(&route.legs)
-            .iter()
-            .map(FlightRouteSegment::from)
-            .collect();
-        Ok(RouteDeliveryInfo::new(
-            route.legs,
-            sid_candidates,
-            segments,
-            self.navdata.china_boundaries(),
-        ))
-    }
-
-    /// Procedures matching the first route fix with a SID at the departure airport.
-    pub async fn sid_candidates(
-        &self,
-        legs: &[ResolvedLeg],
-    ) -> Result<Vec<SidCandidate>, FlightServiceError> {
-        let Some(airport) = legs.first().and_then(|leg| leg.from.identifier()) else {
-            return Ok(Vec::new());
-        };
-        let sids = self
-            .navdata
-            .find_sids_by_airport(airport)
-            .await
-            .map_err(ParseRouteError::from)?;
-        let Some(connection) =
-            legs.iter()
-                .filter_map(|leg| leg.from.identifier())
-                .find(|connection| {
-                    sids.iter().any(|sid| {
-                        sid.enroute_transitions
-                            .iter()
-                            .any(|identifier| identifier.as_str() == *connection)
-                    })
-                })
-        else {
-            return Ok(Vec::new());
-        };
-        Ok(sids
+    pub async fn by_departure(&self, icao: &str) -> Result<Vec<Flight>, FlightServiceError> {
+        Ok(self
+            .list()
+            .await?
             .into_iter()
-            .filter(|sid| {
-                sid.enroute_transitions
-                    .iter()
-                    .any(|identifier| identifier.as_str() == connection)
-            })
-            .map(Into::into)
+            .filter(|flight| flight.flight_plan.departure.eq_ignore_ascii_case(icao))
             .collect())
     }
 
+    pub async fn by_arrival(&self, icao: &str) -> Result<Vec<Flight>, FlightServiceError> {
+        Ok(self
+            .list()
+            .await?
+            .into_iter()
+            .filter(|flight| flight.flight_plan.arrival.eq_ignore_ascii_case(icao))
+            .collect())
+    }
+
+    pub async fn validate(
+        &self,
+        flight: &Flight,
+    ) -> Result<Vec<ValidatorExecution>, FlightServiceError> {
+        let plan = &flight.flight_plan;
+        let route = parse_route(
+            &self.navdata,
+            &format!("{} {} {}", plan.departure, plan.raw_route, plan.arrival),
+        )
+        .await
+        .map_err(|error| match error {
+            ParseRouteError::InvalidRoute(reason) => FlightServiceError::InvalidRoute(reason),
+            error => FlightServiceError::Parser(error),
+        })?;
+        Ok(validator::validate_route(flight, &route, &self.navdata).await?)
+    }
+
+    #[deprecated]
+    #[allow(deprecated)]
+    pub async fn route_v1(&self, flight: &Flight) -> Result<ParsedRoute, FlightServiceError> {
+        let legs = v1::parser::parse_route(
+            &self.navdata,
+            &format!(
+                "{} {} {}",
+                flight.flight_plan.departure,
+                flight.flight_plan.raw_route,
+                flight.flight_plan.arrival
+            ),
+        )
+        .await?;
+        Ok(ParsedRoute { legs })
+    }
+
+    #[deprecated]
+    #[allow(deprecated)]
+    pub async fn warnings_by_callsign(
+        &self,
+        callsign: &str,
+    ) -> Result<Vec<WarningMessage>, FlightServiceError> {
+        let flight = self.find_by_callsign(callsign).await?;
+        self.warnings(&flight).await
+    }
+
+    #[deprecated]
+    #[allow(deprecated)]
     pub async fn warnings(
         &self,
         flight: &Flight,
@@ -243,12 +209,14 @@ impl FlightService {
             .map_err(Into::into)
     }
 
+    #[deprecated]
+    #[allow(deprecated)]
     pub async fn warnings_for_all(
         &self,
     ) -> Result<BTreeMap<String, Vec<WarningMessage>>, FlightServiceError> {
         let validations =
             futures::future::join_all(self.list().await?.into_iter().map(|flight| async move {
-                let callsign = flight.callsign.clone();
+                let callsign = flight.flight_plan.callsign.clone();
                 self.warnings(&flight)
                     .await
                     .map(|warnings| (callsign, warnings))
@@ -257,13 +225,6 @@ impl FlightService {
 
         validations.into_iter().collect()
     }
-}
-
-fn route_string(flight: &Flight) -> String {
-    format!(
-        "{} {} {}",
-        flight.departure, flight.raw_route, flight.arrival
-    )
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -281,7 +242,8 @@ pub enum FlightServiceError {
     #[error("failed to parse flight route: {0}")]
     Parser(#[from] ParseRouteError),
     #[error("failed to parse flight route: {0}")]
-    ParserV1(#[from] ParserError),
+    #[deprecated]
+    ParserV1(#[from] v1::parser::ParserError),
     #[error("failed to validate flight route: {0}")]
     Validator(#[from] ValidatorError),
     #[error("failed to access flight user: {0}")]

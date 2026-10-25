@@ -2,7 +2,7 @@ use std::path::Path;
 
 use sqlx::{FromRow, SqlitePool, sqlite::SqliteConnectOptions};
 
-use crate::modules::navdata::models::{LevelRestrictionType, PreferredRoute};
+use crate::modules::navdata::models::{CruiseAltitudeType, PreferredRoute};
 
 #[derive(Debug, thiserror::Error)]
 pub enum PreferredRouteRepositoryError {
@@ -71,8 +71,8 @@ impl TryFrom<PreferredRouteRecord> for PreferredRoute {
     type Error = PreferredRouteRepositoryError;
 
     fn try_from(record: PreferredRouteRecord) -> Result<Self, Self::Error> {
-        let cruising_level_restriction = LevelRestrictionType::from_code(&record.even_odd)
-            .map_err(|_| {
+        let cruising_level_restriction =
+            CruiseAltitudeType::from_code(&record.even_odd).map_err(|_| {
                 PreferredRouteRepositoryError::InvalidLevelRestriction(record.even_odd.clone())
             })?;
 

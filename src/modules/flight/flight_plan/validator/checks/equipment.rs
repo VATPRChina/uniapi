@@ -1,37 +1,40 @@
 use super::CheckResult;
-use super::{ValidationContext, Validator, WarningMessageField};
-use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageCode};
+use super::{ValidationContext, Validator};
 use crate::modules::flight::models::ValidatorStatus;
+use crate::modules::flight::models::{ValidationField, ValidationProblem, ValidatorIdentifier};
 use crate::modules::navdata::service::NavdataService;
 
 /// Equipment must permit RVSM when cruising at a China metric RVSM flight level.
 pub struct EquipmentRvsmValidator;
 
 impl Validator for EquipmentRvsmValidator {
-    const IDENT: &'static str = "equipment-rvsm";
-    const FIELD: WarningMessageField = WarningMessageField::Equipment;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::EquipmentRvsm;
+    const FIELD: ValidationField = ValidationField::Equipment;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
-        let level = context.flight.cruising_level;
-        let (status, warnings) = if level <= 0 {
+        let level = context.flight.flight_plan.cruising_level;
+        let (status, problems) = if level <= 0 {
             (ValidatorStatus::Unavailable, Vec::new())
         } else if !(29100..=41100).contains(&level) {
             (ValidatorStatus::Suppressed, Vec::new())
-        } else if context.flight.equipment.trim().is_empty() {
+        } else if context.flight.flight_plan.equipment.trim().is_empty() {
             (ValidatorStatus::Unavailable, Vec::new())
-        } else if context.flight.equipment.to_ascii_uppercase().contains('W') {
+        } else if context
+            .flight
+            .flight_plan
+            .equipment
+            .to_ascii_uppercase()
+            .contains('W')
+        {
             (ValidatorStatus::Pass, Vec::new())
         } else {
-            (
-                ValidatorStatus::Rejected,
-                vec![WarningMessage::new(Self::FIELD, WarningMessageCode::NoRvsm)],
-            )
+            (ValidatorStatus::Rejected, vec![ValidationProblem::NoRvsm])
         };
         CheckResult {
-            validator_ident: Self::IDENT.to_owned(),
+            id: Self::IDENT,
             field: Self::FIELD,
             status,
-            warnings,
+            problems,
         }
     }
 }
@@ -40,43 +43,42 @@ impl Validator for EquipmentRvsmValidator {
 pub struct EquipmentRnav1Validator;
 
 impl Validator for EquipmentRnav1Validator {
-    const IDENT: &'static str = "equipment-rnav1";
-    const FIELD: WarningMessageField = WarningMessageField::Equipment;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::EquipmentRnav1;
+    const FIELD: ValidationField = ValidationField::Equipment;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
-        let equipment = context.flight.equipment.trim().to_ascii_uppercase();
+        let equipment = context
+            .flight
+            .flight_plan
+            .equipment
+            .trim()
+            .to_ascii_uppercase();
         let pbn = context
             .flight
+            .flight_plan
             .navigation_performance
             .trim()
             .to_ascii_uppercase();
 
-        let mut warnings = Vec::new();
-
-        if !equipment.contains('R') {
-            warnings.push(WarningMessage::new(
-                Self::FIELD,
-                WarningMessageCode::NoRnav1,
-            ));
-        }
-
-        if !pbn.contains("D1") && !pbn.contains("D2") && !pbn.contains("D3") && !pbn.contains("D4")
+        let problems = if equipment.contains('R')
+            && ["D1", "D2", "D3", "D4"]
+                .iter()
+                .any(|code| pbn.contains(code))
         {
-            warnings.push(WarningMessage::new(
-                WarningMessageField::NavigationPerformance,
-                WarningMessageCode::NoRnav1,
-            ));
-        }
+            Vec::new()
+        } else {
+            vec![ValidationProblem::NoRnav1]
+        };
 
         CheckResult {
-            validator_ident: Self::IDENT.to_owned(),
+            id: Self::IDENT,
             field: Self::FIELD,
-            status: if warnings.is_empty() {
+            status: if problems.is_empty() {
                 ValidatorStatus::Pass
             } else {
                 ValidatorStatus::Rejected
             },
-            warnings,
+            problems,
         }
     }
 }
@@ -85,31 +87,28 @@ impl Validator for EquipmentRnav1Validator {
 pub struct EquipmentRnpArValidator;
 
 impl Validator for EquipmentRnpArValidator {
-    const IDENT: &'static str = "equipment-rnp-ar";
-    const FIELD: WarningMessageField = WarningMessageField::NavigationPerformance;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::EquipmentRnpAr;
+    const FIELD: ValidationField = ValidationField::NavigationPerformance;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
-        let pbn = &context.flight.navigation_performance;
+        let pbn = &context.flight.flight_plan.navigation_performance;
         // T1 includes RF capability; prefer it when both AR codes are declared.
         let code = if pbn.contains("T1") {
-            Some(WarningMessageCode::RnpAr)
+            Some(ValidationProblem::RnpAr)
         } else if pbn.contains("T2") {
-            Some(WarningMessageCode::RnpArWithoutRf)
+            Some(ValidationProblem::RnpArWithoutRf)
         } else {
             None
         };
         CheckResult {
-            validator_ident: Self::IDENT.to_owned(),
+            id: Self::IDENT,
             field: Self::FIELD,
             status: if code.is_some() {
                 ValidatorStatus::Pass
             } else {
                 ValidatorStatus::Suppressed
             },
-            warnings: code
-                .map(|code| WarningMessage::new(Self::FIELD, code))
-                .into_iter()
-                .collect(),
+            problems: code.into_iter().collect(),
         }
     }
 }

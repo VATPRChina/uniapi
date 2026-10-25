@@ -740,14 +740,14 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/flights/active": {
+    "/api/flights/by-arrival/{icao}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["active_flights"];
+        get: operations["flights_by_arrival"];
         put?: never;
         post?: never;
         delete?: never;
@@ -772,14 +772,15 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/flights/by-callsign/{callsign}/route": {
+    "/api/flights/by-callsign/{callsign}/v2": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["route_by_callsign"];
+        /** Internal parser, route matching and validation diagnostics from one flight snapshot. */
+        get: operations["flight_diagnostics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -788,14 +789,51 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/flights/by-callsign/{callsign}/warnings": {
+    "/api/flights/by-callsign/{callsign}/validation": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["warnings_by_callsign"];
+        get: operations["flight_validation_by_callsign"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/by-departure/{icao}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["flights_by_departure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/by-departure/{icao}/validations.ws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sends a JSON object mapping callsigns to FlightValidationDto. The initial
+         *     snapshot is sent immediately; changed snapshots follow at 30-second intervals.
+         *     Each snapshot replaces the previous one, including flights that disappeared.
+         */
+        get: operations["departure_validations_websocket"];
         put?: never;
         post?: never;
         delete?: never;
@@ -820,14 +858,62 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/flights/temporary/by-plan/warnings": {
+    "/api/flights/mine/validation": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["temporary_warnings"];
+        get: operations["my_flight_validation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/route/v2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["route_diagnostics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/temporary/by-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["temporary_flight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flights/temporary/by-plan/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["temporary_flight_validation"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1397,9 +1483,7 @@ export type components = {
         ControllerOnlineTimeDto: {
             /** Format: date-time */
             as_of: string;
-            /**
-             * @description Current-quarter eligible seconds for S1 (GND/DEL/RMP), S2 (TWR), S3 (APP), C1+ (CTR).
-             */
+            /** @description Current-quarter eligible seconds for S1 (GND/DEL/RMP), S2 (TWR), S3 (APP), C1+ (CTR). */
             by_position: components["schemas"]["ControllerOnlineTimeByPosition"];
             lifetime: components["schemas"]["ControllerOnlineTimeSummaryDto"];
             period: string;
@@ -1417,6 +1501,8 @@ export type components = {
              */
             total_seconds: number;
         };
+        /** @enum {string} */
+        CruiseAltitudeType: "standard-even" | "standard-odd" | "standard" | "flight-level-even" | "flight-level-odd";
         DeviceAuthorizationRequest: {
             client_id: string;
             scope?: string | null;
@@ -1431,6 +1517,8 @@ export type components = {
             verification_uri: string;
             verification_uri_complete?: string | null;
         };
+        /** @enum {string} */
+        DirectionRestriction: "none" | "forward" | "backward";
         EventAirspaceDto: {
             /** Format: date-time */
             created_at: string;
@@ -1559,35 +1647,96 @@ export type components = {
             leave_at?: string | null;
         };
         FlightDto: {
-            aircraft: string;
             /** Format: int64 */
             altitude: number;
+            cid: string;
+            flight_plan: components["schemas"]["FlightPlanDto"];
+            /** Format: date-time */
+            last_observed_at: string;
+        };
+        FlightPlanDto: {
+            aircraft: string;
             arrival: string;
             callsign: string;
-            cid: string;
             /** Format: int64 */
             cruising_level: number;
             departure: string;
             equipment: string;
-            id: string;
-            /** Format: date-time */
-            last_observed_at: string;
+            flight_rules: components["schemas"]["FlightRule"];
             navigation_performance: string;
             raw_route: string;
             transponder: string;
+            wake_category: components["schemas"]["WakeCategory"];
         };
-        FlightFix: {
+        /** @description Coordinates are exposed only by the developer-only v2 route endpoint. */
+        FlightRouteFix: {
             identifier: string;
+            is_unknown: boolean;
+            /** Format: double */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
         };
-        FlightLeg: {
-            from: components["schemas"]["FlightFix"];
+        FlightRouteLeg: {
+            from: components["schemas"]["FlightRouteFix"];
+            /** @description Whether either endpoint is mainland or unresolved. */
+            is_mainland: boolean;
+            is_sid: boolean;
+            is_star: boolean;
+            is_unknown: boolean;
             leg_identifier: string;
-            to: components["schemas"]["FlightFix"];
+            to: components["schemas"]["FlightRouteFix"];
+        };
+        /** @description A mainland or international portion. Leg ranges refer to the expanded legs array. */
+        FlightRouteSegment: {
+            cross_border_enter_end_fix?: null | components["schemas"]["FlightRouteFix"];
+            cross_border_enter_start_fix?: null | components["schemas"]["FlightRouteFix"];
+            cross_border_exit_end_fix?: null | components["schemas"]["FlightRouteFix"];
+            cross_border_exit_start_fix?: null | components["schemas"]["FlightRouteFix"];
+            /** @description Exclusive zero-based leg index. */
+            end_index: number;
+            enroute_end_fix: components["schemas"]["FlightRouteFix"];
+            enroute_start_fix: components["schemas"]["FlightRouteFix"];
+            identifier: string;
+            kind: components["schemas"]["SegmentKind"];
+            route_end_airport?: null | components["schemas"]["FlightRouteFix"];
+            route_start_airport?: null | components["schemas"]["FlightRouteFix"];
+            /** @description Inclusive zero-based leg index. */
+            start_index: number;
+        };
+        /** @enum {string} */
+        FlightRule: "I" | "V";
+        FlightV2DiagnosticError: {
+            message: string;
+            stage: string;
+        };
+        /** @description A single flight snapshot and its v2 analysis. No v1 parsing or validation is used. */
+        FlightV2Dto: {
+            errors: components["schemas"]["FlightV2DiagnosticError"][];
+            flight_plan: components["schemas"]["FlightDto"];
+            /** @description None means matching could not complete. Indices refer to `segments`. */
+            preferred_route_matching?: components["schemas"]["SegmentRouteMatches"][] | null;
+            route_parse: components["schemas"]["RouteParseResults"];
+            /** @description None means parsing did not complete; an empty array means no segments. */
+            segments?: components["schemas"]["FlightV2Segment"][] | null;
+            validations: components["schemas"]["ValidatorExecutionDto"][];
+        };
+        FlightV2Leg: components["schemas"]["FlightRouteLeg"] & {
+            direction_restriction: components["schemas"]["DirectionRestriction"];
+            kind: components["schemas"]["LegKind"];
+        };
+        FlightV2Segment: components["schemas"]["FlightRouteSegment"] & {
+            legs: components["schemas"]["FlightV2Leg"][];
+        };
+        FlightValidationDto: {
+            validators: components["schemas"]["ValidatorExecutionDto"][];
         };
         HealthResponse: {
             database: string;
             status: string;
         };
+        /** @enum {string} */
+        LegKind: "airway" | "sid" | "star" | "direct";
         /** @enum {string} */
         LevelRestrictionType: "standard-even" | "standard-odd" | "standard" | "flight-level-even" | "flight-level-odd" | "flight-level";
         /** @enum {string} */
@@ -1607,6 +1756,19 @@ export type components = {
             /** Format: date-time */
             valid_until?: string | null;
         };
+        PreferredRouteMatchCandidate: {
+            airport_pair: boolean;
+            end_leg_index: number;
+            enroute_end_fix: components["schemas"]["FlightRouteFix"];
+            enroute_start_fix: components["schemas"]["FlightRouteFix"];
+            /** @description Invalid published routes are reported, without preventing other matches. */
+            error?: string | null;
+            from: components["schemas"]["FlightRouteFix"];
+            matched: boolean;
+            route: components["schemas"]["PreferredRouteSnapshot"];
+            start_leg_index: number;
+            to: components["schemas"]["FlightRouteFix"];
+        };
         PreferredRouteSaveRequest: {
             allowed_altitudes?: number[];
             arrival: string;
@@ -1621,6 +1783,22 @@ export type components = {
             /** Format: date-time */
             valid_until?: string | null;
         };
+        PreferredRouteSnapshot: {
+            allowed_altitudes: number[];
+            arrival: string;
+            cruising_level_restriction: string;
+            departure: string;
+            is_public: boolean;
+            /** Format: int32 */
+            minimal_altitude: number;
+            name: string;
+            raw_route: string;
+            remarks: string;
+            /** Format: date-time */
+            valid_from?: string | null;
+            /** Format: date-time */
+            valid_until?: string | null;
+        };
         ProblemDetails: {
             detail: string;
             /** Format: int32 */
@@ -1628,9 +1806,89 @@ export type components = {
             title: string;
             type: string;
         };
+        RouteAmendment: {
+            kind: string;
+            value: string;
+        };
+        RouteCandidate: {
+            fix?: null | components["schemas"]["FlightRouteFix"];
+            identifier: string;
+            is_unknown: boolean;
+            /**
+             * @description airport, waypoint, ndb, vhf, coordinate, fix-reference, unknown-fix,
+             *     airway, sid, star, or direct. Unknown procedures retain their kind.
+             */
+            kind: string;
+        };
+        RouteConstructedLeg: {
+            leg: components["schemas"]["FlightV2Leg"];
+            procedure?: null | components["schemas"]["RouteCandidate"];
+        };
+        RouteDeliveryInfo: {
+            legs: components["schemas"]["FlightRouteLeg"][];
+            /** @description Mainland and international portions, partitioning the expanded legs in order. */
+            segments: components["schemas"]["FlightRouteSegment"][];
+            sid_candidates: components["schemas"]["SidCandidate"][];
+        };
+        RouteLexerToken: {
+            amendments: components["schemas"]["RouteAmendment"][];
+            /** Format: int32 */
+            distance_nm?: number | null;
+            /** Format: int32 */
+            heading?: number | null;
+            kind: string;
+            /** Format: double */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
+            reference_identifier?: string | null;
+            text: string;
+        };
+        /** @description A null stage has not completed. Completed stages are retained on later errors. */
+        RouteParseResults: {
+            constructor?: components["schemas"]["RouteConstructedLeg"][] | null;
+            expander?: components["schemas"]["FlightV2Leg"][] | null;
+            lex_grouper?: components["schemas"]["RouteParsedIdent"][] | null;
+            lexer?: components["schemas"]["RouteLexerToken"][] | null;
+            resolver?: components["schemas"]["RouteResolvedIdent"][] | null;
+            solver?: components["schemas"]["RouteSolvedIdent"][] | null;
+        };
+        RouteParsedIdent: {
+            amendments: components["schemas"]["RouteAmendment"][];
+            errors: string[];
+            identifier: string;
+        };
+        RouteResolvedIdent: {
+            candidates: components["schemas"]["RouteCandidate"][];
+            ident: components["schemas"]["RouteParsedIdent"];
+        };
+        RouteSolvedIdent: {
+            candidates: components["schemas"]["RouteSolverState"][];
+            ident: components["schemas"]["RouteParsedIdent"];
+        };
+        RouteSolverState: {
+            candidate: components["schemas"]["RouteCandidate"];
+            /** Format: double */
+            distance_nm?: number | null;
+            fallback_count: number;
+            /** Format: double */
+            latitude?: number | null;
+            /** Format: double */
+            longitude?: number | null;
+            /** @description Index in the previous identifier's surviving candidates; null at departure. */
+            predecessor_index?: number | null;
+        };
         SectorPermissionResponse: {
             has_permission: boolean;
             sector_type: string;
+        };
+        /** @enum {string} */
+        SegmentKind: "mainland" | "international";
+        SegmentRouteMatches: {
+            candidates: components["schemas"]["PreferredRouteMatchCandidate"][];
+            segment_index: number;
+            /** @description First matching candidate in matching priority order, used by validation. */
+            selected_candidate_index?: number | null;
         };
         SheetDto: {
             fields: components["schemas"]["SheetFieldDto"][];
@@ -1674,6 +1932,11 @@ export type components = {
         SheetSaveRequest: {
             fields: components["schemas"]["SheetFieldSaveRequest"][];
             name: string;
+        };
+        SidCandidate: {
+            identifier: string;
+            is_rnav: boolean;
+            runway_transitions: string[];
         };
         TokenDto: {
             /** Format: date-time */
@@ -1803,16 +2066,137 @@ export type components = {
         };
         /** @enum {string} */
         UserRole: "staff" | "volunteer" | "division-director" | "controller-training-director" | "controller-training-director-assistant" | "controller-training-instructor" | "controller-training-mentor" | "controller-training-sop-editor" | "community-director" | "operation-director" | "operation-director-assistant" | "operation-sector-editor" | "operation-loa-editor" | "event-director" | "lead-event-coordinator" | "event-coordinator" | "event-graphics-designer" | "tech-director" | "tech-director-assistant" | "software-engineer" | "tech-afv-facility-engineer" | "controller" | "api-client" | "user";
-        WarningMessage: {
-            field: components["schemas"]["WarningMessageField"];
-            field_index?: number | null;
-            message_code: components["schemas"]["WarningMessageCode"];
-            parameter?: string | null;
+        ValidationFieldDto: {
+            /** @enum {string} */
+            kind: "Callsign";
+        } | {
+            /** @enum {string} */
+            kind: "FlightRules";
+        } | {
+            /** @enum {string} */
+            kind: "AircraftType";
+        } | {
+            /** @enum {string} */
+            kind: "WakeCategory";
+        } | {
+            /** @enum {string} */
+            kind: "Equipment";
+        } | {
+            /** @enum {string} */
+            kind: "Transponder";
+        } | {
+            /** @enum {string} */
+            kind: "Departure";
+        } | {
+            /** @enum {string} */
+            kind: "Airspeed";
+        } | {
+            /** @enum {string} */
+            kind: "CruisingLevel";
+        } | {
+            /** @enum {string} */
+            kind: "Route";
+        } | {
+            /** @enum {string} */
+            kind: "Arrival";
+        } | {
+            /** @enum {string} */
+            kind: "NavigationPerformance";
+        } | {
+            index: number;
+            /** @enum {string} */
+            kind: "Leg";
+        } | {
+            from: number;
+            /** @enum {string} */
+            kind: "MultipleLegs";
+            to: number;
+        };
+        ValidationProblemDto: {
+            /** @enum {string} */
+            kind: "InvalidAirport";
+        } | {
+            /** @enum {string} */
+            kind: "InvalidAircraftType";
+        } | {
+            expected: string;
+            /** @enum {string} */
+            kind: "WakeCategoryMismatch";
+        } | {
+            /** @enum {string} */
+            kind: "AircraftWingspanTooLarge";
+            maximum: string;
+        } | {
+            /** @enum {string} */
+            kind: "NoRvsm";
+        } | {
+            /** @enum {string} */
+            kind: "NoRnav1";
+        } | {
+            /** @enum {string} */
+            kind: "RnpAr";
+        } | {
+            /** @enum {string} */
+            kind: "RnpArWithoutRf";
+        } | {
+            /** @enum {string} */
+            kind: "NoTransponder";
+        } | {
+            from: string;
+            /** @enum {string} */
+            kind: "RouteDirectSegment";
+            to: string;
+        } | {
+            ident: string;
+            /** @enum {string} */
+            kind: "RouteUnknownLegOrFix";
+        } | {
+            from: string;
+            ident: string;
+            /** @enum {string} */
+            kind: "RouteLegDirection";
+            to: string;
+        } | {
+            from: string;
+            ident: string;
+            /** @enum {string} */
+            kind: "AirwayRequireApproval";
+            to: string;
+        } | {
+            from: string;
+            /** @enum {string} */
+            kind: "NotPreferredRoute";
+            raw_route: string;
+            to: string;
+        } | {
+            expected_type: components["schemas"]["CruiseAltitudeType"];
+            /** @enum {string} */
+            kind: "CruisingLevelMismatch";
+        } | {
+            allowlist_ft: number[];
+            /** @enum {string} */
+            kind: "CruisingLevelNotAllowed";
+        } | {
+            /** @enum {string} */
+            kind: "CruisingLevelTooLow";
+            /** Format: int64 */
+            minimum_ft: number;
+        } | {
+            /** @enum {string} */
+            kind: "RouteMatchPreferred";
+        };
+        ValidatorExecutionDto: {
+            field: components["schemas"]["ValidationFieldDto"];
+            id: components["schemas"]["ValidatorIdentifier"];
+            problems: components["schemas"]["ValidationProblemDto"][];
+            status: components["schemas"]["ValidatorStatus"];
         };
         /** @enum {string} */
-        WarningMessageCode: "no-rvsm" | "no-rnav1" | "rnp-ar" | "rnp-ar-without-rf" | "no-transponder" | "route-direct-segment" | "route-leg-direction" | "airway-require-approval" | "not-preferred-route" | "cruising-level-mismatch" | "cruising-level-not-allowed" | "cruising-level-too-low" | "route-match-preferred";
+        ValidatorIdentifier: "Callsign" | "FlightRuleWeather" | "AircraftType" | "WakeCategory" | "DepartureAircraftType" | "DepartureAirport" | "ArrivalAircraftType" | "ArrivalAirport" | "DirectionalCruiseAltitude" | "EquipmentRvsm" | "EquipmentRnav1" | "EquipmentRnpAr" | "PreferredRoute" | "PreferredRouteCruiseAltitude" | "RouteDirectLeg" | "RouteUnknownLegOrFix" | "AirwayApproval" | "AirwayDirection";
         /** @enum {string} */
-        WarningMessageField: "equipment" | "transponder" | "navigation-performance" | "route" | "cruising-level";
+        ValidatorStatus: "pass" | "suppressed" | "rejected" | "unavailable";
+        /** @enum {string} */
+        WakeCategory: "J" | "H" | "M" | "L";
     };
     responses: {
         /** @description Internal server error */
@@ -2636,30 +3020,6 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
-    get_self_reflection_sheet: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Training ULID */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SheetDto"];
-                };
-            };
-            500: components["responses"]["InternalServerError"];
-        };
-    };
     get_training: {
         parameters: {
             query?: never;
@@ -2785,6 +3145,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrainingDto"];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    get_self_reflection_sheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Training ULID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetDto"];
                 };
             };
             500: components["responses"]["InternalServerError"];
@@ -3392,16 +3776,19 @@ export interface operations {
             500: components["responses"]["InternalServerError"];
         };
     };
-    active_flights: {
+    flights_by_arrival: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description Arrival airport ICAO code */
+                icao: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Successful response */
+            /** @description Flights arriving at the airport */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3425,7 +3812,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful response */
+            /** @description Flight snapshot */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3434,10 +3821,17 @@ export interface operations {
                     "application/json": components["schemas"]["FlightDto"];
                 };
             };
+            /** @description Flight not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             500: components["responses"]["InternalServerError"];
         };
     };
-    route_by_callsign: {
+    flight_diagnostics: {
         parameters: {
             query?: never;
             header?: never;
@@ -3449,19 +3843,40 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful response */
+            /** @description Flight diagnostics with structured validator executions */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FlightLeg"][];
+                    "application/json": components["schemas"]["FlightV2Dto"];
                 };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Software engineer role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Flight not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             500: components["responses"]["InternalServerError"];
         };
     };
-    warnings_by_callsign: {
+    flight_validation_by_callsign: {
         parameters: {
             query?: never;
             header?: never;
@@ -3473,14 +3888,74 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful response */
+            /** @description Flight validation */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WarningMessage"][];
+                    "application/json": components["schemas"]["FlightValidationDto"];
                 };
+            };
+            /** @description Invalid route */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Flight not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    flights_by_departure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Departure airport ICAO code */
+                icao: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Flights departing from the airport */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlightDto"][];
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    departure_validations_websocket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Departure airport ICAO code */
+                icao: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WebSocket sending complete callsign-to-validation maps on change */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             500: components["responses"]["InternalServerError"];
         };
@@ -3494,7 +3969,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful response */
+            /** @description Current user's flight */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3503,10 +3978,24 @@ export interface operations {
                     "application/json": components["schemas"]["FlightDto"];
                 };
             };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Flight not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             500: components["responses"]["InternalServerError"];
         };
     };
-    temporary_warnings: {
+    my_flight_validation: {
         parameters: {
             query?: never;
             header?: never;
@@ -3515,14 +4004,183 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful response */
+            /** @description Current user's flight validation */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WarningMessage"][];
+                    "application/json": components["schemas"]["FlightValidationDto"];
                 };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Flight not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    route_diagnostics: {
+        parameters: {
+            query: {
+                /** @description Complete route including departure and arrival */
+                route: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Expanded route legs, segments and SID candidates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteDeliveryInfo"];
+                };
+            };
+            /** @description Invalid route */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Software engineer or API client role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    temporary_flight: {
+        parameters: {
+            query: {
+                departure: string;
+                arrival: string;
+                aircraft?: string;
+                /** @description I (IFR) or V (VFR); defaults to I when omitted or empty. */
+                flight_rules?: string;
+                /** @description J, H, M or L; defaults to M when omitted or empty. */
+                wake_category?: string;
+                equipment?: string;
+                navigation_performance?: string;
+                transponder?: string;
+                raw_route?: string;
+                cruising_level?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Temporary flight constructed from the supplied plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlightDto"];
+                };
+            };
+            /** @description Invalid flight plan query */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API client role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    temporary_flight_validation: {
+        parameters: {
+            query: {
+                departure: string;
+                arrival: string;
+                aircraft?: string;
+                /** @description I (IFR) or V (VFR); defaults to I when omitted or empty. */
+                flight_rules?: string;
+                /** @description J, H, M or L; defaults to M when omitted or empty. */
+                wake_category?: string;
+                equipment?: string;
+                navigation_performance?: string;
+                transponder?: string;
+                raw_route?: string;
+                cruising_level?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Validation of the supplied flight plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlightValidationDto"];
+                };
+            };
+            /** @description Invalid flight plan query or route */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API client role required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             500: components["responses"]["InternalServerError"];
         };

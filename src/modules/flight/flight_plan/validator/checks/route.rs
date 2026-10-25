@@ -1,33 +1,25 @@
-use super::CheckResult;
-use super::{ValidationContext, Validator, WarningMessageField};
-use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageCode};
-use crate::modules::flight::models::ValidatorStatus;
-use crate::modules::navdata::models::{AnyFix, DirectionRestriction, LegKind, ResolvedLeg};
+use super::{CheckResult, ValidationContext, ValidationLevel, Validator};
+use crate::modules::flight::models::{
+    ValidationField, ValidationProblem, ValidatorIdentifier, ValidatorStatus,
+};
+use crate::modules::navdata::models::{AnyFix, DirectionRestriction, Fix, LegKind, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
 
 /// Route must match a predefined preferred route.
 pub struct PreferredRouteValidator;
 
 impl Validator for PreferredRouteValidator {
-    const LEVEL: super::ValidationLevel = super::ValidationLevel::Segment;
-    const IDENT: &'static str = "route-preferred";
-    const FIELD: WarningMessageField = WarningMessageField::Route;
+    const LEVEL: ValidationLevel = ValidationLevel::Segment;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::PreferredRoute;
+    const FIELD: ValidationField = ValidationField::Route;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
-        let (status, warnings) = if context.route.legs.is_empty() {
+        let (status, problems) = if context.route.legs.is_empty() {
             (ValidatorStatus::Unavailable, Vec::new())
-        } else if let Some(preferred) = context.preferred_route {
+        } else if context.preferred_route.is_some() {
             (
                 ValidatorStatus::Pass,
-                vec![WarningMessage::with_parameter(
-                    Self::FIELD,
-                    WarningMessageCode::RouteMatchPreferred,
-                    if preferred.is_public {
-                        &preferred.raw_route
-                    } else {
-                        &context.flight.raw_route
-                    },
-                )],
+                vec![ValidationProblem::RouteMatchPreferred],
             )
         } else if context.preferred_routes.is_empty() {
             (ValidatorStatus::Suppressed, Vec::new())
@@ -40,150 +32,157 @@ impl Validator for PreferredRouteValidator {
             public_routes.sort_by(|left, right| left.name.cmp(&right.name));
             (
                 ValidatorStatus::Rejected,
-                vec![WarningMessage::with_parameter(
-                    Self::FIELD,
-                    WarningMessageCode::NotPreferredRoute,
-                    public_routes
-                        .iter()
-                        .map(|route| route.raw_route.as_str())
-                        .collect::<Vec<_>>()
-                        .join(","),
-                )],
+                public_routes
+                    .into_iter()
+                    .map(|route| ValidationProblem::NotPreferredRoute {
+                        from: route.departure.clone(),
+                        to: route.arrival.clone(),
+                        raw_route: route.raw_route.clone(),
+                    })
+                    .collect(),
             )
         };
         CheckResult {
-            validator_ident: Self::IDENT.to_owned(),
+            id: Self::IDENT,
             field: Self::FIELD,
             status,
-            warnings,
+            problems,
         }
     }
 }
 
-/// Route must not contain direct legs.
 pub struct RouteDirectLegValidator;
 
 impl Validator for RouteDirectLegValidator {
-    const LEVEL: super::ValidationLevel = super::ValidationLevel::Leg;
-    const IDENT: &'static str = "route-direct-leg";
-    const FIELD: WarningMessageField = WarningMessageField::Route;
+    const LEVEL: ValidationLevel = ValidationLevel::Leg;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::RouteDirectLeg;
+    const FIELD: ValidationField = ValidationField::Route;
 
     fn validate(context: &ValidationContext<'_>, navdata: &NavdataService) -> CheckResult {
-        validate_legs::<Self>(
-            context,
-            true,
-            WarningMessageCode::RouteDirectSegment,
-            |leg| {
-                leg.kind == LegKind::Direct
-                    && !matches!(leg.from, AnyFix::Airport(_))
-                    && !matches!(leg.to, AnyFix::Airport(_))
-                    && (leg.from.is_china_or_unknown(navdata.china_boundaries())
-                        && leg.to.is_china_or_unknown(navdata.china_boundaries()))
-            },
-        )
+        validate_legs::<Self>(context, |leg| {
+            (leg.kind == LegKind::Direct
+                && !matches!(leg.from, AnyFix::Airport(_))
+                && !matches!(leg.to, AnyFix::Airport(_))
+                && leg.from.is_china_or_unknown(navdata.china_boundaries())
+                && leg.to.is_china_or_unknown(navdata.china_boundaries()))
+            .then(|| ValidationProblem::RouteDirectSegment {
+                from: ident(&leg.from),
+                to: ident(&leg.to),
+            })
+        })
     }
 }
 
-/// Route must not contain unknown legs or fixes.
 pub struct RouteUnknownLegOrFixValidator;
 
 impl Validator for RouteUnknownLegOrFixValidator {
-    const LEVEL: super::ValidationLevel = super::ValidationLevel::Leg;
-    const IDENT: &'static str = "route-unknown-leg-or-fix";
-    const FIELD: WarningMessageField = WarningMessageField::Route;
+    const LEVEL: ValidationLevel = ValidationLevel::Leg;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::RouteUnknownLegOrFix;
+    const FIELD: ValidationField = ValidationField::Route;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
-        validate_legs::<Self>(
-            context,
-            true,
-            WarningMessageCode::RouteUnknownLegOrFix,
-            |leg| leg.is_unknown || leg.from.is_unknown() || leg.to.is_unknown(),
-        )
+        validate_legs::<Self>(context, |leg| {
+            if leg.is_unknown {
+                Some(ValidationProblem::RouteUnknownLegOrFix {
+                    ident: leg.identifier.clone().unwrap_or_else(|| "DCT".into()),
+                })
+            } else if leg.from.is_unknown() {
+                Some(ValidationProblem::RouteUnknownLegOrFix {
+                    ident: ident(&leg.from),
+                })
+            } else if leg.to.is_unknown() {
+                Some(ValidationProblem::RouteUnknownLegOrFix {
+                    ident: ident(&leg.to),
+                })
+            } else {
+                None
+            }
+        })
     }
 }
 
-/// Route must not contain airways requiring approval.
 pub struct AirwayApprovalValidator;
 
 impl Validator for AirwayApprovalValidator {
-    const LEVEL: super::ValidationLevel = super::ValidationLevel::Leg;
-    const IDENT: &'static str = "route-airway-approval";
-    const FIELD: WarningMessageField = WarningMessageField::Route;
+    const LEVEL: ValidationLevel = ValidationLevel::Leg;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::AirwayApproval;
+    const FIELD: ValidationField = ValidationField::Route;
 
     fn validate(context: &ValidationContext<'_>, navdata: &NavdataService) -> CheckResult {
-        validate_legs::<Self>(
-            context,
-            true,
-            WarningMessageCode::AirwayRequireApproval,
-            |leg| {
-                leg.kind == LegKind::Airway
-                    && leg.identifier.as_deref().is_some_and(|ident| {
-                        let ident = ident.to_ascii_uppercase();
-                        (ident.starts_with('V') || ident.starts_with('X'))
-                            && (leg.from.is_china_or_unknown(navdata.china_boundaries())
-                                || leg.to.is_china_or_unknown(navdata.china_boundaries()))
-                    })
-            },
-        )
+        validate_legs::<Self>(context, |leg| {
+            (leg.kind == LegKind::Airway
+                && leg.identifier.as_deref().is_some_and(|ident| {
+                    let ident = ident.to_ascii_uppercase();
+                    (ident.starts_with('V') || ident.starts_with('X'))
+                        && (leg.from.is_china_or_unknown(navdata.china_boundaries())
+                            || leg.to.is_china_or_unknown(navdata.china_boundaries()))
+                }))
+            .then(|| ValidationProblem::AirwayRequireApproval {
+                from: ident(&leg.from),
+                ident: leg.identifier.clone().unwrap_or_default(),
+                to: ident(&leg.to),
+            })
+        })
     }
 }
 
-/// Route must comply with each airway's direction restriction.
 pub struct AirwayDirectionValidator;
 
 impl Validator for AirwayDirectionValidator {
-    const LEVEL: super::ValidationLevel = super::ValidationLevel::Leg;
-    const IDENT: &'static str = "route-airway-direction";
-    const FIELD: WarningMessageField = WarningMessageField::Route;
+    const LEVEL: ValidationLevel = ValidationLevel::Leg;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::AirwayDirection;
+    const FIELD: ValidationField = ValidationField::Route;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
-        validate_legs::<Self>(
-            context,
-            true,
-            WarningMessageCode::RouteLegDirection,
-            |leg| {
-                leg.kind == LegKind::Airway
-                    && leg.identifier.is_some()
-                    && leg.direction_restriction == DirectionRestriction::Backward
-            },
-        )
+        validate_legs::<Self>(context, |leg| {
+            (leg.kind == LegKind::Airway
+                && leg.identifier.is_some()
+                && leg.direction_restriction == DirectionRestriction::Backward)
+                .then(|| ValidationProblem::RouteLegDirection {
+                    from: ident(&leg.from),
+                    ident: leg.identifier.clone().unwrap_or_default(),
+                    to: ident(&leg.to),
+                })
+        })
     }
+}
+
+fn ident(fix: &AnyFix) -> String {
+    fix.identifier().map(str::to_owned).unwrap_or_else(|| {
+        fix.position()
+            .map(|(lat, lon)| format!("{lat},{lon}"))
+            .unwrap_or_default()
+    })
 }
 
 fn validate_legs<V: Validator>(
     context: &ValidationContext<'_>,
-    suppress_preferred: bool,
-    code: WarningMessageCode,
-    is_invalid: impl Fn(&ResolvedLeg) -> bool,
+    problem: impl Fn(&ResolvedLeg) -> Option<ValidationProblem>,
 ) -> CheckResult {
-    let (status, warnings) = if context.route.legs.is_empty() {
+    let (status, problems) = if context.route.legs.is_empty() {
         (ValidatorStatus::Unavailable, Vec::new())
-    } else if suppress_preferred && context.preferred_route.is_some() {
+    } else if context.preferred_route.is_some() {
         (ValidatorStatus::Suppressed, Vec::new())
     } else {
-        let warnings = context
+        let problems = context
             .route
             .legs
             .iter()
-            .enumerate()
-            .filter(|(_, leg)| is_invalid(leg))
-            .map(|(index, leg)| {
-                WarningMessage::route_indexed_with_param(index, code, format!("{:?}", leg))
-            })
+            .filter_map(problem)
             .collect::<Vec<_>>();
         (
-            if warnings.is_empty() {
+            if problems.is_empty() {
                 ValidatorStatus::Pass
             } else {
                 ValidatorStatus::Rejected
             },
-            warnings,
+            problems,
         )
     };
     CheckResult {
-        validator_ident: V::IDENT.to_owned(),
+        id: V::IDENT,
         field: V::FIELD,
         status,
-        warnings,
+        problems,
     }
 }

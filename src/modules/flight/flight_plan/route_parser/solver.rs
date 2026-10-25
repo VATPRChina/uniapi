@@ -53,32 +53,6 @@ pub struct CandidateWithState {
 }
 
 impl CandidateWithState {
-    pub(super) fn snapshot(
-        &self,
-        ident_index: usize,
-    ) -> crate::modules::flight::dto::RouteSolverState {
-        crate::modules::flight::dto::RouteSolverState {
-            candidate: (&self.candidate).into(),
-            predecessor_index: (ident_index > 0).then_some(self.last_candidate_idx),
-            distance_nm: self
-                .state
-                .distance
-                .is_finite()
-                .then_some(self.state.distance),
-            fallback_count: self.state.fallbacks,
-            latitude: self
-                .state
-                .position_lat
-                .is_finite()
-                .then_some(self.state.position_lat),
-            longitude: self
-                .state
-                .position_lon
-                .is_finite()
-                .then_some(self.state.position_lon),
-        }
-    }
-
     pub(super) fn distance(&self) -> f64 {
         self.state.distance
     }

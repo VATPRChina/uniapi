@@ -602,6 +602,7 @@ async fn authorization_code_grant(
         return Err(AuthApiError::invalid_request("Missing client_id or code"));
     }
 
+    tracing::info!("validating authorization code");
     let Some(validated_code) = services
         .access_token()
         .validate_auth_code(&request.code, &request.client_id)?
@@ -609,6 +610,7 @@ async fn authorization_code_grant(
         return Err(AuthApiError::invalid_grant("Invalid authorization code"));
     };
 
+    tracing::info!("clearing authorization code on refresh token");
     let Some(session) = services
         .refresh_token()
         .find_by_code(validated_code.code)
@@ -947,8 +949,8 @@ impl AuthApiError {
 }
 
 impl From<AccessTokenServiceError> for AuthApiError {
-    fn from(_: AccessTokenServiceError) -> Self {
-        Self::invalid_grant("Invalid token")
+    fn from(e: AccessTokenServiceError) -> Self {
+        Self::invalid_grant(format!("Invalid token: {}", e))
     }
 }
 

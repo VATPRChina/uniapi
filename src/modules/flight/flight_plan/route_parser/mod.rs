@@ -27,7 +27,6 @@
 //! ```
 
 mod constructor;
-mod diagnostics;
 mod expander;
 mod lex_grouper;
 mod lexer;
@@ -37,9 +36,7 @@ mod trace;
 
 pub use constructor::{ConstructedLeg, Constructor};
 pub use expander::{Expander, ExpansionError};
-#[allow(unused_imports)]
 pub use lex_grouper::{Ident, IdentAmend, LexGrouper};
-#[allow(unused_imports)]
 pub use lexer::{CruisingLevel, Lexer, LexerToken, LexerTokenAmend, LexerTokenValue, Speed};
 pub use resolver::{CandidateResolver, IdentCandidate, IdentWithCandidate};
 pub use solver::{CandidateWithState, SolvedIdent, Solver};

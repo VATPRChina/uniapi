@@ -1,9 +1,9 @@
 use std::{collections::HashMap, sync::LazyLock};
 
 use super::CheckResult;
-use super::{ValidationContext, Validator, WarningMessageField};
-use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageCode};
-use crate::modules::flight::models::ValidatorStatus;
+use super::{ValidationContext, Validator};
+use crate::modules::flight::models::{FlightRule, ValidatorStatus};
+use crate::modules::flight::models::{ValidationField, ValidationProblem, ValidatorIdentifier};
 use crate::modules::navdata::service::NavdataService;
 
 // Generated from data/AircraftTypes.json by scripts/generate_aircraft_types.py.
@@ -19,27 +19,27 @@ static AIRCRAFT_TYPES: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
 pub struct CallsignValidator;
 
 impl Validator for CallsignValidator {
-    const IDENT: &'static str = "callsign";
-    const FIELD: WarningMessageField = WarningMessageField::Callsign;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::Callsign;
+    const FIELD: ValidationField = ValidationField::Callsign;
 }
 
 /// Flight rules must be permitted by the current weather conditions.
 pub struct FlightRuleWeatherValidator;
 
 impl Validator for FlightRuleWeatherValidator {
-    const IDENT: &'static str = "flight-rule-weather";
-    const FIELD: WarningMessageField = WarningMessageField::FlightRules;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::FlightRuleWeather;
+    const FIELD: ValidationField = ValidationField::FlightRules;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         CheckResult {
-            validator_ident: Self::IDENT.to_owned(),
+            id: Self::IDENT,
             field: Self::FIELD,
-            status: if context.flight.flight_rules.trim().eq_ignore_ascii_case("I") {
+            status: if matches!(context.flight.flight_plan.flight_rules, FlightRule::Ifr) {
                 ValidatorStatus::Suppressed
             } else {
                 ValidatorStatus::Unavailable
             },
-            warnings: Vec::new(),
+            problems: Vec::new(),
         }
     }
 }
@@ -48,11 +48,16 @@ impl Validator for FlightRuleWeatherValidator {
 pub struct AircraftTypeValidator;
 
 impl Validator for AircraftTypeValidator {
-    const IDENT: &'static str = "aircraft-type";
-    const FIELD: WarningMessageField = WarningMessageField::AircraftType;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::AircraftType;
+    const FIELD: ValidationField = ValidationField::AircraftType;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
-        let aircraft = context.flight.aircraft.trim().to_ascii_uppercase();
+        let aircraft = context
+            .flight
+            .flight_plan
+            .aircraft
+            .trim()
+            .to_ascii_uppercase();
         let status = if aircraft.is_empty() {
             ValidatorStatus::Unavailable
         } else if AIRCRAFT_TYPES.contains_key(&aircraft) {
@@ -61,15 +66,11 @@ impl Validator for AircraftTypeValidator {
             ValidatorStatus::Rejected
         };
         CheckResult {
-            validator_ident: Self::IDENT.to_owned(),
+            id: Self::IDENT,
             field: Self::FIELD,
-            status: status.clone(),
-            warnings: if status == ValidatorStatus::Rejected {
-                vec![WarningMessage::with_parameter(
-                    Self::FIELD,
-                    WarningMessageCode::InvalidAircraftType,
-                    aircraft,
-                )]
+            status,
+            problems: if status == ValidatorStatus::Rejected {
+                vec![ValidationProblem::InvalidAircraftType]
             } else {
                 Vec::new()
             },
@@ -81,15 +82,20 @@ impl Validator for AircraftTypeValidator {
 pub struct WakeCategoryValidator;
 
 impl Validator for WakeCategoryValidator {
-    const IDENT: &'static str = "wake-category";
-    const FIELD: WarningMessageField = WarningMessageField::WakeCategory;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::WakeCategory;
+    const FIELD: ValidationField = ValidationField::WakeCategory;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
-        let aircraft = context.flight.aircraft.trim().to_ascii_uppercase();
-        let wake = context.flight.wake_category.trim().to_ascii_uppercase();
+        let aircraft = context
+            .flight
+            .flight_plan
+            .aircraft
+            .trim()
+            .to_ascii_uppercase();
+        let wake = serde_plain::to_string(&context.flight.flight_plan.wake_category)
+            .expect("wake category is a string");
         let categories = AIRCRAFT_TYPES.get(&aircraft);
         let status = match categories {
-            _ if wake.is_empty() => ValidatorStatus::Unavailable,
             None => ValidatorStatus::Unavailable,
             Some(categories) if categories.split('/').any(|category| category == wake) => {
                 ValidatorStatus::Pass
@@ -97,15 +103,13 @@ impl Validator for WakeCategoryValidator {
             Some(_) => ValidatorStatus::Rejected,
         };
         CheckResult {
-            validator_ident: Self::IDENT.to_owned(),
+            id: Self::IDENT,
             field: Self::FIELD,
-            status: status.clone(),
-            warnings: if status == ValidatorStatus::Rejected {
-                vec![WarningMessage::with_parameter(
-                    Self::FIELD,
-                    WarningMessageCode::WakeCategoryMismatch,
-                    categories.unwrap().clone(),
-                )]
+            status,
+            problems: if status == ValidatorStatus::Rejected {
+                vec![ValidationProblem::WakeCategoryMismatch {
+                    expected: categories.unwrap().clone(),
+                }]
             } else {
                 Vec::new()
             },

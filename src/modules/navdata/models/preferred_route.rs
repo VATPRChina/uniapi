@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone)]
 pub struct PreferredRoute {
@@ -7,7 +8,7 @@ pub struct PreferredRoute {
     pub departure: String,
     pub arrival: String,
     pub raw_route: String,
-    pub cruising_level_restriction: LevelRestrictionType,
+    pub cruising_level_restriction: CruiseAltitudeType,
     pub allowed_altitudes: Vec<i32>,
     pub minimal_altitude: i32,
     pub remarks: String,
@@ -22,9 +23,9 @@ impl PreferredRoute {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "kebab-case")]
-pub enum LevelRestrictionType {
+pub enum CruiseAltitudeType {
     StandardEven,
     StandardOdd,
     Standard,
@@ -32,13 +33,13 @@ pub enum LevelRestrictionType {
     FlightLevelOdd,
 }
 
-impl LevelRestrictionType {
+impl CruiseAltitudeType {
     pub(crate) fn from_code(value: &str) -> Result<Self, ()> {
         Ok(match value {
-            "SE" => LevelRestrictionType::StandardEven,
-            "SO" => LevelRestrictionType::StandardOdd,
-            "FE" => LevelRestrictionType::FlightLevelEven,
-            "FO" => LevelRestrictionType::FlightLevelOdd,
+            "SE" => CruiseAltitudeType::StandardEven,
+            "SO" => CruiseAltitudeType::StandardOdd,
+            "FE" => CruiseAltitudeType::FlightLevelEven,
+            "FO" => CruiseAltitudeType::FlightLevelOdd,
             _ => Self::Standard,
         })
     }

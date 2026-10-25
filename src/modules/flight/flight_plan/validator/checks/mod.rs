@@ -1,10 +1,6 @@
-//! The new validation checks, independent of the legacy warning pipeline.
-//! Each placeholder reports `Unavailable` until its validator overrides
-//! `Validator::validate`. All checks are exposed through the validations endpoint.
-
-use crate::modules::flight::flight_plan::validator::WarningMessageField;
 use crate::modules::flight::models::{
-    Flight, ParsedRoute, ValidationScope, ValidatorResult, ValidatorStatus,
+    Flight, ParsedRoute, ValidationField, ValidationProblem, ValidatorExecution,
+    ValidatorIdentifier, ValidatorStatus,
 };
 use crate::modules::navdata::models::PreferredRoute;
 use crate::modules::navdata::service::NavdataService;
@@ -48,56 +44,50 @@ pub enum ValidationLevel {
     Leg,
 }
 
-/// A check outcome becomes an API result only when attached to its execution scope.
+/// A check outcome receives a field or leg range when it is executed.
 pub struct CheckResult {
-    pub validator_ident: String,
-    pub field: WarningMessageField,
+    pub id: ValidatorIdentifier,
+    pub field: ValidationField,
     pub status: ValidatorStatus,
-    pub warnings: Vec<super::WarningMessage>,
+    pub problems: Vec<ValidationProblem>,
 }
 
 impl CheckResult {
-    pub fn scoped(self, scope: ValidationScope) -> ValidatorResult {
-        ValidatorResult {
-            scope,
-            validator_ident: self.validator_ident,
-            field: self.field,
+    pub fn scoped(self, field: ValidationField) -> ValidatorExecution {
+        ValidatorExecution {
+            id: self.id,
+            field,
             status: self.status,
-            warnings: self.warnings,
+            problems: self.problems,
         }
     }
 }
 
 pub trait Validator {
     const LEVEL: ValidationLevel = ValidationLevel::Flight;
+    const IDENT: ValidatorIdentifier;
+    const FIELD: ValidationField;
 
     fn execute(
         context: &ValidationContext<'_>,
         navdata: &NavdataService,
-        scope: ValidationScope,
-    ) -> ValidatorResult {
-        let level = match scope {
-            ValidationScope::Flight => ValidationLevel::Flight,
-            ValidationScope::Segment { .. } => ValidationLevel::Segment,
-            ValidationScope::Leg { .. } => ValidationLevel::Leg,
+        field: ValidationField,
+    ) -> ValidatorExecution {
+        let level = match &field {
+            ValidationField::Leg { .. } => ValidationLevel::Leg,
+            ValidationField::MultipleLegs { .. } => ValidationLevel::Segment,
+            _ => ValidationLevel::Flight,
         };
         assert_eq!(Self::LEVEL, level, "validator executed at the wrong level");
-        Self::validate(context, navdata).scoped(scope)
+        Self::validate(context, navdata).scoped(field)
     }
 
-    /// Stable identifier used by `ValidatorResult::validator_ident`.
-    const IDENT: &'static str;
-
-    /// Flight-plan field this check validates.
-    const FIELD: WarningMessageField;
-
-    /// Override this placeholder when implementing a check.
     fn validate(_context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         CheckResult {
-            validator_ident: Self::IDENT.to_owned(),
+            id: Self::IDENT,
             field: Self::FIELD,
             status: ValidatorStatus::Unavailable,
-            warnings: Vec::new(),
+            problems: Vec::new(),
         }
     }
 }

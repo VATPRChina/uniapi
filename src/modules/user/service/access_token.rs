@@ -107,6 +107,7 @@ impl AccessTokenService {
         refresh_token: Ulid,
         client_id: &str,
     ) -> Result<IssuedAccessToken, AccessTokenServiceError> {
+        tracing::info!("issue access token for {}", user_id);
         self.issue_token(
             Ulid::from(user_id).to_string(),
             refresh_token.to_string(),
@@ -157,6 +158,11 @@ impl AccessTokenService {
         code: &str,
         client_id: &str,
     ) -> Result<Option<ValidatedAuthorizationCode>, AccessTokenServiceError> {
+        tracing::info!(
+            "validation: {:?} / {:?}",
+            self.decoding_key,
+            self.encoding_key
+        );
         let mut validation = Validation::new(Algorithm::ES256);
         validation.set_issuer(&[&self.issuer]);
         validation.set_audience(&[&self.audience]);

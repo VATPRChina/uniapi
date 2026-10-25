@@ -21,6 +21,7 @@ pub(crate) struct RouteMatchAttempt<'l> {
     pub coverage: RouteSegment<'l>,
     pub preferred: PreferredRoute,
     pub matched: bool,
+    #[allow(unused)]
     pub error: Option<String>,
 }
 

@@ -1,8 +1,8 @@
 //! Shared China metric altitude table and preferred-route level classification.
 
-use crate::modules::navdata::models::LevelRestrictionType;
+use crate::modules::navdata::models::CruiseAltitudeType;
 
-pub(crate) fn level_restriction_type(cruising_level: i32) -> LevelRestrictionType {
+pub(crate) fn level_restriction_type(cruising_level: i32) -> CruiseAltitudeType {
     if let Some(metric_level) = standard_altitude_from_flight_level(cruising_level) {
         let is_even = match metric_level {
             // Below RVSM, levels are 300 m apart and alternate every level.
@@ -15,48 +15,37 @@ pub(crate) fn level_restriction_type(cruising_level: i32) -> LevelRestrictionTyp
         };
 
         if is_even {
-            LevelRestrictionType::StandardEven
+            CruiseAltitudeType::StandardEven
         } else {
-            LevelRestrictionType::StandardOdd
+            CruiseAltitudeType::StandardOdd
         }
     } else if cruising_level % 1000 == 0 {
         if cruising_level % 2000 == 0 {
-            LevelRestrictionType::FlightLevelEven
+            CruiseAltitudeType::FlightLevelEven
         } else {
-            LevelRestrictionType::FlightLevelOdd
+            CruiseAltitudeType::FlightLevelOdd
         }
     } else {
-        LevelRestrictionType::Standard
+        CruiseAltitudeType::Standard
     }
 }
 
 pub(crate) fn level_restriction_matches(
-    actual: LevelRestrictionType,
-    expected: LevelRestrictionType,
+    actual: CruiseAltitudeType,
+    expected: CruiseAltitudeType,
 ) -> bool {
     match expected {
-        LevelRestrictionType::StandardEven => actual == LevelRestrictionType::StandardEven,
-        LevelRestrictionType::StandardOdd => actual == LevelRestrictionType::StandardOdd,
-        LevelRestrictionType::Standard => matches!(
+        CruiseAltitudeType::StandardEven => actual == CruiseAltitudeType::StandardEven,
+        CruiseAltitudeType::StandardOdd => actual == CruiseAltitudeType::StandardOdd,
+        CruiseAltitudeType::Standard => matches!(
             actual,
-            LevelRestrictionType::Standard
-                | LevelRestrictionType::StandardEven
-                | LevelRestrictionType::StandardOdd
+            CruiseAltitudeType::Standard
+                | CruiseAltitudeType::StandardEven
+                | CruiseAltitudeType::StandardOdd
         ),
-        LevelRestrictionType::FlightLevelEven => actual == LevelRestrictionType::FlightLevelEven,
-        LevelRestrictionType::FlightLevelOdd => actual == LevelRestrictionType::FlightLevelOdd,
+        CruiseAltitudeType::FlightLevelEven => actual == CruiseAltitudeType::FlightLevelEven,
+        CruiseAltitudeType::FlightLevelOdd => actual == CruiseAltitudeType::FlightLevelOdd,
     }
-}
-
-pub(crate) fn level_restriction_param(restriction: LevelRestrictionType) -> String {
-    match restriction {
-        LevelRestrictionType::StandardEven => "standard_even",
-        LevelRestrictionType::StandardOdd => "standard_odd",
-        LevelRestrictionType::Standard => "standard",
-        LevelRestrictionType::FlightLevelEven => "flight_level_even",
-        LevelRestrictionType::FlightLevelOdd => "flight_level_odd",
-    }
-    .to_owned()
 }
 
 pub(crate) fn standard_altitude_from_flight_level(flight_level: i32) -> Option<i32> {

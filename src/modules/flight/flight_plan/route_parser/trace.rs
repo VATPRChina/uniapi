@@ -1,9 +1,8 @@
 use std::fmt::{self, Display};
 
 use super::{ConstructedLeg, Ident, IdentWithCandidate, LexerToken, SolvedIdent};
-use crate::modules::flight::dto::FlightRouteFix;
 use crate::modules::flight::flight_plan::RouteSegment;
-use crate::modules::navdata::models::{AnyFix, LegKind, PreferredRoute, ResolvedLeg};
+use crate::modules::navdata::models::{AnyFix, Fix, LegKind, PreferredRoute, ResolvedLeg};
 
 /// Borrowed snapshots of the shared parser pipeline, in execution order.
 pub enum RouteParseStep<'a, 's> {
@@ -130,9 +129,9 @@ fn write_leg(f: &mut fmt::Formatter<'_>, index: usize, leg: &ResolvedLeg) -> fmt
 }
 
 fn fix_text(fix: &AnyFix) -> String {
-    let fix = FlightRouteFix::from(fix);
-    match (fix.latitude, fix.longitude) {
-        (Some(lat), Some(lon)) => format!("{} ({lat:.6}, {lon:.6})", fix.identifier),
-        _ => format!("{} [UNK]", fix.identifier),
+    let identifier = fix.identifier().unwrap_or("?");
+    match fix.position() {
+        Some((lat, lon)) => format!("{identifier} ({lat:.6}, {lon:.6})"),
+        None => format!("{identifier} [UNK]"),
     }
 }

@@ -3,7 +3,7 @@ use crate::modules::flight::flight_plan::matcher::SegmentMatchReport;
 use crate::modules::flight::flight_plan::{
     PreferredRouteMatcher, RouteSegment, RouteSegmenter, Segment, SegmentKind,
 };
-use crate::modules::flight::models::{Flight, ParsedRoute, ValidationScope, ValidatorResult};
+use crate::modules::flight::models::{Flight, ParsedRoute, ValidationField, ValidatorExecution};
 use crate::modules::navdata::models::PreferredRoute;
 use crate::modules::navdata::service::NavdataService;
 
@@ -14,7 +14,7 @@ pub async fn validate_route(
     flight: &Flight,
     route: &ParsedRoute,
     navdata: &NavdataService,
-) -> Result<Vec<ValidatorResult>, ValidatorError> {
+) -> Result<Vec<ValidatorExecution>, ValidatorError> {
     let matcher = PreferredRouteMatcher::new(navdata);
     let segments = RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs);
     let mut reports = Vec::new();
@@ -32,7 +32,7 @@ pub(crate) fn validate_analyzed_route(
     segments: &[Segment<'_>],
     reports: &[SegmentMatchReport<'_>],
     navdata: &NavdataService,
-) -> Vec<ValidatorResult> {
+) -> Vec<ValidatorExecution> {
     let context = ValidationContext {
         flight,
         route,
@@ -42,7 +42,7 @@ pub(crate) fn validate_analyzed_route(
         preferred_routes: &[],
     };
     let mut results = validate_flight(&context, navdata);
-    for (segment_index, (original, report)) in segments.iter().zip(reports).enumerate() {
+    for (original, report) in segments.iter().zip(reports) {
         if original.kind == SegmentKind::International {
             continue;
         }
@@ -50,7 +50,6 @@ pub(crate) fn validate_analyzed_route(
         results.extend(validate_segment(
             flight,
             original.route,
-            segment_index,
             selected.map_or(original.route, |candidate| candidate.coverage),
             selected.map(|candidate| &candidate.preferred),
             &report.preferred_routes,
@@ -63,12 +62,11 @@ pub(crate) fn validate_analyzed_route(
 fn validate_segment(
     flight: &Flight,
     segment: RouteSegment<'_>,
-    segment_index: usize,
     coverage: RouteSegment<'_>,
     preferred_route: Option<&PreferredRoute>,
     preferred_routes: &[PreferredRoute],
     navdata: &NavdataService,
-) -> Vec<ValidatorResult> {
+) -> Vec<ValidatorExecution> {
     let route = ParsedRoute {
         legs: segment.legs.to_vec(),
     };
@@ -79,10 +77,8 @@ fn validate_segment(
         preferred_route,
         preferred_routes: &preferred_routes,
     };
-    let scope = ValidationScope::Segment {
-        segment_index,
-        start_leg_index: segment.start_index,
-        end_leg_index: segment.end_index(),
+    let scope = ValidationField::MultipleLegs {
+        indices: segment.start_index..segment.end_index(),
     };
     let mut results = vec![
         PreferredRouteValidator::execute(&context, navdata, scope.clone()),
@@ -100,23 +96,13 @@ fn validate_segment(
                 .filter(|_| (coverage.start_index..coverage.end_index()).contains(&leg_index)),
             ..context
         };
-        let scope = ValidationScope::Leg {
-            segment_index,
-            leg_index,
-        };
-        let mut leg_results = vec![
+        let scope = ValidationField::Leg { index: leg_index };
+        let leg_results = vec![
             RouteDirectLegValidator::execute(&context, navdata, scope.clone()),
             RouteUnknownLegOrFixValidator::execute(&context, navdata, scope.clone()),
             AirwayApprovalValidator::execute(&context, navdata, scope.clone()),
             AirwayDirectionValidator::execute(&context, navdata, scope),
         ];
-        for result in &mut leg_results {
-            for warning in &mut result.warnings {
-                if let Some(index) = warning.field_index.as_mut() {
-                    *index += leg_index;
-                }
-            }
-        }
         results.extend(leg_results);
     }
     results
@@ -208,22 +194,15 @@ mod tests {
         );
         assert_eq!(&results[..flight_results.len()], flight_results);
         let mut offset = flight_results.len();
-        for (index, segment) in segments.iter().enumerate() {
+        for segment in &segments {
             if segment.kind == SegmentKind::International {
                 continue;
             }
-            let expected = validate_segment(
-                &flight,
-                segment.route,
-                index,
-                segment.route,
-                None,
-                &[],
-                &navdata,
-            );
+            let expected =
+                validate_segment(&flight, segment.route, segment.route, None, &[], &navdata);
             // Mainland warnings and original segment/leg indices remain intact.
             assert!(expected.iter().any(|result| {
-                result.status == ValidatorStatus::Rejected && !result.warnings.is_empty()
+                result.status == ValidatorStatus::Rejected && !result.problems.is_empty()
             }));
             assert_eq!(results[offset..offset + expected.len()], expected);
             offset += expected.len();

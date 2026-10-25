@@ -1,7 +1,8 @@
 use crate::adapter::compat::{CompatClient, CompatClientError};
 use crate::adapter::compat::{FlightPlan, Pilot, VatsimData};
-use crate::modules::flight::models::Flight;
-use ulid::Ulid;
+use crate::modules::flight::models::{
+    Flight, FlightPlan as FiledFlightPlan, FlightRule, WakeCategory,
+};
 
 pub(crate) trait FlightRepository {
     async fn list_flights(&self) -> Result<Vec<Flight>, CompatClientError>;
@@ -37,25 +38,31 @@ fn map_pilot(pilot: Pilot) -> Option<Flight> {
     let aircraft = parse_aircraft(&flight_plan);
 
     Some(Flight {
-        id: Ulid::new(),
         cid: pilot.cid.to_string(),
-        callsign: pilot.callsign,
         last_observed_at: pilot.last_updated,
-        departure,
-        arrival,
-        equipment: aircraft.equipment,
-        navigation_performance: aircraft.navigation_performance,
-        transponder: aircraft.transponder,
-        raw_route: flight_plan.route.unwrap_or_default(),
-        aircraft: aircraft.code,
-        flight_rules: flight_plan.flight_rules.unwrap_or_default(),
-        wake_category: aircraft.wake_category,
         altitude: pilot.altitude.unwrap_or_default(),
-        cruising_level: flight_plan
-            .altitude
-            .as_deref()
-            .and_then(parse_flight_altitude)
-            .unwrap_or_default(),
+        flight_plan: FiledFlightPlan {
+            callsign: pilot.callsign,
+            departure,
+            arrival,
+            equipment: aircraft.equipment,
+            navigation_performance: aircraft.navigation_performance,
+            transponder: aircraft.transponder,
+            raw_route: flight_plan.route.unwrap_or_default(),
+            aircraft: aircraft.code,
+            flight_rules: FlightRule::Ifr,
+            wake_category: match aircraft.wake_category.as_str() {
+                "J" => WakeCategory::Super,
+                "H" => WakeCategory::Heavy,
+                "L" => WakeCategory::Light,
+                _ => WakeCategory::Medium,
+            },
+            cruising_level: flight_plan
+                .altitude
+                .as_deref()
+                .and_then(parse_flight_altitude)
+                .unwrap_or_default(),
+        },
     })
 }
 
@@ -134,15 +141,18 @@ mod tests {
         }))
         .unwrap();
         let flight = map_pilot(pilot).unwrap();
-        assert_eq!(flight.flight_rules, "I");
-        assert_eq!(flight.wake_category, "M");
-        assert_eq!(flight.aircraft, "A320");
-        assert_eq!(flight.equipment, "SDE2E3FGHIRWY");
-        assert_eq!(flight.transponder, "LB1");
+        assert!(matches!(flight.flight_plan.flight_rules, FlightRule::Ifr));
+        assert!(matches!(
+            flight.flight_plan.wake_category,
+            WakeCategory::Medium
+        ));
+        assert_eq!(flight.flight_plan.aircraft, "A320");
+        assert_eq!(flight.flight_plan.equipment, "SDE2E3FGHIRWY");
+        assert_eq!(flight.flight_plan.transponder, "LB1");
         let dto =
             serde_json::to_value(crate::modules::flight::dto::FlightDto::from(flight)).unwrap();
-        assert_eq!(dto["flight_rules"], "I");
-        assert_eq!(dto["wake_category"], "M");
+        assert_eq!(dto["flight_plan"]["flight_rules"], "I");
+        assert_eq!(dto["flight_plan"]["wake_category"], "M");
     }
 
     #[test]
@@ -152,14 +162,20 @@ mod tests {
             serde_json::from_value::<crate::modules::flight::dto::TemporaryFlightQuery>(query)
                 .unwrap(),
         );
-        assert_eq!(flight.flight_rules, "V");
-        assert_eq!(flight.wake_category, "L");
+        assert!(matches!(flight.flight_plan.flight_rules, FlightRule::Vfr));
+        assert!(matches!(
+            flight.flight_plan.wake_category,
+            WakeCategory::Light
+        ));
         let query = serde_json::json!({"departure":"ZBAA", "arrival":"ZSPD"});
         let flight = Flight::from(
             serde_json::from_value::<crate::modules::flight::dto::TemporaryFlightQuery>(query)
                 .unwrap(),
         );
-        assert!(flight.flight_rules.is_empty());
-        assert!(flight.wake_category.is_empty());
+        assert!(matches!(flight.flight_plan.flight_rules, FlightRule::Ifr));
+        assert!(matches!(
+            flight.flight_plan.wake_category,
+            WakeCategory::Medium
+        ));
     }
 }

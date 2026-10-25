@@ -11,7 +11,7 @@ pub(crate) struct AircraftLimits {
 #[derive(Debug)]
 pub(crate) struct AirportWingspanLimit {
     pub maximum: WingspanMaximum,
-    pub manual_check_types: HashSet<String>,
+    pub extra_approval: HashSet<String>,
 }
 
 #[derive(Debug)]
@@ -81,7 +81,7 @@ impl AircraftLimits {
                 fields[0].to_ascii_uppercase(),
                 AirportWingspanLimit {
                     maximum,
-                    manual_check_types,
+                    extra_approval: manual_check_types,
                 },
             );
         }
@@ -149,9 +149,9 @@ ZDDD 0 - 4C ?B738 -",
                 exclusive: true
             }
         ));
-        assert!(derived.manual_check_types.contains("B748"));
-        assert!(derived.manual_check_types.contains("A225"));
-        assert!(!derived.manual_check_types.contains("B74"));
+        assert!(derived.extra_approval.contains("B748"));
+        assert!(derived.extra_approval.contains("A225"));
+        assert!(!derived.extra_approval.contains("B74"));
         assert!(matches!(
             data.airport("ZCCC").unwrap().maximum,
             WingspanMaximum::Unrestricted

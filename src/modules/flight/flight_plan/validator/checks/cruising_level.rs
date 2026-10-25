@@ -1,12 +1,11 @@
 use super::CheckResult;
-use super::{ValidationContext, Validator, WarningMessageField};
+use super::{ValidationContext, Validator};
 use crate::modules::flight::flight_plan::altitude::{
-    level_restriction_matches, level_restriction_param, level_restriction_type,
-    standard_altitude_from_flight_level,
+    level_restriction_matches, level_restriction_type, standard_altitude_from_flight_level,
 };
-use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageCode};
 use crate::modules::flight::models::ValidatorStatus;
-use crate::modules::navdata::models::{Fix, LevelRestrictionType, ResolvedLeg};
+use crate::modules::flight::models::{ValidationField, ValidationProblem, ValidatorIdentifier};
+use crate::modules::navdata::models::{CruiseAltitudeType, Fix, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
 
 /// Validate metric or imperial altitude restrictions on a matched preferred route.
@@ -14,8 +13,8 @@ pub struct PreferredRouteCruiseAltitudeValidator;
 
 impl Validator for PreferredRouteCruiseAltitudeValidator {
     const LEVEL: super::ValidationLevel = super::ValidationLevel::Segment;
-    const IDENT: &'static str = "cruise-altitude-preferred-route";
-    const FIELD: WarningMessageField = WarningMessageField::CruisingLevel;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::PreferredRouteCruiseAltitude;
+    const FIELD: ValidationField = ValidationField::CruisingLevel;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         let Some(route) = context.preferred_route else {
@@ -24,27 +23,22 @@ impl Validator for PreferredRouteCruiseAltitudeValidator {
         let Some(level) = cruising_level(context) else {
             return result::<Self>(ValidatorStatus::Unavailable, Vec::new());
         };
-        let mut warnings = restriction_warnings(level, route.cruising_level_restriction);
+        let mut problems = restriction_problems(level, route.cruising_level_restriction);
         if !route.allowed_altitudes.is_empty() && !route.allowed_altitudes.contains(&level) {
-            warnings.push(WarningMessage::with_parameter(
-                Self::FIELD,
-                WarningMessageCode::CruisingLevelNotAllowed,
-                route
+            problems.push(ValidationProblem::CruisingLevelNotAllowed {
+                allowlist_ft: route
                     .allowed_altitudes
                     .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(","),
-            ));
+                    .map(|level| i64::from(*level))
+                    .collect(),
+            });
         }
         if route.minimal_altitude > 0 && level < route.minimal_altitude {
-            warnings.push(WarningMessage::with_parameter(
-                Self::FIELD,
-                WarningMessageCode::CruisingLevelTooLow,
-                route.minimal_altitude.to_string(),
-            ));
+            problems.push(ValidationProblem::CruisingLevelTooLow {
+                minimum_ft: i64::from(route.minimal_altitude),
+            });
         }
-        checked_result::<Self>(warnings)
+        checked_result::<Self>(problems)
     }
 }
 
@@ -52,14 +46,19 @@ impl Validator for PreferredRouteCruiseAltitudeValidator {
 pub struct DirectionalCruiseAltitudeValidator;
 
 impl Validator for DirectionalCruiseAltitudeValidator {
-    const IDENT: &'static str = "cruise-altitude-directional";
-    const FIELD: WarningMessageField = WarningMessageField::CruisingLevel;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::DirectionalCruiseAltitude;
+    const FIELD: ValidationField = ValidationField::CruisingLevel;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         if context.preferred_route.is_some() {
             return result::<Self>(ValidatorStatus::Suppressed, Vec::new());
         }
-        let departure = context.flight.departure.trim().to_ascii_uppercase();
+        let departure = context
+            .flight
+            .flight_plan
+            .departure
+            .trim()
+            .to_ascii_uppercase();
         if departure.len() != 4
             || !departure.bytes().all(|byte| byte.is_ascii_alphabetic())
             || departure == "ZZZZ"
@@ -77,25 +76,25 @@ impl Validator for DirectionalCruiseAltitudeValidator {
             return result::<Self>(ValidatorStatus::Unavailable, Vec::new());
         };
         let restriction = if westbound {
-            LevelRestrictionType::StandardEven
+            CruiseAltitudeType::StandardEven
         } else {
-            LevelRestrictionType::StandardOdd
+            CruiseAltitudeType::StandardOdd
         };
-        checked_result::<Self>(restriction_warnings(level, restriction))
+        checked_result::<Self>(restriction_problems(level, restriction))
     }
 }
 
 fn cruising_level(context: &ValidationContext<'_>) -> Option<i32> {
-    i32::try_from(context.flight.cruising_level)
+    i32::try_from(context.flight.flight_plan.cruising_level)
         .ok()
         .filter(|level| *level > 0)
 }
 
-fn restriction_warnings(level: i32, restriction: LevelRestrictionType) -> Vec<WarningMessage> {
+fn restriction_problems(level: i32, restriction: CruiseAltitudeType) -> Vec<ValidationProblem> {
     // Imperial requirements use feet directly, including levels also in the metric table.
     let matches_restriction = match restriction {
-        LevelRestrictionType::FlightLevelEven => level % 2000 == 0,
-        LevelRestrictionType::FlightLevelOdd => level % 2000 == 1000,
+        CruiseAltitudeType::FlightLevelEven => level % 2000 == 0,
+        CruiseAltitudeType::FlightLevelOdd => level % 2000 == 1000,
         _ => {
             standard_altitude_from_flight_level(level).is_some()
                 && level_restriction_matches(level_restriction_type(level), restriction)
@@ -104,31 +103,29 @@ fn restriction_warnings(level: i32, restriction: LevelRestrictionType) -> Vec<Wa
     if matches_restriction {
         Vec::new()
     } else {
-        vec![WarningMessage::with_parameter(
-            WarningMessageField::CruisingLevel,
-            WarningMessageCode::CruisingLevelMismatch,
-            level_restriction_param(restriction),
-        )]
+        vec![ValidationProblem::CruisingLevelMismatch {
+            expected_type: restriction,
+        }]
     }
 }
 
-fn checked_result<V: Validator>(warnings: Vec<WarningMessage>) -> CheckResult {
+fn checked_result<V: Validator>(problems: Vec<ValidationProblem>) -> CheckResult {
     result::<V>(
-        if warnings.is_empty() {
+        if problems.is_empty() {
             ValidatorStatus::Pass
         } else {
             ValidatorStatus::Rejected
         },
-        warnings,
+        problems,
     )
 }
 
-fn result<V: Validator>(status: ValidatorStatus, warnings: Vec<WarningMessage>) -> CheckResult {
+fn result<V: Validator>(status: ValidatorStatus, problems: Vec<ValidationProblem>) -> CheckResult {
     CheckResult {
-        validator_ident: V::IDENT.to_owned(),
+        id: V::IDENT,
         field: V::FIELD,
         status,
-        warnings,
+        problems,
     }
 }
 

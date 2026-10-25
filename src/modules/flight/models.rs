@@ -1,9 +1,11 @@
+use std::ops::Range;
+
 use chrono::{DateTime, Utc};
-use ulid::Ulid;
+use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageField};
-use crate::modules::navdata::models::ResolvedLeg;
+use crate::modules::navdata::models::{CruiseAltitudeType, ResolvedLeg};
 
 pub struct CompatStatus {
     pub last_updated: DateTime<Utc>,
@@ -30,10 +32,15 @@ pub struct CompatController {
 
 #[derive(Debug, Clone)]
 pub struct Flight {
-    pub id: Ulid,
     pub cid: String,
-    pub callsign: String,
+    pub flight_plan: FlightPlan,
     pub last_observed_at: DateTime<Utc>,
+    pub altitude: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct FlightPlan {
+    pub callsign: String,
     pub departure: String,
     pub arrival: String,
     pub equipment: String,
@@ -41,64 +48,140 @@ pub struct Flight {
     pub transponder: String,
     pub raw_route: String,
     pub aircraft: String,
-    pub flight_rules: String,
-    pub wake_category: String,
-    pub altitude: i64,
+    pub flight_rules: FlightRule,
+    pub wake_category: WakeCategory,
     pub cruising_level: i64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Serialize, ToSchema)]
+pub enum FlightRule {
+    #[serde(rename = "I")]
+    Ifr,
+    #[serde(rename = "V")]
+    Vfr,
+}
+
+#[derive(Debug, Copy, Clone, Serialize, ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum WakeCategory {
+    #[serde(rename = "J")]
+    Super,
+    #[serde(rename = "H")]
+    Heavy,
+    #[serde(rename = "M")]
+    Medium,
+    #[serde(rename = "L")]
+    Light,
+}
+
+#[derive(Debug, Clone)]
 pub struct ParsedRoute {
     pub legs: Vec<ResolvedLeg>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct FlightDeliveryData {
-    pub parsed_route: ParsedRoute,
-    pub sid_candidates: Vec<SidCandidate>,
-    pub validations: Vec<ValidatorResult>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct SidCandidate {
-    pub identifier: String,
-    pub runway: String,
-    pub enroute_transition: String,
-}
-
-// TODO: add a separate DTO
-#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
-pub struct ValidatorResult {
-    pub scope: ValidationScope,
-    pub validator_ident: String,
-    pub field: WarningMessageField,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidatorExecution {
+    pub id: ValidatorIdentifier,
+    pub field: ValidationField,
     pub status: ValidatorStatus,
-    pub warnings: Vec<WarningMessage>,
+    pub problems: Vec<ValidationProblem>,
 }
 
-/// Indices are zero-based offsets into the segment list and expanded route.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
-#[serde(tag = "level", rename_all = "kebab-case")]
-pub enum ValidationScope {
-    Flight,
-    Segment {
-        segment_index: usize,
-        start_leg_index: usize,
-        /// Exclusive end of the segment in the expanded route.
-        end_leg_index: usize,
-    },
-    Leg {
-        segment_index: usize,
-        leg_index: usize,
-    },
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ValidatorIdentifier {
+    Callsign,
+    FlightRuleWeather,
+    AircraftType,
+    WakeCategory,
+    DepartureAircraftType,
+    DepartureAirport,
+    ArrivalAircraftType,
+    ArrivalAirport,
+    DirectionalCruiseAltitude,
+    EquipmentRvsm,
+    EquipmentRnav1,
+    EquipmentRnpAr,
+    PreferredRoute,
+    PreferredRouteCruiseAltitude,
+    RouteDirectLeg,
+    RouteUnknownLegOrFix,
+    AirwayApproval,
+    AirwayDirection,
 }
 
-// TODO: add a separate DTO
-#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ValidationField {
+    Callsign,
+    FlightRules,
+    AircraftType,
+    WakeCategory,
+    Equipment,
+    Transponder,
+    Departure,
+    Airspeed,
+    CruisingLevel,
+    Route,
+    Arrival,
+    NavigationPerformance,
+    Leg { index: usize },
+    MultipleLegs { indices: Range<usize> },
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, ToSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ValidatorStatus {
     Pass,
     Suppressed,
     Rejected,
     Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ValidationProblem {
+    InvalidAirport,
+    InvalidAircraftType,
+    WakeCategoryMismatch {
+        expected: String,
+    },
+    AircraftWingspanTooLarge {
+        maximum: String,
+    },
+    NoRvsm,
+    NoRnav1,
+    RnpAr,
+    RnpArWithoutRf,
+    NoTransponder,
+    RouteDirectSegment {
+        from: String,
+        to: String,
+    },
+    RouteUnknownLegOrFix {
+        ident: String,
+    },
+    RouteLegDirection {
+        from: String,
+        ident: String,
+        to: String,
+    },
+    AirwayRequireApproval {
+        from: String,
+        ident: String,
+        to: String,
+    },
+    NotPreferredRoute {
+        from: String,
+        to: String,
+        raw_route: String,
+    },
+    CruisingLevelMismatch {
+        expected_type: CruiseAltitudeType,
+    },
+    CruisingLevelNotAllowed {
+        allowlist_ft: Vec<i64>,
+    },
+    CruisingLevelTooLow {
+        minimum_ft: i64,
+    },
+    RouteMatchPreferred,
 }

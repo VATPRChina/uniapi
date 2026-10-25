@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use serde::Serialize;
 
 use crate::modules::flight::flight_plan::v1::parser;
 use crate::modules::flight::flight_plan::v1::validator::flight_validator::{
@@ -10,9 +11,7 @@ use crate::modules::flight::flight_plan::v1::validator::matching_route_validator
     AllowedAltitudesValidator, CruisingLevelRestrictionValidator, MinimalAltitudeValidator,
     NoMatchingRouteValidator, RouteMatchValidator,
 };
-use crate::modules::flight::flight_plan::validator::{
-    ValidatorError, WarningMessage, WarningMessageCode, WarningMessageField,
-};
+use crate::modules::flight::flight_plan::validator::ValidatorError;
 use crate::modules::flight::models::Flight;
 use crate::modules::navdata::models::{PreferredRoute, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
@@ -21,13 +20,102 @@ mod flight_validator;
 mod leg_validator;
 mod matching_route_validator;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, utoipa::ToSchema)]
+pub struct WarningMessage {
+    pub message_code: WarningMessageCode,
+    pub parameter: Option<String>,
+    pub field: WarningMessageField,
+    pub field_index: Option<usize>,
+}
+
+impl WarningMessage {
+    pub fn new(field: WarningMessageField, code: WarningMessageCode) -> Self {
+        Self {
+            message_code: code,
+            parameter: None,
+            field,
+            field_index: None,
+        }
+    }
+
+    pub fn with_parameter(
+        field: WarningMessageField,
+        code: WarningMessageCode,
+        parameter: impl Into<String>,
+    ) -> Self {
+        Self {
+            parameter: Some(parameter.into()),
+            ..Self::new(field, code)
+        }
+    }
+
+    pub fn route_indexed(index: usize, code: WarningMessageCode) -> Self {
+        Self {
+            field_index: Some(index),
+            ..Self::new(WarningMessageField::Route, code)
+        }
+    }
+
+    pub fn route_indexed_with_param(
+        index: usize,
+        code: WarningMessageCode,
+        param: impl Into<String>,
+    ) -> Self {
+        Self {
+            field_index: Some(index),
+            ..Self::with_parameter(WarningMessageField::Route, code, param)
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum WarningMessageField {
+    Callsign,
+    FlightRules,
+    AircraftType,
+    WakeCategory,
+    Equipment,
+    Transponder,
+    Departure,
+    Airspeed,
+    CruisingLevel,
+    Route,
+    Arrival,
+    NavigationPerformance,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum WarningMessageCode {
+    InvalidAirport,
+    InvalidAircraftType,
+    WakeCategoryMismatch,
+    AircraftWingspanTooLarge,
+    AircraftWingspanManualCheck,
+    NoRvsm,
+    NoRnav1,
+    RnpAr,
+    RnpArWithoutRf,
+    NoTransponder,
+    RouteDirectSegment,
+    RouteUnknownLegOrFix,
+    RouteLegDirection,
+    AirwayRequireApproval,
+    NotPreferredRoute,
+    CruisingLevelMismatch,
+    CruisingLevelNotAllowed,
+    CruisingLevelTooLow,
+    RouteMatchPreferred,
+}
+
 pub async fn validate_route(
     navdata: &NavdataService,
     flight: &Flight,
     legs: &[ResolvedLeg],
 ) -> Result<Vec<WarningMessage>, ValidatorError> {
     let preferred_routes = navdata
-        .list_preferred_routes(&flight.departure, &flight.arrival)
+        .list_preferred_routes(&flight.flight_plan.departure, &flight.flight_plan.arrival)
         .await
         .map_err(ValidatorError::Navdata)?;
     let matching_route = find_matching_route(navdata, legs, &preferred_routes).await?;

@@ -1,16 +1,12 @@
-mod v2;
-pub use v2::*;
-
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use ulid::Ulid;
+use utoipa::ToSchema;
 
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::flight::flight_plan::{Segment, SegmentKind};
-use crate::modules::navdata::models::{
-    AnyFix, ChinaMainlandBoundary, Fix, LegKind, ResolvedLeg, Sid,
+use crate::modules::flight::models::{
+    FlightRule, ValidatorIdentifier, ValidatorStatus, WakeCategory,
 };
+use crate::modules::navdata::models::CruiseAltitudeType;
 
 use super::models::{CompatController, CompatPilot, CompatStatus, Flight};
 
@@ -19,10 +15,172 @@ pub struct MetarQuery {
     pub id: String,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
-pub struct FlightRouteV2Query {
-    /// Complete route, including the departure and arrival identifiers.
-    pub route: String,
+#[derive(Deserialize, utoipa::ToSchema, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct TemporaryFlightQuery {
+    pub departure: String,
+    pub arrival: String,
+    #[serde(default)]
+    pub aircraft: String,
+    #[serde(default)]
+    /// I (IFR) or V (VFR); defaults to I when omitted or empty.
+    pub flight_rules: String,
+    #[serde(default)]
+    /// J, H, M or L; defaults to M when omitted or empty.
+    pub wake_category: String,
+    #[serde(default)]
+    pub equipment: String,
+    #[serde(default)]
+    pub navigation_performance: String,
+    #[serde(default)]
+    pub transponder: String,
+    #[serde(default)]
+    pub raw_route: String,
+    #[serde(default)]
+    pub cruising_level: i64,
+}
+
+impl From<TemporaryFlightQuery> for Flight {
+    fn from(query: TemporaryFlightQuery) -> Self {
+        Self {
+            cid: String::new(),
+            flight_plan: super::models::FlightPlan {
+                callsign: String::new(),
+                departure: query.departure.trim().to_ascii_uppercase(),
+                arrival: query.arrival.trim().to_ascii_uppercase(),
+                aircraft: query.aircraft.trim().to_ascii_uppercase(),
+                flight_rules: if query.flight_rules.trim().eq_ignore_ascii_case("V") {
+                    FlightRule::Vfr
+                } else {
+                    FlightRule::Ifr
+                },
+                wake_category: match query.wake_category.trim().to_ascii_uppercase().as_str() {
+                    "J" => WakeCategory::Super,
+                    "H" => WakeCategory::Heavy,
+                    "L" => WakeCategory::Light,
+                    _ => WakeCategory::Medium,
+                },
+                equipment: query.equipment.trim().to_ascii_uppercase(),
+                navigation_performance: query.navigation_performance.trim().to_ascii_uppercase(),
+                transponder: query.transponder.trim().to_ascii_uppercase(),
+                raw_route: query.raw_route.trim().to_ascii_uppercase(),
+                cruising_level: query.cruising_level,
+            },
+            last_observed_at: Utc::now(),
+            altitude: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct FlightDto {
+    pub cid: String,
+    pub flight_plan: FlightPlanDto,
+    pub last_observed_at: DateTime<Utc>,
+    pub altitude: i64,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct FlightPlanDto {
+    pub callsign: String,
+    pub departure: String,
+    pub arrival: String,
+    pub equipment: String,
+    pub navigation_performance: String,
+    pub transponder: String,
+    pub raw_route: String,
+    pub aircraft: String,
+    pub flight_rules: FlightRule,
+    pub wake_category: WakeCategory,
+    pub cruising_level: i64,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct FlightValidationDto {
+    pub validators: Vec<ValidatorExecutionDto>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ValidatorExecutionDto {
+    pub id: ValidatorIdentifier,
+    pub field: ValidationFieldDto,
+    pub status: ValidatorStatus,
+    pub problems: Vec<ValidationProblemDto>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum ValidationFieldDto {
+    Callsign,
+    FlightRules,
+    AircraftType,
+    WakeCategory,
+    Equipment,
+    Transponder,
+    Departure,
+    Airspeed,
+    CruisingLevel,
+    Route,
+    Arrival,
+    NavigationPerformance,
+    Leg {
+        index: usize,
+    },
+    /// Zero-based, half-open range of legs: `from` is inclusive, `to` is exclusive.
+    MultipleLegs {
+        from: usize,
+        to: usize,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum ValidationProblemDto {
+    InvalidAirport,
+    InvalidAircraftType,
+    WakeCategoryMismatch {
+        expected: String,
+    },
+    AircraftWingspanTooLarge {
+        maximum: String,
+    },
+    NoRvsm,
+    NoRnav1,
+    RnpAr,
+    RnpArWithoutRf,
+    NoTransponder,
+    RouteDirectSegment {
+        from: String,
+        to: String,
+    },
+    RouteUnknownLegOrFix {
+        ident: String,
+    },
+    RouteLegDirection {
+        from: String,
+        ident: String,
+        to: String,
+    },
+    AirwayRequireApproval {
+        from: String,
+        ident: String,
+        to: String,
+    },
+    NotPreferredRoute {
+        from: String,
+        to: String,
+        raw_route: String,
+    },
+    CruisingLevelMismatch {
+        expected_type: CruiseAltitudeType,
+    },
+    CruisingLevelNotAllowed {
+        allowlist_ft: Vec<i64>,
+    },
+    CruisingLevelTooLow {
+        minimum_ft: i64,
+    },
+    RouteMatchPreferred,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -113,358 +271,159 @@ impl From<CompatFutureController> for CompatFutureControllerDto {
     }
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
-pub struct TemporaryFlightQuery {
-    pub departure: String,
-    pub arrival: String,
-    #[serde(default)]
-    pub aircraft: String,
-    #[serde(default)]
-    pub flight_rules: String,
-    #[serde(default)]
-    pub wake_category: String,
-    #[serde(default)]
-    pub equipment: String,
-    #[serde(default)]
-    pub navigation_performance: String,
-    #[serde(default)]
-    pub transponder: String,
-    #[serde(default)]
-    pub raw_route: String,
-    #[serde(default)]
-    pub cruising_level: i64,
-}
-
-impl From<TemporaryFlightQuery> for Flight {
-    fn from(query: TemporaryFlightQuery) -> Self {
-        Self {
-            id: Ulid::new(),
-            cid: String::new(),
-            callsign: String::new(),
-            last_observed_at: Utc::now(),
-            departure: query.departure,
-            arrival: query.arrival,
-            equipment: query.equipment,
-            navigation_performance: query.navigation_performance,
-            transponder: query.transponder,
-            raw_route: query.raw_route,
-            aircraft: query.aircraft,
-            flight_rules: query.flight_rules,
-            wake_category: query.wake_category,
-            altitude: 0,
-            cruising_level: query.cruising_level,
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct FlightDto {
-    pub id: String,
-    pub cid: String,
-    pub callsign: String,
-    pub last_observed_at: DateTime<Utc>,
-    pub departure: String,
-    pub arrival: String,
-    pub equipment: String,
-    pub navigation_performance: String,
-    pub transponder: String,
-    pub raw_route: String,
-    pub aircraft: String,
-    pub flight_rules: String,
-    pub wake_category: String,
-    pub altitude: i64,
-    pub cruising_level: i64,
-}
-
 impl From<Flight> for FlightDto {
     fn from(flight: Flight) -> Self {
         Self {
-            id: flight.id.to_string(),
             cid: flight.cid,
-            callsign: flight.callsign,
+            flight_plan: flight.flight_plan.into(),
             last_observed_at: flight.last_observed_at,
-            departure: flight.departure,
-            arrival: flight.arrival,
-            equipment: flight.equipment,
-            navigation_performance: flight.navigation_performance,
-            transponder: flight.transponder,
-            raw_route: flight.raw_route,
-            aircraft: flight.aircraft,
-            flight_rules: flight.flight_rules,
-            wake_category: flight.wake_category,
             altitude: flight.altitude,
-            cruising_level: flight.cruising_level,
         }
     }
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct RouteDeliveryInfo {
-    pub legs: Vec<FlightRouteLeg>,
-    /// Mainland and international portions, partitioning the expanded legs in order.
-    pub segments: Vec<FlightRouteSegment>,
-    pub sid_candidates: Vec<SidCandidate>,
-}
-
-impl RouteDeliveryInfo {
-    pub fn new(
-        route: Vec<ResolvedLeg>,
-        sid_candidates: Vec<SidCandidate>,
-        segments: Vec<FlightRouteSegment>,
-        boundary: &ChinaMainlandBoundary,
-    ) -> Self {
-        let legs: Vec<_> = route
-            .into_iter()
-            .map(|leg| FlightRouteLeg::from_leg(leg, boundary))
-            .collect();
+impl From<super::models::FlightPlan> for FlightPlanDto {
+    fn from(plan: super::models::FlightPlan) -> Self {
         Self {
-            legs,
-            segments,
-            sid_candidates,
+            callsign: plan.callsign,
+            departure: plan.departure,
+            arrival: plan.arrival,
+            equipment: plan.equipment,
+            navigation_performance: plan.navigation_performance,
+            transponder: plan.transponder,
+            raw_route: plan.raw_route,
+            aircraft: plan.aircraft,
+            flight_rules: plan.flight_rules,
+            wake_category: plan.wake_category,
+            cruising_level: plan.cruising_level,
         }
     }
 }
 
-/// A mainland or international portion. Leg ranges refer to the expanded legs array.
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct FlightRouteSegment {
-    pub kind: SegmentKind,
-    pub identifier: String,
-    /// Inclusive zero-based leg index.
-    pub start_index: usize,
-    /// Exclusive zero-based leg index.
-    pub end_index: usize,
-    pub route_start_airport: Option<FlightRouteFix>,
-    pub route_end_airport: Option<FlightRouteFix>,
-    pub enroute_start_fix: FlightRouteFix,
-    pub enroute_end_fix: FlightRouteFix,
-    pub cross_border_enter_start_fix: Option<FlightRouteFix>,
-    pub cross_border_enter_end_fix: Option<FlightRouteFix>,
-    pub cross_border_exit_start_fix: Option<FlightRouteFix>,
-    pub cross_border_exit_end_fix: Option<FlightRouteFix>,
-}
-
-impl From<&Segment<'_>> for FlightRouteSegment {
-    fn from(segment: &Segment<'_>) -> Self {
-        let from = FlightFix::from(&segment.route.legs.first().unwrap().from);
-        let to = FlightFix::from(&segment.route.legs.last().unwrap().to);
+impl From<Vec<super::models::ValidatorExecution>> for FlightValidationDto {
+    fn from(validators: Vec<super::models::ValidatorExecution>) -> Self {
         Self {
-            kind: segment.kind,
-            identifier: format!("{}-{}", from.identifier, to.identifier),
-            start_index: segment.route.start_index,
-            end_index: segment.route.end_index(),
-            route_start_airport: segment.get_route_start_airport().map(Into::into),
-            route_end_airport: segment.get_route_end_airport().map(Into::into),
-            enroute_start_fix: segment.get_enroute_start_fix().into(),
-            enroute_end_fix: segment.get_enroute_end_fix().into(),
-            cross_border_enter_start_fix: segment
-                .get_cross_border_enter_start_fix()
-                .map(Into::into),
-            cross_border_enter_end_fix: segment.get_cross_border_enter_end_fix().map(Into::into),
-            cross_border_exit_start_fix: segment.get_cross_border_exit_start_fix().map(Into::into),
-            cross_border_exit_end_fix: segment.get_cross_border_exit_end_fix().map(Into::into),
+            validators: validators.into_iter().map(Into::into).collect(),
         }
     }
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct SidCandidate {
-    pub identifier: String,
-    pub runway_transitions: Vec<String>,
-    pub is_rnav: bool,
-}
-
-impl From<Sid> for SidCandidate {
-    fn from(sid: Sid) -> Self {
+impl From<super::models::ValidatorExecution> for ValidatorExecutionDto {
+    fn from(execution: super::models::ValidatorExecution) -> Self {
         Self {
-            identifier: sid.identifier.to_string(),
-            runway_transitions: sid
-                .proc
-                .runway_transitions
-                .into_iter()
-                .map(|runway| runway.to_string())
-                .sorted()
-                .collect(),
-            is_rnav: sid.proc.is_rnav,
+            id: execution.id,
+            field: execution.field.into(),
+            status: execution.status,
+            problems: execution.problems.into_iter().map(Into::into).collect(),
         }
     }
 }
 
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct FlightRouteLeg {
-    /// Whether either endpoint is mainland or unresolved.
-    pub is_mainland: bool,
-    pub from: FlightRouteFix,
-    pub to: FlightRouteFix,
-    pub leg_identifier: String,
-    pub is_unknown: bool,
-    pub is_sid: bool,
-    pub is_star: bool,
-}
-
-impl FlightRouteLeg {
-    pub fn from_leg(leg: ResolvedLeg, boundary: &ChinaMainlandBoundary) -> Self {
-        Self {
-            is_mainland: leg.is_china(boundary),
-            from: FlightRouteFix::from(&leg.from),
-            to: FlightRouteFix::from(&leg.to),
-            leg_identifier: leg.identifier.unwrap_or_default(),
-            is_unknown: leg.is_unknown,
-            is_sid: leg.kind == LegKind::Sid,
-            is_star: leg.kind == LegKind::Star,
-        }
-    }
-}
-
-/// Coordinates are exposed only by the developer-only v2 route endpoint.
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct FlightRouteFix {
-    pub identifier: String,
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
-    pub is_unknown: bool,
-}
-
-impl From<&AnyFix> for FlightRouteFix {
-    fn from(fix: &AnyFix) -> Self {
-        let position = fix.position().filter(|(latitude, longitude)| {
-            (-90.0..=90.0).contains(latitude) && (-180.0..=180.0).contains(longitude)
-        });
-        Self {
-            identifier: FlightFix::from(fix).identifier,
-            latitude: position.map(|point| point.0),
-            longitude: position.map(|point| point.1),
-            is_unknown: position.is_none(),
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct FlightLeg {
-    pub from: FlightFix,
-    pub to: FlightFix,
-    pub leg_identifier: String,
-}
-
-impl From<ResolvedLeg> for FlightLeg {
-    fn from(leg: ResolvedLeg) -> Self {
-        Self {
-            from: FlightFix::from(&leg.from),
-            to: FlightFix::from(&leg.to),
-            leg_identifier: leg.identifier.unwrap_or_default(),
-        }
-    }
-}
-
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct FlightFix {
-    pub identifier: String,
-}
-
-impl From<&AnyFix> for FlightFix {
-    fn from(fix: &AnyFix) -> Self {
-        Self {
-            identifier: match fix {
-                AnyFix::GeoPoint(geo_point) => {
-                    let latitude_minutes = (geo_point.latitude.abs() * 60.0).round() as u16;
-                    let longitude_minutes = (geo_point.longitude.abs() * 60.0).round() as u16;
-                    format!(
-                        "{:02}{:02}{}{:03}{:02}{}",
-                        latitude_minutes / 60,
-                        latitude_minutes % 60,
-                        if *geo_point.latitude < 0.0 { "S" } else { "N" },
-                        longitude_minutes / 60,
-                        longitude_minutes % 60,
-                        if *geo_point.longitude < 0.0 { "W" } else { "E" },
-                    )
-                }
-                _ => fix.identifier().unwrap_or_default().to_owned(),
+impl From<super::models::ValidationField> for ValidationFieldDto {
+    fn from(field: super::models::ValidationField) -> Self {
+        use super::models::ValidationField as Field;
+        match field {
+            Field::Callsign => Self::Callsign,
+            Field::FlightRules => Self::FlightRules,
+            Field::AircraftType => Self::AircraftType,
+            Field::WakeCategory => Self::WakeCategory,
+            Field::Equipment => Self::Equipment,
+            Field::Transponder => Self::Transponder,
+            Field::Departure => Self::Departure,
+            Field::Airspeed => Self::Airspeed,
+            Field::CruisingLevel => Self::CruisingLevel,
+            Field::Route => Self::Route,
+            Field::Arrival => Self::Arrival,
+            Field::NavigationPerformance => Self::NavigationPerformance,
+            Field::Leg { index } => Self::Leg { index },
+            Field::MultipleLegs { indices } => Self::MultipleLegs {
+                from: indices.start,
+                to: indices.end,
             },
         }
     }
 }
 
+impl From<super::models::ValidationProblem> for ValidationProblemDto {
+    fn from(problem: super::models::ValidationProblem) -> Self {
+        use super::models::ValidationProblem as Problem;
+        match problem {
+            Problem::InvalidAirport => Self::InvalidAirport,
+            Problem::InvalidAircraftType => Self::InvalidAircraftType,
+            Problem::WakeCategoryMismatch { expected } => Self::WakeCategoryMismatch { expected },
+            Problem::AircraftWingspanTooLarge { maximum } => {
+                Self::AircraftWingspanTooLarge { maximum }
+            }
+            Problem::NoRvsm => Self::NoRvsm,
+            Problem::NoRnav1 => Self::NoRnav1,
+            Problem::RnpAr => Self::RnpAr,
+            Problem::RnpArWithoutRf => Self::RnpArWithoutRf,
+            Problem::NoTransponder => Self::NoTransponder,
+            Problem::RouteDirectSegment { from, to } => Self::RouteDirectSegment { from, to },
+            Problem::RouteUnknownLegOrFix { ident } => Self::RouteUnknownLegOrFix { ident },
+            Problem::RouteLegDirection { from, ident, to } => {
+                Self::RouteLegDirection { from, ident, to }
+            }
+            Problem::AirwayRequireApproval { from, ident, to } => {
+                Self::AirwayRequireApproval { from, ident, to }
+            }
+            Problem::NotPreferredRoute {
+                from,
+                to,
+                raw_route,
+            } => Self::NotPreferredRoute {
+                from,
+                to,
+                raw_route,
+            },
+            Problem::CruisingLevelMismatch { expected_type } => {
+                Self::CruisingLevelMismatch { expected_type }
+            }
+            Problem::CruisingLevelNotAllowed { allowlist_ft } => {
+                Self::CruisingLevelNotAllowed { allowlist_ft }
+            }
+            Problem::CruisingLevelTooLow { minimum_ft } => Self::CruisingLevelTooLow { minimum_ft },
+            Problem::RouteMatchPreferred => Self::RouteMatchPreferred,
+        }
+    }
+}
+
 #[cfg(test)]
-mod route_segment_tests {
+mod tests {
     use super::*;
-    use crate::modules::flight::flight_plan::RouteSegmenter;
-    use crate::modules::navdata::models::{
-        Airport, ChinaMainlandBoundary, DirectionRestriction, GeoPoint,
-    };
+    use crate::modules::flight::models::{ValidationField, ValidationProblem, ValidatorExecution};
+    use serde_json::json;
 
     #[test]
-    fn response_preserves_visit_ranges_and_known_crossing_endpoints() {
-        let boundary = ChinaMainlandBoundary::from_rings(vec![vec![
-            (100., 20.),
-            (120., 20.),
-            (120., 40.),
-            (100., 40.),
-        ]])
-        .unwrap();
-        let airport = |identifier: &str, longitude: f64| {
-            AnyFix::Airport(Airport {
-                identifier: identifier.try_into().unwrap(),
-                latitude: 30.0.try_into().unwrap(),
-                longitude: longitude.try_into().unwrap(),
-            })
-        };
-        let outside: AnyFix = GeoPoint::new(30., 95.).unwrap().into();
-        let inside: AnyFix = GeoPoint::new(30., 105.).unwrap().into();
-        let foreign: AnyFix = GeoPoint::new(30., 125.).unwrap().into();
-        let reentry: AnyFix = GeoPoint::new(30., 110.).unwrap().into();
-        let fixes = [
-            airport("RJAA", 140.),
-            outside.clone(),
-            AnyFix::Unknown("UNK1".into()),
-            AnyFix::Unknown("UNK2".into()),
-            inside.clone(),
-            foreign,
-            reentry,
-            airport("ZAAA", 105.),
-        ];
-        let legs: Vec<_> = fixes
-            .windows(2)
-            .map(|pair| ResolvedLeg {
-                from: pair[0].clone(),
-                to: pair[1].clone(),
-                identifier: None,
-                is_unknown: pair.iter().any(AnyFix::is_unknown),
-                kind: LegKind::Direct,
-                direction_restriction: DirectionRestriction::None,
-            })
-            .collect();
-        let segments = RouteSegmenter::new(&boundary)
-            .segment(&legs)
-            .iter()
-            .map(FlightRouteSegment::from)
-            .collect();
-        let response = RouteDeliveryInfo::new(legs, vec![], segments, &boundary);
-        let json = serde_json::to_value(response).unwrap();
-        assert_eq!(json["legs"].as_array().unwrap().len(), 7);
-        assert_eq!(json["legs"][0]["is_mainland"], false);
-        assert_eq!(json["legs"][1]["is_mainland"], true);
-        let segments = json["segments"].as_array().unwrap();
-        assert_eq!(segments.len(), 3);
-        assert_eq!(segments[0]["start_index"], 0);
-        assert_eq!(segments[0]["end_index"], 1);
-        assert_eq!(segments[1]["start_index"], 1);
-        assert_eq!(segments[1]["end_index"], 5);
-        assert_eq!(segments[2]["start_index"], 5);
-        assert_eq!(segments[2]["end_index"], 7);
-        assert_eq!(segments[0]["kind"], "international");
-        assert_eq!(segments[1]["kind"], "mainland");
-        assert_eq!(segments[2]["kind"], "mainland");
-        assert_eq!(segments[0]["route_start_airport"]["identifier"], "RJAA");
-        assert!(segments[0]["route_end_airport"].is_null());
+    fn validation_snapshot_preserves_structured_problems_and_half_open_ranges() {
+        let validation = FlightValidationDto::from(vec![ValidatorExecution {
+            id: ValidatorIdentifier::PreferredRouteCruiseAltitude,
+            field: ValidationField::MultipleLegs { indices: 2..5 },
+            status: ValidatorStatus::Rejected,
+            problems: vec![
+                ValidationProblem::CruisingLevelMismatch {
+                    expected_type: CruiseAltitudeType::StandardOdd,
+                },
+                ValidationProblem::CruisingLevelNotAllowed {
+                    allowlist_ft: vec![29100, 33100],
+                },
+                ValidationProblem::CruisingLevelTooLow { minimum_ft: 29100 },
+            ],
+        }]);
         assert_eq!(
-            segments[1]["cross_border_enter_start_fix"]["identifier"],
-            FlightFix::from(&outside).identifier
+            serde_json::to_value(validation).unwrap(),
+            json!({
+                "validators": [{
+                    "id": "PreferredRouteCruiseAltitude",
+                    "field": { "kind": "MultipleLegs", "from": 2, "to": 5 },
+                    "status": "rejected",
+                    "problems": [
+                        { "kind": "CruisingLevelMismatch", "expected_type": "standard-odd" },
+                        { "kind": "CruisingLevelNotAllowed", "allowlist_ft": [29100, 33100] },
+                        { "kind": "CruisingLevelTooLow", "minimum_ft": 29100 }
+                    ]
+                }]
+            })
         );
-        assert_eq!(
-            segments[1]["cross_border_enter_end_fix"]["identifier"],
-            FlightFix::from(&inside).identifier
-        );
-        assert_eq!(segments[2]["route_end_airport"]["identifier"], "ZAAA");
-        assert!(segments[2]["cross_border_exit_start_fix"].is_null());
     }
 }

@@ -1,5 +1,5 @@
 use crate::modules::flight::flight_plan::altitude::{
-    level_restriction_matches, level_restriction_param, level_restriction_type,
+    level_restriction_matches, level_restriction_type,
 };
 use itertools::Itertools;
 
@@ -7,7 +7,18 @@ use crate::modules::flight::flight_plan::v1::validator::{
     Validator, WarningMessage, WarningMessageCode, WarningMessageField,
 };
 use crate::modules::flight::models::Flight;
-use crate::modules::navdata::models::PreferredRoute;
+use crate::modules::navdata::models::{CruiseAltitudeType, PreferredRoute};
+
+pub fn level_restriction_param(restriction: CruiseAltitudeType) -> String {
+    match restriction {
+        CruiseAltitudeType::StandardEven => "standard_even",
+        CruiseAltitudeType::StandardOdd => "standard_odd",
+        CruiseAltitudeType::Standard => "standard",
+        CruiseAltitudeType::FlightLevelEven => "flight_level_even",
+        CruiseAltitudeType::FlightLevelOdd => "flight_level_odd",
+    }
+    .to_owned()
+}
 
 pub struct NoMatchingRouteValidator;
 
@@ -49,7 +60,7 @@ impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for RouteMatchValidator {
                 if route.is_public() {
                     route.raw_route.clone()
                 } else {
-                    flight.raw_route.clone()
+                    flight.flight_plan.raw_route.clone()
                 },
             )
         })
@@ -64,7 +75,7 @@ impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for CruisingLevelRestrictio
     ) -> impl IntoIterator<Item = WarningMessage> {
         preferred_route
             .filter(|route| {
-                let actual = level_restriction_type(flight.cruising_level as i32);
+                let actual = level_restriction_type(flight.flight_plan.cruising_level as i32);
                 !level_restriction_matches(actual, route.cruising_level_restriction)
             })
             .map(|route| {
@@ -88,7 +99,7 @@ impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for AllowedAltitudesValidat
                 !route.allowed_altitudes.is_empty()
                     && !route
                         .allowed_altitudes
-                        .contains(&(flight.cruising_level as i32))
+                        .contains(&(flight.flight_plan.cruising_level as i32))
             })
             .map(|route| {
                 WarningMessage::with_parameter(
@@ -114,7 +125,7 @@ impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for MinimalAltitudeValidato
         preferred_route
             .filter(|route| {
                 route.minimal_altitude != 0
-                    && (flight.cruising_level as i32) < route.minimal_altitude
+                    && (flight.flight_plan.cruising_level as i32) < route.minimal_altitude
             })
             .map(|route| {
                 WarningMessage::with_parameter(
@@ -128,7 +139,7 @@ impl<'a, 'b> Validator<MatchingRouteContext<'a, 'b>> for MinimalAltitudeValidato
 
 #[cfg(test)]
 mod tests {
-    use crate::modules::navdata::models::LevelRestrictionType;
+    use crate::modules::navdata::models::CruiseAltitudeType;
 
     use super::*;
 
@@ -140,7 +151,7 @@ mod tests {
         ] {
             assert_eq!(
                 level_restriction_type(flight_level),
-                LevelRestrictionType::StandardOdd
+                CruiseAltitudeType::StandardOdd
             );
         }
 
@@ -150,7 +161,7 @@ mod tests {
         ] {
             assert_eq!(
                 level_restriction_type(flight_level),
-                LevelRestrictionType::StandardEven
+                CruiseAltitudeType::StandardEven
             );
         }
     }
@@ -160,14 +171,14 @@ mod tests {
         for flight_level in [29100, 31100, 33100, 35100, 37100, 39100, 41100] {
             assert_eq!(
                 level_restriction_type(flight_level),
-                LevelRestrictionType::StandardOdd
+                CruiseAltitudeType::StandardOdd
             );
         }
 
         for flight_level in [30100, 32100, 34100, 36100, 38100, 40100] {
             assert_eq!(
                 level_restriction_type(flight_level),
-                LevelRestrictionType::StandardEven
+                CruiseAltitudeType::StandardEven
             );
         }
     }
@@ -177,14 +188,14 @@ mod tests {
         for flight_level in [44900, 48900] {
             assert_eq!(
                 level_restriction_type(flight_level),
-                LevelRestrictionType::StandardOdd
+                CruiseAltitudeType::StandardOdd
             );
         }
 
         for flight_level in [43000, 46900] {
             assert_eq!(
                 level_restriction_type(flight_level),
-                LevelRestrictionType::StandardEven
+                CruiseAltitudeType::StandardEven
             );
         }
     }
@@ -193,15 +204,12 @@ mod tests {
     fn classifies_unmapped_flight_levels_and_non_standard_altitudes() {
         assert_eq!(
             level_restriction_type(30000),
-            LevelRestrictionType::FlightLevelEven
+            CruiseAltitudeType::FlightLevelEven
         );
         assert_eq!(
             level_restriction_type(31000),
-            LevelRestrictionType::FlightLevelOdd
+            CruiseAltitudeType::FlightLevelOdd
         );
-        assert_eq!(
-            level_restriction_type(30500),
-            LevelRestrictionType::Standard
-        );
+        assert_eq!(level_restriction_type(30500), CruiseAltitudeType::Standard);
     }
 }

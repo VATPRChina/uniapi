@@ -4,9 +4,9 @@ import { getBaseUrl } from "../../../lib/backend.js";
 const messageTimeoutMs = 60_000;
 
 test(
-  "GET /api/flights/warnings/streaming streams all flight validation results",
+  "GET /api/flights/by-departure/ZBAA/validations.ws streams departure flight validation results",
   async () => {
-    const url = new URL("/api/flights/warnings/streaming", getBaseUrl());
+    const url = new URL("/api/flights/by-departure/ZBAA/validations.ws", getBaseUrl());
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
 
     const socket = new WebSocket(url);
@@ -19,11 +19,13 @@ test(
       expect(snapshot).not.toBeNull();
       expect(Array.isArray(snapshot)).toBe(false);
 
-      for (const [callsign, warnings] of Object.entries(
+      for (const [callsign, validation] of Object.entries(
         snapshot as Record<string, unknown>,
       )) {
         expect(callsign).not.toBe("");
-        expect(Array.isArray(warnings)).toBe(true);
+        expect(validation).toBeTypeOf("object");
+        expect(validation).not.toBeNull();
+        expect(Array.isArray((validation as { validators: unknown }).validators)).toBe(true);
       }
     } finally {
       socket.close();

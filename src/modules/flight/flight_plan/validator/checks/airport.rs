@@ -1,7 +1,7 @@
 use super::CheckResult;
-use super::{ValidationContext, Validator, WarningMessageField};
-use crate::modules::flight::flight_plan::validator::{WarningMessage, WarningMessageCode};
+use super::{ValidationContext, Validator};
 use crate::modules::flight::models::ValidatorStatus;
+use crate::modules::flight::models::{ValidationField, ValidationProblem, ValidatorIdentifier};
 use crate::modules::navdata::aircraft_limits::{AircraftLimits, WingspanMaximum};
 use crate::modules::navdata::models::AnyFix;
 use crate::modules::navdata::service::NavdataService;
@@ -10,13 +10,13 @@ use crate::modules::navdata::service::NavdataService;
 pub struct DepartureAircraftTypeValidator;
 
 impl Validator for DepartureAircraftTypeValidator {
-    const IDENT: &'static str = "departure-aircraft-type";
-    const FIELD: WarningMessageField = WarningMessageField::Departure;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::DepartureAircraftType;
+    const FIELD: ValidationField = ValidationField::Departure;
 
     fn validate(context: &ValidationContext<'_>, navdata: &NavdataService) -> CheckResult {
         validate_wingspan::<Self>(
-            &context.flight.departure,
-            &context.flight.aircraft,
+            &context.flight.flight_plan.departure,
+            &context.flight.flight_plan.aircraft,
             navdata.aircraft_limits(),
         )
     }
@@ -26,12 +26,12 @@ impl Validator for DepartureAircraftTypeValidator {
 pub struct DepartureAirportValidator;
 
 impl Validator for DepartureAirportValidator {
-    const IDENT: &'static str = "departure-airport";
-    const FIELD: WarningMessageField = WarningMessageField::Departure;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::DepartureAirport;
+    const FIELD: ValidationField = ValidationField::Departure;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         validate_airport::<Self>(
-            &context.flight.departure,
+            &context.flight.flight_plan.departure,
             context.route.legs.first().map(|leg| &leg.from),
         )
     }
@@ -41,13 +41,13 @@ impl Validator for DepartureAirportValidator {
 pub struct ArrivalAircraftTypeValidator;
 
 impl Validator for ArrivalAircraftTypeValidator {
-    const IDENT: &'static str = "arrival-aircraft-type";
-    const FIELD: WarningMessageField = WarningMessageField::Arrival;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::ArrivalAircraftType;
+    const FIELD: ValidationField = ValidationField::Arrival;
 
     fn validate(context: &ValidationContext<'_>, navdata: &NavdataService) -> CheckResult {
         validate_wingspan::<Self>(
-            &context.flight.arrival,
-            &context.flight.aircraft,
+            &context.flight.flight_plan.arrival,
+            &context.flight.flight_plan.aircraft,
             navdata.aircraft_limits(),
         )
     }
@@ -57,12 +57,12 @@ impl Validator for ArrivalAircraftTypeValidator {
 pub struct ArrivalAirportValidator;
 
 impl Validator for ArrivalAirportValidator {
-    const IDENT: &'static str = "arrival-airport";
-    const FIELD: WarningMessageField = WarningMessageField::Arrival;
+    const IDENT: ValidatorIdentifier = ValidatorIdentifier::ArrivalAirport;
+    const FIELD: ValidationField = ValidationField::Arrival;
 
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         validate_airport::<Self>(
-            &context.flight.arrival,
+            &context.flight.flight_plan.arrival,
             context.route.legs.last().map(|leg| &leg.to),
         )
     }
@@ -76,10 +76,10 @@ fn validate_wingspan<V: Validator>(
     let airport = airport.trim().to_ascii_uppercase();
     let aircraft = aircraft.trim().to_ascii_uppercase();
     let mut result = CheckResult {
-        validator_ident: V::IDENT.to_owned(),
+        id: V::IDENT,
         field: V::FIELD,
         status: ValidatorStatus::Unavailable,
-        warnings: Vec::new(),
+        problems: Vec::new(),
     };
     if aircraft.is_empty() {
         return result;
@@ -87,13 +87,9 @@ fn validate_wingspan<V: Validator>(
     let Some(limit) = data.airport(&airport) else {
         return result;
     };
-    // A listed exception requires a controller's manual check, not automatic approval.
-    if limit.manual_check_types.contains(&aircraft) {
-        result.warnings.push(WarningMessage::with_parameter(
-            V::FIELD,
-            WarningMessageCode::AircraftWingspanManualCheck,
-            format!("{airport}: {aircraft}"),
-        ));
+    // Explicit aircraft exceptions bypass the automatic wingspan restriction.
+    if limit.extra_approval.contains(&aircraft) {
+        result.status = ValidatorStatus::Pass;
         return result;
     }
     let (maximum, exclusive) = match &limit.maximum {
@@ -124,14 +120,11 @@ fn validate_wingspan<V: Validator>(
         ValidatorStatus::Rejected
     };
     if !permitted {
-        result.warnings.push(WarningMessage::with_parameter(
-            V::FIELD,
-            WarningMessageCode::AircraftWingspanTooLarge,
-            format!(
-                "{airport}: {aircraft} ({wingspan} m; {} {maximum} m)",
-                if exclusive { "<" } else { "≤" }
-            ),
-        ));
+        result
+            .problems
+            .push(ValidationProblem::AircraftWingspanTooLarge {
+                maximum: format!("{} {maximum} m", if exclusive { "<" } else { "≤" }),
+            });
     }
     result
 }
@@ -158,20 +151,16 @@ fn validate_airport<V: Validator>(identifier: &str, endpoint: Option<&AnyFix>) -
             Some(_) => ValidatorStatus::Rejected,
         }
     };
-    let warnings = if status == ValidatorStatus::Rejected {
-        vec![WarningMessage::with_parameter(
-            V::FIELD,
-            WarningMessageCode::InvalidAirport,
-            identifier,
-        )]
+    let problems = if status == ValidatorStatus::Rejected {
+        vec![ValidationProblem::InvalidAirport]
     } else {
         Vec::new()
     };
     CheckResult {
-        validator_ident: V::IDENT.to_owned(),
+        id: V::IDENT,
         field: V::FIELD,
         status,
-        warnings,
+        problems,
     }
 }
 
@@ -223,60 +212,46 @@ ZBAD 0 - 4C NaN -
             for (result, field, ident) in [
                 (
                     departure,
-                    WarningMessageField::Departure,
-                    "departure-aircraft-type",
+                    ValidationField::Departure,
+                    ValidatorIdentifier::DepartureAircraftType,
                 ),
                 (
                     arrival,
-                    WarningMessageField::Arrival,
-                    "arrival-aircraft-type",
+                    ValidationField::Arrival,
+                    ValidatorIdentifier::ArrivalAircraftType,
                 ),
             ] {
-                assert_eq!(result.status, expected, "{airport}: {aircraft} ({ident})");
+                assert_eq!(result.status, expected, "{airport}: {aircraft} ({ident:?})");
                 assert_eq!(result.field, field);
-                assert_eq!(result.validator_ident, ident);
+                assert_eq!(result.id, ident);
                 if expected == ValidatorStatus::Rejected {
-                    assert_eq!(result.warnings.len(), 1);
-                    assert_eq!(
-                        result.warnings[0].message_code,
-                        WarningMessageCode::AircraftWingspanTooLarge
-                    );
-                    assert_eq!(result.warnings[0].field, field);
+                    assert_eq!(result.problems.len(), 1);
                     assert!(
-                        result.warnings[0]
-                            .parameter
-                            .as_ref()
-                            .unwrap()
-                            .contains(aircraft)
+                        matches!(&result.problems[0], ValidationProblem::AircraftWingspanTooLarge { maximum } if maximum.ends_with(" m"))
                     );
                 } else {
-                    assert!(result.warnings.is_empty());
+                    assert!(result.problems.is_empty());
                 }
             }
         }
     }
 
     #[test]
-    fn special_approval_aircraft_require_controller_manual_check() {
+    fn special_approval_aircraft_pass_the_automatic_wingspan_check() {
         let data = AircraftLimits::parse(WINGSPANS, CLEARANCE);
         for (airport, aircraft) in [("ZBHH", "B748"), ("ZBSJ", "A225"), (" zbhh ", " b748 ")] {
             for result in [
                 validate_wingspan::<DepartureAircraftTypeValidator>(airport, aircraft, &data),
                 validate_wingspan::<ArrivalAircraftTypeValidator>(airport, aircraft, &data),
             ] {
-                assert_eq!(result.status, ValidatorStatus::Unavailable);
-                assert_eq!(result.warnings.len(), 1);
-                assert_eq!(
-                    result.warnings[0].message_code,
-                    WarningMessageCode::AircraftWingspanManualCheck
-                );
-                assert_eq!(result.warnings[0].field, result.field);
+                assert_eq!(result.status, ValidatorStatus::Pass);
+                assert!(result.problems.is_empty());
             }
         }
         // Asterisk is an annotation on the complete designator, not a wildcard.
         assert!(
             validate_wingspan::<DepartureAircraftTypeValidator>("ZBHH", "B74", &data)
-                .warnings
+                .problems
                 .is_empty()
         );
         assert_eq!(
@@ -344,7 +319,10 @@ ZBAD 0 - 4C NaN -
             ArrivalAircraftTypeValidator::validate(&context, &navdata).status,
             ValidatorStatus::Pass
         );
-        std::mem::swap(&mut flight.departure, &mut flight.arrival);
+        std::mem::swap(
+            &mut flight.flight_plan.departure,
+            &mut flight.flight_plan.arrival,
+        );
         let context = ValidationContext {
             flight: &flight,
             route: &route,

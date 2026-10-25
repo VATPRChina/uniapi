@@ -334,9 +334,10 @@ impl From<FlightServiceError> for ApiError {
             FlightServiceError::FlightNotFoundForCid => ApiError::FlightNotFoundForCid,
             FlightServiceError::Compat(source) => ApiError::Compat { source },
             FlightServiceError::Parser(source) => ApiError::RouteParser { source },
-            FlightServiceError::ParserV1(source) => ApiError::RouteParserV1 { source },
             FlightServiceError::Validator(source) => ApiError::RouteValidator { source },
             FlightServiceError::User(source) => source.into(),
+            #[allow(deprecated)]
+            FlightServiceError::ParserV1(source) => ApiError::RouteParserV1 { source },
         }
     }
 }

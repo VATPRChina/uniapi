@@ -10,7 +10,7 @@ pub use fix::{
 };
 pub use leg::{DirectionRestriction, LegKind, ResolvedLeg};
 pub use nav_proc::{Airway, NavProc, Sid, Star, TerminalProcedure};
-pub use preferred_route::{LevelRestrictionType, PreferredRoute};
+pub use preferred_route::{CruiseAltitudeType, PreferredRoute};
 
 pub trait Identifiable {
     #[allow(unused)]
