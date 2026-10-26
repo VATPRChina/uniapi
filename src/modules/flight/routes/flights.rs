@@ -108,14 +108,14 @@ async fn my_flight_validation(
         (status = 200, description = "Temporary flight constructed from the supplied plan", body = FlightDto),
         (status = 400, description = "Invalid flight plan query"),
         (status = 401, description = "Authentication required"),
-        (status = 403, description = "API client role required")
+        (status = 403, description = "API client or software engineer role required")
     )
 )]
 async fn temporary_flight(
     current_user: CurrentUser,
     Query(query): Query<TemporaryFlightQuery>,
 ) -> Result<Json<FlightDto>, ApiError> {
-    current_user.require_role(UserRole::ApiClient)?;
+    current_user.require_any_role(&[UserRole::ApiClient, UserRole::SoftwareEngineer])?;
     Ok(Json(temporary_flight_from_query(query)?.into()))
 }
 
@@ -124,7 +124,7 @@ async fn temporary_flight(
         (status = 200, description = "Validation of the supplied flight plan", body = FlightValidationDto),
         (status = 400, description = "Invalid flight plan query or route"),
         (status = 401, description = "Authentication required"),
-        (status = 403, description = "API client role required")
+        (status = 403, description = "API client or software engineer role required")
     )
 )]
 async fn temporary_flight_validation(
@@ -132,7 +132,7 @@ async fn temporary_flight_validation(
     State(service): State<FlightService>,
     Query(query): Query<TemporaryFlightQuery>,
 ) -> Result<Json<FlightValidationDto>, ApiError> {
-    current_user.require_role(UserRole::ApiClient)?;
+    current_user.require_any_role(&[UserRole::ApiClient, UserRole::SoftwareEngineer])?;
     let flight = temporary_flight_from_query(query)?;
     Ok(Json(service.validate(&flight).await?.into()))
 }
@@ -325,7 +325,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn temporary_flight_requires_api_client_permission() {
+    async fn temporary_flight_rejects_ordinary_users() {
         let error = temporary_flight(
             CurrentUser::for_test_roles([UserRole::User]),
             Query(query(json!({ "departure": "ZBAA", "arrival": "ZSPD" }))),
@@ -362,6 +362,17 @@ mod tests {
         assert_eq!(value["altitude"], 0);
         assert!(value["last_observed_at"].is_string());
         assert!(value.get("departure").is_none());
+    }
+
+    #[tokio::test]
+    async fn temporary_flight_accepts_software_engineers() {
+        let Json(dto) = temporary_flight(
+            CurrentUser::for_test_roles([UserRole::SoftwareEngineer]),
+            Query(query(json!({ "departure": "ZBAA", "arrival": "ZSPD" }))),
+        )
+        .await
+        .unwrap();
+        assert_eq!(dto.flight_plan.departure, "ZBAA");
     }
 
     #[test]
