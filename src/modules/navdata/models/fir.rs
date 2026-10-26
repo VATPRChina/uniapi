@@ -1,4 +1,4 @@
-//! Horizontal mainland FIR coverage loaded from ARINC 424 UF records.
+//! Horizontal FIR coverage loaded from ARINC 424 UF records.
 
 use geo::{
     BoundingRect, Centroid, Contains, InteriorPoint, LineString, Orient, Polygon, Rect,
@@ -11,14 +11,16 @@ const BOUNDARY_TOLERANCE: f64 = 0.01 / 3600.;
 /// An empty/default boundary has no geographic coverage. ICAO-code and
 /// unknown-fix classification can still be used by callers.
 #[derive(Debug, Clone, Default)]
-pub struct ChinaMainlandBoundary {
+pub struct FirBoundary {
     /// One closed outer loop; internal FIR seam gaps are included in the airspace.
     boundary: Vec<(f64, f64)>,
     bbox: Option<Rect<f64>>,
     inner_bbox: Option<Rect<f64>>,
 }
 
-impl ChinaMainlandBoundary {
+pub type ChinaMainlandBoundary = FirBoundary;
+
+impl FirBoundary {
     pub fn from_rings(rings: Vec<Vec<(f64, f64)>>) -> Result<Self, &'static str> {
         let polygons: Vec<_> = rings
             .into_iter()
@@ -26,10 +28,10 @@ impl ChinaMainlandBoundary {
             .collect();
         let mut airspace = unary_union(&polygons).0;
         if airspace.len() != 1 {
-            return Err("mainland FIRs must merge into one connected airspace");
+            return Err("FIRs must merge into one connected airspace");
         }
         let polygon = airspace.pop().unwrap();
-        let bbox = polygon.bounding_rect().ok_or("empty mainland boundary")?;
+        let bbox = polygon.bounding_rect().ok_or("empty FIR boundary")?;
         let (exterior, _) = polygon.into_inner();
         let inner_bbox = inner_bbox(&Polygon::new(exterior.clone(), Vec::new()), bbox);
         let boundary = exterior

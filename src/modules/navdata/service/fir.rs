@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use sqlx::{FromRow, SqlitePool};
 
 use super::{InvalidNavdataError, NavdataResult, NavdataService};
-use crate::modules::navdata::models::ChinaMainlandBoundary;
+use crate::modules::navdata::models::{ChinaMainlandBoundary, FirBoundary};
 
 const MAINLAND_FIRS: [&str; 9] = [
     "ZBPE", "ZGZU", "ZHWH", "ZJSA", "ZLHW", "ZPKM", "ZSHA", "ZWUQ", "ZYSH",
@@ -13,9 +13,17 @@ impl NavdataService {
     /// Read ARINC 424 UF boundaries from the configured DFD v2 database.
     /// F = FIR, B = combined FIR/UIR. C (delegated airspace) and UIR-only
     /// records are deliberately excluded from horizontal FIR coverage.
-    /// Missing tables or incomplete mainland coverage disable geographic
+    /// Missing tables or incomplete coverage disable geographic
     /// classification, while malformed data and database failures remain errors.
     pub async fn mainland_fir_boundaries(db: &SqlitePool) -> NavdataResult<ChinaMainlandBoundary> {
+        Self::fir_boundaries(db, &MAINLAND_FIRS).await
+    }
+
+    pub async fn hong_kong_fir_boundary(db: &SqlitePool) -> NavdataResult<FirBoundary> {
+        Self::fir_boundaries(db, &["VHHK"]).await
+    }
+
+    async fn fir_boundaries(db: &SqlitePool, identifiers: &[&str]) -> NavdataResult<FirBoundary> {
         let has_table: bool = sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master
              WHERE name = 'tbl_uf_fir_uir' COLLATE NOCASE AND type IN ('table', 'view'))",
@@ -24,7 +32,7 @@ impl NavdataService {
         .await?;
         if !has_table {
             tracing::warn!(
-                "FIR boundary table is missing; continuing without geographic China classification"
+                "FIR boundary table is missing; continuing without geographic classification"
             );
             return Ok(ChinaMainlandBoundary::default());
         }
@@ -32,14 +40,14 @@ impl NavdataService {
             "SELECT area_code, fir_uir_identifier, fir_uir_indicator, seqno,
                     boundary_via, fir_uir_latitude AS latitude, fir_uir_longitude AS longitude
              FROM tbl_uf_fir_uir
-             WHERE fir_uir_identifier IN ('ZBPE', 'ZGZU', 'ZHWH', 'ZJSA', 'ZLHW',
-                                         'ZPKM', 'ZSHA', 'ZWUQ', 'ZYSH')
+             WHERE fir_uir_identifier IN (SELECT value FROM json_each(?))
                AND fir_uir_indicator IN ('F', 'B')
              ORDER BY area_code, fir_uir_identifier, fir_uir_indicator, seqno",
         )
+        .bind(serde_json::to_string(identifiers).unwrap())
         .fetch_all(db)
         .await?;
-        build_boundaries(records)
+        build_fir_boundaries(records, identifiers)
     }
 }
 
@@ -58,19 +66,28 @@ fn invalid(message: impl Into<String>) -> InvalidNavdataError {
     InvalidNavdataError::InvalidFirBoundary(message.into())
 }
 
+#[cfg(test)]
 fn build_boundaries(records: Vec<FirRecord>) -> NavdataResult<ChinaMainlandBoundary> {
+    build_fir_boundaries(records, &MAINLAND_FIRS)
+}
+
+fn build_fir_boundaries(
+    records: Vec<FirRecord>,
+    identifiers: &[&str],
+) -> NavdataResult<FirBoundary> {
     let found: BTreeSet<_> = records
         .iter()
         .map(|r| r.fir_uir_identifier.as_str())
         .collect();
-    let missing: Vec<_> = MAINLAND_FIRS
-        .into_iter()
+    let missing: Vec<_> = identifiers
+        .iter()
+        .copied()
         .filter(|id| !found.contains(id))
         .collect();
     if !missing.is_empty() {
         tracing::warn!(
             missing_firs = %missing.join(", "),
-            "mainland FIR boundaries are incomplete; continuing without geographic China classification"
+            "FIR boundaries are incomplete; continuing without geographic classification"
         );
         return Ok(ChinaMainlandBoundary::default());
     }
@@ -324,5 +341,55 @@ mod tests {
         assert!(!service.china_boundaries().contains((30., 110.)));
         drop(service);
         std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod hong_kong_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn hong_kong_loads_independently_and_ignores_uir_and_delegated_airspace() {
+        let db = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        sqlx::raw_sql(
+            "CREATE TABLE tbl_uf_fir_uir (
+            area_code TEXT, fir_uir_identifier TEXT, fir_uir_indicator TEXT,
+            seqno INTEGER, boundary_via TEXT, fir_uir_latitude REAL, fir_uir_longitude REAL);
+            INSERT INTO tbl_uf_fir_uir VALUES
+            ('PAC','VHHK','F',10,'H ',20,110),
+            ('PAC','VHHK','F',20,'H ',20,120),
+            ('PAC','VHHK','F',30,'HE',30,115),
+            ('PAC','VHHK','U',10,'INVALID',0,0),
+            ('PAC','VHHK','C',10,'INVALID',0,0);",
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+        let hk = NavdataService::hong_kong_fir_boundary(&db).await.unwrap();
+        assert!(hk.contains((22., 115.)));
+        assert!(!hk.contains((0., 0.)));
+        let mainland = NavdataService::mainland_fir_boundaries(&db).await.unwrap();
+        assert!(!mainland.contains((22., 115.)));
+        sqlx::query("DELETE FROM tbl_uf_fir_uir WHERE fir_uir_indicator = 'F'")
+            .execute(&db)
+            .await
+            .unwrap();
+        assert!(
+            !NavdataService::hong_kong_fir_boundary(&db)
+                .await
+                .unwrap()
+                .contains((22., 115.))
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_table_disables_hong_kong_classification() {
+        let db = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        assert!(
+            !NavdataService::hong_kong_fir_boundary(&db)
+                .await
+                .unwrap()
+                .contains((22., 114.))
+        );
     }
 }

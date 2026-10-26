@@ -5,7 +5,7 @@ use arrayvec::CapacityError;
 use sqlx::SqlitePool;
 
 use crate::modules::navdata::{
-    models::ChinaMainlandBoundary,
+    models::{ChinaMainlandBoundary, FirBoundary},
     repository::{PreferredRouteRepository, PreferredRouteRepositoryError},
 };
 
@@ -71,6 +71,7 @@ pub struct NavdataService {
     db: SqlitePool,
     routes: PreferredRouteRepository,
     china_boundaries: ChinaMainlandBoundary,
+    hong_kong_boundary: FirBoundary,
     aircraft_limits: Arc<AircraftLimits>,
 }
 
@@ -83,6 +84,7 @@ impl NavdataService {
         let db = SqlitePool::connect(&format!("sqlite:{local_data_path}")).await?;
         let routes = PreferredRouteRepository::from_db_path(preferred_routes_path).await?;
         let china_boundaries = NavdataService::mainland_fir_boundaries(&db).await?;
+        let hong_kong_boundary = NavdataService::hong_kong_fir_boundary(&db).await?;
         let directory = Path::new(local_data_path)
             .parent()
             .unwrap_or_else(|| Path::new("."));
@@ -92,6 +94,7 @@ impl NavdataService {
             db,
             routes,
             china_boundaries,
+            hong_kong_boundary,
         })
     }
 
@@ -108,6 +111,10 @@ impl NavdataService {
 
     pub(crate) fn aircraft_limits(&self) -> &AircraftLimits {
         &self.aircraft_limits
+    }
+
+    pub fn hong_kong_boundary(&self) -> &FirBoundary {
+        &self.hong_kong_boundary
     }
 
     pub fn china_boundaries(&self) -> &ChinaMainlandBoundary {

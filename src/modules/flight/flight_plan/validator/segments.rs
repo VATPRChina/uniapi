@@ -7,7 +7,7 @@ use crate::modules::flight::models::{Flight, ParsedRoute, ValidationField, Valid
 use crate::modules::navdata::models::PreferredRoute;
 use crate::modules::navdata::service::NavdataService;
 
-/// Preserve every execution, including passing and suppressed checks. International
+/// Preserve every execution, including passing and suppressed checks. Non-mainland
 /// segments skip segment and leg validators. Segment indices refer to the
 /// segmenter's output; leg indices refer to the full route.
 pub async fn validate_route(
@@ -16,7 +16,9 @@ pub async fn validate_route(
     navdata: &NavdataService,
 ) -> Result<Vec<ValidatorExecution>, ValidatorError> {
     let matcher = PreferredRouteMatcher::new(navdata);
-    let segments = RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs);
+    let segments = RouteSegmenter::new(navdata.china_boundaries())
+        .with_hong_kong_boundary(navdata.hong_kong_boundary())
+        .segment(&route.legs);
     let mut reports = Vec::new();
     for segment in &segments {
         reports.push(matcher.inspect_segment(segment).await?);
@@ -43,7 +45,7 @@ pub(crate) fn validate_analyzed_route(
     };
     let mut results = validate_flight(&context, navdata);
     for (original, report) in segments.iter().zip(reports) {
-        if original.kind == SegmentKind::International {
+        if original.kind != SegmentKind::Mainland {
             continue;
         }
         let selected = report.selected();
@@ -169,7 +171,9 @@ mod tests {
                 leg("ZB", "F", "G"),
             ],
         };
-        let segments = RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs);
+        let mut segments = RouteSegmenter::new(navdata.china_boundaries())
+            .with_hong_kong_boundary(navdata.hong_kong_boundary())
+            .segment(&route.legs);
         assert_eq!(segments.len(), 3);
         assert_eq!(segments[0].kind, SegmentKind::Mainland);
         assert_eq!(segments[1].kind, SegmentKind::International);
@@ -183,6 +187,12 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let results = validate_analyzed_route(&flight, &route, &segments, &reports, &navdata);
+        segments[1].kind = SegmentKind::HongKong;
+        assert_eq!(
+            validate_analyzed_route(&flight, &route, &segments, &reports, &navdata),
+            results
+        );
+        segments[1].kind = SegmentKind::International;
         let flight_results = validate_flight(
             &ValidationContext {
                 flight: &flight,

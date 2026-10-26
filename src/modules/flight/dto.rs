@@ -104,6 +104,7 @@ pub struct FlightRouteDto {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct SegmentDto {
     pub index: usize,
+    pub kind: super::flight_plan::SegmentKind,
     /// Legs in route order, using the global indices in validation fields.
     pub legs: Vec<LegDto>,
     pub initial_fix: String,
@@ -158,6 +159,7 @@ impl FlightRouteDto {
                         .collect();
                     SegmentDto {
                         index,
+                        kind: segment.kind,
                         legs,
                         initial_fix: route_fix_ident(&segment.route.legs.first().unwrap().from),
                         last_fix: route_fix_ident(&segment.route.legs.last().unwrap().to),

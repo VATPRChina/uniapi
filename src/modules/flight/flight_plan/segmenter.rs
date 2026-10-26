@@ -1,4 +1,6 @@
-use crate::modules::navdata::models::{AnyFix, ChinaMainlandBoundary, LegKind, ResolvedLeg};
+use crate::modules::navdata::models::{
+    AnyFix, ChinaMainlandBoundary, FirBoundary, Fix, LegKind, ResolvedLeg,
+};
 
 /// A connected borrowed portion of the original expanded route.
 #[derive(Debug, Clone, Copy)]
@@ -17,10 +19,11 @@ impl RouteSegment<'_> {
 #[serde(rename_all = "snake_case")]
 pub enum SegmentKind {
     Mainland,
+    HongKong,
     International,
 }
 
-/// A mainland visit from its first to last China fix, or an international portion.
+/// A mainland visit, Hong Kong FIR portion, or international portion.
 /// Fix offsets refer to vertices in `route`: vertex n is the end of leg n - 1.
 #[derive(Debug, Clone, Copy)]
 pub struct Segment<'l> {
@@ -121,11 +124,20 @@ impl<'l> Segment<'l> {
 
 pub struct RouteSegmenter<'b> {
     boundary: &'b ChinaMainlandBoundary,
+    hong_kong_boundary: Option<&'b FirBoundary>,
 }
 
 impl<'b> RouteSegmenter<'b> {
     pub fn new(boundary: &'b ChinaMainlandBoundary) -> Self {
-        Self { boundary }
+        Self {
+            boundary,
+            hong_kong_boundary: None,
+        }
+    }
+
+    pub fn with_hong_kong_boundary(mut self, boundary: &'b FirBoundary) -> Self {
+        self.hong_kong_boundary = Some(boundary);
+        self
     }
 
     pub fn segment<'l>(&self, legs: &'l [ResolvedLeg]) -> Vec<Segment<'l>> {
@@ -137,7 +149,66 @@ impl<'b> RouteSegmenter<'b> {
                 start = end;
             }
         }
+        let Some(boundary) = self.hong_kong_boundary else {
+            return segments;
+        };
         segments
+            .into_iter()
+            .flat_map(|segment| {
+                // Preserve operational mainland cuts. Some mainland-coded
+                // corridors overlap the horizontal VHHK FIR (e.g. M503).
+                if segment.kind == SegmentKind::Mainland {
+                    return vec![segment];
+                }
+                self.split_hong_kong(segment, boundary)
+            })
+            .collect()
+    }
+
+    // Classify the open legs, rather than their endpoint ICAO regions: a
+    // boundary fix may belong to either neighbouring region, and including it
+    // in both polygons must not extend the FIR by one leg. Expanded airways
+    // provide the published crossing fixes, so slices retain their original
+    // vertices and global leg indices. For a direct leg crossing between fixes,
+    // the midpoint determines which side owns that indivisible leg.
+    fn split_hong_kong<'l>(
+        &self,
+        segment: Segment<'l>,
+        boundary: &FirBoundary,
+    ) -> Vec<Segment<'l>> {
+        let legs = segment.route.legs;
+        let mut kinds = vec![segment.kind; legs.len()];
+        let known: Vec<_> = std::iter::once(&legs[0].from)
+            .chain(legs.iter().map(|leg| &leg.to))
+            .enumerate()
+            .filter_map(|(index, fix)| fix.position().map(|position| (index, position)))
+            .collect();
+        for pair in known.windows(2) {
+            let [(start, from), (end, to)] = pair else {
+                unreachable!()
+            };
+            if boundary.contains(great_circle_midpoint(*from, *to)) {
+                kinds[*start..*end].fill(SegmentKind::HongKong);
+            }
+        }
+        let mut result = Vec::new();
+        let mut start = 0;
+        for end in 1..=legs.len() {
+            if end == legs.len() || kinds[end] != kinds[start] {
+                result.push(Segment {
+                    kind: kinds[start],
+                    route: RouteSegment {
+                        legs: &legs[start..end],
+                        start_index: segment.route.start_index + start,
+                    },
+                    airport_pair: None,
+                    enter: None,
+                    exit: None,
+                });
+                start = end;
+            }
+        }
+        result
     }
 
     fn connected<'l>(
@@ -231,6 +302,17 @@ impl<'b> RouteSegmenter<'b> {
             });
         }
     }
+}
+
+fn great_circle_midpoint(from: (f64, f64), to: (f64, f64)) -> (f64, f64) {
+    let vector = |(lat, lon): (f64, f64)| {
+        let (lat, lon) = (lat.to_radians(), lon.to_radians());
+        (lat.cos() * lon.cos(), lat.cos() * lon.sin(), lat.sin())
+    };
+    let a = vector(from);
+    let b = vector(to);
+    let (x, y, z) = (a.0 + b.0, a.1 + b.1, a.2 + b.2);
+    (z.atan2(x.hypot(y)).to_degrees(), y.atan2(x).to_degrees())
 }
 
 /// Exclude terminal procedures and airport connections, while retaining the

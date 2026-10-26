@@ -19,6 +19,33 @@ vatprc-uniapi migrate      # apply pending database migrations
 vatprc-uniapi route-v2 "ZBAA ELKUR W40 YQG ZSPD" # print the complete parser trace
 ```
 
+### Route regions
+
+Expanded routes distinguish mainland, Hong Kong, and international segments.
+Hong Kong coverage comes from the current nav database's `VHHK` FIR records
+(`tbl_uf_fir_uir`, indicators F/B), with great-circle and rhumb-line boundary
+edges handled by the shared FIR loader. Existing mainland cuts take priority:
+some mainland-coded corridors, such as M503 beyond LELIM, overlap the horizontal
+Hong Kong FIR. The remaining route is classified geographically, without a
+production list of Hong Kong entry/exit fix names.
+
+Each expanded leg is classified using its great-circle midpoint. This cuts
+published airways at their crossing fixes without assigning an extra leg to
+Hong Kong merely because its endpoint lies on the FIR boundary. Route slices
+preserve original global leg indices. A direct leg crossing between fixes
+remains indivisible and is assigned by its midpoint; no synthetic crossing fix
+is inserted. Unknown-fix chains use their nearest surrounding known positions.
+Missing Hong Kong FIR coverage disables this classification independently of
+mainland coverage. Hong Kong segments skip mainland preferred-route and scoped
+validation checks.
+
+The optional navdata integration tests compare common routes against
+[Hong Kong AIP ENR 1.10](https://www.ais.gov.hk/eaip_20261001/2026-10-01-000000/html/eAIP/VH-ENR-1.10-en-US.html#i24049):
+
+```sh
+VATPRC_NAVDATA_PATH=data/navdata_naip.db cargo test aip_hong_kong -- --ignored
+```
+
 ### Database
 
 This server requires a local PostgreSQL server. Please start one and specify the

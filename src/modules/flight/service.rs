@@ -166,6 +166,7 @@ impl FlightService {
             ))
             .await?;
         let segments = super::flight_plan::RouteSegmenter::new(self.navdata.china_boundaries())
+            .with_hong_kong_boundary(self.navdata.hong_kong_boundary())
             .segment(&route.legs);
         Ok(super::dto::FlightRouteDto::from_segments(&segments))
     }

@@ -50,7 +50,9 @@ async fn airport_pair_routes_match_only_the_mainland_coverage_in_both_directions
         ("VHHH LELIM M503 BEGMO W13 PONAB ZSPD", "VHHH-ZSPD-02", 1..4),
     ] {
         let route = parse_route(&navdata, raw_route).await.unwrap();
-        let segments = RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs);
+        let segments = RouteSegmenter::new(navdata.china_boundaries())
+            .with_hong_kong_boundary(navdata.hong_kong_boundary())
+            .segment(&route.legs);
         assert_eq!(segments.len(), 2);
         let mainland = segments
             .iter()
@@ -90,7 +92,9 @@ async fn airport_pair_routes_match_only_the_mainland_coverage_in_both_directions
     let route = parse_route(&navdata, "ZSPD PONAB DCT LELIM VHHH")
         .await
         .unwrap();
-    let segments = RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs);
+    let segments = RouteSegmenter::new(navdata.china_boundaries())
+        .with_hong_kong_boundary(navdata.hong_kong_boundary())
+        .segment(&route.legs);
     let report = matcher.inspect_segment(&segments[0]).await.unwrap();
     assert!(!report.preferred_routes.is_empty());
     assert!(report.selected().is_none());

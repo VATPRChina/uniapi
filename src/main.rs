@@ -103,7 +103,11 @@ async fn route_v2(
     let route = parse_route_with_observer(&navdata, route, |step| print!("{step}")).await?;
     let matcher = PreferredRouteMatcher::new(&navdata);
     let matches = matcher
-        .find_matching_route(RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs))
+        .find_matching_route(
+            RouteSegmenter::new(navdata.china_boundaries())
+                .with_hong_kong_boundary(navdata.hong_kong_boundary())
+                .segment(&route.legs),
+        )
         .await?;
     print!("{}", RouteParseStep::PreferredRoutes(&matches));
     Ok(())
