@@ -7,9 +7,9 @@ use crate::modules::flight::models::{Flight, ParsedRoute, ValidationField, Valid
 use crate::modules::navdata::models::PreferredRoute;
 use crate::modules::navdata::service::NavdataService;
 
-/// Preserve every execution, including passing and suppressed checks. Non-mainland
-/// segments skip segment and leg validators. Segment indices refer to the
-/// segmenter's output; leg indices refer to the full route.
+/// Preserve every execution, including passing and suppressed checks. Hong Kong
+/// segments run preferred-route checks; international segments skip scoped checks.
+/// Segment indices refer to the segmenter's output; leg indices to the full route.
 pub async fn validate_route(
     flight: &Flight,
     route: &ParsedRoute,
@@ -38,18 +38,22 @@ pub(crate) fn validate_analyzed_route(
     let context = ValidationContext {
         flight,
         route,
-        preferred_route: reports
+        preferred_route: segments
             .iter()
-            .find_map(|report| report.selected().map(|candidate| &candidate.preferred)),
+            .zip(reports)
+            // Hong Kong matches must not suppress the mainland directional check.
+            .filter(|(segment, _)| segment.kind == SegmentKind::Mainland)
+            .find_map(|(_, report)| report.selected().map(|candidate| &candidate.preferred)),
         preferred_routes: &[],
     };
     let mut results = validate_flight(&context, navdata);
     for (original, report) in segments.iter().zip(reports) {
-        if original.kind != SegmentKind::Mainland {
+        if original.kind == SegmentKind::International {
             continue;
         }
         let selected = report.selected();
         results.extend(validate_segment(
+            original.kind,
             flight,
             original.route,
             selected.map_or(original.route, |candidate| candidate.coverage),
@@ -62,6 +66,7 @@ pub(crate) fn validate_analyzed_route(
 }
 
 fn validate_segment(
+    kind: SegmentKind,
     flight: &Flight,
     segment: RouteSegment<'_>,
     coverage: RouteSegment<'_>,
@@ -86,6 +91,9 @@ fn validate_segment(
         PreferredRouteValidator::execute(&context, navdata, scope.clone()),
         PreferredRouteCruiseAltitudeValidator::execute(&context, navdata, scope),
     ];
+    if kind == SegmentKind::HongKong {
+        return results;
+    }
     for (offset, leg) in segment.legs.iter().enumerate() {
         let leg_index = segment.start_index + offset;
         let route = ParsedRoute {
@@ -188,10 +196,20 @@ mod tests {
             .collect::<Vec<_>>();
         let results = validate_analyzed_route(&flight, &route, &segments, &reports, &navdata);
         segments[1].kind = SegmentKind::HongKong;
-        assert_eq!(
-            validate_analyzed_route(&flight, &route, &segments, &reports, &navdata),
-            results
+        let hong_kong_results =
+            validate_analyzed_route(&flight, &route, &segments, &reports, &navdata);
+        let hk_scope = ValidationField::MultipleLegs { indices: 1..3 };
+        let hk_checks: Vec<_> = hong_kong_results
+            .iter()
+            .filter(|check| check.field == hk_scope)
+            .collect();
+        assert_eq!(hk_checks.len(), 2);
+        assert!(
+            hk_checks
+                .iter()
+                .all(|check| check.status == ValidatorStatus::Suppressed)
         );
+        assert_eq!(hong_kong_results.len(), results.len() + 2);
         segments[1].kind = SegmentKind::International;
         let flight_results = validate_flight(
             &ValidationContext {
@@ -208,8 +226,15 @@ mod tests {
             if segment.kind == SegmentKind::International {
                 continue;
             }
-            let expected =
-                validate_segment(&flight, segment.route, segment.route, None, &[], &navdata);
+            let expected = validate_segment(
+                segment.kind,
+                &flight,
+                segment.route,
+                segment.route,
+                None,
+                &[],
+                &navdata,
+            );
             // Mainland warnings and original segment/leg indices remain intact.
             assert!(expected.iter().any(|result| {
                 result.status == ValidatorStatus::Rejected && !result.problems.is_empty()

@@ -101,7 +101,7 @@ impl<'s> PreferredRouteMatcher<'s> {
         &self,
         segment: &Segment<'_>,
     ) -> Result<Vec<PreferredRoute>, ValidatorError> {
-        if segment.kind != SegmentKind::Mainland {
+        if segment.kind == SegmentKind::International {
             return Ok(Vec::new());
         }
         let mut seen = HashSet::new();
@@ -127,7 +127,7 @@ impl<'s> PreferredRouteMatcher<'s> {
         &self,
         segment: Segment<'l>,
     ) -> Result<Vec<(RouteSegment<'l>, PreferredRoute)>, ValidatorError> {
-        if segment.kind != SegmentKind::Mainland {
+        if segment.kind == SegmentKind::International {
             return Ok(Vec::new());
         }
         let mut candidates = Vec::new();
@@ -196,7 +196,7 @@ impl<'s> PreferredRouteMatcher<'s> {
 }
 
 /// Use the flight's airports for preferred-route lookup while matching only
-/// the mainland coverage. Border-keyed routes remain fallback candidates.
+/// the segment coverage. Border-keyed routes remain fallback candidates.
 fn candidate_endpoints<'l>(
     segment: Segment<'l>,
 ) -> Vec<(bool, RouteSegment<'l>, (&'l str, &'l str))> {

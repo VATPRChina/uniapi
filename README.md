@@ -36,8 +36,11 @@ preserve original global leg indices. A direct leg crossing between fixes
 remains indivisible and is assigned by its midpoint; no synthetic crossing fix
 is inserted. Unknown-fix chains use their nearest surrounding known positions.
 Missing Hong Kong FIR coverage disables this classification independently of
-mainland coverage. Hong Kong segments skip mainland preferred-route and scoped
-validation checks.
+mainland coverage. Hong Kong segments run preferred-route matching and the matched
+route's altitude checks using their own airport/boundary endpoints. They skip
+mainland leg checks;
+international segments skip all scoped checks. Missing preferred-route definitions
+suppress the preferred-route check.
 
 The optional navdata integration tests compare common routes against
 [Hong Kong AIP ENR 1.10](https://www.ais.gov.hk/eaip_20261001/2026-10-01-000000/html/eAIP/VH-ENR-1.10-en-US.html#i24049):
