@@ -313,3 +313,115 @@ async fn hong_kong_preferred_routes_validate_only_their_segment_coverage() {
     drop(navdata);
     std::fs::remove_dir_all(directory).unwrap();
 }
+
+fn matching_fixture() -> Vec<ResolvedLeg> {
+    use crate::modules::navdata::models::{Airport, DirectionRestriction, Waypoint, WaypointKind};
+    let waypoint = |identifier: &str, longitude: f64| {
+        AnyFix::Waypoint(Waypoint {
+            icao_code: "ZB".try_into().unwrap(),
+            identifier: identifier.try_into().unwrap(),
+            latitude: 38.0.try_into().unwrap(),
+            longitude: longitude.try_into().unwrap(),
+            kind: WaypointKind::Enroute,
+        })
+    };
+    let airport = |identifier: &str, longitude: f64| {
+        AnyFix::Airport(Airport {
+            identifier: identifier.try_into().unwrap(),
+            latitude: 38.0.try_into().unwrap(),
+            longitude: longitude.try_into().unwrap(),
+        })
+    };
+    let fixes = [
+        airport("ZBYN", 112.),
+        waypoint("ISLEP", 113.),
+        waypoint("TONOV", 114.),
+        waypoint("AMVOG", 115.),
+        waypoint("NUDKU", 116.),
+        waypoint("DUGEB", 117.),
+        airport("ZBAA", 118.),
+    ];
+    fixes
+        .windows(2)
+        .zip([
+            None,
+            Some("G212"),
+            Some("G212"),
+            Some("W61"),
+            Some("W56"),
+            None,
+        ])
+        .map(|(pair, airway)| ResolvedLeg {
+            from: pair[0].clone(),
+            to: pair[1].clone(),
+            identifier: airway.map(str::to_owned),
+            kind: if airway.is_some() {
+                LegKind::Airway
+            } else {
+                LegKind::Direct
+            },
+            is_unknown: false,
+            direction_restriction: DirectionRestriction::Forward,
+        })
+        .collect()
+}
+
+#[test]
+fn airport_connections_cannot_skip_preferred_route_endpoints() {
+    let expected = matching_fixture();
+    assert!(routes_match(&expected, &expected));
+    // ZBYN DCT TONOV omits ISLEP G212 TONOV: an airport anchor alone
+    // must not authorize matching the preferred route's remaining suffix.
+    let mut departure = expected.clone();
+    departure[0].to = departure[1].to.clone();
+    departure.remove(1);
+    assert!(!routes_match(&departure, &expected));
+    // Apply the same rule to an arrival connecting early to the airport.
+    let mut arrival = expected.clone();
+    arrival[5].from = arrival[4].from.clone();
+    arrival.remove(4);
+    assert!(!routes_match(&arrival, &expected));
+}
+
+#[test]
+fn only_resolved_filed_procedures_allow_preferred_route_overlap() {
+    let expected = matching_fixture();
+    for (kind, index) in [(LegKind::Sid, 0), (LegKind::Star, 4)] {
+        let mut actual = expected.clone();
+        if kind == LegKind::Sid {
+            actual[0].to = actual[1].to.clone();
+            actual.remove(1);
+        } else {
+            actual[5].from = actual[4].from.clone();
+            actual.remove(4);
+        }
+        actual[index].kind = kind;
+        actual[index].identifier = Some("PROC1".into());
+        assert!(
+            routes_match(&actual, &expected),
+            "resolved {kind:?} should permit overlap"
+        );
+        actual[index].is_unknown = true;
+        assert!(
+            !routes_match(&actual, &expected),
+            "unresolved {kind:?} must not permit overlap"
+        );
+    }
+}
+
+#[test]
+fn procedure_overlap_supports_airport_connections_but_not_border_anchors() {
+    let expected = matching_fixture();
+    let mut actual = expected.clone();
+    // An airport connection followed by a resolved SID is still a filed
+    // procedure. Here ISLEP is the SID's initial fix and TONOV its exit.
+    actual[1].kind = LegKind::Sid;
+    actual[1].identifier = Some("PROC1".into());
+    assert!(routes_match(&actual, &expected));
+    actual[0].is_unknown = true;
+    assert!(!routes_match(&actual, &expected));
+    actual[0].is_unknown = false;
+    // Removing the airport makes this a border slice: its start cannot move
+    // from ISLEP to TONOV even though the first leg is a resolved SID.
+    assert!(!routes_match(&actual[1..], &expected[1..]));
+}
