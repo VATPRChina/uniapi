@@ -31,6 +31,7 @@ type ValidationSnapshot = BTreeMap<String, FlightValidationDto>;
     my_flight_validation,
     temporary_flight,
     temporary_flight_validation,
+    temporary_flight_route,
     flights_by_departure,
     flights_by_arrival,
     flight_by_callsign,
@@ -54,6 +55,7 @@ pub fn build_flight_routes() -> Router<Services> {
             "/temporary/by-plan/validation",
             get(temporary_flight_validation),
         )
+        .route("/temporary/by-plan/route", get(temporary_flight_route))
         .route("/by-departure/{icao}", get(flights_by_departure))
         .route("/by-arrival/{icao}", get(flights_by_arrival))
         .route("/by-callsign/{callsign}", get(flight_by_callsign))
@@ -135,6 +137,24 @@ async fn temporary_flight_validation(
     current_user.require_any_role(&[UserRole::ApiClient, UserRole::SoftwareEngineer])?;
     let flight = temporary_flight_from_query(query)?;
     Ok(Json(service.validate(&flight).await?.into()))
+}
+
+#[utoipa::path(get, path = "api/flights/temporary/by-plan/route", tag = "Flights", security(("oauth2" = [])),
+    params(TemporaryFlightQuery), responses(
+        (status = 200, description = "Expanded temporary route with globally indexed legs matching validation fields", body = FlightRouteDto),
+        (status = 400, description = "Invalid flight plan query or route"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Software engineer role required")
+    )
+)]
+async fn temporary_flight_route(
+    current_user: CurrentUser,
+    State(service): State<FlightService>,
+    Query(query): Query<TemporaryFlightQuery>,
+) -> Result<Json<FlightRouteDto>, ApiError> {
+    current_user.require_role(UserRole::SoftwareEngineer)?;
+    let flight = temporary_flight_from_query(query)?;
+    Ok(Json(service.flight_route(&flight).await?))
 }
 
 fn temporary_flight_from_query(query: TemporaryFlightQuery) -> Result<Flight, ApiError> {
@@ -373,6 +393,93 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(dto.flight_plan.departure, "ZBAA");
+    }
+
+    #[tokio::test]
+    async fn temporary_route_requires_engineer_and_uses_the_normal_route_service() {
+        use crate::adapter::{compat::CompatClient, moodle::MoodleClient};
+        use crate::modules::{
+            audit_log::service::AuditLogService, navdata::service::NavdataService,
+            user::service::user::UserService,
+        };
+        use sqlx::{SqlitePool, postgres::PgPoolOptions, sqlite::SqliteConnectOptions};
+
+        let path = std::env::temp_dir().join(format!("temporary-route-{}.db", ulid::Ulid::new()));
+        let db = SqlitePool::connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+        sqlx::raw_sql(r#"
+CREATE TABLE tbl_pa_airports (airport_identifier TEXT, airport_ref_latitude REAL, airport_ref_longitude REAL);
+INSERT INTO tbl_pa_airports VALUES ('ZBAA',40,116),('ZSPD',31,122);
+CREATE TABLE tbl_ea_enroute_waypoints (icao_code TEXT, waypoint_identifier TEXT, waypoint_latitude REAL, waypoint_longitude REAL);
+CREATE TABLE tbl_pc_terminal_waypoints (region_code TEXT, waypoint_identifier TEXT, waypoint_latitude REAL, waypoint_longitude REAL);
+CREATE TABLE tbl_d_vhfnavaids (icao_code TEXT, airport_identifier TEXT, navaid_identifier TEXT, dme_ident TEXT, navaid_latitude REAL, navaid_longitude REAL, dme_latitude REAL, dme_longitude REAL);
+CREATE TABLE tbl_db_enroute_ndbnavaids (icao_code TEXT, navaid_identifier TEXT, navaid_latitude REAL, navaid_longitude REAL);
+CREATE TABLE tbl_pn_terminal_ndbnavaids (airport_identifier TEXT, navaid_identifier TEXT, navaid_latitude REAL, navaid_longitude REAL);
+CREATE TABLE tbl_pd_sids (airport_identifier TEXT, procedure_identifier TEXT, route_type TEXT, transition_identifier TEXT, seqno INTEGER, path_termination TEXT, waypoint_identifier TEXT);
+CREATE TABLE tbl_pe_stars (airport_identifier TEXT, procedure_identifier TEXT, route_type TEXT, transition_identifier TEXT, seqno INTEGER, path_termination TEXT, waypoint_identifier TEXT);
+CREATE TABLE tbl_er_enroute_airways (area_code TEXT, direction_restriction TEXT, icao_code TEXT, route_identifier TEXT, seqno INTEGER, waypoint_description_code TEXT, waypoint_identifier TEXT, waypoint_latitude REAL, waypoint_longitude REAL, waypoint_ref_table TEXT);
+"#).execute(&db).await.unwrap();
+        db.close().await;
+        let navdata = NavdataService::with_preferred_routes_path(path.to_str().unwrap(), &path)
+            .await
+            .unwrap();
+        // These dependencies are never queried by the route service.
+        let pg = PgPoolOptions::new()
+            .connect_lazy("postgres://localhost/unused")
+            .unwrap();
+        let user = UserService::new(
+            pg.clone(),
+            MoodleClient::new(String::new()),
+            AuditLogService::new(pg),
+        );
+        let service = FlightService::new(CompatClient::new(String::new()), navdata, user);
+        let input = json!({ "departure": " zbaa ", "arrival": "zspd", "raw_route": "dct" });
+        for roles in [vec![], vec![UserRole::User], vec![UserRole::ApiClient]] {
+            let error = temporary_flight_route(
+                CurrentUser::for_test_roles(roles),
+                State(service.clone()),
+                Query(query(input.clone())),
+            )
+            .await
+            .unwrap_err();
+            assert_eq!(error.status_code(), StatusCode::FORBIDDEN);
+        }
+        let Json(dto) = temporary_flight_route(
+            CurrentUser::for_test_roles([UserRole::SoftwareEngineer]),
+            State(service.clone()),
+            Query(query(input.clone())),
+        )
+        .await
+        .unwrap();
+        let normal = service
+            .flight_route(&temporary_flight_from_query(query(input.clone())).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&dto).unwrap(),
+            serde_json::to_value(normal).unwrap()
+        );
+        assert_eq!(dto.segments.len(), 1);
+        assert_eq!(dto.segments[0].initial_fix, "ZBAA");
+        assert_eq!(dto.segments[0].last_fix, "ZSPD");
+        assert_eq!(dto.segments[0].legs[0].index, 0);
+        let mut invalid = input;
+        invalid["flight_rules"] = "X".into();
+        let error = temporary_flight_route(
+            CurrentUser::for_test_roles([UserRole::SoftwareEngineer]),
+            State(service.clone()),
+            Query(query(invalid)),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error.status_code(), StatusCode::BAD_REQUEST);
+        drop(service);
+        std::fs::remove_file(path).unwrap();
     }
 
     #[test]

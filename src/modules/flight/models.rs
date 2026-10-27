@@ -170,9 +170,7 @@ pub enum ValidationProblem {
         to: String,
     },
     NotPreferredRoute {
-        from: String,
-        to: String,
-        raw_route: String,
+        routes: Vec<PreferredRouteDescription>,
     },
     CruisingLevelMismatch {
         expected_type: CruiseAltitudeType,
@@ -183,5 +181,16 @@ pub enum ValidationProblem {
     CruisingLevelTooLow {
         minimum_ft: i64,
     },
-    RouteMatchPreferred,
+    RouteMatchPreferred {
+        from: String,
+        to: String,
+        raw_route: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreferredRouteDescription {
+    pub from: String,
+    pub to: String,
+    pub raw_route: String,
 }

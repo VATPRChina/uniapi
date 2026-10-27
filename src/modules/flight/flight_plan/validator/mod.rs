@@ -29,7 +29,15 @@ pub fn validate_flight(
     context: &ValidationContext<'_>,
     navdata: &NavdataService,
 ) -> Vec<ValidatorExecution> {
-    vec![
+    validate_flight_checks(context, navdata, true)
+}
+
+pub(super) fn validate_flight_checks(
+    context: &ValidationContext<'_>,
+    navdata: &NavdataService,
+    include_directional_altitude: bool,
+) -> Vec<ValidatorExecution> {
+    let mut results = vec![
         FlightRuleWeatherValidator::execute(context, navdata, FlightRuleWeatherValidator::FIELD),
         AircraftTypeValidator::execute(context, navdata, AircraftTypeValidator::FIELD),
         WakeCategoryValidator::execute(context, navdata, WakeCategoryValidator::FIELD),
@@ -45,13 +53,18 @@ pub fn validate_flight(
             ArrivalAircraftTypeValidator::FIELD,
         ),
         ArrivalAirportValidator::execute(context, navdata, ArrivalAirportValidator::FIELD),
-        DirectionalCruiseAltitudeValidator::execute(
+    ];
+    if include_directional_altitude {
+        results.push(DirectionalCruiseAltitudeValidator::execute(
             context,
             navdata,
             DirectionalCruiseAltitudeValidator::FIELD,
-        ),
+        ));
+    }
+    results.extend([
         EquipmentRvsmValidator::execute(context, navdata, EquipmentRvsmValidator::FIELD),
         EquipmentRnav1Validator::execute(context, navdata, EquipmentRnav1Validator::FIELD),
         EquipmentRnpArValidator::execute(context, navdata, EquipmentRnpArValidator::FIELD),
-    ]
+    ]);
+    results
 }

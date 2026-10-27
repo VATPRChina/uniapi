@@ -36,9 +36,10 @@ preserve original global leg indices. A direct leg crossing between fixes
 remains indivisible and is assigned by its midpoint; no synthetic crossing fix
 is inserted. Unknown-fix chains use their nearest surrounding known positions.
 Missing Hong Kong FIR coverage disables this classification independently of
-mainland coverage. Hong Kong segments run preferred-route matching and the matched
-route's altitude checks using their own airport/boundary endpoints. They skip
-mainland leg checks;
+mainland coverage. Hong Kong segments run preferred-route matching using their own
+airport/boundary endpoints, with no altitude-validator executions or mainland leg checks.
+For routes without mainland segments, Hong Kong coverage also disables the flight-level
+directional altitude validator;
 international segments skip all scoped checks. Missing preferred-route definitions
 suppress the preferred-route check.
 

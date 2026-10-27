@@ -253,9 +253,7 @@ pub enum ValidationProblemDto {
         to: String,
     },
     NotPreferredRoute {
-        from: String,
-        to: String,
-        raw_route: String,
+        routes: Vec<PreferredRouteDescriptionDto>,
     },
     CruisingLevelMismatch {
         expected_type: CruiseAltitudeType,
@@ -266,7 +264,18 @@ pub enum ValidationProblemDto {
     CruisingLevelTooLow {
         minimum_ft: i64,
     },
-    RouteMatchPreferred,
+    RouteMatchPreferred {
+        from: String,
+        to: String,
+        raw_route: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct PreferredRouteDescriptionDto {
+    pub from: String,
+    pub to: String,
+    pub raw_route: String,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -453,14 +462,15 @@ impl From<super::models::ValidationProblem> for ValidationProblemDto {
             Problem::AirwayRequireApproval { from, ident, to } => {
                 Self::AirwayRequireApproval { from, ident, to }
             }
-            Problem::NotPreferredRoute {
-                from,
-                to,
-                raw_route,
-            } => Self::NotPreferredRoute {
-                from,
-                to,
-                raw_route,
+            Problem::NotPreferredRoute { routes } => Self::NotPreferredRoute {
+                routes: routes
+                    .into_iter()
+                    .map(|route| PreferredRouteDescriptionDto {
+                        from: route.from,
+                        to: route.to,
+                        raw_route: route.raw_route,
+                    })
+                    .collect(),
             },
             Problem::CruisingLevelMismatch { expected_type } => {
                 Self::CruisingLevelMismatch { expected_type }
@@ -469,7 +479,15 @@ impl From<super::models::ValidationProblem> for ValidationProblemDto {
                 Self::CruisingLevelNotAllowed { allowlist_ft }
             }
             Problem::CruisingLevelTooLow { minimum_ft } => Self::CruisingLevelTooLow { minimum_ft },
-            Problem::RouteMatchPreferred => Self::RouteMatchPreferred,
+            Problem::RouteMatchPreferred {
+                from,
+                to,
+                raw_route,
+            } => Self::RouteMatchPreferred {
+                from,
+                to,
+                raw_route,
+            },
         }
     }
 }
@@ -479,6 +497,35 @@ mod tests {
     use super::*;
     use crate::modules::flight::models::{ValidationField, ValidationProblem, ValidatorExecution};
     use serde_json::json;
+
+    #[test]
+    fn preferred_route_messages_preserve_all_routes_and_match_details() {
+        use crate::modules::flight::models::PreferredRouteDescription;
+        let details = PreferredRouteDescription {
+            from: "VHHH".into(),
+            to: "LELIM".into(),
+            raw_route: "LEKEN V611 LELIM".into(),
+        };
+        let rejected = ValidationProblemDto::from(ValidationProblem::NotPreferredRoute {
+            routes: vec![details.clone(), details.clone()],
+        });
+        let value = serde_json::to_value(rejected).unwrap();
+        assert_eq!(value["kind"], "not-preferred-route");
+        assert_eq!(value["routes"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            value["routes"][0],
+            json!({ "from": "VHHH", "to": "LELIM", "raw_route": "LEKEN V611 LELIM" })
+        );
+        let matched = ValidationProblemDto::from(ValidationProblem::RouteMatchPreferred {
+            from: details.from,
+            to: details.to,
+            raw_route: details.raw_route,
+        });
+        assert_eq!(
+            serde_json::to_value(matched).unwrap(),
+            json!({ "kind": "route-match-preferred", "from": "VHHH", "to": "LELIM", "raw_route": "LEKEN V611 LELIM" })
+        );
+    }
 
     #[test]
     fn validation_snapshot_preserves_structured_problems_and_half_open_ranges() {

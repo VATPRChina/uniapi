@@ -2,7 +2,8 @@ use itertools::Itertools;
 
 use super::{CheckResult, ValidationContext, ValidationLevel, Validator};
 use crate::modules::flight::models::{
-    ValidationField, ValidationProblem, ValidatorIdentifier, ValidatorStatus,
+    PreferredRouteDescription, ValidationField, ValidationProblem, ValidatorIdentifier,
+    ValidatorStatus,
 };
 use crate::modules::navdata::models::{AnyFix, DirectionRestriction, Fix, LegKind, ResolvedLeg};
 use crate::modules::navdata::service::NavdataService;
@@ -18,26 +19,32 @@ impl Validator for PreferredRouteValidator {
     fn validate(context: &ValidationContext<'_>, _navdata: &NavdataService) -> CheckResult {
         let (status, problems) = if context.route.legs.is_empty() {
             (ValidatorStatus::Unavailable, Vec::new())
-        } else if context.preferred_route.is_some() {
+        } else if let Some(route) = context.preferred_route {
             (
                 ValidatorStatus::Pass,
-                vec![ValidationProblem::RouteMatchPreferred],
+                vec![ValidationProblem::RouteMatchPreferred {
+                    from: route.departure.clone(),
+                    to: route.arrival.clone(),
+                    raw_route: route.raw_route.clone(),
+                }],
             )
         } else if context.preferred_routes.is_empty() {
             (ValidatorStatus::Suppressed, Vec::new())
         } else {
             (
                 ValidatorStatus::Rejected,
-                context
-                    .preferred_routes
-                    .iter()
-                    .sorted_by(|left, right| left.name.cmp(&right.name))
-                    .map(|route| ValidationProblem::NotPreferredRoute {
-                        from: route.departure.clone(),
-                        to: route.arrival.clone(),
-                        raw_route: route.raw_route.clone(),
-                    })
-                    .collect(),
+                vec![ValidationProblem::NotPreferredRoute {
+                    routes: context
+                        .preferred_routes
+                        .iter()
+                        .sorted_by(|left, right| left.name.cmp(&right.name))
+                        .map(|route| PreferredRouteDescription {
+                            from: route.departure.clone(),
+                            to: route.arrival.clone(),
+                            raw_route: route.raw_route.clone(),
+                        })
+                        .collect(),
+                }],
             )
         };
         CheckResult {

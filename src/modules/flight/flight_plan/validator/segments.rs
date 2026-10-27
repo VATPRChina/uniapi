@@ -1,4 +1,4 @@
-use super::{ValidatorError, checks::*, validate_flight};
+use super::{ValidatorError, checks::*, validate_flight_checks};
 use crate::modules::flight::flight_plan::matcher::SegmentMatchReport;
 use crate::modules::flight::flight_plan::{
     PreferredRouteMatcher, RouteSegment, RouteSegmenter, Segment, SegmentKind,
@@ -46,7 +46,13 @@ pub(crate) fn validate_analyzed_route(
             .find_map(|(_, report)| report.selected().map(|candidate| &candidate.preferred)),
         preferred_routes: &[],
     };
-    let mut results = validate_flight(&context, navdata);
+    let hong_kong_only = segments
+        .iter()
+        .any(|segment| segment.kind == SegmentKind::HongKong)
+        && !segments
+            .iter()
+            .any(|segment| segment.kind == SegmentKind::Mainland);
+    let mut results = validate_flight_checks(&context, navdata, !hong_kong_only);
     for (original, report) in segments.iter().zip(reports) {
         if original.kind == SegmentKind::International {
             continue;
@@ -87,13 +93,17 @@ fn validate_segment(
     let scope = ValidationField::MultipleLegs {
         indices: segment.start_index..segment.end_index(),
     };
-    let mut results = vec![
-        PreferredRouteValidator::execute(&context, navdata, scope.clone()),
-        PreferredRouteCruiseAltitudeValidator::execute(&context, navdata, scope),
-    ];
+    let mut results = vec![PreferredRouteValidator::execute(
+        &context,
+        navdata,
+        scope.clone(),
+    )];
     if kind == SegmentKind::HongKong {
         return results;
     }
+    results.push(PreferredRouteCruiseAltitudeValidator::execute(
+        &context, navdata, scope,
+    ));
     for (offset, leg) in segment.legs.iter().enumerate() {
         let leg_index = segment.start_index + offset;
         let route = ParsedRoute {
@@ -122,6 +132,7 @@ fn validate_segment(
 mod tests {
     use super::*;
     use crate::modules::flight::dto::TemporaryFlightQuery;
+    use crate::modules::flight::flight_plan::validator::validate_flight;
     use crate::modules::flight::models::ValidatorStatus;
     use crate::modules::navdata::models::{
         AnyFix, DirectionRestriction, LegKind, ResolvedLeg, Waypoint, WaypointKind,
@@ -203,13 +214,13 @@ mod tests {
             .iter()
             .filter(|check| check.field == hk_scope)
             .collect();
-        assert_eq!(hk_checks.len(), 2);
+        assert_eq!(hk_checks.len(), 1);
         assert!(
             hk_checks
                 .iter()
                 .all(|check| check.status == ValidatorStatus::Suppressed)
         );
-        assert_eq!(hong_kong_results.len(), results.len() + 2);
+        assert_eq!(hong_kong_results.len(), results.len() + 1);
         segments[1].kind = SegmentKind::International;
         let flight_results = validate_flight(
             &ValidationContext {

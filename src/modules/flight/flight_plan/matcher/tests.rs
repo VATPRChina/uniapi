@@ -117,6 +117,7 @@ INSERT INTO tbl_er_enroute_airways VALUES
 ('PAC','','VH','V591',2,'','ABBEY',22.5,116,'EA');
 INSERT INTO Routes VALUES
 ('VHHH','','','LELIM','HK-DEPARTURE','FE','F320','30000','LEKEN V611 LELIM',''),
+('VHHH','','','LELIM','HK-DEPARTURE-02','FE','F320','30000','LEKEN DCT ABBEY DCT LELIM',''),
 ('','VHHH','LELIM','','HK-ARRIVAL','FE','F320','30000','LELIM V591 ABBEY',''),
 ('','','LEKEN','ABBEY','HK-TRANSIT','FE','F320','30000','LEKEN V611 LELIM V591 ABBEY','');
 "#;
@@ -205,10 +206,7 @@ async fn hong_kong_preferred_routes_validate_only_their_segment_coverage() {
         let scope = ValidationField::MultipleLegs {
             indices: expected_range.clone(),
         };
-        for (level, expected_altitude) in [
-            (32000, ValidatorStatus::Pass),
-            (31000, ValidatorStatus::Rejected),
-        ] {
+        for level in [32000, 31000] {
             let flight = Flight::from(serde_json::from_value::<TemporaryFlightQuery>(serde_json::json!({
                 "departure": departure, "arrival": arrival, "aircraft": "B738", "cruising_level": level
             })).unwrap());
@@ -220,14 +218,36 @@ async fn hong_kong_preferred_routes_validate_only_their_segment_coverage() {
                 })
                 .unwrap();
             assert_eq!(preferred.status, ValidatorStatus::Pass);
-            let altitude = checks
+            let matched = &report.selected().unwrap().preferred;
+            assert_eq!(
+                preferred.problems,
+                vec![
+                    crate::modules::flight::models::ValidationProblem::RouteMatchPreferred {
+                        from: matched.departure.clone(),
+                        to: matched.arrival.clone(),
+                        raw_route: matched.raw_route.clone(),
+                    }
+                ]
+            );
+            assert!(!checks.iter().any(|check| check.id
+                == ValidatorIdentifier::PreferredRouteCruiseAltitude
+                && check.field == scope));
+            if segments
                 .iter()
-                .find(|check| {
-                    check.id == ValidatorIdentifier::PreferredRouteCruiseAltitude
-                        && check.field == scope
-                })
-                .unwrap();
-            assert_eq!(altitude.status, expected_altitude);
+                .all(|segment| segment.kind != SegmentKind::Mainland)
+            {
+                assert!(
+                    !checks
+                        .iter()
+                        .any(|check| check.id == ValidatorIdentifier::DirectionalCruiseAltitude)
+                );
+            } else {
+                assert!(
+                    checks
+                        .iter()
+                        .any(|check| check.id == ValidatorIdentifier::PreferredRouteCruiseAltitude)
+                );
+            }
             assert!(!checks.iter().any(|check| matches!(&check.field, ValidationField::Leg { index } if expected_range.contains(index))));
         }
     }
@@ -251,8 +271,22 @@ async fn hong_kong_preferred_routes_validate_only_their_segment_coverage() {
             .find(|check| check.id == ValidatorIdentifier::PreferredRoute)
             .unwrap();
         assert_eq!(preferred.status, expected_status);
+        assert!(!checks.iter().any(|check| matches!(
+            check.id,
+            ValidatorIdentifier::PreferredRouteCruiseAltitude
+                | ValidatorIdentifier::DirectionalCruiseAltitude
+        )));
         if expected_status == ValidatorStatus::Rejected {
-            assert!(!preferred.problems.is_empty());
+            let [crate::modules::flight::models::ValidationProblem::NotPreferredRoute { routes }] =
+                preferred.problems.as_slice()
+            else {
+                panic!("expected one grouped preferred-route problem")
+            };
+            assert_eq!(routes.len(), 2);
+            assert_eq!(routes[0].from, "VHHH");
+            assert_eq!(routes[0].to, "LELIM");
+            assert_eq!(routes[0].raw_route, "LEKEN V611 LELIM");
+            assert_eq!(routes[1].raw_route, "LEKEN DCT ABBEY DCT LELIM");
         }
     }
     // A Hong Kong match must not suppress the directional altitude fallback
