@@ -223,29 +223,25 @@ fn endpoints(variant: RouteSegment<'_>) -> Option<(&str, &str)> {
     ))
 }
 
-/// A resolved, filed SID/STAR may overlap the preferred route's ends. An
-/// airport connection alone must still join the preferred route at its endpoint.
-/// Border endpoints always coincide with the preferred path's endpoints.
+/// A filed SID/STAR may overlap the preferred route's ends. An airport connection
+/// alone must still join the preferred route at its endpoint. Border endpoints always
+/// coincide with the preferred path's endpoints.
 fn routes_match(actual: &[ResolvedLeg], expected: &[ResolvedLeg]) -> bool {
-    let known =
-        |leg: &ResolvedLeg| !leg.is_unknown && !leg.from.is_unknown() && !leg.to.is_unknown();
-    let mut departure = actual
+    let departure = actual
         .iter()
         .take_while(|leg| leg.kind == LegKind::Sid || matches!(leg.from, AnyFix::Airport(_)));
     let trim_start = actual
         .first()
         .is_some_and(|leg| matches!(leg.from, AnyFix::Airport(_)))
-        && departure.clone().any(|leg| leg.kind == LegKind::Sid)
-        && departure.all(known);
-    let mut arrival = actual
+        && departure.clone().any(|leg| leg.kind == LegKind::Sid);
+    let arrival = actual
         .iter()
         .rev()
         .take_while(|leg| leg.kind == LegKind::Star || matches!(leg.to, AnyFix::Airport(_)));
     let trim_end = actual
         .last()
         .is_some_and(|leg| matches!(leg.to, AnyFix::Airport(_)))
-        && arrival.clone().any(|leg| leg.kind == LegKind::Star)
-        && arrival.all(known);
+        && arrival.clone().any(|leg| leg.kind == LegKind::Star);
     let (Some((from, actual, to)), Some((expected_from, expected, expected_to))) =
         (enroute(actual), enroute(expected))
     else {
