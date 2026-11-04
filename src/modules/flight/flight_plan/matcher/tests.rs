@@ -226,6 +226,9 @@ async fn hong_kong_preferred_routes_validate_only_their_segment_coverage() {
                         from: matched.departure.clone(),
                         to: matched.arrival.clone(),
                         raw_route: matched.raw_route.clone(),
+                        cruising_level_restriction: matched.cruising_level_restriction,
+                        allowed_altitudes: matched.allowed_altitudes.clone(),
+                        minimal_altitude: matched.minimal_altitude,
                     }
                 ]
             );

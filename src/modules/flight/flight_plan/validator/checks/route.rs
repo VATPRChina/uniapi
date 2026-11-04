@@ -26,6 +26,9 @@ impl Validator for PreferredRouteValidator {
                     from: route.departure.clone(),
                     to: route.arrival.clone(),
                     raw_route: route.raw_route.clone(),
+                    cruising_level_restriction: route.cruising_level_restriction,
+                    allowed_altitudes: route.allowed_altitudes.clone(),
+                    minimal_altitude: route.minimal_altitude,
                 }],
             )
         } else if context.preferred_routes.is_empty() {
@@ -42,6 +45,9 @@ impl Validator for PreferredRouteValidator {
                             from: route.departure.clone(),
                             to: route.arrival.clone(),
                             raw_route: route.raw_route.clone(),
+                            cruising_level_restriction: route.cruising_level_restriction,
+                            allowed_altitudes: route.allowed_altitudes.clone(),
+                            minimal_altitude: route.minimal_altitude,
                         })
                         .collect(),
                 }],

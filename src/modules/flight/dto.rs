@@ -268,6 +268,9 @@ pub enum ValidationProblemDto {
         from: String,
         to: String,
         raw_route: String,
+        cruising_level_restriction: CruiseAltitudeType,
+        allowed_altitudes: Vec<i32>,
+        minimal_altitude: i32,
     },
 }
 
@@ -276,6 +279,9 @@ pub struct PreferredRouteDescriptionDto {
     pub from: String,
     pub to: String,
     pub raw_route: String,
+    pub cruising_level_restriction: CruiseAltitudeType,
+    pub allowed_altitudes: Vec<i32>,
+    pub minimal_altitude: i32,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -469,6 +475,9 @@ impl From<super::models::ValidationProblem> for ValidationProblemDto {
                         from: route.from,
                         to: route.to,
                         raw_route: route.raw_route,
+                        cruising_level_restriction: route.cruising_level_restriction,
+                        allowed_altitudes: route.allowed_altitudes,
+                        minimal_altitude: route.minimal_altitude,
                     })
                     .collect(),
             },
@@ -483,10 +492,16 @@ impl From<super::models::ValidationProblem> for ValidationProblemDto {
                 from,
                 to,
                 raw_route,
+                cruising_level_restriction,
+                allowed_altitudes,
+                minimal_altitude,
             } => Self::RouteMatchPreferred {
                 from,
                 to,
                 raw_route,
+                cruising_level_restriction,
+                allowed_altitudes,
+                minimal_altitude,
             },
         }
     }
@@ -505,6 +520,9 @@ mod tests {
             from: "VHHH".into(),
             to: "LELIM".into(),
             raw_route: "LEKEN V611 LELIM".into(),
+            cruising_level_restriction: CruiseAltitudeType::StandardEven,
+            allowed_altitudes: vec![32100, 34100],
+            minimal_altitude: 32100,
         };
         let rejected = ValidationProblemDto::from(ValidationProblem::NotPreferredRoute {
             routes: vec![details.clone(), details.clone()],
@@ -514,16 +532,19 @@ mod tests {
         assert_eq!(value["routes"].as_array().unwrap().len(), 2);
         assert_eq!(
             value["routes"][0],
-            json!({ "from": "VHHH", "to": "LELIM", "raw_route": "LEKEN V611 LELIM" })
+            json!({ "from": "VHHH", "to": "LELIM", "raw_route": "LEKEN V611 LELIM", "cruising_level_restriction": "standard-even", "allowed_altitudes": [32100, 34100], "minimal_altitude": 32100 })
         );
         let matched = ValidationProblemDto::from(ValidationProblem::RouteMatchPreferred {
             from: details.from,
             to: details.to,
             raw_route: details.raw_route,
+            cruising_level_restriction: details.cruising_level_restriction,
+            allowed_altitudes: details.allowed_altitudes,
+            minimal_altitude: details.minimal_altitude,
         });
         assert_eq!(
             serde_json::to_value(matched).unwrap(),
-            json!({ "kind": "route-match-preferred", "from": "VHHH", "to": "LELIM", "raw_route": "LEKEN V611 LELIM" })
+            json!({ "kind": "route-match-preferred", "from": "VHHH", "to": "LELIM", "raw_route": "LEKEN V611 LELIM", "cruising_level_restriction": "standard-even", "allowed_altitudes": [32100, 34100], "minimal_altitude": 32100 })
         );
     }
 

@@ -185,6 +185,9 @@ pub enum ValidationProblem {
         from: String,
         to: String,
         raw_route: String,
+        cruising_level_restriction: CruiseAltitudeType,
+        allowed_altitudes: Vec<i32>,
+        minimal_altitude: i32,
     },
 }
 
@@ -193,4 +196,7 @@ pub struct PreferredRouteDescription {
     pub from: String,
     pub to: String,
     pub raw_route: String,
+    pub cruising_level_restriction: CruiseAltitudeType,
+    pub allowed_altitudes: Vec<i32>,
+    pub minimal_altitude: i32,
 }
