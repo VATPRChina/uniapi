@@ -47,6 +47,7 @@ async fn airport_pair_routes_match_only_the_mainland_coverage_in_both_directions
     let matcher = PreferredRouteMatcher::new(&navdata);
     for (raw_route, expected_name, expected_range) in [
         ("ZSPD PONAB W13 BEGMO M503 LELIM VHHH", "ZSPD-VHHH-02", 0..3),
+        ("ZSPD PONAB DCT BEGMO DCT LELIM VHHH", "ZSPD-VHHH-01", 0..3),
         ("VHHH LELIM M503 BEGMO W13 PONAB ZSPD", "VHHH-ZSPD-02", 1..4),
     ] {
         let route = parse_route(&navdata, raw_route).await.unwrap();
@@ -71,7 +72,23 @@ async fn airport_pair_routes_match_only_the_mainland_coverage_in_both_directions
                 .iter()
                 .any(|preferred| preferred.name == expected_name)
         );
-        // The airport pair takes priority over a public border-keyed route.
+        // Both airport-pair rows are eligible regardless of AIP remarks;
+        // border definitions are excluded from matching and suggestions.
+        assert!(
+            report
+                .preferred_routes
+                .iter()
+                .all(|route| route.departure == "ZSPD" && route.arrival == "VHHH"
+                    || route.departure == "VHHH" && route.arrival == "ZSPD")
+        );
+        assert_eq!(
+            report.preferred_routes.len(),
+            if expected_name.starts_with("ZSPD") {
+                2
+            } else {
+                1
+            }
+        );
         assert_eq!(
             matcher.match_segment(mainland).await.unwrap().unwrap().name,
             expected_name
@@ -98,6 +115,202 @@ async fn airport_pair_routes_match_only_the_mainland_coverage_in_both_directions
     let report = matcher.inspect_segment(&segments[0]).await.unwrap();
     assert!(!report.preferred_routes.is_empty());
     assert!(report.selected().is_none());
+    drop(navdata);
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[tokio::test]
+async fn border_definitions_are_used_when_the_airport_pair_has_no_definitions() {
+    let directory = std::env::temp_dir().join(format!("border-fallback-{}", ulid::Ulid::new()));
+    std::fs::create_dir(&directory).unwrap();
+    let path = directory.join("navdata.db");
+    let db = SqlitePool::connect_with(
+        SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(true),
+    )
+    .await
+    .unwrap();
+    sqlx::raw_sql(FIXTURE).execute(&db).await.unwrap();
+    sqlx::query("DELETE FROM Routes WHERE Dep = 'ZSPD' AND Arr = 'VHHH'")
+        .execute(&db)
+        .await
+        .unwrap();
+    db.close().await;
+    let navdata = NavdataService::with_preferred_routes_path(path.to_str().unwrap(), &path)
+        .await
+        .unwrap();
+    let matcher = PreferredRouteMatcher::new(&navdata);
+    for (raw, matches) in [
+        ("ZSPD PONAB W13 BEGMO M503 LELIM VHHH", true),
+        ("ZSPD PONAB DCT LELIM VHHH", false),
+    ] {
+        let route = parse_route(&navdata, raw).await.unwrap();
+        let segments = RouteSegmenter::new(navdata.china_boundaries()).segment(&route.legs);
+        let mainland = segments
+            .iter()
+            .find(|segment| segment.kind == SegmentKind::Mainland)
+            .unwrap();
+        let report = matcher.inspect_segment(mainland).await.unwrap();
+        assert_eq!(report.preferred_routes.len(), 1);
+        assert_eq!(report.preferred_routes[0].name, "ZSPD-LELIM-01");
+        assert_eq!(report.selected().is_some(), matches);
+        assert_eq!(
+            matcher.match_segment(mainland).await.unwrap().is_some(),
+            matches
+        );
+    }
+    drop(navdata);
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[tokio::test]
+async fn airport_pair_definitions_reject_a_matching_border_route_via_abbey() {
+    use crate::modules::flight::dto::TemporaryFlightQuery;
+    use crate::modules::flight::flight_plan::validator::validate_route;
+    use crate::modules::flight::models::{
+        Flight, ValidationProblem, ValidatorIdentifier, ValidatorStatus,
+    };
+
+    let directory = std::env::temp_dir().join(format!("preferred-priority-{}", ulid::Ulid::new()));
+    std::fs::create_dir(&directory).unwrap();
+    let path = directory.join("navdata.db");
+    let db = SqlitePool::connect_with(
+        SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(true),
+    )
+    .await
+    .unwrap();
+    sqlx::raw_sql(FIXTURE).execute(&db).await.unwrap();
+    sqlx::raw_sql(HONG_KONG_FIXTURE).execute(&db).await.unwrap();
+    sqlx::raw_sql(
+        "DELETE FROM Routes; INSERT INTO tbl_pa_airports VALUES ('ZBAA',40.073,116.598);",
+    )
+    .execute(&db)
+    .await
+    .unwrap();
+    // Keep the mainland route outside the synthetic Hong Kong FIR until DOTMI.
+    let fixes = [
+        "ELKUR", "PANKI", "AR", "ATVIM", "HFE", "XLN", "DOTMI", "SIERA",
+    ];
+    for (index, ident) in fixes.iter().enumerate() {
+        sqlx::query("INSERT INTO tbl_ea_enroute_waypoints VALUES ('ZS',?,?,116)")
+            .bind(ident)
+            .bind(39.0 - index as f64 * 2.0)
+            .execute(&db)
+            .await
+            .unwrap();
+    }
+    for (index, airway) in ["W40", "W158", "H104", "W127", "H2", "A470", "V512"]
+        .iter()
+        .enumerate()
+    {
+        for (seqno, ident, lat) in [
+            (1, fixes[index], 39.0 - index as f64 * 2.0),
+            (
+                2,
+                if index == 6 {
+                    "ABBEY"
+                } else {
+                    fixes[index + 1]
+                },
+                if index == 6 {
+                    22.5
+                } else {
+                    37.0 - index as f64 * 2.0
+                },
+            ),
+        ] {
+            sqlx::query(
+                "INSERT INTO tbl_er_enroute_airways VALUES ('EEU','',?,?,?,'',?,?,116,'EA')",
+            )
+            .bind(if ident == "ABBEY" { "VH" } else { "ZS" })
+            .bind(airway)
+            .bind(seqno)
+            .bind(ident)
+            .bind(lat)
+            .execute(&db)
+            .await
+            .unwrap();
+        }
+    }
+    sqlx::raw_sql(
+        r#"INSERT INTO Routes VALUES
+        ('ZBAA','VHHH','','','ZBAA-VHHH-STANDARD','SO','','','SIERA',''),
+        ('ZBAA','','','DOTMI','ZBAA-DOTMI-FALLBACK','SO','','',
+            'ELKUR W40 PANKI W158 AR H104 ATVIM W127 HFE H2 XLN A470 DOTMI',''),
+        ('','VHHH','DOTMI','','DOTMI-VHHH','FE','','','DOTMI V512 ABBEY','');"#,
+    )
+    .execute(&db)
+    .await
+    .unwrap();
+    db.close().await;
+    let navdata = NavdataService::with_preferred_routes_path(path.to_str().unwrap(), &path)
+        .await
+        .unwrap();
+    let matcher = PreferredRouteMatcher::new(&navdata);
+    let flight = Flight::from(
+        serde_json::from_value::<TemporaryFlightQuery>(serde_json::json!({
+            "departure": "ZBAA", "arrival": "VHHH", "aircraft": "B738", "cruising_level": 33100
+        }))
+        .unwrap(),
+    );
+    for (raw, expected_status) in [
+        (
+            "ZBAA ELKUR W40 PANKI W158 AR H104 ATVIM W127 HFE H2 XLN A470 DOTMI V512 ABBEY VHHH",
+            ValidatorStatus::Rejected,
+        ),
+        ("ZBAA SIERA VHHH", ValidatorStatus::Pass),
+    ] {
+        let route = parse_route(&navdata, raw).await.unwrap();
+        assert!(route.legs.iter().all(|leg| !leg.is_unknown));
+        let segments = RouteSegmenter::new(navdata.china_boundaries())
+            .with_hong_kong_boundary(navdata.hong_kong_boundary())
+            .segment(&route.legs);
+        let mainland = segments
+            .iter()
+            .find(|segment| segment.kind == SegmentKind::Mainland)
+            .unwrap();
+        let report = matcher.inspect_segment(mainland).await.unwrap();
+        assert_eq!(report.candidates.len(), 1);
+        assert_eq!(report.preferred_routes.len(), 1);
+        assert_eq!(report.preferred_routes[0].name, "ZBAA-VHHH-STANDARD");
+        assert_eq!(
+            matcher.preferred_routes(mainland).await.unwrap()[0].name,
+            "ZBAA-VHHH-STANDARD"
+        );
+        assert_eq!(
+            matcher.match_segment(mainland).await.unwrap().is_some(),
+            expected_status == ValidatorStatus::Pass
+        );
+        let checks = validate_route(&flight, &route, &navdata).await.unwrap();
+        let check = checks
+            .iter()
+            .find(|check| check.id == ValidatorIdentifier::PreferredRoute)
+            .unwrap();
+        assert_eq!(check.status, expected_status);
+        if expected_status == ValidatorStatus::Rejected {
+            let mut border_only = *mainland;
+            border_only.airport_pair = None;
+            assert_eq!(
+                matcher
+                    .match_segment(&border_only)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .name,
+                "ZBAA-DOTMI-FALLBACK"
+            );
+            let [ValidationProblem::NotPreferredRoute { routes }] = check.problems.as_slice()
+            else {
+                panic!("expected designated-route rejection");
+            };
+            assert_eq!(routes.len(), 1);
+            assert_eq!(routes[0].to, "VHHH");
+            assert_eq!(routes[0].raw_route, "SIERA");
+        }
+    }
     drop(navdata);
     std::fs::remove_dir_all(directory).unwrap();
 }

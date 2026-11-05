@@ -41,10 +41,11 @@ impl<'s> PreferredRouteMatcher<'s> {
         &self,
         segment: &Segment<'l>,
     ) -> Result<SegmentMatchReport<'l>, ValidatorError> {
-        let preferred_routes = self.preferred_routes(segment).await?;
+        let mut preferred_routes = Vec::new();
         let mut candidates = Vec::new();
         for (coverage, preferred) in self.candidates(*segment).await? {
             let (matched, error) = self.match_outcome(coverage, &preferred).await?;
+            preferred_routes.push(preferred.clone());
             candidates.push(RouteMatchAttempt {
                 coverage,
                 preferred,
@@ -60,7 +61,7 @@ impl<'s> PreferredRouteMatcher<'s> {
         })
     }
 
-    /// Match one visit, trying airport pairs before all border alternatives.
+    /// Match one visit using only the highest-priority group with route definitions.
     pub async fn match_segment(
         &self,
         segment: &Segment<'_>,
@@ -101,26 +102,12 @@ impl<'s> PreferredRouteMatcher<'s> {
         &self,
         segment: &Segment<'_>,
     ) -> Result<Vec<PreferredRoute>, ValidatorError> {
-        if segment.kind == SegmentKind::International {
-            return Ok(Vec::new());
-        }
-        let mut seen = HashSet::new();
-        let mut routes = Vec::new();
-        for (airport_pair, _, (from, to)) in candidate_endpoints(*segment) {
-            // Query each pair once, retaining separate database rows with identical contents.
-            if seen.insert((from.to_ascii_uppercase(), to.to_ascii_uppercase())) {
-                routes.extend(
-                    self.navdata
-                        .list_preferred_routes(from, to)
-                        .await
-                        .map_err(ValidatorError::Navdata)?
-                        .into_iter()
-                        .map(|route| (airport_pair, route)),
-                );
-            }
-        }
-        routes.sort_by_key(|(airport_pair, route)| (!airport_pair, !route.is_public));
-        Ok(routes.into_iter().map(|(_, route)| route).collect())
+        Ok(self
+            .candidates(*segment)
+            .await?
+            .into_iter()
+            .map(|(_, route)| route)
+            .collect())
     }
 
     async fn candidates<'l>(
@@ -130,22 +117,29 @@ impl<'s> PreferredRouteMatcher<'s> {
         if segment.kind == SegmentKind::International {
             return Ok(Vec::new());
         }
-        let mut candidates = Vec::new();
-        for (airport_pair, variant, (from, to)) in candidate_endpoints(segment) {
-            candidates.extend(
-                self.navdata
-                    .list_preferred_routes(from, to)
-                    .await
-                    .map_err(ValidatorError::Navdata)?
-                    .into_iter()
-                    .map(|route| (airport_pair, variant, route)),
-            );
+        let endpoints = candidate_endpoints(segment);
+        // The first endpoint kind with definitions is authoritative. A filed
+        // path mismatch must not enable a lower-priority border fallback.
+        for airport_pair in [true, false] {
+            let mut candidates = Vec::new();
+            for &(pair, coverage, (from, to)) in &endpoints {
+                if pair != airport_pair {
+                    continue;
+                }
+                candidates.extend(
+                    self.navdata
+                        .list_preferred_routes(from, to)
+                        .await
+                        .map_err(ValidatorError::Navdata)?
+                        .into_iter()
+                        .map(|route| (coverage, route)),
+                );
+            }
+            if !candidates.is_empty() {
+                return Ok(candidates);
+            }
         }
-        candidates.sort_by_key(|(airport_pair, _, route)| (!airport_pair, !route.is_public));
-        Ok(candidates
-            .into_iter()
-            .map(|(_, variant, route)| (variant, route))
-            .collect())
+        Ok(Vec::new())
     }
 
     async fn matches(
