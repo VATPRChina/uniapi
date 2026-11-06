@@ -8,6 +8,7 @@ use crate::adapter::moodle::MoodleClient;
 use crate::adapter::smms::SmmsClient;
 use crate::modules::atc_application::service::AtcApplicationService;
 use crate::modules::atc_booking::service::AtcBookingService;
+use crate::modules::atc_position::dcl::DclAirports;
 use crate::modules::atc_position::service::AtcPositionService;
 use crate::modules::controller::service::ControllerService;
 use crate::modules::event::service::EventService;
@@ -39,6 +40,7 @@ pub struct Services {
     audit_log: AuditLogService,
     atc_application: AtcApplicationService,
     atc_booking: AtcBookingService,
+    dcl_airports: DclAirports,
     atc_position: AtcPositionService,
     event: EventService,
     flight: FlightService,
@@ -81,6 +83,7 @@ impl Services {
         let atc_application =
             AtcApplicationService::new(db.clone(), audit_log.clone(), user.clone(), sheet.clone());
         let atc_booking = AtcBookingService::new(db.clone(), user.clone());
+        let dcl_airports = DclAirports::load(&settings.dcl.airports_url).await?;
         let atc_position = AtcPositionService::new(db.clone(), audit_log.clone());
         let event = EventService::new(db.clone(), audit_log.clone(), user.clone());
         let access_token = AccessTokenService::new(&settings.authentication.jwt);
@@ -105,6 +108,7 @@ impl Services {
             audit_log,
             atc_application,
             atc_booking,
+            dcl_airports,
             atc_position,
             event,
             flight,
@@ -181,6 +185,10 @@ impl Services {
 
     pub fn atc_position(&self) -> &AtcPositionService {
         &self.atc_position
+    }
+
+    pub fn dcl_airports(&self) -> &DclAirports {
+        &self.dcl_airports
     }
 
     pub fn event(&self) -> &EventService {
