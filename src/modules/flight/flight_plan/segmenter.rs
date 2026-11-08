@@ -29,6 +29,8 @@ pub enum SegmentKind {
 pub struct Segment<'l> {
     pub kind: SegmentKind,
     pub route: RouteSegment<'l>,
+    /// Full connected path, retained for airport-to-border lookups after regional cuts.
+    pub(crate) connected_route: RouteSegment<'l>,
     /// Airport pair of the connected route, retained across China border cuts.
     pub(crate) airport_pair: Option<(&'l str, &'l str)>,
     enter: Option<(&'l AnyFix, &'l AnyFix)>,
@@ -201,6 +203,7 @@ impl<'b> RouteSegmenter<'b> {
                         legs: &legs[start..end],
                         start_index: segment.route.start_index + start,
                     },
+                    connected_route: segment.connected_route,
                     airport_pair: None,
                     enter: None,
                     exit: None,
@@ -217,6 +220,10 @@ impl<'b> RouteSegmenter<'b> {
         offset: usize,
         segments: &mut Vec<Segment<'l>>,
     ) {
+        let connected_route = RouteSegment {
+            legs,
+            start_index: offset,
+        };
         let airport_pair = match (&legs[0].from, &legs[legs.len() - 1].to) {
             (AnyFix::Airport(departure), AnyFix::Airport(arrival)) => {
                 Some((departure.identifier.as_str(), arrival.identifier.as_str()))
@@ -269,6 +276,7 @@ impl<'b> RouteSegmenter<'b> {
                         legs: &legs[covered..start],
                         start_index: offset + covered,
                     },
+                    connected_route,
                     airport_pair: None,
                     enter: None,
                     exit: None,
@@ -281,6 +289,7 @@ impl<'b> RouteSegmenter<'b> {
                         legs: &legs[start..end],
                         start_index: offset + start,
                     },
+                    connected_route,
                     airport_pair,
                     enter: enter.map(|(a, b)| (fix(a), fix(b))),
                     exit: exit.map(|(a, b)| (fix(a), fix(b))),
@@ -296,6 +305,7 @@ impl<'b> RouteSegmenter<'b> {
                     legs: &legs[covered..],
                     start_index: offset + covered,
                 },
+                connected_route,
                 airport_pair: None,
                 enter: None,
                 exit: None,

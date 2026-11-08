@@ -530,6 +530,130 @@ async fn hong_kong_preferred_routes_validate_only_their_segment_coverage() {
     std::fs::remove_dir_all(directory).unwrap();
 }
 
+#[tokio::test]
+async fn hong_kong_retrieves_departure_definition_and_rejects_a_direct_shortcut() {
+    use crate::modules::flight::dto::TemporaryFlightQuery;
+    use crate::modules::flight::flight_plan::validator::validate_route;
+    use crate::modules::flight::models::{
+        Flight, ValidationField, ValidationProblem, ValidatorIdentifier, ValidatorStatus,
+    };
+
+    let directory = std::env::temp_dir().join(format!("hk-zggg-definition-{}", ulid::Ulid::new()));
+    std::fs::create_dir(&directory).unwrap();
+    let path = directory.join("navdata.db");
+    let db = SqlitePool::connect_with(
+        SqliteConnectOptions::new()
+            .filename(&path)
+            .create_if_missing(true),
+    )
+    .await
+    .unwrap();
+    sqlx::raw_sql(FIXTURE).execute(&db).await.unwrap();
+    sqlx::raw_sql(HONG_KONG_FIXTURE).execute(&db).await.unwrap();
+    sqlx::raw_sql(
+        r#"
+        DELETE FROM Routes;
+        UPDATE tbl_uf_fir_uir SET fir_uir_latitude = 18 WHERE fir_uir_latitude = 21;
+        INSERT INTO tbl_pa_airports VALUES ('ZGGG',23.392,113.310),('WSSS',1.35,103.99);
+        INSERT INTO tbl_ea_enroute_waypoints VALUES
+            ('ZG','VIBOS',23,113.4),('ZG','SIERA',21.985,113.553),
+            ('VH','MULET',21.5,114),('VH','SKATE',20.5,115),('VH','SABNO',18.985,115.845),
+            ('VH','DALRA',17,116);
+        INSERT INTO tbl_er_enroute_airways VALUES
+            ('EEU','','ZG','R473',1,'','VIBOS',23,113.4,'EA'),
+            ('EEU','','ZG','R473',2,'','SIERA',21.985,113.553,'EA'),
+            ('PAC','','VH','V652',1,'','SKATE',20.5,115,'EA'),
+            ('PAC','','VH','V652',2,'','SABNO',18.985,115.845,'EA');
+        INSERT INTO Routes VALUES
+            ('ZGGG','','','SABNO','ZGGG-Dep-4','','','','SIERA DCT MULET DCT SKATE V652 SABNO',
+             'A583; ENR 1.10 8.2(4)');
+    "#,
+    )
+    .execute(&db)
+    .await
+    .unwrap();
+    db.close().await;
+    let navdata = NavdataService::with_preferred_routes_path(path.to_str().unwrap(), &path)
+        .await
+        .unwrap();
+    let matcher = PreferredRouteMatcher::new(&navdata);
+    let flight = Flight::from(
+        serde_json::from_value::<TemporaryFlightQuery>(serde_json::json!({
+            "departure": "ZGGG", "arrival": "WSSS", "aircraft": "B738", "cruising_level": 32000
+        }))
+        .unwrap(),
+    );
+    for (raw, expected_status) in [
+        ("ZGGG VIBOS R473 SIERA DCT SABNO", ValidatorStatus::Rejected),
+        (
+            "ZGGG VIBOS R473 SIERA DCT SABNO DALRA WSSS",
+            ValidatorStatus::Rejected,
+        ),
+        (
+            "ZGGG VIBOS R473 SIERA DCT MULET DCT SKATE V652 SABNO",
+            ValidatorStatus::Pass,
+        ),
+    ] {
+        let route = parse_route(&navdata, raw).await.unwrap();
+        let segments = RouteSegmenter::new(navdata.china_boundaries())
+            .with_hong_kong_boundary(navdata.hong_kong_boundary())
+            .segment(&route.legs);
+        let hk = segments
+            .iter()
+            .find(|segment| segment.kind == SegmentKind::HongKong)
+            .unwrap();
+        let definitions = matcher.preferred_routes(hk).await.unwrap();
+        assert_eq!(definitions.len(), 1, "{raw}");
+        assert_eq!(definitions[0].name, "ZGGG-Dep-4");
+        let report = matcher.inspect_segment(hk).await.unwrap();
+        assert_eq!(
+            report.selected().is_some(),
+            expected_status == ValidatorStatus::Pass,
+            "{raw}"
+        );
+        let checks = validate_route(&flight, &route, &navdata).await.unwrap();
+        let check = checks
+            .iter()
+            .find(|check| {
+                check.id == ValidatorIdentifier::PreferredRoute
+                    && check.field
+                        == ValidationField::MultipleLegs {
+                            indices: hk.route.start_index..hk.route.end_index(),
+                        }
+            })
+            .unwrap();
+        assert_eq!(check.status, expected_status, "{raw}");
+        if expected_status == ValidatorStatus::Rejected {
+            let [ValidationProblem::NotPreferredRoute { routes }] = check.problems.as_slice()
+            else {
+                panic!(
+                    "expected the Hong Kong shortcut to be checked against its departure definition"
+                );
+            };
+            assert_eq!(routes.len(), 1);
+            assert_eq!(routes[0].from, "ZGGG");
+            assert_eq!(routes[0].to, "SABNO");
+            assert_eq!(routes[0].raw_route, "SIERA DCT MULET DCT SKATE V652 SABNO");
+        }
+    }
+    // Airport context belongs to one connected route, not to later disconnected legs.
+    let route = parse_route(&navdata, "ZGGG VIBOS R473 SIERA DCT SABNO")
+        .await
+        .unwrap();
+    let mut disconnected = route.legs.clone();
+    disconnected.remove(1);
+    let segments = RouteSegmenter::new(navdata.china_boundaries())
+        .with_hong_kong_boundary(navdata.hong_kong_boundary())
+        .segment(&disconnected);
+    let hk = segments
+        .iter()
+        .find(|segment| segment.kind == SegmentKind::HongKong)
+        .unwrap();
+    assert!(matcher.preferred_routes(hk).await.unwrap().is_empty());
+    drop(navdata);
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
 fn matching_fixture() -> Vec<ResolvedLeg> {
     use crate::modules::navdata::models::{Airport, DirectionRestriction, Waypoint, WaypointKind};
     let waypoint = |identifier: &str, longitude: f64| {

@@ -200,6 +200,33 @@ fn candidate_endpoints<'l>(
         seen.insert((from.to_ascii_uppercase(), to.to_ascii_uppercase()));
         variants.push((true, segment.route, (from, to)));
     }
+    // A Hong Kong visit may start after a mainland departure or end before
+    // a mainland arrival. Keep airport-to-border definitions eligible while
+    // comparing only the Hong Kong legs.
+    if segment.kind == SegmentKind::HongKong
+        && let Some((from, to)) = endpoints(segment.route)
+    {
+        let legs = segment.connected_route.legs;
+        let departure = legs.first().and_then(|leg| match &leg.from {
+            AnyFix::Airport(airport) => Some(airport.identifier.as_str()),
+            _ => None,
+        });
+        let arrival = legs.last().and_then(|leg| match &leg.to {
+            AnyFix::Airport(airport) => Some(airport.identifier.as_str()),
+            _ => None,
+        });
+        let departure = departure.filter(|_| segment.get_route_end_airport().is_none());
+        let arrival = arrival.filter(|_| segment.get_route_start_airport().is_none());
+        for (from, to) in departure
+            .map(|airport| (airport, to))
+            .into_iter()
+            .chain(arrival.map(|airport| (from, airport)))
+        {
+            if seen.insert((from.to_ascii_uppercase(), to.to_ascii_uppercase())) {
+                variants.push((false, segment.route, (from, to)));
+            }
+        }
+    }
     for (airport_pair, coverage) in segment.endpoint_variants() {
         if let Some((from, to)) = endpoints(coverage)
             && seen.insert((from.to_ascii_uppercase(), to.to_ascii_uppercase()))
