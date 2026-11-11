@@ -14,8 +14,6 @@ use crate::modules::flight::dto::{
     FlightDto, FlightRouteDto, FlightValidationDto, TemporaryFlightQuery,
 };
 use crate::modules::flight::models::Flight;
-#[allow(deprecated)]
-use crate::modules::flight::routes::flights_v1::{warnings_by_callsign, warnings_websocket};
 use crate::modules::flight::service::{FlightService, FlightServiceError};
 use crate::modules::user::middleware::CurrentUser;
 use crate::modules::user::models::UserRole;
@@ -43,11 +41,6 @@ pub(crate) struct ApiDoc;
 
 pub fn build_flight_routes() -> Router<Services> {
     Router::new()
-        .route(
-            "/warnings/streaming",
-            #[allow(deprecated)]
-            get(warnings_websocket),
-        )
         .route("/mine", get(my_flight))
         .route("/mine/validation", get(my_flight_validation))
         .route("/temporary/by-plan", get(temporary_flight))
@@ -62,11 +55,6 @@ pub fn build_flight_routes() -> Router<Services> {
         .route(
             "/by-callsign/{callsign}/route",
             get(flight_route_by_callsign),
-        )
-        .route(
-            "/by-callsign/{callsign}/warnings",
-            #[allow(deprecated)]
-            get(warnings_by_callsign),
         )
         .route(
             "/by-callsign/{callsign}/validation",

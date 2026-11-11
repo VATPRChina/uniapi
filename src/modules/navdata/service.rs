@@ -11,7 +11,6 @@ use crate::modules::navdata::{
 
 mod airport;
 mod airway;
-mod deprecated;
 mod fir;
 mod fix_record;
 mod ndb;

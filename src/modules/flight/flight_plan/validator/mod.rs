@@ -1,5 +1,4 @@
 use crate::modules::flight::flight_plan::ParseRouteError;
-use crate::modules::flight::flight_plan::v1::parser::ParserError;
 use crate::modules::flight::models::ValidatorExecution;
 use crate::modules::navdata::service::InvalidNavdataError;
 use crate::modules::navdata::service::NavdataService;
@@ -17,9 +16,6 @@ pub enum ValidatorError {
     Database(#[from] sqlx::Error),
     #[error("parser error: {0}")]
     Parser(#[from] ParseRouteError),
-    #[error("parser error: {0}")]
-    #[deprecated]
-    ParserV1(#[from] ParserError),
     #[error("navdata error: {0}")]
     Navdata(InvalidNavdataError),
 }

@@ -1,10 +1,8 @@
-use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
 use crate::adapter::compat::{CompatClient, CompatClientError};
 use crate::modules::controller::models::CompatFutureController;
-use crate::modules::flight::flight_plan::v1::validator::WarningMessage;
-use crate::modules::flight::flight_plan::{ParseRouteError, parse_route, v1};
+use crate::modules::flight::flight_plan::{ParseRouteError, parse_route};
 use crate::modules::flight::models::ParsedRoute;
 use crate::modules::navdata::service::NavdataService;
 use crate::modules::user::service::user::{UserService, UserServiceError};
@@ -187,61 +185,6 @@ impl FlightService {
         })?;
         Ok(validator::validate_route(flight, &route, &self.navdata).await?)
     }
-
-    #[deprecated]
-    #[allow(deprecated)]
-    pub async fn route_v1(&self, flight: &Flight) -> Result<ParsedRoute, FlightServiceError> {
-        let legs = v1::parser::parse_route(
-            &self.navdata,
-            &format!(
-                "{} {} {}",
-                flight.flight_plan.departure,
-                flight.flight_plan.raw_route,
-                flight.flight_plan.arrival
-            ),
-        )
-        .await?;
-        Ok(ParsedRoute { legs })
-    }
-
-    #[deprecated]
-    #[allow(deprecated)]
-    pub async fn warnings_by_callsign(
-        &self,
-        callsign: &str,
-    ) -> Result<Vec<WarningMessage>, FlightServiceError> {
-        let flight = self.find_by_callsign(callsign).await?;
-        self.warnings(&flight).await
-    }
-
-    #[deprecated]
-    #[allow(deprecated)]
-    pub async fn warnings(
-        &self,
-        flight: &Flight,
-    ) -> Result<Vec<WarningMessage>, FlightServiceError> {
-        let legs = self.route_v1(flight).await?;
-        v1::validator::validate_route(&self.navdata, flight, &legs.legs)
-            .await
-            .map_err(Into::into)
-    }
-
-    #[deprecated]
-    #[allow(deprecated)]
-    pub async fn warnings_for_all(
-        &self,
-    ) -> Result<BTreeMap<String, Vec<WarningMessage>>, FlightServiceError> {
-        let validations =
-            futures::future::join_all(self.list().await?.into_iter().map(|flight| async move {
-                let callsign = flight.flight_plan.callsign.clone();
-                self.warnings(&flight)
-                    .await
-                    .map(|warnings| (callsign, warnings))
-            }))
-            .await;
-
-        validations.into_iter().collect()
-    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -258,9 +201,6 @@ pub enum FlightServiceError {
     Compat(#[from] CompatClientError),
     #[error("failed to parse flight route: {0}")]
     Parser(#[from] ParseRouteError),
-    #[error("failed to parse flight route: {0}")]
-    #[deprecated]
-    ParserV1(#[from] v1::parser::ParserError),
     #[error("failed to validate flight route: {0}")]
     Validator(#[from] ValidatorError),
     #[error("failed to access flight user: {0}")]

@@ -4,7 +4,6 @@ pub(crate) mod altitude;
 mod matcher;
 mod route_parser;
 mod segmenter;
-pub mod v1;
 pub mod validator;
 
 pub use matcher::PreferredRouteMatcher;
