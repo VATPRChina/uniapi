@@ -1,5 +1,8 @@
 bind_address = "[::1]:3000"
 
+[dcl]
+airports_url = "https://raw.githubusercontent.com/VATPRChina/vatprc-docs/main/docs/dcl-airports.json"
+
 [authentication.jwt]
 issuer = "https://uniapi.vatprc.net"
 audience_first_party = "https://uniapi.vatprc.net"

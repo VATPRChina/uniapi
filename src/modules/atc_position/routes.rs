@@ -41,7 +41,7 @@ async fn list_atc_positions(
         .list()
         .await?
         .into_iter()
-        .map(TryInto::try_into)
+        .map(|position| AtcPositionDto::try_from_position(position, services.dcl_airports()))
         .collect::<Result<Vec<_>, _>>()
         .map(Json)
 }
@@ -52,12 +52,8 @@ async fn get_atc_position(
     Path(callsign): Path<String>,
 ) -> Result<Json<AtcPositionDto>, ApiError> {
     let callsign = normalize_callsign(callsign)?;
-    services
-        .atc_position()
-        .find(&callsign)
-        .await?
-        .try_into()
-        .map(Json)
+    let position = services.atc_position().find(&callsign).await?;
+    AtcPositionDto::try_from_position(position, services.dcl_airports()).map(Json)
 }
 
 #[utoipa::path(post, path = "api/atc/positions", tag = "ATC Positions", security(("oauth2" = [])), request_body = AtcPositionSaveRequest, responses((status = 200, description = "ATC position created", body = AtcPositionDto)))]
@@ -68,12 +64,11 @@ async fn create_atc_position(
 ) -> Result<Json<AtcPositionDto>, ApiError> {
     current_user.require_role(UserRole::TechAfvFacilityEngineer)?;
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    services
+    let position = services
         .atc_position()
         .create(request.try_into()?, operated_by)
-        .await?
-        .try_into()
-        .map(Json)
+        .await?;
+    AtcPositionDto::try_from_position(position, services.dcl_airports()).map(Json)
 }
 
 #[utoipa::path(put, path = "api/atc/positions/{callsign}", tag = "ATC Positions", security(("oauth2" = [])), params(("callsign" = String, Path, description = "ATC callsign")), request_body = AtcPositionSaveRequest, responses((status = 200, description = "ATC position updated", body = AtcPositionDto)))]
@@ -93,12 +88,11 @@ async fn update_atc_position(
             "must match the callsign in the request path",
         ));
     }
-    services
+    let position = services
         .atc_position()
         .update(&callsign, position, operated_by)
-        .await?
-        .try_into()
-        .map(Json)
+        .await?;
+    AtcPositionDto::try_from_position(position, services.dcl_airports()).map(Json)
 }
 
 #[utoipa::path(delete, path = "api/atc/positions/{callsign}", tag = "ATC Positions", security(("oauth2" = [])), params(("callsign" = String, Path, description = "ATC callsign")), responses((status = 204, description = "ATC position deleted")))]

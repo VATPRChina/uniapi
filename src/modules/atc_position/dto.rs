@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ApiError;
 
+use super::dcl::DclAirports;
 use super::models::{AtcPosition, AtcPositionCategory, AtcPositionSave};
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
@@ -55,13 +56,15 @@ impl TryFrom<AtcPositionSaveRequest> for AtcPositionSave {
     }
 }
 
-impl TryFrom<AtcPosition> for AtcPositionDto {
-    type Error = ApiError;
-
-    fn try_from(position: AtcPosition) -> Result<Self, Self::Error> {
+impl AtcPositionDto {
+    pub fn try_from_position(
+        position: AtcPosition,
+        dcl_airports: &DclAirports,
+    ) -> Result<Self, ApiError> {
         let category = position.category.parse().map_err(|_| {
             ApiError::invalid_database_value("atc_position.category", &position.category)
         })?;
+        let dcl_code = dcl_airport_code(&position.callsign, dcl_airports).map(str::to_owned);
 
         Ok(Self {
             category,
@@ -71,11 +74,31 @@ impl TryFrom<AtcPosition> for AtcPositionDto {
             callsign_en: position.callsign_en,
             frequency: f64::from(position.frequency_khz) / 1000.0,
             frequency_khz: position.frequency_khz,
-            cpdlc_code: position.cpdlc_code,
+            cpdlc_code: dcl_code.or(position.cpdlc_code),
             remarks: position.remarks,
             created_at: position.created_at,
             updated_at: position.updated_at,
         })
+    }
+}
+
+fn dcl_airport_code<'a>(callsign: &'a str, dcl_airports: &DclAirports) -> Option<&'a str> {
+    let parts: Vec<_> = callsign.split('_').collect();
+    let airport = *parts.first()?;
+    if !dcl_airports.contains(airport) {
+        return None;
+    }
+
+    match parts.last().copied() {
+        Some("TWR" | "DEL") => Some(airport),
+        Some("GND")
+            if !parts[1..parts.len() - 1]
+                .iter()
+                .any(|part| part.starts_with('A')) =>
+        {
+            Some(airport)
+        }
+        _ => None,
     }
 }
 
@@ -132,7 +155,15 @@ fn optional_trimmed(value: Option<String>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{frequency_to_khz, normalize_callsign};
+    use chrono::Utc;
+
+    use super::{AtcPositionDto, dcl_airport_code, frequency_to_khz, normalize_callsign};
+    use crate::modules::atc_position::dcl::DclAirports;
+    use crate::modules::atc_position::models::AtcPosition;
+
+    fn dcl_airports() -> DclAirports {
+        DclAirports::try_from_codes(vec!["ZBAA".to_owned()]).unwrap()
+    }
 
     #[test]
     fn converts_valid_frequency_to_exact_khz() {
@@ -159,5 +190,85 @@ mod tests {
         );
         assert!(normalize_callsign("ZBAA TWR".to_owned()).is_err());
         assert!(normalize_callsign("ZBAA_TWR（停用）".to_owned()).is_err());
+    }
+
+    #[test]
+    fn recognizes_only_dcl_capable_airport_positions() {
+        let dcl_airports = dcl_airports();
+        for callsign in [
+            "ZBAA_TWR",
+            "ZBAA_E_TWR",
+            "ZBAA_DEL",
+            "ZBAA_GND",
+            "ZBAA_W_GND",
+        ] {
+            assert_eq!(
+                dcl_airport_code(callsign, &dcl_airports),
+                Some("ZBAA"),
+                "{callsign}"
+            );
+        }
+
+        for callsign in [
+            "ZBAA_ATIS",
+            "ZBAA_RMP",
+            "ZBAA_A_GND",
+            "ZBAA_AW_GND",
+            "ZBAA_AX_GND",
+            "ZBAA_APP",
+            "ZZZZ_TWR",
+        ] {
+            assert_eq!(
+                dcl_airport_code(callsign, &dcl_airports),
+                None,
+                "{callsign}"
+            );
+        }
+    }
+
+    #[test]
+    fn returns_airport_icao_as_cpdlc_code_for_dcl_positions() {
+        let now = Utc::now();
+        let dto = AtcPositionDto::try_from_position(
+            AtcPosition {
+                category: "standard".to_owned(),
+                callsign: "ZBAA_TWR".to_owned(),
+                is_tier_2: false,
+                callsign_zh: None,
+                callsign_en: None,
+                frequency_khz: 118_500,
+                cpdlc_code: None,
+                remarks: None,
+                created_at: now,
+                updated_at: now,
+            },
+            &dcl_airports(),
+        )
+        .unwrap();
+
+        assert_eq!(dto.cpdlc_code.as_deref(), Some("ZBAA"));
+    }
+
+    #[test]
+    fn preserves_stored_cpdlc_code_for_non_dcl_positions() {
+        let now = Utc::now();
+        let dto = AtcPositionDto::try_from_position(
+            AtcPosition {
+                category: "standard".to_owned(),
+                callsign: "ZBAA_APP".to_owned(),
+                is_tier_2: false,
+                callsign_zh: None,
+                callsign_en: None,
+                frequency_khz: 119_000,
+                cpdlc_code: Some("BJA".to_owned()),
+                remarks: None,
+                created_at: now,
+                updated_at: now,
+            },
+            &dcl_airports(),
+        )
+        .unwrap();
+
+        assert_eq!(dto.cpdlc_code.as_deref(), Some("BJA"));
     }
 }

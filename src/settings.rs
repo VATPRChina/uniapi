@@ -8,6 +8,7 @@ pub struct Settings {
     pub bind_address: String,
     pub authentication: Authentication,
     pub database: Database,
+    pub dcl: Dcl,
     pub discord: Discord,
     pub discourse: Discourse,
     #[serde(default)]
@@ -75,6 +76,11 @@ pub struct VatsimAuthentication {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Database {
     pub url: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Dcl {
+    pub airports_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
