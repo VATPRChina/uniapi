@@ -5,6 +5,8 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct Event {
+    #[sqlx(json(nullable))]
+    pub discord_message: Option<crate::discord::models::DiscordMessage>,
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

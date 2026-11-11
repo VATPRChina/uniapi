@@ -80,6 +80,10 @@ pub struct Database {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Discord {
     #[serde(default)]
+    pub event_forum_channel_id: Option<u64>,
+    #[serde(default)]
+    pub event_forum_tag_ids: Vec<u64>,
+    #[serde(default)]
     pub enabled: bool,
     #[serde(default)]
     pub token: String,
