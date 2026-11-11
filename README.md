@@ -126,6 +126,11 @@ sqlite3 -bail data/routes.db < assets/test/routes.sql
 The database must not already contain route tables. Generated databases stay
 under the ignored `data/` directory; no binary fixture is required.
 
+The E2E setup starts a local VATSIM data feed with fixed pilots and prefiles,
+so flight validation tests do not depend on live traffic or VATSIM availability.
+The backend uses `utils.vatsim_data_url` (or `APP_UTILS__VATSIM_DATA_URL`) to
+select the feed; it defaults to the public VATSIM data URL.
+
 There is E2E testing for each API endpoint. It is still missing test coverage on some endpoints.
 
 ### Writing tests

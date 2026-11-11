@@ -19,6 +19,8 @@ test(
       expect(snapshot).not.toBeNull();
       expect(Array.isArray(snapshot)).toBe(false);
 
+      expect(Object.keys(snapshot).sort()).toEqual(["E2E001", "E2E003"]);
+
       for (const [callsign, validation] of Object.entries(
         snapshot as Record<string, unknown>,
       )) {

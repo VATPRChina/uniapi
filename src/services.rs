@@ -69,7 +69,8 @@ impl Services {
         let audit_log = AuditLogService::new(db.clone());
         let moodle = MoodleClient::new(settings.moodle.api_key.clone());
         let user = UserService::new(db.clone(), moodle.clone(), audit_log.clone());
-        let compat_client = CompatClient::new(settings.utils.metar.endpoint.clone());
+        let compat_client = CompatClient::new(settings.utils.metar.endpoint.clone())
+            .with_online_data_url(settings.utils.vatsim_data_url.clone());
         let controller = ControllerService::new(
             db.clone(),
             audit_log.clone(),

@@ -55,5 +55,8 @@ headers = {}
 enabled = false
 token = ""
 
+[utils]
+vatsim_data_url = "https://data.vatsim.net/v3/vatsim-data.json"
+
 [utils.metar]
 endpoint = "https://metar.vatsim.net"

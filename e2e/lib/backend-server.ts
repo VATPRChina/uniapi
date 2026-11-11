@@ -21,7 +21,9 @@ const backendPort = Number(process.env.E2E_BACKEND_PORT ?? 3010);
 const backendHost = process.env.E2E_BACKEND_HOST ?? "127.0.0.1";
 const baseUrl = `http://${backendHost}:${backendPort}`;
 
-export async function startBackend(): Promise<BackendHandle> {
+export async function startBackend(
+  env: NodeJS.ProcessEnv = {},
+): Promise<BackendHandle> {
   const repoRoot = resolve(process.cwd(), "..");
   const release = process.env.E2E_BACKEND_BUILD_MODE === "release";
   const build = spawnSync("cargo", ["build", ...(release ? ["--release"] : [])], {
@@ -51,6 +53,7 @@ export async function startBackend(): Promise<BackendHandle> {
     detached: process.platform !== "win32",
     env: {
       ...process.env,
+      ...env,
       APP_BIND_ADDRESS: `${backendHost}:${backendPort}`,
     },
   });

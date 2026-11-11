@@ -20,6 +20,7 @@ const OUTBOUND_HTTP_CACHE_TTL: Duration = Duration::from_secs(30);
 pub struct CompatClient {
     http: reqwest::Client,
     metar_endpoint: String,
+    online_data_url: String,
     cache: Cache<String, String>,
 }
 
@@ -46,6 +47,7 @@ impl CompatClient {
                 .build()
                 .expect("compat reqwest client should build"),
             metar_endpoint,
+            online_data_url: VATSIM_DATA_URL.to_owned(),
             cache: Cache::builder()
                 .max_capacity(OUTBOUND_HTTP_CACHE_CAPACITY as u64)
                 .time_to_live(OUTBOUND_HTTP_CACHE_TTL)
@@ -53,10 +55,15 @@ impl CompatClient {
         }
     }
 
+    pub fn with_online_data_url(mut self, url: String) -> Self {
+        self.online_data_url = url;
+        self
+    }
+
     #[instrument(skip(self))]
     pub async fn get_online_data(&self) -> Result<VatsimData, CompatClientError> {
         Ok(serde_json::from_str(
-            &self.cached_get(VATSIM_DATA_URL).await?,
+            &self.cached_get(&self.online_data_url).await?,
         )?)
     }
 

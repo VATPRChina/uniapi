@@ -143,6 +143,7 @@ pub struct Moodle {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Utils {
+    pub vatsim_data_url: String,
     pub metar: Metar,
 }
 

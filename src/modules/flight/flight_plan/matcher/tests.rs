@@ -724,7 +724,7 @@ fn airport_connections_cannot_skip_preferred_route_endpoints() {
 }
 
 #[test]
-fn only_resolved_filed_procedures_allow_preferred_route_overlap() {
+fn filed_procedures_allow_preferred_route_overlap_even_when_unresolved() {
     let expected = matching_fixture();
     for (kind, index) in [(LegKind::Sid, 0), (LegKind::Star, 4)] {
         let mut actual = expected.clone();
@@ -743,8 +743,13 @@ fn only_resolved_filed_procedures_allow_preferred_route_overlap() {
         );
         actual[index].is_unknown = true;
         assert!(
+            routes_match(&actual, &expected),
+            "unresolved {kind:?} should permit overlap with known endpoints"
+        );
+        actual[1].is_unknown = true;
+        assert!(
             !routes_match(&actual, &expected),
-            "unresolved {kind:?} must not permit overlap"
+            "unknown enroute legs must not match despite {kind:?} overlap"
         );
     }
 }
@@ -753,13 +758,13 @@ fn only_resolved_filed_procedures_allow_preferred_route_overlap() {
 fn procedure_overlap_supports_airport_connections_but_not_border_anchors() {
     let expected = matching_fixture();
     let mut actual = expected.clone();
-    // An airport connection followed by a resolved SID is still a filed
+    // An airport connection followed by a SID is still a filed
     // procedure. Here ISLEP is the SID's initial fix and TONOV its exit.
     actual[1].kind = LegKind::Sid;
     actual[1].identifier = Some("PROC1".into());
     assert!(routes_match(&actual, &expected));
     actual[0].is_unknown = true;
-    assert!(!routes_match(&actual, &expected));
+    assert!(routes_match(&actual, &expected));
     actual[0].is_unknown = false;
     // Removing the airport makes this a border slice: its start cannot move
     // from ISLEP to TONOV even though the first leg is a resolved SID.
