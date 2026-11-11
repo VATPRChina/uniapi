@@ -46,12 +46,13 @@ impl IdentCandidate {
             IdentAmend::Runway(_) => {
                 matches!(
                     self,
-                    Self::Leg(
-                        NavProc::Sid(_)
-                            | NavProc::UnknownSid(_)
-                            | NavProc::Star(_)
-                            | NavProc::UnknownStar(_)
-                    )
+                    Self::Fix(AnyFix::Airport(_))
+                        | Self::Leg(
+                            NavProc::Sid(_)
+                                | NavProc::UnknownSid(_)
+                                | NavProc::Star(_)
+                                | NavProc::UnknownStar(_)
+                        )
                 )
             }
             IdentAmend::FlightRuleVfr | IdentAmend::FlightRuleIfr => matches!(self, Self::Fix(_)),
@@ -73,7 +74,7 @@ impl<'s> CandidateResolver<'s> {
 
     /// Resolve all candidates in route order without choosing between ambiguous matches.
     /// Plain identifiers always include unknown route/point fallbacks.
-    /// Speed/level amendments restrict candidates to fixes; runway suffixes restrict them to SIDs.
+    /// Speed/level amendments restrict candidates to fixes; runway suffixes allow airports and SIDs/STARs.
     /// Database failures propagate instead of being treated as unknown identifiers.
     ///
     /// # Panics
@@ -180,7 +181,31 @@ async fn find_fix_candidates(navdata: &NavdataService, ident: &str) -> NavdataRe
 mod tests {
     use super::*;
     use crate::modules::flight::flight_plan::route_parser::{CruisingLevel, LexGrouper, Speed};
-    use crate::modules::navdata::models::{Airway, Sid, Star, TerminalProcedure};
+    use crate::modules::navdata::models::{Airport, Airway, Sid, Star, TerminalProcedure};
+
+    #[test]
+    fn airport_candidates_accept_runways_with_speed_and_altitude() {
+        let idents: Vec<_> = LexGrouper::new(
+            Lexer::new("ZBAA ZBAA/01 K0300S0720 AVBOX8J AVBOX DCT SASAN ZSPD/17L ZSPD")
+                .parse_all()
+                .collect(),
+        )
+        .parse()
+        .collect();
+        for (ident, identifier) in [
+            (idents.first().unwrap(), "ZBAA"),
+            (idents.last().unwrap(), "ZSPD"),
+        ] {
+            let airport = IdentCandidate::Fix(AnyFix::Airport(Airport {
+                identifier: identifier.try_into().unwrap(),
+                latitude: 40.0.try_into().unwrap(),
+                longitude: 116.0.try_into().unwrap(),
+            }));
+            assert_eq!(ident.identifier(), identifier);
+            assert!(ident.errors.is_empty());
+            assert!(airport.permitted_by(&ident.amendments));
+        }
+    }
 
     fn candidates() -> Vec<IdentCandidate> {
         let procedure = TerminalProcedure {
