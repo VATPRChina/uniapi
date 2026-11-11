@@ -118,22 +118,19 @@ async fn book_position(
     Path((event_id, position_id)): Path<(String, String)>,
     Json(request): Json<EventAtcPositionBookRequest>,
 ) -> Result<Json<EventAtcPositionBookingDto>, ApiError> {
-    current_user.require_role(UserRole::Controller)?;
+    let is_admin_booking = request.user_id.is_some();
+    if is_admin_booking {
+        require_edit_role(&current_user)?;
+    } else {
+        current_user.require_role(UserRole::Controller)?;
+    }
     let event_id = event_id.parse::<Ulid>()?.into();
     let position_id = position_id.parse::<Ulid>()?.into();
-    if request.user_id.is_some() && !has_booking_admin_role(&current_user) {
-        return Err(ApiError::forbidden([
-            UserRole::EventCoordinator,
-            UserRole::ControllerTrainingDirectorAssistant,
-            UserRole::ControllerTrainingMentor,
-        ]));
-    }
     let user_id = match request.user_id.as_deref() {
         Some(user_id) => (user_id).parse::<Ulid>()?.into(),
         None => current_user.user_id.ok_or(ApiError::Unauthorized)?,
     };
     let operated_by = current_user.user_id.ok_or(ApiError::Unauthorized)?;
-    let is_admin_booking = request.user_id.is_some();
     let position = services
         .event()
         .book_atc_position(
@@ -153,7 +150,10 @@ async fn cancel_position_booking(
     current_user: CurrentUser,
     Path((event_id, position_id)): Path<(String, String)>,
 ) -> Result<Json<EventAtcPositionBookingDto>, ApiError> {
-    current_user.require_role(UserRole::Controller)?;
+    let is_admin_booking = has_booking_admin_role(&current_user);
+    if !is_admin_booking {
+        current_user.require_role(UserRole::Controller)?;
+    }
     let event_id = event_id.parse::<Ulid>()?.into();
     let position_id = position_id.parse::<Ulid>()?.into();
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
@@ -163,7 +163,7 @@ async fn cancel_position_booking(
             event_id,
             position_id,
             current_user_id,
-            has_booking_admin_role(&current_user),
+            is_admin_booking,
         )
         .await?;
     Ok(Json(position_booking_to_dto(position)?))
@@ -186,20 +186,12 @@ fn position_booking_to_dto(
 
 fn require_edit_role(current_user: &CurrentUser) -> Result<(), ApiError> {
     current_user
-        .require_any_role(&[
-            UserRole::EventCoordinator,
-            UserRole::ControllerTrainingDirectorAssistant,
-            UserRole::OperationDirectorAssistant,
-        ])
+        .require_any_role(&[UserRole::EventCoordinator, UserRole::ControllerTrainingMentor])
         .map_err(Into::into)
 }
 
 fn has_booking_admin_role(current_user: &CurrentUser) -> bool {
     current_user
-        .require_any_role(&[
-            UserRole::EventCoordinator,
-            UserRole::ControllerTrainingDirectorAssistant,
-            UserRole::ControllerTrainingMentor,
-        ])
+        .require_any_role(&[UserRole::EventCoordinator, UserRole::ControllerTrainingMentor])
         .is_ok()
 }
