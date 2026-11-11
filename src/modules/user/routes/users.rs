@@ -5,9 +5,9 @@ use std::collections::BTreeSet;
 use ulid::Ulid;
 
 use crate::error::ApiError;
-use crate::modules::user::models::UserRole;
 use crate::modules::user::dto::UserDto;
 use crate::modules::user::middleware::CurrentUser;
+use crate::modules::user::models::UserRole;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]

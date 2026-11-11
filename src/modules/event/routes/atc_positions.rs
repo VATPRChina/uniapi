@@ -5,13 +5,13 @@ use axum::{Json, Router};
 use ulid::Ulid;
 
 use crate::error::ApiError;
-use crate::modules::user::models::UserRole;
 use crate::modules::event::dto::{
     EventAtcPositionBookRequest, EventAtcPositionBookingDto, EventAtcPositionDto,
     EventAtcPositionSaveRequest,
 };
 use crate::modules::event::service::EventAtcPositionView;
 use crate::modules::user::middleware::CurrentUser;
+use crate::modules::user::models::UserRole;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]
@@ -159,12 +159,7 @@ async fn cancel_position_booking(
     let current_user_id = current_user.user_id.ok_or(ApiError::Unauthorized)?;
     let position = services
         .event()
-        .cancel_atc_position_booking(
-            event_id,
-            position_id,
-            current_user_id,
-            is_admin_booking,
-        )
+        .cancel_atc_position_booking(event_id, position_id, current_user_id, is_admin_booking)
         .await?;
     Ok(Json(position_booking_to_dto(position)?))
 }
@@ -186,12 +181,18 @@ fn position_booking_to_dto(
 
 fn require_edit_role(current_user: &CurrentUser) -> Result<(), ApiError> {
     current_user
-        .require_any_role(&[UserRole::EventCoordinator, UserRole::ControllerTrainingMentor])
+        .require_any_role(&[
+            UserRole::EventCoordinator,
+            UserRole::ControllerTrainingMentor,
+        ])
         .map_err(Into::into)
 }
 
 fn has_booking_admin_role(current_user: &CurrentUser) -> bool {
     current_user
-        .require_any_role(&[UserRole::EventCoordinator, UserRole::ControllerTrainingMentor])
+        .require_any_role(&[
+            UserRole::EventCoordinator,
+            UserRole::ControllerTrainingMentor,
+        ])
         .is_ok()
 }

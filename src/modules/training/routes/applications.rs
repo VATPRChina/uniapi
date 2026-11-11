@@ -5,13 +5,13 @@ use ulid::Ulid;
 use uuid::Uuid;
 
 use crate::error::ApiError;
-use crate::modules::user::models::UserRole;
 use crate::modules::training::dto::{
     TrainingApplicationCreateRequest, TrainingApplicationDto, TrainingApplicationResponseDto,
     TrainingApplicationResponseRequest,
 };
 use crate::modules::training::service::TrainingApplicationView;
 use crate::modules::user::middleware::CurrentUser;
+use crate::modules::user::models::UserRole;
 use crate::services::Services;
 
 #[derive(utoipa::OpenApi)]

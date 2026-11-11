@@ -1,11 +1,15 @@
 //! Flight route parser
 //!
 //! ```text
-//! route = dep seg* arr
-//! dep = IDENTIFIER SPEED_AND_ALTITUDE?
-//! arr = IDENTIFIER
-//! seg = (IDENTIFIER | IDENTIFIER_REFERENCE | GEO) (VFR | IFR)? | DIRECT
+//! route = dep ident* arr
+//! dep = IDENTIFIER IDENTIFIER? SPEED_AND_ALTITUDE?
+//! tail = arr | ident tail
+//! arr = IDENTIFIER? IDENTIFIER
+//! ident = (IDENTIFIER | IDENTIFIER_REFERENCE | GEO) (VFR | IFR)? | DIRECT
 //! ```
+//!
+//! Optional endpoint identifiers must match the adjacent identifier. Their
+//! amendments and diagnostics are merged in input order.
 
 use crate::modules::flight::flight_plan::route_parser::{
     CruisingLevel, LexerToken, LexerTokenAmend, LexerTokenValue, Speed,
@@ -140,34 +144,22 @@ impl<'t, 's> Input<'t, 's> {
             .collect()
     }
 
-    // dep = IDENTIFIER SPEED_AND_ALTITUDE?
+    // dep = IDENTIFIER IDENTIFIER? SPEED_AND_ALTITUDE?
     fn parse_departure(self) -> Option<(Ident<'s>, Self)> {
-        let (token, input) = self.advance()?;
-        let valid = matches!(token.value, LexerTokenValue::Ident);
+        let valid = matches!(self.peek(0), Some(LexerTokenValue::Ident));
+        let (mut departure, input) = self.parse_endpoint(ParserIdentError::ExpectedDepIdent)?;
         let (amendment, input) = if valid {
             input.parse_speed_and_altitude()
         } else {
             (None, input)
         };
-        Some((
-            Ident {
-                ident: token.str,
-                amendments: inline_amendment(token)
-                    .into_iter()
-                    .chain(amendment)
-                    .collect(),
-                errors: amendment_error(token)
-                    .into_iter()
-                    .chain((!valid).then_some(ParserIdentError::ExpectedDepIdent))
-                    .collect(),
-            },
-            input,
-        ))
+        departure.amendments.extend(amendment);
+        Some((departure, input))
     }
 
     // tail = arr | ident tail
     fn parse_tail(self) -> Vec<Ident<'s>> {
-        if self.peek(1).is_none() {
+        if self.peek(1).is_none() || (self.tokens.len() == 2 && self.has_matching_identifiers()) {
             return self.parse_arrival().into_iter().collect();
         }
         let (ident, input) = self.parse_ident().expect("lookahead is not EOF");
@@ -184,20 +176,45 @@ impl<'t, 's> Input<'t, 's> {
         std::iter::once(ident).chain(input.parse_tail()).collect()
     }
 
-    // arr = IDENTIFIER
+    // arr = IDENTIFIER? IDENTIFIER
     fn parse_arrival(self) -> Option<Ident<'s>> {
-        let (token, _) = self.advance()?;
-        Some(Ident {
-            ident: token.str,
-            amendments: inline_amendment(token).into_iter().collect(),
-            errors: amendment_error(token)
-                .into_iter()
-                .chain(
-                    (!matches!(token.value, LexerTokenValue::Ident))
-                        .then_some(ParserIdentError::ExpectedArrIdent),
-                )
-                .collect(),
-        })
+        self.parse_endpoint(ParserIdentError::ExpectedArrIdent)
+            .map(|(arrival, _)| arrival)
+    }
+
+    fn has_matching_identifiers(self) -> bool {
+        matches!(
+            self.tokens,
+            [first, second, ..]
+                if matches!(first.value, LexerTokenValue::Ident)
+                    && matches!(second.value, LexerTokenValue::Ident)
+                    && first.str == second.str
+        )
+    }
+
+    fn parse_endpoint(self, expected: ParserIdentError) -> Option<(Ident<'s>, Self)> {
+        let (token, input) = self.advance()?;
+        let (duplicate, input) = if self.has_matching_identifiers() {
+            let (duplicate, input) = input.advance().expect("matching identifier exists");
+            (Some(duplicate), input)
+        } else {
+            (None, input)
+        };
+        Some((
+            Ident {
+                ident: token.str,
+                amendments: inline_amendment(token)
+                    .into_iter()
+                    .chain(duplicate.and_then(inline_amendment))
+                    .collect(),
+                errors: amendment_error(token)
+                    .into_iter()
+                    .chain(duplicate.and_then(amendment_error))
+                    .chain((!matches!(token.value, LexerTokenValue::Ident)).then_some(expected))
+                    .collect(),
+            },
+            input,
+        ))
     }
 
     // ident = (IDENTIFIER | IDENTIFIER_REFERENCE | GEO) (VFR | IFR)? | DIRECT
@@ -319,6 +336,106 @@ mod tests {
         );
         assert!(route.iter().all(|ident| ident.errors.is_empty()));
         assert!(route[1..].iter().all(|ident| ident.amendments.is_empty()));
+    }
+
+    #[test]
+    fn merges_matching_endpoint_identifiers_and_amendments() {
+        let route = parse("ZBAA ZBAA/01 K0300S0720 AVBOX8J  AVBOX DCT SASAN ZSPD/17L ZSPD");
+        assert_eq!(
+            route.iter().map(Ident::identifier).collect::<Vec<_>>(),
+            ["ZBAA", "AVBOX8J", "AVBOX", "DCT", "SASAN", "ZSPD"]
+        );
+        assert_eq!(
+            route[0].amendments,
+            [
+                IdentAmend::Runway("01".into()),
+                IdentAmend::SpeedAndAltitude {
+                    speed: Speed::KmH(300),
+                    altitude: CruisingLevel::MeterLevel(720),
+                },
+            ]
+        );
+        assert_eq!(route[5].amendments, [IdentAmend::Runway("17L".into())]);
+        assert!(route.iter().all(|ident| ident.errors.is_empty()));
+    }
+
+    #[test]
+    fn merges_endpoint_amendments_in_input_order() {
+        let route = parse("ZBAA/01 ZBAA/K0300S0720 ZSPD/K0400S0600 ZSPD/17L");
+        assert_eq!(route.len(), 2);
+        assert_eq!(
+            route[0].amendments,
+            [
+                IdentAmend::Runway("01".into()),
+                IdentAmend::SpeedAndAltitude {
+                    speed: Speed::KmH(300),
+                    altitude: CruisingLevel::MeterLevel(720),
+                },
+            ]
+        );
+        assert_eq!(
+            route[1].amendments,
+            [
+                IdentAmend::SpeedAndAltitude {
+                    speed: Speed::KmH(400),
+                    altitude: CruisingLevel::MeterLevel(600),
+                },
+                IdentAmend::Runway("17L".into()),
+            ]
+        );
+        assert!(route.iter().all(|ident| ident.errors.is_empty()));
+    }
+
+    #[test]
+    fn retains_invalid_amendments_on_either_endpoint_token() {
+        for input in [
+            "ZBAA/INVALID ZBAA/01 ZSPD/INVALID ZSPD/17L",
+            "ZBAA/01 ZBAA/INVALID ZSPD/17L ZSPD/INVALID",
+        ] {
+            let route = parse(input);
+            assert_eq!(route.len(), 2);
+            assert_eq!(route[0].amendments, [IdentAmend::Runway("01".into())]);
+            assert_eq!(route[1].amendments, [IdentAmend::Runway("17L".into())]);
+            assert!(
+                route
+                    .iter()
+                    .all(|ident| ident.errors == [ParserIdentError::InvalidAmendment])
+            );
+        }
+    }
+
+    #[test]
+    fn merges_only_one_matching_pair_at_each_endpoint() {
+        let route = parse("ZBAA ZBAA ZBAA VYK VYK ZSPD ZSPD ZSPD");
+        assert_eq!(
+            route.iter().map(Ident::identifier).collect::<Vec<_>>(),
+            ["ZBAA", "ZBAA", "VYK", "VYK", "ZSPD", "ZSPD"]
+        );
+        assert!(route.iter().all(|ident| ident.errors.is_empty()));
+
+        for input in ["ZBAA ZBAA ZSPD ZSPD", "ZBAA ZBAA K0300S0720 ZSPD ZSPD"] {
+            let route = parse(input);
+            assert_eq!(
+                route.iter().map(Ident::identifier).collect::<Vec<_>>(),
+                ["ZBAA", "ZSPD"]
+            );
+            assert!(route.iter().all(|ident| ident.errors.is_empty()));
+        }
+    }
+
+    #[test]
+    fn repeated_non_identifiers_are_not_merged() {
+        for token in ["DCT", "38N054E", "VYK180040"] {
+            let input = format!("{token} {token} ZSPD");
+            let route = parse(&input);
+            assert_eq!(route.len(), 3);
+            assert_eq!(route[0].errors, [ParserIdentError::ExpectedDepIdent]);
+
+            let input = format!("ZBAA {token} {token}");
+            let route = parse(&input);
+            assert_eq!(route.len(), 3);
+            assert_eq!(route[2].errors, [ParserIdentError::ExpectedArrIdent]);
+        }
     }
 
     #[test]
@@ -444,7 +561,12 @@ mod tests {
     #[test]
     fn handles_empty_and_incomplete_routes() {
         assert!(parse("").is_empty());
-        for input in ["ZBAA", "ZBAA K0830M0840"] {
+        for input in [
+            "ZBAA",
+            "ZBAA K0830M0840",
+            "ZBAA ZBAA/01",
+            "ZBAA ZBAA/01 K0830M0840",
+        ] {
             let route = parse(input);
             assert_eq!(route.len(), 1);
             assert_eq!(route[0].errors, [ParserIdentError::MissingArr]);

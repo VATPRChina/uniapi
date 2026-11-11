@@ -1,8 +1,8 @@
 use crate::error::ApiError;
-use crate::modules::user::models::UserRole;
 use crate::modules::event::dto::{EventSlotDto, EventSlotSaveRequest};
 use crate::modules::event::service::EventSlotView;
 use crate::modules::user::middleware::CurrentUser;
+use crate::modules::user::models::UserRole;
 use crate::services::Services;
 use axum::body::Body;
 use axum::extract::{Path, State};
